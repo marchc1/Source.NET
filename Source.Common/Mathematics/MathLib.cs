@@ -20,6 +20,12 @@ public static class MathLibConsts
 
 	public static readonly Vector3 vec3_origin = new(0, 0, 0);
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
+
+	public static Vector3 RandomAngularImpulse(float minVal, float maxVal){
+		Vector3 angImp = default;
+		angImp.Random(minVal, maxVal);
+		return angImp;
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 2, Size = 6)]
@@ -343,6 +349,24 @@ public static class MathLib
 		if (MathlibInitialized) return;
 		MathlibInitialized = true;
 		BuildGammaTable(gamma, texGamma, brightness, overbright);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float SimpleSplineRemapValClamped(float val, float A, float B, float C, float D) {
+		if (A == B)
+			return val >= B ? D : C;
+		float cval = (val - A) / (B - A);
+		cval = Math.Clamp(cval, 0.0f, 1.0f);
+		return C + (D - C) * SimpleSpline(cval);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static double SimpleSplineRemapValClamped(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		double cval = (val - A) / (B - A);
+		cval = Math.Clamp(cval, 0.0f, 1.0f);
+		return C + (D - C) * SimpleSpline(cval);
 	}
 
 	private static void BuildGammaTable(float gamma, float texGamma, float brightness, int overbright) {
@@ -2464,6 +2488,24 @@ public static class MathLib
 			float m = MathF.Max(MathF.Max(v.GetElement(0), v.GetElement(1)), v.GetElement(2));
 			return Vector128.Create(m);
 		}
+	}
+
+	public const float VALVE_RAND_MAX = 0x7fff;
+	public static vec_t rand(vec_t minVal, vec_t maxVal) {
+		return vec_t.Lerp(System.Random.Shared.Next(), minVal, maxVal);
+	}
+	public static vec_t rand() {
+		return System.Random.Shared.Next();
+	}
+	public static void Random(ref this Vector3 v, vec_t minVal, vec_t maxVal) {
+		fltx4 rn = Vector128.Create(rand() / VALVE_RAND_MAX, rand() / VALVE_RAND_MAX, rand() / VALVE_RAND_MAX, 0);
+		fltx4 mn = Vector128.Create(minVal);
+
+		StoreFloat3(ref v, Vector128.FusedMultiplyAdd(rn, Vector128.Subtract(Vector128.Create(maxVal), mn), mn));
+	}
+
+	public static void StoreFloat3(ref Vector3 v, fltx4 x4){
+		v = x4.AsVector3();
 	}
 
 	static void SetupMatrixAnglesInternal(ref this Matrix4x4 m, in QAngle angles) {

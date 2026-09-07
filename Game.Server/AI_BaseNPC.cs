@@ -1,11 +1,41 @@
-using Source.Common;
-using Source;
-
 using Game.Shared;
+
+using Source;
+using Source.Common;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+
+using System.Diagnostics;
+using System.Numerics;
 
 namespace Game.Server;
 
 using FIELD = FIELD<AI_BaseNPC>;
+
+public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vector3 dir, Mask mask) : IEntityEnumerator {
+	Vector3 VecDir = dir;
+	Mask ContentsMask = mask;
+	ref Ray Ray = ref ray;
+	TakeDamageInfo Info = info;
+
+	public bool EnumEntity(IHandleEntity? handleEntity) {
+		Trace tr = default;
+
+		BaseEntity? ent = gEntList.GetBaseEntity(handleEntity!.GetRefEHandle());
+
+		// Done to avoid hitting an entity that's both solid & a trigger.
+		if (ent!.IsSolid())
+			return true;
+
+		enginetrace.ClipRayToEntity(in Ray, ContentsMask, handleEntity, ref tr);
+		if (tr.Fraction < 1.0f) {
+			ent.DispatchTraceAttack(Info, VecDir, ref tr);
+			ApplyMultiDamage();
+		}
+
+		return true;
+	}
+}
 
 public class AI_BaseNPC : BaseCombatCharacter
 {

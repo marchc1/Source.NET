@@ -71,7 +71,7 @@ public class
 #else
 	GMODGameRules
 #endif
-	: GameRules
+	: MultiplayRules
 // TODO: AutoGameSystemPerFrame
 {
 	public override ReadOnlySpan<char> Name() => "GMODGameRules";

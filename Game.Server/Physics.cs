@@ -37,6 +37,18 @@ public static class PhysicsHookGlobals {
 		else 
 			Util.Remove(remove);
 	}
+
+	public static void PhysCallbackDamage(BaseEntity entity, in TakeDamageInfo info){
+		if (PhysIsInCallback()) {
+			BaseEntity inflictor = info.GetInflictor();
+			IPhysicsObject? inflictorPhysics = inflictor?.VPhysicsGetObject();
+			g_Collisions.AddDamageEvent(entity, info, inflictorPhysics, false, vec3_origin, vec3_origin);
+			if (entity != null && info.GetInflictor() != null) 
+				DevMsg(2, $"Warning: Physics damage event with no recovery info!\nObjects: {entity.GetClassname()}, {info.GetInflictor()!.GetClassname()}\n");
+		}
+		else 
+			entity.TakeDamage(info);
+	}
 }
 
 public class PhysicsHook : BaseGameSystemPerFrame

@@ -79,7 +79,7 @@ public partial class
 		pl.DeadFlag = false;
 		LifeState = (int)Source.LifeState.Alive;
 		Health = 100;
-		TakeDamage = 2; // DAMAGE_YES
+		m_takedamage = (byte)Damage.Yes;
 
 		Local.DrawViewmodel = true;
 		Local.StepSize = sv_stepsize.GetFloat();
@@ -174,7 +174,85 @@ public partial class
 #endif
 	}
 
+	public int GetDefaultFOV() {
+#if CLIENT_DLL
+	if ( GetObserverMode() == Shared.ObserverMode.InEye )
+	{
+		C_BasePlayer? targetPlayer = (C_BasePlayer?)GetObserverTarget();
+
+		if ( targetPlayer != null && !targetPlayer.IsObserver() )
+			return targetPlayer.GetDefaultFOV();
+	}
+#endif
+
+		float fov = DefaultFOV == 0 ? g_pGameRules.DefaultFOV() : DefaultFOV;
+		if (fov > MAX_FOV)
+			fov = MAX_FOV;
+
+		return (int)fov;
+	}
+
+	public bool SetFOV(BaseEntity requester, int fov, float zoomRate = 0, int zoomStart = 0){
+		Assert(requester != null);
+		if (requester == null)
+			return false;
+
+		// If we already have an owner, we only allow requests from that owner
+		if ((ZoomOwner.Get() != null) && (ZoomOwner.Get() != requester)) {
+#if GAME_DLL
+			if (EnvZoom.CanOverrideEnvZoomOwner(ZoomOwner.Get()) == false)
+#endif
+			return false;
+		}
+		else {
+			//FIXME: Maybe do this is as an accessor instead
+			if (fov == 0) 
+				ZoomOwner.Set(null);
+			else 
+				ZoomOwner.Set(requester);
+		}
+
+		// Setup our FOV and our scaling time
+
+		if (zoomStart > 0) 
+			FOVStart = zoomStart;
+		else 
+			FOVStart = (int)GetFOV();
+
+		FOVTime = gpGlobals.CurTime;
+		FOV = fov;
+
+		Local.FOVRate = zoomRate;
+
+		return true;
+	}
+
 	public InlineArrayMaxPlayerNameLength<char> Netname;
+
+
+	private void CacheVehicleView() {
+		if (VehicleViewSavedFrame == gpGlobals.FrameCount)
+			return;
+
+#if CLIENT_DLL
+		IClientVehicle? vehicle = GetVehicle();
+#else
+		IServerVehicle? vehicle = GetVehicle();
+#endif
+
+		if (vehicle != null) {
+			PassengerRole role = vehicle.GetPassengerRole(this);
+
+			// Get our view for this frame
+			vehicle.GetVehicleViewPosition(role, out VehicleViewOrigin, out VehicleViewAngles, out VehicleViewFOV);
+			VehicleViewSavedFrame = (int)gpGlobals.FrameCount;
+
+#if CLIENT_DLL
+			// todo: usevr?
+#endif
+		}
+	}
+
 
 	public ReadOnlySpan<char> GetPlayerName() {
 		return ((Span<char>)Netname).SliceNullTerminatedString();
@@ -334,6 +412,8 @@ public partial class
 
 		return maxSpeed;
 	}
+
+	public bool IsOnLadder() => GetMoveType() == Source.MoveType.Ladder;
 
 	int SkipStep;
 	public void UpdateStepSound(SurfaceData_ptr? surface, in Vector3 origin, in Vector3 velocity) {

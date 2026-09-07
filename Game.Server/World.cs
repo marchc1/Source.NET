@@ -15,7 +15,6 @@ using FIELD = Source.FIELD<World>;
 
 public static class WorldGlobals
 {
-	public static bool g_fGameOver = false;
 	public static World? GetWorldEntity() => World.g_WorldEntity;
 }
 

@@ -6,9 +6,11 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
+using System.Buffers;
 using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -16,6 +18,60 @@ using System.Runtime.CompilerServices;
 namespace Game.Server;
 
 using FIELD = Source.FIELD<BaseEntity>;
+
+#if HL2_DLL
+public enum Class_T
+{
+	None = 0,
+	Player,
+	PlayerAlly,
+	PlayerAllyVital,
+	Antlion,
+	Barnacle,
+	Bullseye,
+	//BULLSQUID,	
+	CitizenPassive,
+	CitizenRebel,
+	Combine,
+	CombineGunship,
+	Conscript,
+	Headcrab,
+	//Houndeye,
+	Manhack,
+	MetroPolice,
+	Military,
+	Scanner,
+	Stalker,
+	Vortigaunt,
+	Zombie,
+	ProtoSniper,
+	Missile,
+	Flare,
+	EarthFauna,
+	HackedRollermine,
+	CombineHunter,
+
+	NumAIClasses
+}
+
+#elif HL1_DLL
+#endif
+
+public struct InputData
+{
+	public BaseEntity? Activator;
+	public BaseEntity? Caller;
+	public Variant_t Value;
+	public int OutputID;
+}
+
+public struct ResponseContext
+{
+	public string Name;
+	public string Value;
+	public TimeUnit_t ExpirationTime;
+}
+
 public struct ThinkFunc
 {
 	public BaseEntity.BASEPTR? Think;
@@ -28,6 +84,13 @@ public enum EntityEvent
 	WaterTouch,
 	WaterUntouch,
 	ParentChanged
+}
+public enum ToggleState
+{
+	AtTop,
+	AtBottom,
+	GoingUp,
+	GoingDown
 }
 
 public static class BaseEntity_ConCommands
@@ -133,9 +196,21 @@ public partial class BaseEntity : IServerEntity
 
 	public delegate void BASEPTR(BaseEntity self);
 	public delegate void ENTITYFUNCPTR(BaseEntity self, BaseEntity? other);
+	public delegate void TOUCHPTR(BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+	public delegate void BLOCKPTR(BaseEntity? other);
 
 	public BASEPTR? FnThink;
+	public TOUCHPTR? FnTouch;
+	public USEPTR? FnUse;
+	public BLOCKPTR? FnBlocked;
+
+	/// <summary>
+	/// Classify - returns the type of group (i.e, "houndeye", or "human military" so that NPCs with different classnames
+	/// still realize that they are teammates. (overridden for NPCs that form groups)
+	/// </summary>
+	/// <returns></returns>
+	public virtual Class_T Classify() => Class_T.None;
 
 	static int PredictionRandomSeed = -1;
 	static BasePlayer? PredictionPlayer;
@@ -143,7 +218,7 @@ public partial class BaseEntity : IServerEntity
 	public static bool DisableTouchFuncs = false;
 	public static bool AccurateTriggerBboxChecks = true;
 
-	public const int TEAMNUM_NUM_BITS = 15; // < gmod increased 6 -> 15
+	public const int TEAMNUM_NUM_BITS = 15; // < gmod increased 6 . 15
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;
 	public virtual bool IsNPC() => false;
@@ -198,6 +273,17 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt (FIELD.OF(nameof(AnimTime)), 8, PropFlags.Unsigned|PropFlags.ChangesOften|PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_AnimTime),
 	]);
 
+	public virtual int Save(ISave save) { throw new NotImplementedException(); }
+	public virtual int Restore(IRestore save) { throw new NotImplementedException(); }
+	public virtual bool ShouldSavePhysics() => true;
+	public virtual void OnSave(IEntitySaveUtils utils){
+		// CalcAbsolutePosition();
+		// CalcAbsoluteVelocity();
+	}
+	public virtual void OnRestore(){
+
+	}
+
 	public static object? SendProxy_ClientSideAnimation(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
 		BaseAnimating? animating = entity.GetBaseAnimating();
@@ -242,7 +328,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropBool( FIELD.OF(nameof( AlternateSorting ))),
 
 		// The rest of this is Garry's Mod specific in order
-		SendPropInt(FIELD.OF(nameof(TakeDamage)), 8),
+		SendPropInt(FIELD.OF(nameof(m_takedamage)), 8),
 		SendPropInt(FIELD.OF(nameof(RealClassName)), 16, PropFlags.Unsigned),
 
 		SendPropInt(FIELD.OF(nameof(OverrideMaterial)), 16, PropFlags.Unsigned, SendProxy_OverrideMaterial),
@@ -574,16 +660,16 @@ public partial class BaseEntity : IServerEntity
 			ParentAttachment = (byte)attachment;
 
 			EntityMatrix matrix = default, childMatrix = default;
-			matrix.InitFromEntity(parentEntity, ParentAttachment); // parent->world
-			childMatrix.InitFromEntityLocal(this); // child->world
+			matrix.InitFromEntity(parentEntity, ParentAttachment); // parent.world
+			childMatrix.InitFromEntityLocal(this); // child.world
 			Vector3 localOrigin = matrix.WorldToLocal(GetLocalOrigin());
 
 			// I have the axes of local space in world space. (childMatrix)
 			// I want to compute those world space axes in the parent's local space
 			// and set that transform (as angles) on the child's object so the net
 			// result is that the child is now in parent space, but still oriented the same way
-			Matrix4x4 tmp = matrix.Transpose(); // world->parent
-			tmp.MatrixMul(childMatrix, out matrix.Underlying); // child->parent
+			Matrix4x4 tmp = matrix.Transpose(); // world.parent
+			tmp.MatrixMul(childMatrix, out matrix.Underlying); // child.parent
 			MathLib.MatrixToAngles(matrix, out QAngle angles);
 			SetLocalAngles(angles);
 			Util.SetOrigin(this, localOrigin);
@@ -696,7 +782,7 @@ public partial class BaseEntity : IServerEntity
 	public bool AnimatedEveryTick;
 	public bool AlternateSorting;
 
-	public byte TakeDamage;
+	public byte m_takedamage;
 	public ushort RealClassName;
 	public ushort OverrideMaterial;
 	public InlineArray32<ushort> OverrideSubMaterials;
@@ -761,8 +847,334 @@ public partial class BaseEntity : IServerEntity
 	public float Friction;
 	public long SimulationTick;
 
+	public virtual Vector3 BodyTarget(in Vector3 posSrc, bool noisy) => WorldSpaceCenter();
+	public virtual Vector3 HeadTarget(in Vector3 posSrc) => EyePosition();
 
-	public bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
+	public virtual int GetMaxHealth() => MaxHealth;
+	public void GetMaxHealth(int amt) => MaxHealth = amt;
+
+	public int GetHealth() => Health;
+	public int SetHealth(int amt) => Health = amt;
+
+	public float HealthFraction() {
+		if (GetMaxHealth() == 0)
+			return 1.0f;
+
+		float fraction = (float)GetHealth() / (float)GetMaxHealth();
+		fraction = Math.Clamp(fraction, 0.0f, 1.0f);
+		return fraction;
+	}
+
+	public int TakeHealth(float health, DamageType damageType) {
+		if (Edict() == null || (Damage)m_takedamage < Damage.Yes)
+			return 0;
+
+		int iMax = GetMaxHealth();
+
+		// heal
+		if (Health >= iMax)
+			return 0;
+
+		int oldHealth = Health;
+
+		Health += (int)health;
+
+		if (Health > iMax)
+			Health = iMax;
+
+		return Health - oldHealth;
+	}
+
+	static int TakeDamage__warningCount = 0;
+
+	public int TakeDamage(in TakeDamageInfo inputInfo) {
+		if (null == g_pGameRules)
+			return 0;
+
+		bool bHasPhysicsForceDamage = !g_pGameRules.Damage_NoPhysicsForce(inputInfo.GetDamageType());
+		if (bHasPhysicsForceDamage && inputInfo.GetDamageType() != DamageType.Generic) {
+			// If you hit this assert, you've called TakeDamage with a damage type that requires a physics damage
+			// force & position without specifying one or both of them. Decide whether your damage that's causing 
+			// this is something you believe should impart physics force on the receiver. If it is, you need to 
+			// setup the damage force & position inside the CTakeDamageInfo (Utility functions for this are in
+			// takedamageinfo.cpp. If you think the damage shouldn't cause force (unlikely!) then you can set the 
+			// damage type to DMG_GENERIC, or | DMG_CRUSH if you need to preserve the damage type for purposes of HUD display.
+
+			if (inputInfo.GetDamageForce() == vec3_origin || inputInfo.GetDamagePosition() == vec3_origin) {
+				if (++TakeDamage__warningCount < 10) {
+					if (inputInfo.GetDamageForce() == vec3_origin)
+						DevWarning("CBaseEntity::TakeDamage:  with inputInfo.GetDamageForce() == vec3_origin\n");
+					if (inputInfo.GetDamagePosition() == vec3_origin)
+						DevWarning("CBaseEntity::TakeDamage:  with inputInfo.GetDamagePosition() == vec3_origin\n");
+				}
+			}
+		}
+
+		// Make sure our damage filter allows the damage.
+		if (!PassesDamageFilter(in inputInfo))
+			return 0;
+
+		if (!g_pGameRules.AllowDamage(this, in inputInfo))
+			return 0;
+
+
+		if (PhysIsInCallback())
+			PhysCallbackDamage(this, in inputInfo);
+		else {
+			TakeDamageInfo info = inputInfo;
+
+			// Scale the damage by the attacker's modifier.
+			if (info.GetAttacker() != null)
+				info.ScaleDamage(info.GetAttacker()!.GetAttackDamageScale(this));
+
+			// Scale the damage by my own modifiers
+			info.ScaleDamage(GetReceivedDamageScale(info.GetAttacker()));
+
+			//Msg("%s took %.2f Damage, at %.2f\n", GetClassname(), info.GetDamage(), gpGlobals.curtime );
+
+			return OnTakeDamage(info);
+		}
+		return 0;
+	}
+
+	public readonly LinkedList<DamageModifier> DamageModifiers = [];
+
+	public virtual float GetAttackDamageScale(BaseEntity? victim) {
+		float flScale = 1;
+		foreach (var damageModifier in DamageModifiers)
+			if (!damageModifier.IsDamageDoneToMe())
+				flScale *= damageModifier.GetModifier();
+		return flScale;
+	}
+
+	EHANDLE DamageFilter;
+
+	public virtual bool PassesDamageFilter(in TakeDamageInfo info) {
+		if (DamageFilter.Get() != null) {
+			BaseFilter filter = (BaseFilter)DamageFilter.Get()!;
+			return filter.PassesDamageFilter(in info);
+		}
+		return true;
+	}
+
+	public virtual float GetReceivedDamageScale(BaseEntity? victim) {
+		float flScale = 1;
+		foreach (var damageModifier in DamageModifiers)
+			if (damageModifier.IsDamageDoneToMe())
+				flScale *= damageModifier.GetModifier();
+		return flScale;
+	}
+
+	public virtual void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
+	public virtual void NetworkStateChanged(IFieldAccessor accessor) => NetworkProp().NetworkStateChanged(accessor);
+
+	public int VPhysicsTakeDamage(in TakeDamageInfo info) {
+		// don't let physics impacts or fire cause objects to move (again)
+		bool bNoPhysicsForceDamage = g_pGameRules.Damage_NoPhysicsForce(info.GetDamageType());
+		if (bNoPhysicsForceDamage || info.GetDamageType() == DamageType.Generic)
+			return 1;
+
+		Assert(VPhysicsGetObject() != null);
+		if (VPhysicsGetObject() != null) {
+			Vector3 force = info.GetDamageForce();
+			Vector3 offset = info.GetDamagePosition();
+
+			// If you hit this assert, you've called TakeDamage with a damage type that requires a physics damage
+			// force & position without specifying one or both of them. Decide whether your damage that's causing 
+			// this is something you believe should impart physics force on the receiver. If it is, you need to 
+			// setup the damage force & position inside the CTakeDamageInfo (Utility functions for this are in
+			// takedamageinfo.cpp. If you think the damage shouldn't cause force (unlikely!) then you can set the 
+			// damage type to DMG_GENERIC, or | DMG_CRUSH if you need to preserve the damage type for purposes of HUD display.
+#if !TF_DLL
+			Assert(force != vec3_origin && offset != vec3_origin);
+#else
+			// todo
+#endif
+
+			PhysicsFlags gameFlags = VPhysicsGetObject()!.GetGameFlags();
+			if ((gameFlags & PhysicsFlags.PlayerHeld) != 0) {
+				// if the player is holding the object, use it's real mass (player holding reduced the mass)
+				BasePlayer? player = Util.GetLocalPlayer();
+				if (player != null) {
+					float mass = player.GetHeldObjectMass(VPhysicsGetObject()!);
+					if (mass != 0.0f) {
+						float ratio = VPhysicsGetObject()!.GetMass() / mass;
+						force *= ratio;
+					}
+				}
+			}
+			else if ((gameFlags & PhysicsFlags.PartOfRagdoll) != 0 && (gameFlags & PhysicsFlags.ConstraintStatic) != 0) {
+				IPhysicsObject[] list = ArrayPool<IPhysicsObject>.Shared.Rent(VPHYSICS_MAX_OBJECT_LIST_COUNT);
+				int count = VPhysicsGetObjectList(list);
+				for (int i = 0; i < count; i++) {
+					if (0 == (list[i].GetGameFlags() & PhysicsFlags.ConstraintStatic)) {
+						list[i].ApplyForceOffset(force, offset);
+						return 1;
+					}
+				}
+
+			}
+			VPhysicsGetObject()!.ApplyForceOffset(force, offset);
+		}
+
+		return 1;
+	}
+
+
+	public void SetLocalVelocity(in Vector3 velocity) {
+		Vector3 vecVelocity = velocity;
+
+		// Safety check against receive a huge impulse, which can explode physics
+		switch (CheckEntityVelocity(ref vecVelocity)) {
+			case -1:
+				Warning($"Discarding SetLocalVelocity({vecVelocity.X},{vecVelocity.Y},{vecVelocity.Z}) on {GetDebugName()}\n");
+				Assert(false);
+				return;
+			case 0:
+				if (CheckEmitReasonablePhysicsSpew())
+					Warning($"Clamping SetLocalVelocity({velocity.X},{velocity.Y},{velocity.Z}) on {GetDebugName()}\n");
+				break;
+		}
+
+		if (Velocity != vecVelocity) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+			Velocity = vecVelocity;
+		}
+	}
+	public void ApplyLocalVelocityImpulse(in Vector3 vecImpulse) {
+
+	}
+	public void SetAbsVelocity(in Vector3 absVelocity) {
+		if (AbsVelocity == absVelocity)
+			return;
+
+		// The abs velocity won't be dirty since we're setting it here
+		// All children are invalid, but we are not
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+		RemoveEFlags(EFL.DirtyAbsVelocity);
+
+		AbsVelocity = absVelocity;
+
+		// NOTE: Do *not* do a network state change in this case.
+		// m_vecVelocity is only networked for the player, which is not manual mode
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) {
+			Velocity = absVelocity;
+			return;
+		}
+
+		// First subtract out the parent's abs velocity to get a relative
+		// velocity measured in world space
+		Vector3 relVelocity;
+		MathLib.VectorSubtract(AbsVelocity, moveParent.GetAbsVelocity(), out relVelocity);
+
+		// Transform relative velocity into parent space
+		Vector3 vNew;
+		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out vNew);
+		Velocity = vNew;
+	}
+	public void ApplyAbsVelocityImpulse(in Vector3 vecImpulse) {
+
+	}
+	public void ApplyLocalAngularVelocityImpulse(in Vector3 angImpulse) {
+
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public ref readonly Vector3 WorldAlignMins() {
+		Assert(!CollisionProp().IsBoundsDefinedInEntitySpace());
+		Assert(CollisionProp().GetCollisionAngles() == vec3_angle);
+		return ref CollisionProp().OBBMins();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public ref readonly Vector3 WorldAlignMaxs() {
+		Assert(!CollisionProp().IsBoundsDefinedInEntitySpace());
+		Assert(CollisionProp().GetCollisionAngles() == vec3_angle);
+		return ref CollisionProp().OBBMaxs();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public ref readonly Vector3 WorldAlignSize() {
+		Assert(!CollisionProp().IsBoundsDefinedInEntitySpace());
+		Assert(CollisionProp().GetCollisionAngles() == vec3_angle);
+		return ref CollisionProp().OBBSize();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public float BoundingRadius() => CollisionProp().BoundingRadius();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public bool IsPointSized() => CollisionProp().BoundingRadius() == 0.0f;
+	public virtual int OnTakeDamage(in TakeDamageInfo info) {
+		Vector3 vecTemp = default;
+
+		if (Edict() == null || (Damage)m_takedamage == 0)
+			return 0;
+
+		if (info.GetInflictor() != null)
+			vecTemp = info.GetInflictor()!.WorldSpaceCenter() - (WorldSpaceCenter());
+		else
+			vecTemp.Init(1, 0, 0);
+
+
+		// this global is still used for glass and other non-NPC killables, along with decals.
+		g_vecAttackDir = vecTemp;
+		MathLib.VectorNormalize(ref g_vecAttackDir);
+
+		// save damage based on the target's armor level
+
+		// figure momentum add (don't let hurt brushes or other triggers move player)
+
+		// physics objects have their own calcs for this: (don't let fire move things around!)
+		if (!IsEFlagSet(EFL.NoDamageForces)) {
+			if ((GetMoveType() == Source.MoveType.VPhysics)) {
+				VPhysicsTakeDamage(info);
+			}
+			else {
+				if (info.GetInflictor() != null && (GetMoveType() == Source.MoveType.Walk || GetMoveType() == Source.MoveType.Step) &&
+					!info.GetAttacker()!.IsSolidFlagSet(SolidFlags.Trigger)) {
+					Vector3 vecDir, vecInflictorCentroid;
+					vecDir = WorldSpaceCenter();
+					vecInflictorCentroid = info.GetInflictor()!.WorldSpaceCenter();
+					vecDir -= vecInflictorCentroid;
+					MathLib.VectorNormalize(ref vecDir);
+
+					Vector3 worldSize = WorldAlignSize();
+					float flForce = info.GetDamage() * ((32 * 32 * 72.0f) / (worldSize.X * worldSize.Y * worldSize.Z)) * 5;
+
+					if (flForce > 1000.0f)
+						flForce = 1000.0f;
+					ApplyAbsVelocityImpulse(vecDir * flForce);
+				}
+			}
+		}
+
+		if ((Damage)m_takedamage != Damage.EventsOnly) {
+			// do the damage
+			Health -= (int)info.GetDamage();
+			if (Health <= 0) {
+				Event_Killed(info);
+				return 0;
+			}
+		}
+
+		return 1;
+	}
+
+	public virtual void Event_KilledOther(BaseEntity killed, in TakeDamageInfo info) {
+
+	}
+
+	public virtual void Event_Killed(in TakeDamageInfo info) {
+		info.GetAttacker()?.Event_KilledOther(this, info);
+
+		m_takedamage = (byte)Damage.No;
+		LifeState = (int)Source.LifeState.Dead;
+		Util.Remove(this);
+	}
+
+	public static bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
 		if (entity == null)
 			return false;
 
@@ -827,26 +1239,7 @@ public partial class BaseEntity : IServerEntity
 			SetSimulationTime(gpGlobals.CurTime);
 		}
 	}
-	internal void SetLocalVelocity(in Vector3 velocity) {
-		Vector3 vecVelocity = velocity;
 
-		// Safety check against receive a huge impulse, which can explode physics
-		switch (CheckEntityVelocity(ref vecVelocity)) {
-			case -1:
-				Warning($"Discarding SetLocalVelocity({vecVelocity.X},{vecVelocity.Y},{vecVelocity.Z}) on {GetDebugName()}\n");
-				Assert(false);
-				return;
-			case 0:
-				if (CheckEmitReasonablePhysicsSpew())
-					Warning($"Clamping SetLocalVelocity({velocity.X},{velocity.Y},{velocity.Z}) on {GetDebugName()}\n");
-				break;
-		}
-
-		if (Velocity != vecVelocity) {
-			InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
-			Velocity = vecVelocity;
-		}
-	}
 	public string? Name;
 
 	public string GetEntityName() {
@@ -1156,36 +1549,6 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetBaseVelocity() => ref BaseVelocity;
 	public void SetBaseVelocity(in Vector3 v) => BaseVelocity = v;
 
-	public void SetAbsVelocity(in Vector3 absVelocity) {
-		if (AbsVelocity == absVelocity)
-			return;
-
-		// The abs velocity won't be dirty since we're setting it here
-		// All children are invalid, but we are not
-		InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
-		RemoveEFlags(EFL.DirtyAbsVelocity);
-
-		AbsVelocity = absVelocity;
-
-		// NOTE: Do *not* do a network state change in this case.
-		// m_vecVelocity is only networked for the player, which is not manual mode
-		BaseEntity? moveParent = GetMoveParent();
-		if (moveParent == null) {
-			Velocity = absVelocity;
-			return;
-		}
-
-		// First subtract out the parent's abs velocity to get a relative
-		// velocity measured in world space
-		Vector3 relVelocity;
-		MathLib.VectorSubtract(AbsVelocity, moveParent.GetAbsVelocity(), out relVelocity);
-
-		// Transform relative velocity into parent space
-		Vector3 vNew;
-		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out vNew);
-		Velocity = vNew;
-	}
-
 	public void SetAbsOrigin(Vector3 vector3) {
 		AssertMsg(vector3.IsValid(), "Invalid origin set");
 
@@ -1290,7 +1653,7 @@ public partial class BaseEntity : IServerEntity
 					return;
 				}
 
-				// Plop the entity->parent matrix into m_rgflCoordinateFrame
+				// Plop the entity.parent matrix into m_rgflCoordinateFrame
 				MathLib.AngleMatrix(Rotation, Origin, out CoordinateFrame);
 
 				BaseEntity? moveParent = GetMoveParent();
@@ -1309,10 +1672,10 @@ public partial class BaseEntity : IServerEntity
 					MathLib.MatrixGetColumn(CoordinateFrame, 3, out AbsOrigin);
 
 					// if we have any angles, we have to extract our absolute angles from our matrix
-					if ((Rotation == vec3_angle) && (ParentAttachment == 0)) 
+					if ((Rotation == vec3_angle) && (ParentAttachment == 0))
 						// just copy our parent's absolute angles
 						MathLib.VectorCopy(moveParent.GetAbsAngles(), out AbsRotation);
-					else 
+					else
 						MathLib.MatrixAngles(CoordinateFrame, out AbsRotation);
 				}
 
@@ -1325,6 +1688,66 @@ public partial class BaseEntity : IServerEntity
 				ReportPositionChanged(this);
 		}
 	}
+
+	public virtual void Use(BaseEntity? activator, BaseEntity? caller, UseType useType, float value) {
+		if (FnUse != null)
+			FnUse(activator, caller, useType, value);
+		else
+			Parent.Get()?.Use(activator, caller, useType, value);
+	}
+
+	public string? Target;
+	public BaseEntity? GetNextTarget() {
+		if (Target == null)
+			return null;
+		return gEntList.FindEntityByName(null, Target);
+	}
+
+	public void TraceAttackToTriggers(in TakeDamageInfo info, in Vector3 start, in Vector3 end, in Vector3 dir) {
+		Ray ray = default;
+		ray.Init(start, end);
+
+		TriggerTraceEnum triggerTraceEnum = new(ref ray, info, dir, Mask.Shot);
+		enginetrace.EnumerateEntities(ray, true, ref triggerTraceEnum);
+	}
+
+	public virtual void Think() {
+		if (FnThink != null)
+			FnThink(this);
+	}
+		
+	public virtual EntityCapabilities ObjectCaps() {
+		Model? model = GetModel();
+		bool isBrush = (model != null && modelinfo.GetModelType(model) == ModelType.Brush);
+
+		// We inherit our parent's use capabilities so that we can forward use commands
+		// to our parent.
+		BaseEntity? parent = GetParent();
+		if (parent != null) {
+			EntityCapabilities caps = parent.ObjectCaps();
+
+			if (!isBrush)
+				caps &= (EntityCapabilities.AcrossTransition | EntityCapabilities.ImpulseUse | EntityCapabilities.ContinuousUse | EntityCapabilities.OnOffUse | EntityCapabilities.DirectionalUse);
+			else
+				caps &= (EntityCapabilities.ImpulseUse | EntityCapabilities.ContinuousUse | EntityCapabilities.OnOffUse | EntityCapabilities.DirectionalUse);
+
+			if (parent.IsPlayer())
+				caps |= EntityCapabilities.AcrossTransition;
+
+			return caps;
+		}
+		else if (!isBrush)
+			return EntityCapabilities.AcrossTransition;
+
+		return 0;
+	}
+
+	public virtual void StartTouch(BaseEntity? other) { }
+	public virtual void Touch(BaseEntity? other) { }
+	public virtual void EndTouch(BaseEntity? other) { }
+	public virtual void StartBlocked(BaseEntity? other) { }
+	public virtual void Blocked(BaseEntity? other) { }
+	public virtual void EndBlocked() { }
 
 	private void ReportPositionChanged(BaseEntity baseEntity) {
 		throw new NotImplementedException();
@@ -1345,9 +1768,6 @@ public partial class BaseEntity : IServerEntity
 		vecMaxs = default;
 	}
 	private float GetFriction() => Friction;
-
-	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
-	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
 
 	internal void SetTransmit(CheckTransmitInfo info, bool always) {
 		int entIndex = EntIndex();

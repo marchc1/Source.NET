@@ -60,6 +60,7 @@ using System.Text;
 public static class BaseEntityConstants
 {
 	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 -> 8
+	public const int VPHYSICS_MAX_OBJECT_LIST_COUNT = 1024;
 }
 
 [Flags]
@@ -193,6 +194,12 @@ public partial class
 			parms.SoundName = g_pGameRules.TranslateEffectForVisionFilter("sounds", parms.SoundName);
 #endif
 	}
+
+	public void DispatchTraceAttack(in TakeDamageInfo info, in Vector3 dir, ref Trace ptr, ref DmgAccumulator accumulator) {
+
+	}
+	public void DispatchTraceAttack(in TakeDamageInfo info, in Vector3 dir, ref Trace ptr)
+		=> DispatchTraceAttack(in info, in dir, ref ptr, ref Unsafe.NullRef<DmgAccumulator>());
 
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
 		// Are we currently in a think function with a context?
@@ -610,7 +617,7 @@ public partial class
 		// todo
 		return 0;
 	}
-	public virtual void ParseMapData(EntityMapData mapData){
+	public virtual void ParseMapData(EntityMapData mapData) {
 		// The map data (and the parser) are byte-based (C++ char*); decode each key/value to ASCII
 		// char spans here so KeyValue can work in ReadOnlySpan<char>.
 		Span<byte> keyNameBytes = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];

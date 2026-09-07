@@ -28,6 +28,31 @@ public class GameServerClientMethods
 		}
 	}
 
+
+	static void kill_helper(in TokenizedCommand args, bool explode) {
+		// TODO: if (args.ArgC() > 1 && sv_cheats.GetBool()) {
+		// TODO: 	// Find the matching netname
+		// TODO: 	for (int i = 1; i <= gpGlobals->maxClients; i++) {
+		// TODO: 		CBasePlayer* pPlayer = ToBasePlayer(UTIL_PlayerByIndex(i));
+		// TODO: 		if (pPlayer) {
+		// TODO: 			if (Q_strstr(pPlayer->GetPlayerName(), args[1])) {
+		// TODO: 				pPlayer->CommitSuicide(bExplode);
+		// TODO: 			}
+		// TODO: 		}
+		// TODO: 	}
+		// TODO: }
+		//else {
+		BasePlayer? player = Util.GetCommandClient();
+		if (player != null)
+			player.CommitSuicide(explode);
+		//}
+	}
+
+	[ConCommand(helpText: "Kills the player with generic damage")]
+	static void kill(in TokenizedCommand args) => kill_helper(in args, false);
+	[ConCommand(helpText: "Kills the player with explosive damage")]
+	static void explode(in TokenizedCommand args) => kill_helper(in args, true);
+
 	public static void ClientPrecache() {
 		BaseEntity.PrecacheModel("cable/cable.vmt");
 		BaseEntity.PrecacheModel("cable/cable_lit.vmt");
@@ -164,7 +189,7 @@ public static class HostSV
 			if (!(client.IsNetClient()))   // Not a client ? (should never be true)
 				continue;
 
-			if (teamOnly && g_pGameRules!.PlayerCanHearChat(client, player) == GameRulesPlayerRelationship.NotTeammate)
+			if (teamOnly && !g_pGameRules!.PlayerCanHearChat(client, player))
 				continue;
 
 			// if (player != null && !client.CanHearAndReadChatFrom(player))

@@ -44,11 +44,11 @@ public abstract class EngineTrace : IEngineTrace
 		throw new NotImplementedException();
 	}
 
-	public void EnumerateEntities(in Ray ray, bool triggers, IEntityEnumerator enumerator) {
+	public void EnumerateEntities<IEE>(in Ray ray, bool triggers, scoped ref IEE enumerator) where IEE : IEntityEnumerator, allows ref struct {
 		throw new NotImplementedException();
 	}
 
-	public void EnumerateEntities(in Vector3 absMins, in Vector3 absMaxs, IEntityEnumerator enumerator) {
+	public void EnumerateEntities<IEE>(in Vector3 absMins, in Vector3 absMaxs, scoped ref IEE enumerator) where IEE : IEntityEnumerator, allows ref struct {
 		throw new NotImplementedException();
 	}
 

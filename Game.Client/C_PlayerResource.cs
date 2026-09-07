@@ -1,4 +1,5 @@
-﻿namespace Game.Client;
+﻿global using static Game.Client.PlayerResourceGlobals;
+namespace Game.Client;
 
 using Game.Shared;
 
@@ -6,6 +7,10 @@ using Source.Common;
 
 using FIELD = Source.FIELD<C_PlayerResource>;
 
+public static class PlayerResourceGlobals
+{
+	public static C_PlayerResource? g_pPlayerResource;
+}
 public class C_PlayerResource : C_BaseEntity
 {
 	public static readonly RecvTable DT_PlayerResource = new([

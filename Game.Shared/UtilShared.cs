@@ -3,6 +3,7 @@ global using static Game.Util_Globals;
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 
@@ -110,6 +111,9 @@ public static partial class Util
 #if CLIENT_DLL
 	public static BasePlayer PlayerByIndex(int entindex) => ToBasePlayer(cl_entitylist.GetEnt(entindex));
 #endif
+	static readonly ConVar developer = new("developer", "0", 0, "Set developer message level" ); // developer mode
+
+	public static Contents PointContents(in Vector3 vec) => enginetrace.GetPointContents(vec, out _);
 
 	// UTIL_StringToColor32: parses "r g b a" into a color.
 	public static void StringToColor32(out Color color, ReadOnlySpan<char> pString) {
@@ -196,6 +200,24 @@ public static partial class Util
 		return ret;
 	}
 
+	public static void TraceEntity(BaseEntity entity, in Vector3 absStart, in Vector3 absEnd, Mask mask, out Trace ptr) {
+		ICollideable collision = entity.GetCollideable()!;
+
+		// Adding this assertion here so game code catches it, but really the assertion belongs in the engine
+		// because one day, rotated collideables will work!
+		Assert(collision.GetCollisionAngles() == vec3_angle);
+
+		TraceFilterEntity traceFilter = new(entity, collision.GetCollisionGroup());
+
+		ptr = default;
+#if PORTAL
+		// TODO:
+		UTIL_Portal_TraceEntity(pEntity, vecAbsStart, vecAbsEnd, mask, &traceFilter, ptr);
+#else
+		enginetrace.SweepCollideable(collision, absStart, absEnd, collision.GetCollisionAngles(), mask, ref traceFilter, ref ptr);
+#endif
+	}
+
 	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
 		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
 
@@ -252,8 +274,26 @@ public static partial class Util
 	}
 }
 
-public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
+public delegate bool ShouldHitFunc(IHandleEntity handleEntity, Contents contentsMask);
+
+public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup, ShouldHitFunc? extraShouldHitCheckFn = null) : ITraceFilter
 {
+	public IHandleEntity? PassEntity = passentity;
+	public CollisionGroup CollisionGroup = collisionGroup;
+	public ShouldHitFunc? ExtraShouldHitCheckFunction = extraShouldHitCheckFn;
+
+	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
+		throw new NotImplementedException();
+	}
+}
+
+public struct TraceFilterEntity(BaseEntity entity, CollisionGroup collisionGroup) : ITraceFilter
+{
+	public TraceFilterSimple TraceFilterSimple = new TraceFilterSimple { PassEntity = entity, CollisionGroup = collisionGroup };
+	public BaseEntity? RootParent = entity.GetRootMoveParent();
+	public BaseEntity? Entity = entity;
+	public bool CheckHash = g_EntityCollisionHash.IsObjectInHash(entity);
+
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
 		throw new NotImplementedException();
 	}

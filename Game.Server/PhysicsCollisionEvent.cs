@@ -1,5 +1,9 @@
-﻿using Source.Common;
+﻿using Game.Shared;
+
+using Source.Common;
 using Source.Common.Physics;
+
+using System.Numerics;
 
 namespace Game.Server;
 
@@ -8,6 +12,11 @@ public class CollisionEvent : IPhysicsCollisionEvent, IPhysicsCollisionSolver, I
 	int inCallback;
 	readonly List<IServerNetworkable> removeObjects = [];
 	public bool IsInCallback() => inCallback > 0;
+
+
+	public virtual void AddDamageEvent(BaseEntity entity, in TakeDamageInfo info, IPhysicsObject inflictorPhysics, bool restoreVelocity, in Vector3 savedVel, in Vector3 savedAngVel) {
+		// todo
+	}
 
 	public int AdditionalCollisionChecksThisTick(int currentChecksDone) {
 		throw new NotImplementedException();

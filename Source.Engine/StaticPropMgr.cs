@@ -639,7 +639,7 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 
 	public IHandleEntity? GetEntityHandle() => this;
 
-	public int GetCollisionGroup() => (int)CollisionGroup.None;
+	public CollisionGroup GetCollisionGroup() => CollisionGroup.None;
 
 	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
 		// This should never be called..

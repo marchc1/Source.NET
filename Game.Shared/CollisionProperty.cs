@@ -223,6 +223,7 @@ public class CollisionProperty : ICollideable
 	public Vector3 MaxsPreScaled;
 	public Vector3 Mins;
 	public Vector3 Maxs;
+	public Vector3 Size;
 	float Radius;
 	public ushort SolidFlags;
 	SpatialPartitionHandle_t Partition;
@@ -417,8 +418,11 @@ public class CollisionProperty : ICollideable
 	public ref readonly Vector3 OBBMaxsPreScaled() => ref MaxsPreScaled;
 
 	public ref readonly Vector3 OBBMins() => ref Mins;
-
 	public ref readonly Vector3 OBBMaxs() => ref Maxs;
+	public ref readonly Vector3 OBBSize(){
+		MathLib.VectorSubtract(Maxs, Mins, out Size);
+		return ref Size;
+	}
 
 	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) {
 		if (MinsPreScaled != mins || MaxsPreScaled != maxs) {
@@ -522,7 +526,7 @@ public class CollisionProperty : ICollideable
 		throw new NotImplementedException();
 	}
 
-	public int GetCollisionGroup() {
+	public CollisionGroup GetCollisionGroup() {
 		throw new NotImplementedException();
 	}
 

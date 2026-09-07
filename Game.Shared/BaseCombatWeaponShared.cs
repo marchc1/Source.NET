@@ -59,8 +59,60 @@ using DEFINE = Source.DEFINE<BaseCombatWeapon>;
 using Microsoft.VisualBasic;
 
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Reflection.Metadata;
 
 #endif
+
+public struct DmgAccumulator
+{
+	public DmgAccumulator() {
+
+		Active = false;
+#if GAME_DLL
+		TargetsDmgInfo = [];
+#endif
+	}
+
+#if GAME_DLL
+	public void Start() => Active = true;
+	public void AccumulateMultiDamage(in TakeDamageInfo info, BaseEntity? entity) {
+		if (null == entity)
+			return;
+
+		Assert(Active);
+
+#if GAME_DLL
+		ref TakeDamageInfo tInfo = ref CollectionsMarshal.GetValueRefOrNullRef(TargetsDmgInfo, entity.EntIndex());
+		if (!Unsafe.IsNullRef(ref tInfo)) {
+			// Update
+			tInfo.AddDamageType(info.GetDamageType());
+			tInfo.SetDamage(tInfo.GetDamage() + info.GetDamage());
+			tInfo.SetDamageForce(tInfo.GetDamageForce() + info.GetDamageForce());
+			tInfo.SetDamagePosition(info.GetDamagePosition());
+			tInfo.SetReportedPosition(info.GetReportedPosition());
+			tInfo.SetMaxDamage(Math.Max(tInfo.GetMaxDamage(), info.GetDamage()));
+			tInfo.SetAmmoType(info.GetAmmoType());
+		}
+#endif
+	}
+	public void Process() {
+		foreach (var kvp in TargetsDmgInfo) {
+			BaseEntity? entity = Util.EntityByIndex(kvp.Key);
+			if (entity != null)
+				AddMultiDamage(kvp.Value, entity);
+		}
+
+		Active = false;
+		TargetsDmgInfo.Clear();
+	}
+
+	TakeDamageInfo UpdatedInfo;
+	readonly Dictionary<int, TakeDamageInfo> TargetsDmgInfo;
+#endif
+
+	private bool Active;
+}
 
 public partial class
 #if CLIENT_DLL
@@ -946,7 +998,7 @@ public partial class
 	public bool FiringWholeClip;
 	public const string HIDEWEAPON_THINK_CONTEXT = "BaseCombatWeapon_HideThink";
 
-	public virtual bool Holster(BaseCombatWeapon switchingTo) {
+	public virtual bool Holster(BaseCombatWeapon? switchingTo = null) {
 		InReload = false;
 		FiringWholeClip = false;
 

@@ -18,6 +18,7 @@ using Source.Common;
 using Source;
 
 using FIELD = Source.FIELD<HL2MPGameRulesProxy>;
+
 using Game.Shared;
 
 public class
@@ -70,9 +71,18 @@ public class
 #else
 	HL2MPGameRules
 #endif
-	: GameRules
+	: MultiplayRules
 // TODO: AutoGameSystemPerFrame
 {
+	public
+#if CLIENT_DLL
+		C_HL2MPGameRules
+#else
+		HL2MPGameRules
+#endif
+	() : base() {
+
+	}
 	public override ReadOnlySpan<char> Name() => "HL2MPGameRules";
 	public bool TeamPlayEnabled;
 }

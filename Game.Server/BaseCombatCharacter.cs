@@ -54,6 +54,12 @@ public partial class BaseCombatCharacter : BaseFlex
 
 		return data;
 	}
+	public void ClearLastKnownArea() {
+		// TODO
+	}
+
+	public int WeaponCount() => MAX_WEAPONS;
+	public BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
 

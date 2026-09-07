@@ -575,7 +575,7 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(Collision)))),
 
 		// gmod specific
-		RecvPropInt(FIELD.OF(nameof(TakeDamage))),
+		RecvPropInt(FIELD.OF(nameof(m_takedamage))),
 		RecvPropInt(FIELD.OF(nameof(RealClassName))),
 
 		RecvPropInt(FIELD.OF(nameof(OverrideMaterial))),
@@ -718,7 +718,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public PredictableId PredictableID = new();
 
-	public byte TakeDamage;
+	public byte m_takedamage;
 	public ushort RealClassName;
 	public ushort OverrideMaterial;
 	public InlineArray32<ushort> OverrideSubMaterials;
@@ -1646,6 +1646,15 @@ public partial class C_BaseEntity : IClientEntity
 
 		return true;
 	}
+
+
+	// stubs on client
+	public void NetworkStateManualMode(bool _) { }
+	public void NetworkStateChanged() { }
+	public void NetworkStateChanged(IFieldAccessor _) { }
+	public void NetworkStateSetUpdateInterval(float _) { }
+	public void NetworkStateForceUpdate() { }
+
 
 	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();

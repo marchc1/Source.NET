@@ -188,6 +188,7 @@ public enum PlayerPhysFlag
 
 public partial class BasePlayer : BaseCombatCharacter
 {
+	public const int SF_NORESPAWN = 1 << 30;
 	public static readonly SendTable DT_PlayerState = new([
 		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
@@ -472,8 +473,75 @@ public partial class BasePlayer : BaseCombatCharacter
 	public InButtons AfButtonDisabled;
 	public InButtons AfButtonForced;
 
+	public virtual void EquipSuit(bool playEffects = false) {
+		Local.WearingSuit = true;
+	}
+
+	public virtual void RemoveSuit() {
+		Local.WearingSuit = false;
+	}
+
 	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		return ViewModel[index].Get();
+	}
+
+	public virtual BaseEntity? GetObserverTarget() => null; // todo
+
+	public Vector3 VehicleViewOrigin;
+	public QAngle VehicleViewAngles;
+	public float VehicleViewFOV;
+	public int VehicleViewSavedFrame;
+
+	public int GetFOVForNetworking() {
+		int defaultFOV;
+
+		// The vehicle's FOV wins if we're asking for a default value
+		if (GetVehicle() != null) {
+			CacheVehicleView();
+			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : (int)VehicleViewFOV;
+		}
+		else 
+			defaultFOV = GetDefaultFOV();
+
+		int fFOV = (FOV == 0) ? defaultFOV : FOV;
+
+		// If it's immediate, just do it
+		if (Local.FOVRate == 0.0f)
+			return fFOV;
+
+		if (gpGlobals.CurTime - FOVTime < Local.FOVRate) 
+			fFOV = Math.Min(fFOV, FOVStart);
+		
+		return fFOV;
+	}
+
+	public int GetFOV(){
+		int defaultFOV;
+
+		// The vehicle's FOV wins if we're asking for a default value
+		if (GetVehicle() != null) {
+			CacheVehicleView();
+			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : (int)VehicleViewFOV;
+		}
+		else {
+			defaultFOV = GetDefaultFOV();
+		}
+
+		int fFOV = (FOV == 0) ? defaultFOV : FOV;
+
+		// If it's immediate, just do it
+		if (Local.FOVRate == 0.0f)
+			return fFOV;
+
+		TimeUnit_t deltaTime = (float)(gpGlobals.CurTime - FOVTime) / Local.FOVRate;
+
+		if (deltaTime >= 1.0f) 
+			//If we're past the zoom time, just take the new value and stop lerping
+			FOVStart = fFOV;
+		else 
+			fFOV = (int)MathLib.SimpleSplineRemapValClamped(deltaTime, 0.0f, 1.0f, FOVStart, fFOV);
+
+		return fFOV;
 	}
 
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
@@ -1061,6 +1129,15 @@ public partial class BasePlayer : BaseCombatCharacter
 		return base.ShouldTransmit(info);
 	}
 
+	public int Frags;
+	public int Deaths;
+
+	public int FragCount() => Frags;
+	public int DeathCount() => Deaths;
+	public bool IsConnected() => Connected != PlayerConnectedState.Disconnected;
+	public bool IsDisconnecting() => Connected == PlayerConnectedState.Disconnecting;
+	public bool IsSuitEquipped() => Local.WearingSuit;
+
 	const float SMOOTHING_FACTOR = 0.9f;
 	public virtual void PostThink() {
 		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
@@ -1214,6 +1291,109 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	public virtual bool IsNetClient() => false;
+
+	TimeUnit_t NextSuicideTime;
+	int SuicideCustomKillFlags;
+
+	public virtual float GetHeldObjectMass(IPhysicsObject? heldObject) => 0;
+
+	internal void CommitSuicide(bool explode = false, bool force = false) {
+		if (!IsAlive())
+			return;
+
+		// prevent suiciding too often
+		if (NextSuicideTime > gpGlobals.CurTime && !force)
+			return;
+
+		// don't let them suicide for 5 seconds after suiciding
+		NextSuicideTime = gpGlobals.CurTime + 5;
+
+		DamageType fDamage = DamageType.PreventPhysicsForce | (explode ? (DamageType.Blast | DamageType.AlwaysGib) : DamageType.NeverGib);
+
+		// have the player kill themself
+		Health = 0;
+		TakeDamageInfo info = new(this, this, 0, fDamage, SuicideCustomKillFlags);
+		Event_Killed(info);
+		Event_Dying(info);
+		SuicideCustomKillFlags = 0;
+	}
+
+	public bool ClearUseEntity() {
+		if (UseEntity.Get() != null) {
+			// Stop controlling the train/object
+			// TODO: Send HUD Update
+			UseEntity.Get().Use(this, this, UseType.Off, 0);
+			UseEntity.Set(null);
+			return true;
+		}
+
+		return false;
+	}
+
+	public override void Event_Killed(in TakeDamageInfo info) {
+		ref WorldSoundInstance sound = ref Unsafe.NullRef<WorldSoundInstance>();
+
+		// todo: Hints()?.ResetHintTimers();
+
+		g_pGameRules.PlayerKilled(this, info);
+
+		// todo: gamestats.Event_PlayerKilled(this, info);
+
+		// todo: RumbleEffect(RUMBLE_STOP_ALL, 0, RUMBLE_FLAGS_NONE);
+
+		ClearUseEntity();
+
+		// this client isn't going to be thinking for a while, so reset the sound until they respawn
+		sound = ref SoundEnt.SoundPointerForIndex(SoundEnt.ClientSoundIndex(Edict()));
+		if (!Unsafe.IsNullRef<WorldSoundInstance>(ref sound))
+			sound.Reset();
+
+		// don't let the status bar glitch for players with <0 health.
+		if (Health < -99)
+			Health = 0;
+
+		// holster the current weapon
+		GetActiveWeapon()?.Holster();
+
+		SetAnimation(PlayerAnim.Die);
+
+		if (!IsObserver())
+			SetViewOffset(VEC_DEAD_VIEWHEIGHT_SCALED(this));
+
+		LifeState = (int)Source.LifeState.Dying;
+
+		pl.DeadFlag = true;
+		AddSolidFlags(SolidFlags.NotSolid);
+		// force contact points to get flushed if no longer valid
+		// UNDONE: Always do this on RecheckCollisionFilter() ?
+		IPhysicsObject? pObject = VPhysicsGetObject();
+		pObject?.RecheckContactPoints();
+
+		SetMoveType(Source.MoveType.FlyGravity);
+		SetGroundEntity(null);
+
+		// clear out the suit message cache so we don't keep chattering
+		SetSuitUpdate(null, false, 0);
+
+		// reset FOV
+		SetFOV(this, 0);
+
+		if (FlashlightIsOn())
+			FlashlightTurnOff();
+
+		DeathTime = gpGlobals.CurTime;
+
+		ClearLastKnownArea();
+		base.Event_Killed(in info);
+	}
+
+	public virtual void SetFlashlightEnabled() { }
+	public virtual bool FlashlightIsOn() => false;
+	public virtual void FlashlightTurnOn() { }
+	public virtual void FlashlightTurnOff() { }
+	public virtual bool IsIlluminatedByFlashlight(BaseEntity entity, ref float _) => false;
+
+	public void Event_Dying(in TakeDamageInfo info) { }
 
 	readonly char[] NetworkIDString = new char[Constants.MAX_NETWORKID_LENGTH];
 }

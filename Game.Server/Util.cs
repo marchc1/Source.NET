@@ -9,6 +9,7 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Engine.Server;
 
@@ -141,6 +142,61 @@ public static partial class Util_Globals
 	public static bool FStrEq(ReadOnlySpan<char> sz1, ReadOnlySpan<char> sz2)
 		=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 }
+
+public struct EntitySphereQuery{
+	public const int MAX_SPHERE_QUERY = 512;
+
+	public EntitySphereQuery(in Vector3 center, float radius, EntityFlags flagMask = 0){
+		ListIndex = 0;
+		ListCount = Util.EntitiesInSphere(List, center, radius, flagMask);
+	}
+	public BaseEntity? GetCurrentEntity(){
+		if (ListIndex < ListCount)
+			return List[ListIndex];
+		return null;
+	}
+	public void NextEntity() => ListIndex++;
+
+	[InlineArray(MAX_SPHERE_QUERY)]	struct InlineArrayMaxSphereQuery<T>{ public T first; }
+	int ListIndex;
+	int ListCount;
+	InlineArrayMaxSphereQuery<BaseEntity?> List;
+}
+
+public ref struct FlaggedEntitiesEnum : IPartitionEnumerator {
+	public FlaggedEntitiesEnum(Span<BaseEntity> list, EntityFlags flagMask){
+		List = list;
+		FlagMask = flagMask;
+		Count = 0;
+	}
+
+	public IterationRetval EnumElement(IHandleEntity? handleEntity){
+		BaseEntity? entity = gEntList.GetBaseEntity(handleEntity.GetRefEHandle());
+		if (entity != null) {
+			if (FlagMask != 0 && 0 == (entity.GetFlags() & FlagMask))  // Does it meet the criteria?
+				return IterationRetval.Continue;
+
+			if (!AddToList(entity))
+				return IterationRetval.Stop;
+		}
+
+		return IterationRetval.Continue;
+	}
+	public int GetCount() => Count;
+	public bool AddToList(BaseEntity? entity){
+		if(Count >= List.Length){
+			AssertMsg(false, "reached enumerated list limit.  Increase limit, decrease radius, or make it so entity flags will work for you");
+			return false;
+		}
+		List[Count++] = entity;
+		return true;
+	}
+
+	Span<BaseEntity> List;
+	EntityFlags FlagMask;
+	int Count;
+}
+
 public static partial class Util
 {
 	public static bool g_bDisableEhandleAccess = false;
@@ -157,8 +213,37 @@ public static partial class Util
 
 		ent.SetCollisionBounds(mins, maxs);
 	}
+
+	public static BasePlayer? GetLocalPlayer(){
+		if (gpGlobals.MaxClients > 1) {
+			if (developer.GetBool()) {
+				AssertMsg(false, "Util.GetLocalPlayer");
+#if	DEBUG
+				Warning("Util.GetLocalPlayer() called in multiplayer game.\n");
+#endif
+			}
+
+			if (!engine.IsDedicatedServer()) // Raphael: I don't want broken stuff :/ (I should probably go thru all functions that use this and edit them to support multiplayer properly. Also look into AI_GetSinglePlayer)
+				return Util.PlayerByIndex(1);
+
+			return null;
+		}
+
+		return Util.PlayerByIndex(1);
+	}
+
 	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max) {
 		SetMinMaxSize(ent, min, max);
+	}
+
+	public static int EntitiesInSphere(Span<BaseEntity> list, in Vector3 center, float radius, EntityFlags flagMask){
+		FlaggedEntitiesEnum sphereEnum = new(list, flagMask);
+		return EntitiesInSphere(center, radius, ref sphereEnum);
+	}
+
+	public static int EntitiesInSphere(in Vector3 center, float radius, scoped ref FlaggedEntitiesEnum enumerator) {
+		partition.EnumerateElementsInSphere((int)PartitionListMask.EngineNonStaticEdicts, center, radius, false, ref enumerator);
+		return enumerator.GetCount();
 	}
 
 	public static void SayTextFilter<T>(scoped in T filter, ReadOnlySpan<char> pText, BasePlayer? player, bool chat) where T : IRecipientFilter {
@@ -204,7 +289,7 @@ public static partial class Util
 	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) {
 		BaseEntity? entity = CreateEntityByName(className);
 		if (entity == null) {
-			Warning("NULL Ent in UTIL_PrecacheOther\n");
+			Warning("NULL Ent in Util.PrecacheOther\n");
 			return;
 		}
 
@@ -271,8 +356,8 @@ public static partial class Util
 
 	public static BasePlayer? GetListenServerHost() {
 		if (engine.IsDedicatedServer()) {
-			Assert("UTIL_GetListenServerHost");
-			Warning("UTIL_GetListenServerHost() called from a dedicated server or single-player game.\n");
+			Assert("Util.GetListenServerHost");
+			Warning("Util.GetListenServerHost() called from a dedicated server or single-player game.\n");
 			return null;
 		}
 
@@ -387,7 +472,7 @@ public static partial class Util
 		}
 
 
-		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or UTIL_Remove.
+		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or Util.Remove.
 
 		g_bReceivedChainedUpdateOnRemove = false;
 		oldObj.UpdateOnRemove();
@@ -417,7 +502,7 @@ public static partial class Util
 	internal static void SetModel(BaseEntity baseEntity, ReadOnlySpan<char> modelName) {
 		int i = modelinfo.GetModelIndex(modelName);
 		if (i == -1)
-			Error($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  UTIL_SetModel:  not precached: {modelName}\n");
+			Error($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  Util.SetModel:  not precached: {modelName}\n");
 
 		BaseAnimating? animating = baseEntity.GetBaseAnimating();
 		animating?.ForceBone = 0;
