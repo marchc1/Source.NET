@@ -505,8 +505,8 @@ public partial class BaseEntity : IServerEntity
 	EHANDLE Parent;
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
-	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
-	public ref readonly QAngle GetLocalAngles() => ref AbsRotation;
+	public ref readonly Vector3 GetLocalOrigin() => ref __nv_Origin;
+	public ref readonly QAngle GetLocalAngles() => ref __nv_Rotation;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
 		outData.Int = entity.OverrideMaterial;
@@ -1577,9 +1577,27 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
+	static bool s_bAbsQueriesValid;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void SetAbsQueriesValid(bool valid) => s_bAbsQueriesValid = valid;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAbsQueriesValid() => s_bAbsQueriesValid;
+
+	public ref readonly Vector3 GetAbsOrigin() {
+		Assert(BaseEntity.IsAbsQueriesValid());
+
+		if (IsEFlagSet(EFL.DirtyAbsTransform)) 
+			this.CalcAbsolutePosition();
+		
+		return ref AbsOrigin;
+	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
-	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
+	public ref readonly QAngle GetAbsAngles(){
+		Assert(BaseEntity.IsAbsQueriesValid());
+
+		if (IsEFlagSet(EFL.DirtyAbsTransform))
+			this.CalcAbsolutePosition();
+
+		return ref AbsRotation;
+	}
 
 	public void SetLocalOrigin(in Vector3 origin) {
 		// if (!IsEntityPositionReasonable(origin)) {
