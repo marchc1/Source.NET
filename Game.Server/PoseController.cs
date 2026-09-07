@@ -7,8 +7,8 @@ using FIELD = FIELD<PoseController>;
 public class PoseController : BaseEntity
 {
 	public static readonly SendTable DT_PoseController = new(DT_BaseEntity, [
-		SendPropInt(FIELD.OF(nameof(HProps)), 23, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(ChPoseIndex)), 5, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(HProps)), SendPropEHandle(FIELD.OF_ARRAYINDEX(nameof(HProps), 0))),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(ChPoseIndex)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(ChPoseIndex), 0), 5, PropFlags.Unsigned)),
 		SendPropBool(FIELD.OF(nameof(PoseValueParity))),
 		SendPropFloat(FIELD.OF(nameof(PoseValue)), 11, 0),
 		SendPropFloat(FIELD.OF(nameof(InterpolationTime)), 11, 0),
@@ -21,8 +21,9 @@ public class PoseController : BaseEntity
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PoseController", DT_PoseController).WithManualClassID(StaticClassIndices.CPoseController);
 
-	public int HProps;
-	public int ChPoseIndex;
+	public const int MAX_POSE_CONTROLLED_PROPS = 4;
+	public InlineArray4<EHANDLE> HProps;
+	public InlineArray4<byte> ChPoseIndex;
 	public bool PoseValueParity;
 	public float PoseValue;
 	public float InterpolationTime;

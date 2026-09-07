@@ -590,9 +590,9 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropBool(FIELD.OF(nameof(OnFire))),
 		RecvPropFloat(FIELD.OF(nameof(CreationTime))),
 
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 0)),
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 1)),
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 2)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 0)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 1)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 2)),
 
 		// NW2 table
 		RecvPropGModTable(FIELD.OF(nameof(GMOD_DataTable))),

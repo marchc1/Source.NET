@@ -343,9 +343,9 @@ public partial class BaseEntity : IServerEntity
 		SendPropBool(FIELD.OF(nameof(OnFire))),
 		SendPropFloat(FIELD.OF(nameof(CreationTime)), 0, PropFlags.NoScale),
 
-		SendPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 0), 0, PropFlags.NoScale | PropFlags.ChangesOften),
-		SendPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 1), 0, PropFlags.NoScale | PropFlags.ChangesOften),
-		SendPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 2), 0, PropFlags.NoScale | PropFlags.ChangesOften),
+		SendPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 0), 0, PropFlags.NoScale | PropFlags.ChangesOften),
+		SendPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 1), 0, PropFlags.NoScale | PropFlags.ChangesOften),
+		SendPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 2), 0, PropFlags.NoScale | PropFlags.ChangesOften),
 
 		SendPropGModTable(FIELD.OF(nameof(GMOD_DataTable))),
 
