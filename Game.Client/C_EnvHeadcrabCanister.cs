@@ -25,7 +25,7 @@ public class C_EnvHeadcrabCanisterShared
 	public float SkyboxScale;
 	public bool InSkybox;
 
-	public static readonly RecvTable DT_EnvHeadcrabCanisterShared = new([
+	public static readonly RecvTable DT_EnvHeadcrabCanisterShared = new("DT_EnvHeadcrabCanisterShared", [
 		RecvPropFloat(Source.FIELD<C_EnvHeadcrabCanisterShared>.OF(nameof(FlightSpeed))),
 		RecvPropTime(Source.FIELD<C_EnvHeadcrabCanisterShared>.OF(nameof(LaunchTime))),
 		RecvPropVector(Source.FIELD<C_EnvHeadcrabCanisterShared>.OF(nameof(ParabolaDirection))),

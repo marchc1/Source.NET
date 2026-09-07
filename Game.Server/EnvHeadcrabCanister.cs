@@ -25,7 +25,7 @@ public class EnvHeadcrabCanisterShared
 	public float SkyboxScale;
 	public bool InSkybox;
 
-	public static readonly SendTable DT_EnvHeadcrabCanisterShared = new([
+	public static readonly SendTable DT_EnvHeadcrabCanisterShared = new("DT_EnvHeadcrabCanisterShared", [
 		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(FlightSpeed)), 0, PropFlags.NoScale),
 		SendPropTime(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(LaunchTime))),
 		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(ParabolaDirection)), 0, PropFlags.NoScale),

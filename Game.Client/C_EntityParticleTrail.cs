@@ -11,7 +11,7 @@ public class C_EntityParticleTrailInfo
 	public float StartSize;
 	public float EndSize;
 
-	public static readonly RecvTable DT_EntityParticleTrailInfo = new([
+	public static readonly RecvTable DT_EntityParticleTrailInfo = new("DT_EntityParticleTrailInfo", [
 		RecvPropFloat(Source.FIELD<C_EntityParticleTrailInfo>.OF(nameof(Lifetime))),
 		RecvPropFloat(Source.FIELD<C_EntityParticleTrailInfo>.OF(nameof(StartSize))),
 		RecvPropFloat(Source.FIELD<C_EntityParticleTrailInfo>.OF(nameof(EndSize))),

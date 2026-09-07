@@ -11,7 +11,7 @@ public class EntityParticleTrailInfo
 	public float StartSize;
 	public float EndSize;
 
-	public static readonly SendTable DT_EntityParticleTrailInfo = new([
+	public static readonly SendTable DT_EntityParticleTrailInfo = new("DT_EntityParticleTrailInfo", [
 		SendPropFloat(Source.FIELD<EntityParticleTrailInfo>.OF(nameof(Lifetime)), 0, PropFlags.NoScale),
 		SendPropFloat(Source.FIELD<EntityParticleTrailInfo>.OF(nameof(StartSize)), 0, PropFlags.NoScale),
 		SendPropFloat(Source.FIELD<EntityParticleTrailInfo>.OF(nameof(EndSize)), 0, PropFlags.NoScale),
