@@ -200,6 +200,8 @@ public partial class BaseEntity : IServerEntity
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
 	public delegate void BLOCKPTR(BaseEntity? other);
 
+	public virtual int RequiredEdictIndex() => -1;
+
 	public BASEPTR? FnThink;
 	public TOUCHPTR? FnTouch;
 	public USEPTR? FnUse;

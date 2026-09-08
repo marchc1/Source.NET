@@ -22,7 +22,7 @@ public static class WorldGlobals
 public class World : BaseEntity
 {
 	public static World? g_WorldEntity { get; private set; }
-
+	public override int RequiredEdictIndex() => 0;
 	public static SendTable DT_World = new([
 		SendPropDataTable("baseclass", DT_BaseEntity),
 
@@ -38,6 +38,8 @@ public class World : BaseEntity
 
 	public World() {
 		AddEFlags(EFL.NoAutoEdictAttach | EFL.KeepOnRecreateEntities);
+		NetworkProp().AttachEdict(INDEXENT(RequiredEdictIndex()));
+
 		ActivityList.Init();
 		SetSolid(Source.SolidType.BSP);
 		SetMoveType(Source.MoveType.None);
