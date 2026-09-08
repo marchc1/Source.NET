@@ -716,4 +716,33 @@ public class GameServer : BaseServer
 		}
 #endif
 	}
+
+	internal void BroadcastSound<T>(SoundInfo sound, T filter) where T : IRecipientFilter {
+		int num = filter.GetRecipientCount();
+
+		// don't add sounds while paused, unless we're in developer mode
+		if (IsPaused() && 0 == Host.developer.GetInt())
+			return;
+
+		for (int i = 0; i < num; i++) {
+			int index = filter.GetRecipientIndex(i);
+
+			if (index < 1 || index > GetClientCount()) {
+				Msg("CGameServer::BroadcastSound:  Recipient Filter for sound (reliable: %s, init: %s) with bogus client index (%i) in list of %i clients\n",
+						filter.IsReliable() ? "yes" : "no",
+						filter.IsInitMessage() ? "yes" : "no",
+						index, num);
+
+				continue;
+			}
+
+			GameClient client = Client(index - 1)!;
+
+			// client must be fully connect to hear sounds
+			if (client.IsActive()) 
+				continue;
+
+			client.SendSound(sound, filter.IsReliable());
+		}
+	}
 }

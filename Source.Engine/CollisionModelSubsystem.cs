@@ -3,6 +3,7 @@ global using static Source.Engine.CollisionBSPDataStatic;
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
@@ -762,6 +763,16 @@ public static partial class CM
 
 		checksum = 0; // << Wtf, this never gets set in the engine? What's the point then???
 		return;
+	}
+
+	public static void WorldSpaceCenter(ICollideable collideable, out Vector3 center) {
+		MathLib.VectorAdd(collideable.OBBMins(), collideable.OBBMaxs(), out Vector3 vecLocalCenter);
+		vecLocalCenter *= 0.5f;
+
+		if ((collideable.GetCollisionAngles() == vec3_angle) || (vecLocalCenter == vec3_origin))
+			MathLib.VectorAdd(vecLocalCenter, collideable.GetCollisionOrigin(), out center);
+		else
+			MathLib.VectorTransform(vecLocalCenter, collideable.CollisionToWorldTransform(), out center);
 	}
 
 	public static void FreeMap() {

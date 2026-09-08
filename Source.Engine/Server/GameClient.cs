@@ -6,6 +6,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Networking;
 
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace Source.Engine.Server;
@@ -576,4 +577,37 @@ public class GameClient : BaseClient
 	}
 
 	public override bool IgnoreTempEntity(EventInfo evnt) { return false; } // todo
+
+	internal void SendSound(SoundInfo sound, bool isReliable) {
+		if (IsFakeClient() && !IsHLTV())
+			return;
+
+		if (IsInReplayMode)
+			return;
+
+		if (isReliable) {
+			SVC_Sounds sndmsg = new();
+			byte[] buffer = ArrayPool<byte>.Shared.Rent(32);
+
+			SoundSequence = (SoundSequence + 1) & SOUND_SEQNUMBER_MASK;   // increase own sound sequence counter
+			sound.SequenceNumber = 0; // don't transmit nSequenceNumber for reliable sounds
+
+			sndmsg.DataOut.StartWriting(buffer, buffer.Length);
+			sndmsg.NumSounds = 1;
+			sndmsg.ReliableSound = true;
+
+			SoundInfo defaultSound = default; defaultSound.SetDefault();
+
+			sound.WriteDelta(ref defaultSound, sndmsg.DataOut);
+
+			// send reliable sound as single message
+			SendNetMsg(sndmsg, true);
+			ArrayPool<byte>.Shared.Return(buffer);
+			return;
+		}
+
+		sound.SequenceNumber = SoundSequence;
+
+		Sounds.Add(sound);  // queue sounds until snapshot is send
+	}
 }

@@ -452,7 +452,7 @@ public class AudioSystem : IAudioSystem
 		return (uint)(secondsLeft * info.Frequency);
 	}
 
-	private static int StealDynamicChannel(SoundSource soundsource, int entchannel, in Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
+	private static int StealDynamicChannel(SoundSource soundsource, int entchannel, in Vector3 origin, SfxTable? sfx, TimeUnit_t delay, bool doNotOverwriteExisting) {
 		Span<int> canSteal = stackalloc int[MAX_DYNAMIC_CHANNELS];
 		int canStealCount = 0;
 
@@ -589,7 +589,7 @@ public class AudioSystem : IAudioSystem
 		return -1;
 	}
 
-	private int PickDynamicChannel(SoundSource soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
+	private int PickDynamicChannel(SoundSource soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable? sfx, TimeUnit_t delay, bool doNotOverwriteExisting) {
 		Precache(sfx!);
 
 		int channel = StealDynamicChannel(soundsource, (int)entchannel, in origin, sfx, delay, doNotOverwriteExisting);

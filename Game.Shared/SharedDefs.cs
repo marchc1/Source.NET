@@ -741,7 +741,7 @@ public ref struct EmitSound_t
 	public bool WarnOnMissingCloseCaption;
 	public bool WarnOnDirectWaveReference;
 	public int SpeakerEntity;
-	public Source.InlineArray16<Vector3> SoundOrigin;
+	public List<Vector3>? SoundOrigin;
 	public int NumSoundOrigin;
 	public HSOUNDSCRIPTHANDLE SoundScriptHandle;
 }

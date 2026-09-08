@@ -39,16 +39,16 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		lastGuid = (int)Sound.StartSound(in parms);
 	}
 
-	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int sentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
+	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int sentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
 		throw new NotImplementedException();
 	}
 
-	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, float attenuation, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
+	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, float attenuation, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
 		EmitSound(filter, entIndex, channel, sample, volume, ATTN_TO_SNDLVL(attenuation), flags,
 			pitch, specialDSP, origin, direction, origins, updatePositions, soundTime, speakerEntity);
 	}
 
-	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
+	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
 		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence)) {
 			int sentenceIndex = -1;
 			// VOX_LookupString(SoundCharsUtils.SkipSoundChars(sample), &sentenceIndex); TODO
@@ -63,7 +63,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 				flags, pitch, specialDSP, origin, direction, origins, updatePositions, soundTime, speakerEntity);
 	}
 
-	private void EmitSoundInternal<T>(T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags, int pitch, int specialDSP, in Vector3 origin, in Vector3 direction, ReadOnlySpan<Vector3> origins, bool updatePositions, double soundTime, int speakerEntity) where T : IRecipientFilter {
+	private void EmitSoundInternal<T>(T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags, int pitch, int specialDSP, in Vector3? origin, in Vector3? direction, List<Vector3>? origins, bool updatePositions, double soundTime, int speakerEntity) where T : IRecipientFilter {
 		if (volume < 0 || volume > 1) {
 			Warning($"EmitSound: volume out of bounds = {volume}\n");
 			return;
@@ -101,8 +101,8 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		if (sound == null)
 			return;
 
-		Vector3 startOrigin = Unsafe.IsNullRef(in origin) ? new(0) : origin;
-		Vector3 startDirection = Unsafe.IsNullRef(in direction) ? new(0) : direction;
+		Vector3 startOrigin = !origin.HasValue ? new(0) : origin.Value;
+		Vector3 startDirection = !direction.HasValue ? new(0) : direction.Value;
 		if (soundSource == SOUND_FROM_UI_PANEL) {
 			startOrigin = new(0);
 			startDirection = new(0);

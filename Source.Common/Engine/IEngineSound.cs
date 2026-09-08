@@ -35,15 +35,15 @@ public interface IEngineSound
 	// player (client-side only)
 	void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample,
 		float volume, float attenuation, SoundFlags flags = 0, int pitch = PITCH_NORM, int specialDSP = 0,
-		in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
+		in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
 
 	void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample,
 		float volume, SoundLevel soundlevel, SoundFlags flags = 0, int pitch = PITCH_NORM, int specialDSP = 0,
-		in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
+		in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
 
 	void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int iSentenceIndex,
 		float volume, SoundLevel soundlevel, SoundFlags flags = 0, int pitch = PITCH_NORM, int specialDSP = 0,
-		in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
+		in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, TimeUnit_t soundTime = 0.0f, int speakerEntity = -1 ) where T : IRecipientFilter;
 
 	void StopSound(int entIndex, int channel, ReadOnlySpan<char> pSample );
 

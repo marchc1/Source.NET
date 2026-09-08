@@ -160,7 +160,7 @@ public struct StartSoundParams
 	public int Pitch;
 	public int SpecialDSP;
 	public bool FromServer;
-	public float Delay;
+	public TimeUnit_t Delay;
 	public int SpeakerEntity;
 	public bool SuppressRecording;
 	public int InitialStreamPosition;
