@@ -64,8 +64,8 @@ public class GameMovement : IGameMovement
 		SpeedCropped = SpeedCropped.Reset;
 
 		// StartTrackPredictionErrors should have set this
-		Assert(Player == player);
-		Player = player;
+		Assert(this.Player == player);
+		this.Player = player;
 		mv = pMove;
 
 		mv.MaxSpeed = player.GetPlayerMaxSpeed();
@@ -82,10 +82,10 @@ public class GameMovement : IGameMovement
 	}
 
 	public void StartTrackPredictionErrors(BasePlayer player) {
-		Player = player;
+		this.Player = player;
 	}
 
-	protected MoveData? mv;
+	protected MoveData mv = null!;
 
 	protected WaterLevel OldWaterLevel;
 	protected TimeUnit_t WaterEntryTime;

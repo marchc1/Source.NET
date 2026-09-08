@@ -57,14 +57,6 @@ public enum Class_T
 #elif HL1_DLL
 #endif
 
-public struct InputData
-{
-	public BaseEntity? Activator;
-	public BaseEntity? Caller;
-	public Variant_t Value;
-	public int OutputID;
-}
-
 public struct ResponseContext
 {
 	public string Name;
@@ -1024,6 +1016,14 @@ public partial class BaseEntity : IServerEntity
 
 	public ref readonly QAngle GetLocalAngularVelocity() => ref AngVelocity;
 
+	public void ComputeAbsPosition(in Vector3 localPosition, out Vector3 absPosition) {
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null)
+			absPosition = localPosition;
+		else
+			MathLib.VectorTransform(localPosition, moveParent.EntityToWorldTransform(), out absPosition);
+	}
+
 	public void SetLocalAngularVelocity(in QAngle vecAngVelocity){
 		if (!IsEntityQAngleVelReasonable(vecAngVelocity)) {
 			if (CheckEmitReasonablePhysicsSpew()) 
@@ -1446,6 +1446,7 @@ public partial class BaseEntity : IServerEntity
 
 	/// <summary>
 	/// The equiv of the dtor (kinda...)
+	/// see CBaseEntity::~CBaseEntity() etc
 	/// </summary>
 	public virtual void Term() {
 		VPhysicsDestroyObject();

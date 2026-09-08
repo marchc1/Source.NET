@@ -21,7 +21,7 @@ public static class MathLibConsts
 	public static readonly Vector3 vec3_origin = new(0, 0, 0);
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
 
-	public static Vector3 RandomAngularImpulse(float minVal, float maxVal){
+	public static Vector3 RandomAngularImpulse(float minVal, float maxVal) {
 		Vector3 angImp = default;
 		angImp.Random(minVal, maxVal);
 		return angImp;
@@ -1316,6 +1316,24 @@ public static class MathLib
 		Vector3DMultiplyPositionProjective(in volumeToWorld, in volumeSpacePos, out Vector3 worldPos);
 		AddPointToBounds(in worldPos, ref mins, ref maxs);
 	}
+	public static void CalcClosestPointOnLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vClosest, out float outT) {
+		Assert(MathlibInitialized);
+		float t = CalcClosestPointToLineT(P, vLineA, vLineB, out Vector3 vDir);
+		outT = t;
+		VectorMA(vLineA, t, vDir, out vClosest);
+	}
+	public static float CalcDistanceToLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out float outT) {
+		Assert(MathlibInitialized);
+		CalcClosestPointOnLine(P, vLineA, vLineB, out Vector3 vClosest, out outT);
+		return P.DistTo(vClosest);
+	}
+
+	public static float CalcDistanceSqrToLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out float outT) {
+		Assert(MathlibInitialized);
+		CalcClosestPointOnLine(P, vLineA, vLineB, out Vector3 vClosest, out outT);
+		return P.DistToSqr(vClosest);
+	}
+
 
 	public static void CalculateAABBFromProjectionMatrixInverse(in Matrix4x4 volumeToWorld, out Vector3 mins, out Vector3 maxs) {
 		ClearBounds(out mins, out maxs);
@@ -2504,7 +2522,7 @@ public static class MathLib
 		StoreFloat3(ref v, Vector128.FusedMultiplyAdd(rn, Vector128.Subtract(Vector128.Create(maxVal), mn), mn));
 	}
 
-	public static void StoreFloat3(ref Vector3 v, fltx4 x4){
+	public static void StoreFloat3(ref Vector3 v, fltx4 x4) {
 		v = x4.AsVector3();
 	}
 
@@ -2941,6 +2959,27 @@ public static class MathLib
 		vecResult.X = angImpulse.X;
 		vecResult.Y = angImpulse.Y;
 		vecResult.Z = angImpulse.Z;
+	}
+
+	public static float CalcClosestPointToLineT(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vDir) {
+		Assert(MathlibInitialized);
+		VectorSubtract(vLineB, vLineA, out vDir);
+
+		// D dot [P - (A + D*t)] = 0
+		// t = ( DP - DA) / DD
+		float div = vDir.Dot(vDir);
+		if (div < 0.00001f)
+			return 0;
+		else {
+			return (vDir.Dot(P) - vDir.Dot(vLineA)) / div;
+		}
+	}
+
+	public static void CalcClosestPointOnLineSegment(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vClosest, out float outT) {
+		float t = CalcClosestPointToLineT(P, vLineA, vLineB, out Vector3 vDir);
+		t = Math.Clamp(t, 0, 1);
+		outT = t;
+		VectorMA(vLineA, t, vDir, out vClosest);
 	}
 
 	const int NUMVERTEXNORMALS = 162;

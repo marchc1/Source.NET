@@ -6,6 +6,7 @@ using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Physics;
 using Source;
+using Game.Shared.HL2;
 
 namespace Game.Server.HL2;
 
@@ -15,7 +16,7 @@ public class HL2_Player : BasePlayer
 {
 	public static readonly SendTable DT_HL2_Player = new(DT_BasePlayer, [
 		SendPropDataTable(nameof(HL2Local), FIELD.OF(nameof(HL2Local)), HL2PlayerLocalData.DT_HL2Local, SendProxy_SendLocalDataTable),
-		SendPropBool(FIELD.OF(nameof(_IsSprinting)))
+		SendPropBool(FIELD.OF(nameof(m_bIsSprinting)))
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass("HL2_Player", DT_HL2_Player)
 															.WithManualClassID(StaticClassIndices.CHL2_Player);
@@ -36,10 +37,13 @@ public class HL2_Player : BasePlayer
 
 	bool SprintEnabled;
 
-	public bool _IsSprinting;
-	bool _IsWalking;
+	public bool m_bIsSprinting;
+	public bool m_bIsWalking;
+	public bool m_bPlayUseDenySound;
 
 	public HL2_Player() => SprintEnabled = true;
+
+	public ref LadderMove GetLadderMove() => ref HL2Local.LadderMove;
 
 	public override void Precache() {
 		base.Precache();
@@ -188,15 +192,15 @@ public class HL2_Player : BasePlayer
 
 	void StartWalking() {
 		SetMaxSpeed(HL2_WALK_SPEED);
-		_IsWalking = true;
+		m_bIsWalking = true;
 	}
 
 	void StopWalking() {
 		SetMaxSpeed(HL2_NORM_SPEED);
-		_IsWalking = false;
+		m_bIsWalking = false;
 	}
 
-	bool IsWalking() => _IsWalking;
+	bool IsWalking() => m_bIsWalking;
 
 	// float GetIdleTime() => IdleTime - MoveTime;
 
@@ -407,7 +411,7 @@ public class HL2_Player : BasePlayer
 
 	void DrawDebugGeometryOverlays() { }
 
-	void ExitLadder() { }
+	public void ExitLadder() { }
 
 	SurfaceData GetLadderSurface(Vector3 origin) {
 		throw new NotImplementedException();
@@ -423,7 +427,7 @@ public class HL2_Player : BasePlayer
 
 	void MissedAR2AltFire() { }
 
-	void DisplayLadderHudHint() { }
+	public void DisplayLadderHudHint() { }
 
 	void StopLoopingSounds() { }
 
@@ -437,5 +441,5 @@ public class HL2_Player : BasePlayer
 
 	// void FirePlayerProxyOutput(ReadOnlySpan<char> outputName, variant_t variant, BaseEntity activator, BaseEntity caller) { }
 
-	public bool IsSprinting() => _IsSprinting;
+	public bool IsSprinting() => m_bIsSprinting;
 }

@@ -1,4 +1,5 @@
 ﻿using Game.Shared;
+using Game.Shared.HL2;
 
 using Source.Common;
 
@@ -11,14 +12,14 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 {
 	public static readonly RecvTable DT_HL2_Player = new(DT_BasePlayer, [
 		RecvPropDataTable(nameof(HL2Local), FIELD.OF(nameof(HL2Local)), C_HL2PlayerLocalData.DT_HL2Local, 0, DataTableRecvProxy_PointerDataTable),
-		RecvPropBool(FIELD.OF(nameof(_IsSprinting)))
+		RecvPropBool(FIELD.OF(nameof(m_bIsSprinting)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2_Player", null, null, DT_HL2_Player)
 															.WithManualClassID(StaticClassIndices.CHL2_Player);
 
 	public static readonly new DataMap PredMap = new(typeof(C_BaseHLPlayer), C_BasePlayer.PredMap, [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(HL2Local), C_HL2PlayerLocalData.PredMap ),
-		DEFINE.PRED_FIELD( nameof(_IsSprinting), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(m_bIsSprinting), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;
 
 	public C_BaseHLPlayer() {
@@ -32,8 +33,12 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 		base.OnDataChanged(updateType);
 	}
 
-	public readonly C_HL2PlayerLocalData HL2Local = new();
-	public bool _IsSprinting;
+	public void ExitLadder(){ }
 
-	public bool IsSprinting() => _IsSprinting;
+	public readonly C_HL2PlayerLocalData HL2Local = new();
+	public bool m_bIsSprinting;
+	public bool m_bPlayUseDenySound;
+
+	public ref LadderMove GetLadderMove() => ref HL2Local.LadderMove;
+	public bool IsSprinting() => m_bIsSprinting;
 }

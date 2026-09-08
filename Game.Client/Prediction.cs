@@ -416,7 +416,7 @@ public class Prediction : IPrediction
 
 		// RUN MOVEMENT
 		if (vehicle == null) {
-			Assert(g_pGameMovement);
+			Assert(g_pGameMovement != null);
 			g_pGameMovement.ProcessMovement(player, g_pMoveData);
 		}
 		else {

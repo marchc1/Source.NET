@@ -1190,6 +1190,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	/// <summary>
 	/// The equiv of the dtor (kinda...)
+	/// see C_BaseEntity::~C_BaseEntity() etc
 	/// </summary>
 	public virtual void Term() {
 		DestroyAllDataObjects();
@@ -1940,6 +1941,16 @@ public partial class C_BaseEntity : IClientEntity
 			ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
 		}
 	}
+
+
+	public void ComputeAbsPosition(in Vector3 localPosition, out Vector3 absPosition) {
+		C_BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null)
+			absPosition = localPosition;
+		else 
+			MathLib.VectorTransform(localPosition, moveParent.EntityToWorldTransform(), out absPosition);
+	}
+
 
 	public virtual void Spawn() { }
 	public virtual void Activate() { }
