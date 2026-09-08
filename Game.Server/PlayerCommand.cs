@@ -60,8 +60,8 @@ public class PlayerMove
 		move.FirstRunOfFunctions = true;
 		move.GameCodeMovedPlayer = false;
 
-		// if (player.GetPreviouslyPredictedOrigin() != player.GetAbsOrigin())
-		// 	move.GameCodeMovedPlayer = true;
+		if (player.GetPreviouslyPredictedOrigin() != player.GetAbsOrigin())
+			move.GameCodeMovedPlayer = true;
 
 		move.ImpulseCommand = ucmd.Impulse;
 		move.ViewAngles = ucmd.ViewAngles;
@@ -101,18 +101,18 @@ public class PlayerMove
 
 		if (player.ConstraintEntity.Get() != null)
 			move.ConstraintCenter = player.ConstraintEntity.Get()!.GetAbsOrigin();
-		// else
-		// 	move.ConstraintCenter = player.ConstraintEntity; TODO
+		else
+			move.ConstraintCenter = player.ConstraintCenter;
 
-		// move.ConstraintRadius = player.ConstraintRadius;
-		// move.ConstraintWidth = player.ConstraintWidth;
-		// move.ConstraintSpeedFactor = player.ConstraintSpeedFactor;
+		move.ConstraintRadius = player.ConstraintRadius;
+		move.ConstraintWidth = player.ConstraintWidth;
+		move.ConstraintSpeedFactor = player.ConstraintSpeedFactor;
 	}
 
 	public virtual void FinishMove(BasePlayer player, ref UserCmd ucmd, MoveData move) {
 		player.SetAbsOrigin(move.GetAbsOrigin());
 		player.SetAbsVelocity(move.Velocity);
-		// player.SetPreviouslyPredictedOrigin(move.GetAbsOrigin());
+		player.SetPreviouslyPredictedOrigin(move.GetAbsOrigin());
 
 		player.Local.OldButtons = (int)move.Buttons;
 
@@ -123,17 +123,17 @@ public class PlayerMove
 		pitch = Math.Clamp(pitch, -90.0f, 90.0f);
 		move.Angles.X = pitch;
 
-		// player.SetBodyPitch(pitch);
+		player.SetBodyPitch(pitch);
 		player.SetLocalAngles(move.Angles);
 
 		if (player.ConstraintEntity.Get() != null)
 			Assert(move.ConstraintCenter == player.ConstraintEntity.Get()!.GetAbsOrigin());
-		// else
-		// 	Assert(move.ConstraintCenter == player.ConstraintEntity); // todo
+		else
+			Assert(move.ConstraintCenter == player.ConstraintCenter); // todo
 
-		// Assert(move.ConstraintRadius == player.ConstraintRadius);
-		// Assert(move.ConstraintWidth == player.ConstraintWidth);
-		// Assert(move.ConstraintSpeedFactor == player.ConstraintSpeedFactor);
+		Assert(move.ConstraintRadius == player.ConstraintRadius);
+		Assert(move.ConstraintWidth == player.ConstraintWidth);
+		Assert(move.ConstraintSpeedFactor == player.ConstraintSpeedFactor);
 	}
 
 	void RunPreThink(BasePlayer player) {
@@ -162,13 +162,11 @@ public class PlayerMove
 	public void RunCommand(BasePlayer player, AnonymousSafeFieldPointer<UserCmd> ucmd, IMoveHelper moveHelper) {
 		ref UserCmd cmd = ref ucmd.Get();
 
-		double playerCurTime = player.TickBase * gpGlobals.IntervalPerTick;
-		// double playerFrameTime = player.GamePaused ? 0 : gpGlobals.IntervalPerTick;
-		double playerFrameTime = gpGlobals.IntervalPerTick;
-		// double timeAllowedForProcessing = player.ConsumeMovementTimeForUserCmdProcessing(playerFrameTime);
-		double timeAllowedForProcessing = playerFrameTime; // todo
+		TimeUnit_t playerCurTime = player.TickBase * gpGlobals.IntervalPerTick;
+		TimeUnit_t playerFrameTime = player.GamePaused ? 0 : gpGlobals.IntervalPerTick;
+		TimeUnit_t timeAllowedForProcessing = player.ConsumeMovementTimeForUserCmdProcessing(playerFrameTime);
 
-		if (/*!player.IsBot() &&*/ (timeAllowedForProcessing < playerFrameTime)) {
+		if (!player.IsBot() && (timeAllowedForProcessing < playerFrameTime)) {
 			double warningFrequencyThrottle = sv_maxusrcmdprocessticks_warning.GetFloat();
 			if (warningFrequencyThrottle >= 0) {
 				double timeNow = Platform.Time;
@@ -188,15 +186,17 @@ public class PlayerMove
 		if (!cmd.ViewAngles.IsValid() || !BaseEntity.IsEntityQAngleReasonable(cmd.ViewAngles))
 			cmd.ViewAngles = vec3_angle;
 
-		// cmd.Buttons |= player.ButtonForced;
-		// cmd.Buttons &= ~player.ButtonDisabled;
+		cmd.Buttons |= player.AfButtonForced;
+		cmd.Buttons &= ~player.AfButtonDisabled;
 
-		// if (player.GamePaused) {
-		// if (player.GetMoveType() == MoveType.NoClip && sv_cheats.GetBool() && sv_noclipduringpause.GetBool())
-		// 	gpGlobals.FrameTime = gpGlobals.IntervalPerTick;
-		// }
+		if (player.GamePaused) {
+			if (player.GetMoveType() == MoveType.Noclip && sv_cheats.GetBool() && sv_noclipduringpause.GetBool())
+				gpGlobals.FrameTime = gpGlobals.IntervalPerTick;
+		}
 
 		g_pGameMovement.StartTrackPredictionErrors(player);
+
+		// CommentarySystem_PePlayerRunCommand( player, ucmd );
 
 		if (cmd.WeaponSelect != 0) {
 			if (BaseEntity.Instance(cmd.WeaponSelect) is BaseCombatWeapon weapon)
@@ -206,8 +206,8 @@ public class PlayerMove
 		IServerVehicle? vehicle = player.GetVehicle();
 
 		if (cmd.Impulse != 0) {
-			// if (vehicle == null || player.UsingStandardWeaponsInVehicle())
-			// 	player.Impulse = cmd.Impulse;
+			if (vehicle == null || player.UsingStandardWeaponsInVehicle())
+				player.Impulse = cmd.Impulse;
 		}
 
 		player.UpdateButtonState(cmd.Buttons);
@@ -236,8 +236,8 @@ public class PlayerMove
 
 		FinishMove(player, ref cmd, g_MoveData);
 
-		// if (!player.IsBot() && (gpGlobals.TickCount - player.GetLockViewanglesTickNumber() < sv_maxusrcmdprocessticks_holdaim.GetInt()))
-		// 	player.pl.ViewingAngle = player.GetLockViewanglesData();
+		if (!player.IsBot() && (gpGlobals.TickCount - player.GetLockViewanglesTickNumber() < sv_maxusrcmdprocessticks_holdaim.GetInt()))
+			player.pl.ViewingAngle = player.GetLockViewanglesData();
 
 		moveHelper.ProcessImpacts();
 

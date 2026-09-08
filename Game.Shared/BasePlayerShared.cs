@@ -107,7 +107,23 @@ public partial class
 	}
 
 	public override Vector3 EyePosition() {
-		return base.EyePosition();
+		if (GetVehicle() != null) {
+			// Return the cached result
+			CacheVehicleView();
+			return VehicleViewOrigin;
+		}
+		else {
+#if CLIENT_DLL
+			if (IsObserver()) {
+				if (GetObserverMode() == Shared.ObserverMode.Chase || GetObserverMode() == Shared.ObserverMode.PointOfInterest) {
+					if (IsLocalPlayer()) {
+						return MainViewOrigin();
+					}
+				}
+			}
+#endif
+			return base.EyePosition();
+		}
 	}
 
 	public void ResetObserverMode() {
@@ -192,7 +208,7 @@ public partial class
 		return (int)fov;
 	}
 
-	public bool SetFOV(BaseEntity requester, int fov, float zoomRate = 0, int zoomStart = 0){
+	public bool SetFOV(BaseEntity requester, int fov, float zoomRate = 0, int zoomStart = 0) {
 		Assert(requester != null);
 		if (requester == null)
 			return false;
@@ -202,21 +218,21 @@ public partial class
 #if GAME_DLL
 			if (EnvZoom.CanOverrideEnvZoomOwner(ZoomOwner.Get()) == false)
 #endif
-			return false;
+				return false;
 		}
 		else {
 			//FIXME: Maybe do this is as an accessor instead
-			if (fov == 0) 
+			if (fov == 0)
 				ZoomOwner.Set(null);
-			else 
+			else
 				ZoomOwner.Set(requester);
 		}
 
 		// Setup our FOV and our scaling time
 
-		if (zoomStart > 0) 
+		if (zoomStart > 0)
 			FOVStart = zoomStart;
-		else 
+		else
 			FOVStart = (int)GetFOV();
 
 		FOVTime = gpGlobals.CurTime;
@@ -533,6 +549,9 @@ public partial class
 		PlayStepSound(feet, surface, vol, false);
 	}
 
+	public ref readonly Vector3 GetPreviouslyPredictedOrigin() => ref PreviouslyPredictedOrigin;
+	public void SetPreviouslyPredictedOrigin(in Vector3 absOrigin) => PreviouslyPredictedOrigin = absOrigin;
+
 	private SurfaceData_ptr GetLadderSurface(Vector3 origin) {
 #if CLIENT_DLL
 		return GetFootstepSurface(origin, "ladder")!;
@@ -676,7 +695,7 @@ public partial class
 #if CLIENT_DLL
 			if (vehicle.IsPredicted())
 #endif
-				vehicle.ItemPostFrame(this);
+			vehicle.ItemPostFrame(this);
 
 			if (!usingStandardWeapons || GetVehicle() == null)
 				return;
@@ -700,7 +719,7 @@ public partial class
 				// Not predicting this weapon
 				if (GetActiveWeapon()!.IsPredicted())
 #endif
-					GetActiveWeapon()!.ItemPostFrame();
+				GetActiveWeapon()!.ItemPostFrame();
 			}
 		}
 

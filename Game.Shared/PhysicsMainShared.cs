@@ -248,7 +248,24 @@ namespace Game.Shared
 			
 		}
 
-		readonly IEntityDataInstantiator[] Accessors = new IEntityDataInstantiator[MAX_ACCESSORS];
+		readonly IEntityDataInstantiator[] Accessors = [
+			//GroundLink
+			null!,
+			//TouchLink
+			null!,
+			//StepSimulation
+			null!,
+			//ModelScale
+			null!,
+			//PositionWatcher
+			null!,
+			//PhysicsPushList
+			null!,
+			//VPhysicsUpdateAI
+			null!,
+			//VPhysicsWatcher
+			null!,
+		];
 		// Blank for now
 		const int MAX_ACCESSORS = 32;
 
@@ -258,6 +275,7 @@ namespace Game.Shared
 
 			if (Accessors[(int)type] == null)
 				return false;
+
 			return true;
 		}
 

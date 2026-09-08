@@ -543,7 +543,7 @@ public partial class BaseEntity : IServerEntity
 		int id_player_index = entity.PredictableId.GetPlayer();
 		recipients.SetOnly(id_player_index);
 
-		return data;
+		return instance;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? GetMoveParent() => MoveParent.Get();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? FirstMoveChild() => MoveChild.Get();
@@ -1044,6 +1044,7 @@ public partial class BaseEntity : IServerEntity
 	public void ApplyLocalVelocityImpulse(in Vector3 vecImpulse) {
 
 	}
+
 	public void SetAbsVelocity(in Vector3 absVelocity) {
 		if (AbsVelocity == absVelocity)
 			return;
@@ -1577,7 +1578,7 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	static bool s_bAbsQueriesValid;
+	static bool s_bAbsQueriesValid = true;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void SetAbsQueriesValid(bool valid) => s_bAbsQueriesValid = valid;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAbsQueriesValid() => s_bAbsQueriesValid;
 

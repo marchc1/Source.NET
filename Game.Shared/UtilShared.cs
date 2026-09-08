@@ -26,6 +26,8 @@ namespace Game;
 
 public static partial class Util_Globals
 {
+	public static readonly ConVar developer = new("developer", "0", 0, "Set developer message level"); // developer mode
+
 	public static int SeedFileLineHash(int seedvalue, ReadOnlySpan<char> sharedname, int additionalSeed) {
 		CRC32_t retval = default;
 
@@ -111,7 +113,7 @@ public static partial class Util
 #if CLIENT_DLL
 	public static BasePlayer PlayerByIndex(int entindex) => ToBasePlayer(cl_entitylist.GetEnt(entindex));
 #endif
-	static readonly ConVar developer = new("developer", "0", 0, "Set developer message level" ); // developer mode
+	static readonly ConVar developer = new("developer", "0", 0, "Set developer message level"); // developer mode
 
 	public static Contents PointContents(in Vector3 vec) => enginetrace.GetPointContents(vec, out _);
 

@@ -1,4 +1,6 @@
-﻿using Game.Shared;
+﻿global using static Game.Server.PlayerConvars;
+
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -23,6 +25,11 @@ public enum PlayerConnectedState
 	Connected,
 	Disconnecting,
 	Disconnected
+}
+
+public static class PlayerConvars {
+	public static readonly ConVar sv_noclipduringpause = new( "sv_noclipduringpause", "0", FCvar.Replicated | FCvar.Cheat, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.)." );
+
 }
 
 public class GamePlayerInfo : IBotController, IPlayerInfo
@@ -192,7 +199,18 @@ public partial class BasePlayer : BaseCombatCharacter
 	public static readonly SendTable DT_PlayerState = new([
 		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
+
 	public override bool IsPlayer() => true;
+	public virtual bool IsBot() => (GetFlags() & EntityFlags.FakeClient) != 0;
+	public virtual bool IsFakeClient() => (GetFlags() & EntityFlags.FakeClient) != 0;
+	public virtual bool IsBotOfType(int botType) => (GetBotType() != 0) && (GetBotType() == botType);
+	public virtual int GetBotType() => 0;
+
+	public int GetLockViewanglesTickNumber() => LockViewanglesTickNumber;
+	public QAngle GetLockViewanglesData() => LockedViewangles;
+
+	public Vector3 PreviouslyPredictedOrigin;
+
 	public BaseViewModel? GetViewModel(int index) => ViewModel[index].Get();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
@@ -261,6 +279,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	TimeUnit_t LastObjectiveTime;
 	UserCmd LastCmd;
 
+	public int Impulse;
+
 	protected QAngle AutoAim;
 	protected Vector3 AdditionalPVSOrigin;
 	protected Vector3 CameraPVSOrigin;
@@ -305,16 +325,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		int data = field.GetValue<int>(instance);
 		outData.Int = data & mask;
 	}
-
-	public static object? SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		recipients.SetOnly(objectID - 1);
-		return data;
-	}
-	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		// throw new NotImplementedException();
-		return data;
-	}
-
 
 	GamePlayerInfo PlayerInfo = new();
 
@@ -416,6 +426,12 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
+
+		public void SetBodyPitch( float pitch){
+		if (BodyPitchPoseParam >= 0)
+			SetPoseParameter(BodyPitchPoseParam, pitch);
+		}
+
 	public EHANDLE Vehicle = new();
 	public EHANDLE UseEntity = new();
 	public EHANDLE ObserverTarget = new();
@@ -440,10 +456,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	int FOVStart;
 	TimeUnit_t FOVTime;
 	float DefaultFOV;
-	Vector3 ConstraintCenter;
-	float ConstraintRadius;
-	float ConstraintWidth;
-	float ConstraintSpeedFactor;
+	public Vector3 ConstraintCenter;
+	public float ConstraintRadius;
+	public float ConstraintWidth;
+	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
 	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
@@ -473,6 +489,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	public InButtons AfButtonDisabled;
 	public InButtons AfButtonForced;
 
+	public bool GamePaused;
+
 	public virtual void EquipSuit(bool playEffects = false) {
 		Local.WearingSuit = true;
 	}
@@ -500,7 +518,7 @@ public partial class BasePlayer : BaseCombatCharacter
 			CacheVehicleView();
 			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : (int)VehicleViewFOV;
 		}
-		else 
+		else
 			defaultFOV = GetDefaultFOV();
 
 		int fFOV = (FOV == 0) ? defaultFOV : FOV;
@@ -509,13 +527,13 @@ public partial class BasePlayer : BaseCombatCharacter
 		if (Local.FOVRate == 0.0f)
 			return fFOV;
 
-		if (gpGlobals.CurTime - FOVTime < Local.FOVRate) 
+		if (gpGlobals.CurTime - FOVTime < Local.FOVRate)
 			fFOV = Math.Min(fFOV, FOVStart);
-		
+
 		return fFOV;
 	}
 
-	public int GetFOV(){
+	public int GetFOV() {
 		int defaultFOV;
 
 		// The vehicle's FOV wins if we're asking for a default value
@@ -535,17 +553,35 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		TimeUnit_t deltaTime = (float)(gpGlobals.CurTime - FOVTime) / Local.FOVRate;
 
-		if (deltaTime >= 1.0f) 
+		if (deltaTime >= 1.0f)
 			//If we're past the zoom time, just take the new value and stop lerping
 			FOVStart = fFOV;
-		else 
+		else
 			fFOV = (int)MathLib.SimpleSplineRemapValClamped(deltaTime, 0.0f, 1.0f, FOVStart, fFOV);
 
 		return fFOV;
 	}
 
+
+	public TimeUnit_t ConsumeMovementTimeForUserCmdProcessing(TimeUnit_t timeNeeded) {
+		if (MovementTimeForUserCmdProcessingRemaining <= 0.0) 
+			return 0.0;
+		else if (timeNeeded > MovementTimeForUserCmdProcessingRemaining + TimeUnit_t.Epsilon) {
+			TimeUnit_t result = MovementTimeForUserCmdProcessingRemaining;
+			MovementTimeForUserCmdProcessingRemaining = 0.0;
+			return result;
+		}
+		else {
+			MovementTimeForUserCmdProcessingRemaining -= timeNeeded;
+			if (MovementTimeForUserCmdProcessingRemaining < 0.0)
+				MovementTimeForUserCmdProcessingRemaining = 0.0;
+			return timeNeeded;
+		}
+	}
+
+
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
-	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+	public override BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
 	public void ResetAutoaim() => OnTarget = false;
 
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
@@ -792,7 +828,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
 
-	double LastPlayerTalkTime;
+	TimeUnit_t LastPlayerTalkTime;
 	public TimeUnit_t LastTimePlayerTalked() => LastPlayerTalkTime;
 	public void NotePlayerTalked() => LastPlayerTalkTime = gpGlobals.CurTime;
 
@@ -1103,13 +1139,46 @@ public partial class BasePlayer : BaseCombatCharacter
 		public AnonymousSafeFieldPointer<UserCmd> Ptr => new(this, static o => ref ((UserCmdRef)o).Cmd);
 	}
 
+	bool TouchedPhysObject;
+
+	static readonly ConVar xc_crouch_debounce = new( "xc_crouch_debounce", "0", 0);
+
+	public bool GetToggledDuckState() => DuckToggled;
+	public void ToggleDuck(){
+		DuckToggled = !DuckToggled;
+	}
+
 	public virtual void PlayerRunCommand(UserCmd userCmd, IMoveHelper s_MoveHelperServer) {
-		// TouchedPhysObject = false;
+		TouchedPhysObject = false;
 
 		if (pl.FixAngle == (int)FixAngle.None)
 			MathLib.VectorCopy(userCmd.ViewAngles, out pl.ViewingAngle);
 
-		// todo
+		// Handle FL_FROZEN.
+		// Prevent player moving for some seconds after New Game, so that they pick up everything
+		if ((GetFlags() & EntityFlags.Frozen) != 0 || (developer.GetInt() == 0 && gpGlobals.LoadType == MapLoadType.NewGame && gpGlobals.CurTime < 3.0)) {
+			userCmd.ForwardMove = 0;
+			userCmd.SideMove = 0;
+			userCmd.UpMove = 0;
+			userCmd.Buttons = 0;
+			userCmd.Impulse = 0;
+			MathLib.VectorCopy(pl.ViewingAngle, out userCmd.ViewAngles);
+		}
+		else {
+			// Force a duck if we're toggled
+			if (GetToggledDuckState()) {
+				// If this is set, we've altered our menu options and need to debounce the duck
+				if (xc_crouch_debounce.GetBool()) {
+					ToggleDuck();
+
+					// Mark it as handled
+					xc_crouch_debounce.SetValue(0);
+				}
+				else {
+					userCmd.Buttons |= InButtons.Duck;
+				}
+			}
+		}
 
 		g_PlayerMove.RunCommand(this, new UserCmdRef { Cmd = userCmd }.Ptr, s_MoveHelperServer);
 	}

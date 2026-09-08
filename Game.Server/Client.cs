@@ -1,9 +1,16 @@
-﻿using Source;
+﻿global using static Game.Server.GameServerClientGlobals;
+
+using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
 
 namespace Game.Server;
+
+public static class GameServerClientGlobals
+{
+	public static ConVar sv_cheats { get => field ??= cvar.FindVar("sv_cheats")!; }
+}
 
 [EngineComponent]
 public class GameServerClientMethods

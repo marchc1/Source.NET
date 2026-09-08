@@ -78,4 +78,8 @@ public class GMOD_Player : HL2MP_Player
 	public int MaxArmor;
 	public float Gravity;
 	public bool SprintEnabled;
+
+	public override void PlayerRunCommand(UserCmd ucmd, IMoveHelper moveHelper) {
+		base.PlayerRunCommand(ucmd, moveHelper);
+	}
 }
