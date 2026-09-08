@@ -1380,7 +1380,7 @@ public partial class BaseEntity : IServerEntity
 
 	public virtual IServerVehicle? GetServerVehicle() => null;
 	public ICollideable? GetCollideable() {
-		throw new NotImplementedException();
+		return Collision;
 	}
 
 	public virtual ReadOnlySpan<char> GetClassname() {
