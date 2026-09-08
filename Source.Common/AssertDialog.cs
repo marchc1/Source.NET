@@ -33,16 +33,16 @@ public static class AssertDialog
 
 	static ulong HashFileLine(ReadOnlySpan<char> fileName, int line) {
 		// Allocate a temporary stack buffer for hashing
-		Span<byte> hashTarget = stackalloc byte[(sizeof(char) * fileName.Length) + sizeof(int)];
+		//Span<byte> hashTarget = stackalloc byte[(sizeof(char) * fileName.Length) + sizeof(int)];
 		// Get bytes for the filename
-		ReadOnlySpan<byte> incomingText = MemoryMarshal.Cast<char, byte>(fileName);
+		//ReadOnlySpan<byte> incomingText = MemoryMarshal.Cast<char, byte>(fileName);
 		// Get bytes for the line. Need to reinterpret the integer reference as a byte span
-		ReadOnlySpan<byte> incomingLine = MemoryMarshal.Cast<int, byte>(new(ref line));
+		//ReadOnlySpan<byte> incomingLine = MemoryMarshal.Cast<int, byte>(new(ref line));
 		// Copy the bytes of the line and text into one single contiguous buffer
-		incomingLine.CopyTo(hashTarget);
-		incomingText.CopyTo(hashTarget[sizeof(int)..]);
+		//incomingLine.CopyTo(hashTarget);
+		//incomingText.CopyTo(hashTarget[sizeof(int)..]);
 		// And then hash that buffer
-		ulong hash = hashTarget.Hash();
+		ulong hash = fileName.Hash();
 		return hash;
 	}
 
