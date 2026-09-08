@@ -20,7 +20,6 @@ namespace Source.Engine;
 
 internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 {
-	public readonly SharedEdictChangeInfo g_roSharedEdictChangeInfo = new();
 	public void AddOriginToPVS(in Vector3 origin) {
 		throw new NotImplementedException();
 	}
@@ -750,7 +749,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		return client.GetPrevPackInfo();
 	}
 
-	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_roSharedEdictChangeInfo;
+	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_pSharedEdictChangeInfo;
 
 	public Span<float> GMOD_SetTimeManipulator(float scaleFramerate) {
 		throw new NotImplementedException();
