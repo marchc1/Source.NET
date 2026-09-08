@@ -118,12 +118,12 @@ public static class SendPropHelpers
 		=> prop.GetValue<object>(instance);
 	public static object SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		recipients.SetOnly(objectID - 1);
-		return instance;
+		return prop.FieldInfo == null ? instance : prop.GetValue<object>(instance);
 	}
 	public static object SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		recipients.SetAllRecipients();
 		recipients.ClearRecipient(objectID - 1);
-		return instance;
+		return prop.FieldInfo == null ? instance : prop.GetValue<object>(instance);
 	}
 	public static object SendProxy_DataTablePtrToDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID)
 		=> instance;

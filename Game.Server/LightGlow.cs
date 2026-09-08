@@ -20,7 +20,7 @@ public class LightGlow : BaseEntity
 		SendPropInt(FIELD.OF(nameof(MaxDist)), 16, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(OuterMaxDist)), 16, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(SpawnFlags)), 8, PropFlags.Unsigned),
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord),
 		SendPropVector(FIELD.OF(nameof(Rotation)), 13, PropFlags.RoundDown, 0, 360),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
 		SendPropFloat(FIELD.OF(nameof(GlowProxySize)), 6, PropFlags.RoundUp, 1, 64),

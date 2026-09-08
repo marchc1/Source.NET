@@ -214,7 +214,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	public BaseViewModel? GetViewModel(int index) => ViewModel[index].Get();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
-		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
+		SendPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local),
 		SendPropFloat(FIELD.OF(nameof(Friction)), 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), SendPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)), 16, PropFlags.Unsigned)),
 		SendPropInt(FIELD.OF(nameof(TickBase)), -1, PropFlags.ChangesOften),

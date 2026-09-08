@@ -12,7 +12,7 @@ using FIELD = FIELD<ParticleSystem>;
 public class ParticleSystem : BaseEntity
 {
 	public static readonly SendTable DT_ParticleSystem = new([
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord | PropFlags.ChangesOften),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord | PropFlags.ChangesOften),
 		SendPropEHandle(FIELD.OF(nameof(OwnerEntity))),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
 		SendPropInt(FIELD.OF(nameof(ParentAttachment)), 8, PropFlags.Unsigned),

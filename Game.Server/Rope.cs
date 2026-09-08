@@ -33,7 +33,7 @@ public class RopeKeyframe : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(TextureScale)), 10),
 		SendPropFloat(FIELD.OF(nameof(Width)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(ScrollSpeed)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
 		SendPropInt(FIELD.OF(nameof(ParentAttachment)), 8, PropFlags.Unsigned),
 	]);
