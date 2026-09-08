@@ -82,14 +82,14 @@ public static class SendPropHelpers
 	}
 	public static void SendProxy_VectorToVector(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) {
 		var v = prop.GetValue<Vector3>(instance);
-		outData.Vector[0] = MathLib.AngleMod(v.X);
-		outData.Vector[1] = MathLib.AngleMod(v.Y);
-		outData.Vector[2] = MathLib.AngleMod(v.Z);
+		outData.Vector[0] = v.X;
+		outData.Vector[1] = v.Y;
+		outData.Vector[2] = v.Z;
 	}
 	public static void SendProxy_VectorXYToVectorXY(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) {
 		var v = prop.GetValue<Vector3>(instance);
-		outData.Vector[0] = MathLib.AngleMod(v.X);
-		outData.Vector[1] = MathLib.AngleMod(v.Y);
+		outData.Vector[0] = v.X;
+		outData.Vector[1] = v.Y;
 	}
 	// Specialized proxy for Garry's Mod's Time64
 	public static void SendProxy_DoubleToVectorXY(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) {
