@@ -147,8 +147,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 			if (entnum > MaxUsedServerIndex)
 				MaxUsedServerIndex = entnum;
 
-			Assert(ent is IClientUnknown unk);
-			Assert(unk.GetClientNetworkable());
+			Assert(ent is IClientUnknown unk && unk.GetClientNetworkable() != null);
 			cache.Networkable = ((IClientUnknown)ent).GetClientNetworkable();
 		}
 

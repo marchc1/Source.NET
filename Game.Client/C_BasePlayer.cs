@@ -420,6 +420,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float GetStepSize() => Local.StepSize;
 
 	float OldPlayerZ;
+	bool WasFreezeFraming;
+	Vector3 FreezeFrameStart;
+	TimeUnit_t FreezeFrameStartTime;
+	float FreezeFrameDistance;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		if (updateType == DataUpdateType.Created) {
@@ -448,19 +452,27 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		base.PostDataUpdate(updateType);
 
 		if (IsLocalPlayer()) {
-			QAngle angles;
-			engine.GetViewAngles(out angles);
+			engine.GetViewAngles(out QAngle angles);
 			if (updateType == DataUpdateType.Created) {
 				SetLocalViewAngles(angles);
 				OldPlayerZ = GetLocalOrigin().Z;
+
+			}
+			SetLocalAngles(angles);
+
+			if (!WasFreezeFraming && GetObserverMode() == Shared.ObserverMode.FreezeCam) {
+				// todo: freeze framing
+			}
+			else if (WasFreezeFraming && GetObserverMode() != Shared.ObserverMode.FreezeCam) {
+				// todo: freeze framing
 			}
 
-			SetLocalAngles(angles);
+			// todo: force calculate vision when the local vision flags changed
 		}
 
 		// If we are updated while paused, allow the player origin to be snapped by the
 		//  server if we receive a packet from the server
-		if (engine.IsPaused() || forceEFNoInterp)
+		if (engine.IsPaused() || forceEFNoInterp) 
 			ResetLatched();
 	}
 
@@ -641,7 +653,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
 	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
 
-	public BaseCombatWeapon? GetActiveWeapon() {
+	public override BaseCombatWeapon? GetActiveWeapon() {
 		BasePlayer fromPlayer = this;
 
 		if (fromPlayer == GetLocalPlayer()) {// observer mode todo
