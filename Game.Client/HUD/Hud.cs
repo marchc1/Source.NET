@@ -44,6 +44,14 @@ struct HudTextureFileRef
 	}
 }
 
+public struct WRect
+{
+	public int Left;
+	public int Right;
+	public int Top;
+	public int Bottom;
+}
+
 public class HudTexture
 {
 	public InlineArray64<char> ShortName;
@@ -133,7 +141,7 @@ public class HudTexture
 	public IFont? Font;
 	public TextureID TextureID;
 	public InlineArray4<float> TexCoords;
-	public Rectangle RC;
+	public WRect RC;
 }
 
 public enum ProgressBarType
@@ -321,10 +329,10 @@ public class Hud(HudElementHelper HudElementHelper)
 								HudTexture tex = new HudTexture();
 
 								tex.RenderUsingFont = false;
-								tex.RC.X = iTexLeft;
-								tex.RC.Y = iTexTop;
-								tex.RC.Width = iTexRight;
-								tex.RC.Height = iTexBottom;
+								tex.RC.Left = iTexLeft;
+								tex.RC.Top = iTexTop;
+								tex.RC.Right = iTexRight;
+								tex.RC.Bottom = iTexBottom;
 
 								strcpy(tex.ShortName, hudTextureFileRefs.AsSpan()[i].HudTexturePrefix);
 								strcpy(tex.ShortName[(int)hudTextureFileRefs[i].PrefixLength..], temp.Name.SliceNullTerminatedString());
@@ -354,7 +362,7 @@ public class Hud(HudElementHelper HudElementHelper)
 		if (texture.RenderUsingFont)
 			sprintf(composedName, "%s_c%i").S(texture.TextureFile).I(texture.CharacterInFont);
 		else
-			sprintf(composedName, "%s_%i_%i_%i_%i").S(texture.TextureFile).I(texture.RC.X).I(texture.RC.Y).I(texture.RC.Width).I(texture.RC.Height);
+			sprintf(composedName, "%s_%i_%i_%i_%i").S(texture.TextureFile).I(texture.RC.Left).I(texture.RC.Top).I(texture.RC.Right).I(texture.RC.Bottom);
 
 
 		HudTexture? icon = GetIcon(composedName);
@@ -388,10 +396,10 @@ public class Hud(HudElementHelper HudElementHelper)
 		if (t.RenderUsingFont) {
 			IScheme scheme = vguiSchemeManager.GetScheme("ClientScheme")!;
 			t.Font = scheme.GetFont(t.TextureFile, true);
-			t.RC.Y = 0;
-			t.RC.X = 0;
-			t.RC.Width = surface.GetCharacterWidth(t.Font, t.CharacterInFont);
-			t.RC.Height = surface.GetFontTall(t.Font);
+			t.RC.Top = 0;
+			t.RC.Left = 0;
+			t.RC.Right = surface.GetCharacterWidth(t.Font, t.CharacterInFont);
+			t.RC.Bottom = surface.GetFontTall(t.Font);
 		}
 		else {
 			// Set up texture id and texture coordinates
@@ -400,10 +408,10 @@ public class Hud(HudElementHelper HudElementHelper)
 
 			surface.DrawGetTextureSize(t.TextureID, out int wide, out int tall);
 
-			t.TexCoords[0] = (float)(t.RC.X + 0.5f) / (float)wide;
-			t.TexCoords[1] = (float)(t.RC.Y + 0.5f) / (float)tall;
-			t.TexCoords[2] = (float)(t.RC.Width - 0.5f) / (float)wide;
-			t.TexCoords[3] = (float)(t.RC.Height - 0.5f) / (float)tall;
+			t.TexCoords[0] = (float)(t.RC.Left + 0.5f) / wide;
+			t.TexCoords[1] = (float)(t.RC.Top + 0.5f) / tall;
+			t.TexCoords[2] = (float)(t.RC.Right - 0.5f) / wide;
+			t.TexCoords[3] = (float)(t.RC.Bottom - 0.5f) / tall;
 		}
 	}
 
