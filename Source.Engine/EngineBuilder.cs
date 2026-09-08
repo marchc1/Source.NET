@@ -62,6 +62,12 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		return this;
 	}
 
+	public EngineBuilder WithComponent<T>(T instance) where T : class {
+		PreInject<T>(this);
+		this.AddSingleton<T>(instance);
+		return this;
+	}
+
 	HashSet<Type> injectedTypelist = [];
 	void PreInject<T>(IServiceCollection services) {
 		if (injectedTypelist.Add(typeof(T))) {
