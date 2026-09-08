@@ -135,7 +135,7 @@ public class ConVar : ConCommandBase, IConVar
 		Changed += callback;
 
 		doubleValue = double.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var dRes) ? dRes : 0;
-		intValue = int.TryParse(value, out var iRes) ? iRes : 0;
+		intValue = int.TryParse(value, out var iRes) ? iRes : Convert.ToInt32(Math.Clamp(doubleValue, int.MinValue, int.MaxValue));
 
 		Assert(!hasMin || doubleValue >= minVal);
 		Assert(!hasMax || doubleValue <= maxVal);
@@ -220,13 +220,12 @@ public class ConVar : ConCommandBase, IConVar
 	void InternalSetValue(ReadOnlySpan<char> value) {
 		value = value.SliceNullTerminatedString();
 		double dNewValue = double.TryParse(value, out double d) ? d : 0;
-		if (ClampValue(ref dNewValue)) {
+		if (ClampValue(ref dNewValue)) 
 			value = $"{dNewValue:.4}";
-		}
 
 		double oldValue = doubleValue;
 		doubleValue = dNewValue;
-		intValue = (int)(float)(dNewValue); // tryparse later???
+		intValue = int.TryParse(value, out var iRes) ? iRes : Convert.ToInt32(Math.Clamp(doubleValue, int.MinValue, int.MaxValue));
 
 		if ((Flags & FCvar.NeverAsString) != FCvar.NeverAsString)
 			ChangeStringValue(value, oldValue);
@@ -267,7 +266,7 @@ public class ConVar : ConCommandBase, IConVar
 		Debug.Assert(parent == this);
 		double dbValue = value;
 		if (ClampValue(ref dbValue))
-			value = Convert.ToInt32(dbValue);
+			value = Convert.ToInt32(Math.Clamp(dbValue, int.MinValue, int.MaxValue));
 
 		double oldValue = doubleValue;
 		doubleValue = dbValue;
@@ -289,7 +288,7 @@ public class ConVar : ConCommandBase, IConVar
 		ClampValue(ref value);
 		double oldValue = doubleValue;
 		doubleValue = value;
-		intValue = Convert.ToInt32(doubleValue);
+		intValue = Convert.ToInt32(Math.Clamp(doubleValue, int.MinValue, int.MaxValue));
 
 		if ((Flags & FCvar.NeverAsString) != FCvar.NeverAsString) {
 			Span<char> tempVal = stackalloc char[64];
