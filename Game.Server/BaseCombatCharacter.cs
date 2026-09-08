@@ -52,7 +52,7 @@ public partial class BaseCombatCharacter : BaseFlex
 			}
 		}
 
-		return data;
+		return instance;
 	}
 	public void ClearLastKnownArea() {
 		// TODO
