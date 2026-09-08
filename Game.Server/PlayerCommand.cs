@@ -49,7 +49,7 @@ public class PlayerMove
 		}
 
 		if ((player.GetFlags() & EntityFlags.BaseVelocity) == 0) {
-			// player.ApplyAbsVelocityImpulse((1.0f + (float)(frametime * 0.5)) * player.GetBaseVelocity()); TODO
+			player.ApplyAbsVelocityImpulse((1.0f + (float)(frametime * 0.5)) * player.GetBaseVelocity());
 			player.SetBaseVelocity(vec3_origin);
 		}
 

@@ -1784,6 +1784,12 @@ public partial class C_BaseEntity : IClientEntity
 		DestroyShadow();
 	}
 
+	public ref readonly QAngle GetLocalAngularVelocity() => ref AngVelocity;
+
+	public void SetLocalAngularVelocity(in QAngle vecAngVelocity) {
+		if (AngVelocity != vecAngVelocity) 
+			AngVelocity = vecAngVelocity;
+	}
 
 	public virtual void NotifyShouldTransmit(ShouldTransmiteState state) {
 		if (EntIndex() < 0)

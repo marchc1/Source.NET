@@ -2937,6 +2937,12 @@ public static class MathLib
 		@out = @in;
 	}
 
+	public static void AngularImpulseToQAngle(in Vector3 angImpulse, out QAngle vecResult) {
+		vecResult.X = angImpulse.X;
+		vecResult.Y = angImpulse.Y;
+		vecResult.Z = angImpulse.Z;
+	}
+
 	const int NUMVERTEXNORMALS = 162;
 	public static readonly Vector3[] Anorms = [
 		new(-0.525731f, 0.000000f, 0.850651f),

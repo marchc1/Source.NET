@@ -59,7 +59,7 @@ using System.Text;
 
 public static class BaseEntityConstants
 {
-	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 -> 8
+	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 . 8
 	public const int VPHYSICS_MAX_OBJECT_LIST_COUNT = 1024;
 }
 
@@ -299,6 +299,82 @@ public partial class
 #endif
 			PhysDestroyObject(PhysicsObject, this);
 			PhysicsObject = null;
+		}
+	}
+
+	public void ApplyAbsVelocityImpulse(in Vector3 impulse) {
+		if (impulse != vec3_origin) {
+			Vector3 vecImpulse = impulse;
+
+			// Safety check against receive a huge impulse, which can explode physics
+			switch (CheckEntityVelocity(ref vecImpulse)) {
+				case -1:
+					Warning($"Discarding ApplyAbsVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					Assert(false);
+					return;
+				case 0:
+					if (CheckEmitReasonablePhysicsSpew()) {
+						Warning($"Clamping ApplyAbsVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					}
+					break;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics)
+				VPhysicsGetObject()!.AddVelocity(in vecImpulse, default);
+			else {
+				// NOTE: Have to use GetAbsVelocity here to ensure it's the correct value
+				MathLib.VectorAdd(GetAbsVelocity(), vecImpulse, out Vector3 vecResult);
+				SetAbsVelocity(vecResult);
+			}
+		}
+	}
+	public void ApplyLocalAngularVelocityImpulse(in Vector3 angImpulse) {
+		if (angImpulse != vec3_origin) {
+			// Safety check against receive a huge impulse, which can explode physics
+			if (!IsEntityAngularVelocityReasonable(angImpulse)) {
+				Warning($"Bad ApplyLocalAngularVelocityImpulse({angImpulse.X},{angImpulse.Y},{angImpulse.Z}) on {GetDebugName()}\n");
+				Assert(false);
+				return;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics) 
+				VPhysicsGetObject()!.AddVelocity(default, in angImpulse);
+			else {
+				MathLib.AngularImpulseToQAngle(angImpulse, out QAngle vecResult);
+				MathLib.VectorAdd(GetLocalAngularVelocity(), vecResult, out Vector3 vec3Result);
+				SetLocalAngularVelocity(vec3Result);
+			}
+		}
+	}
+
+	public void ApplyLocalVelocityImpulse(in Vector3 impulse) {
+		// NOTE: Don't have to use GetVelocity here because local values
+		// are always guaranteed to be correct, unlike abs values which may 
+		// require recomputation
+		if (impulse != vec3_origin) {
+			Vector3 vecImpulse = impulse;
+
+			// Safety check against receive a huge impulse, which can explode physics
+			switch (CheckEntityVelocity(ref vecImpulse)) {
+				case -1:
+					Warning($"Discarding ApplyLocalVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					Assert(false);
+					return;
+				case 0:
+					if (CheckEmitReasonablePhysicsSpew()) {
+						Warning($"Clamping ApplyLocalVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					}
+					break;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics) {
+				VPhysicsGetObject()!.LocalToWorld(out Vector3 worldVel, vecImpulse);
+				VPhysicsGetObject()!.AddVelocity(in worldVel, default);
+			}
+			else {
+				InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+				Velocity += vecImpulse;
+			}
 		}
 	}
 
@@ -600,6 +676,14 @@ public partial class
 	}
 	internal static bool IsEntityQAngleReasonable(QAngle q) {
 		float r = k_flMaxEntityEulerAngle;
+		return
+			q.X > -r && q.X < r &&
+			q.Y > -r && q.Y < r &&
+			q.Z > -r && q.Z < r;
+	}
+
+	public static bool IsEntityQAngleVelReasonable(in QAngle q) {
+		float r = k_flMaxEntitySpinRate;
 		return
 			q.X > -r && q.X < r &&
 			q.Y > -r && q.Y < r &&

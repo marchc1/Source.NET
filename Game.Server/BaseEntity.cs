@@ -1020,6 +1020,19 @@ public partial class BaseEntity : IServerEntity
 		return 1;
 	}
 
+	public ref readonly QAngle GetLocalAngularVelocity() => ref AngVelocity;
+
+	public void SetLocalAngularVelocity(in QAngle vecAngVelocity){
+		if (!IsEntityQAngleVelReasonable(vecAngVelocity)) {
+			if (CheckEmitReasonablePhysicsSpew()) 
+				Warning($"Bad SetLocalAngularVelocity({vecAngVelocity.X},{vecAngVelocity.Y},{vecAngVelocity.Z}) on {GetDebugName()}");
+			Assert(false);
+			return;
+		}
+
+		if (AngVelocity != vecAngVelocity) 
+			AngVelocity = vecAngVelocity;
+	}
 
 	public void SetLocalVelocity(in Vector3 velocity) {
 		Vector3 vecVelocity = velocity;
@@ -1040,9 +1053,6 @@ public partial class BaseEntity : IServerEntity
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
 			Velocity = vecVelocity;
 		}
-	}
-	public void ApplyLocalVelocityImpulse(in Vector3 vecImpulse) {
-
 	}
 
 	public void SetAbsVelocity(in Vector3 absVelocity) {
@@ -1074,12 +1084,7 @@ public partial class BaseEntity : IServerEntity
 		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out vNew);
 		Velocity = vNew;
 	}
-	public void ApplyAbsVelocityImpulse(in Vector3 vecImpulse) {
 
-	}
-	public void ApplyLocalAngularVelocityImpulse(in Vector3 angImpulse) {
-
-	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ref readonly Vector3 WorldAlignMins() {
@@ -1323,6 +1328,7 @@ public partial class BaseEntity : IServerEntity
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public EFL GetEFlags() => eflags;
 
 	public Vector3 AbsVelocity;
+	public QAngle AngVelocity;
 
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
@@ -1601,12 +1607,12 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// if (!IsEntityPositionReasonable(origin)) {
-		// 	if (CheckEmitReasonablePhysicsSpew())
-		// 		Warning("Bad SetLocalOrigin(%f,%f,%f) on %s\n", origin.x, origin.y, origin.z, GetDebugName());
-		// 	Assert(false);
-		// 	return;
-		// }
+		if (!IsEntityPositionReasonable(origin)) {
+			if (CheckEmitReasonablePhysicsSpew())
+				Warning($"Bad SetLocalOrigin({origin.X},{origin.Y},{origin.Z}) on {GetDebugName()}\n");
+			Assert(false);
+			return;
+		}
 
 		if (Origin != origin) {
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
@@ -1617,10 +1623,10 @@ public partial class BaseEntity : IServerEntity
 
 	public void SetLocalAngles(in QAngle angles) {
 		if (!IsEntityQAngleReasonable(angles)) {
-			// 	if (CheckEmitReasonablePhysicsSpew())
-			// 		Warning("Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
-			// 	AssertMsg(false, "Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
-			// 	return;
+			if (CheckEmitReasonablePhysicsSpew())
+				Warning($"Bad SetLocalAngles({angles.X},{angles.Y},{angles.Z}) on {GetDebugName()}\n");
+			AssertMsg(false, $"Bad SetLocalAngles({angles.X},{angles.Y},{angles.Z}) on {GetDebugName()}\n");
+			return;
 		}
 
 		if (Rotation != angles) {
