@@ -54,7 +54,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public readonly PlayerAnimState PlayerAnimState;
 	public QAngle AngEyeAngles;
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
-	public EHANDLE Ragdoll = new();
+	public new EHANDLE Ragdoll = new();
 	public int SpawnInterpCounter;
 	public int SpawnInterpCounterCache;
 	public int PlayerSoundType;

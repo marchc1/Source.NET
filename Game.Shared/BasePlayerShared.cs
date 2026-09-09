@@ -412,17 +412,8 @@ public partial class
 		AfButtonReleased = buttonsChanged & (~Buttons);    // The ones not down are "released"
 	}
 
-	public float GetPlayerMaxSpeed() {
-		float speed = Local.WalkSpeed;
-		if ((Buttons & InButtons.Walk) != 0)
-			speed = Local.SlowWalkSpeed;
-		else if ((Buttons & InButtons.Speed) != 0)
-			speed = Local.SprintSpeed;
-
+	public virtual float GetPlayerMaxSpeed() {
 		float maxSpeed = sv_maxspeed.GetFloat();
-		if (speed > 0.0f && speed < maxSpeed)
-			maxSpeed = speed;
-
 		if (MaxSpeed() > 0.0f && MaxSpeed() < maxSpeed)
 			maxSpeed = MaxSpeed();
 
