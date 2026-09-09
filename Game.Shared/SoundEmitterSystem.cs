@@ -228,6 +228,12 @@ BaseEntity
 		BaseEntity.EmitSound(filter, EntIndex(), in parms);
 	}
 
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, default, default, out _);
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, out TimeUnit_t duration) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, default, default, out duration);
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, out TimeUnit_t duration) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, in origin, default, out duration);
 	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, TimeUnit_t soundtime, out TimeUnit_t duration) where T : IRecipientFilter {
 		duration = default;
 		if (soundname.IsStringEmpty)
