@@ -81,6 +81,16 @@ public class GameMovement : IGameMovement
 
 		// CheckV( Player.CurrentCommandNumber(), "EndPos", mv.GetAbsOrigin() );
 
+		if (player.Impulse == 154) {
+			// Garry's Mod lua calls todo...	
+			if (player.MoveType == (byte)MoveType.Noclip) {
+				player.SetMoveType(MoveType.Walk);
+			}
+			else {
+				player.SetMoveType(MoveType.Noclip);
+			}
+		}
+
 		//This is probably not needed, but just in case.
 		gpGlobals.FrameTime = storeFrametime;
 	}
