@@ -6,6 +6,10 @@ using Game.Client.GarrysMod;
 using Game.Server.GarrysMod;
 #endif
 
+#if HL2_DLL
+using Game.Shared.HL2;
+#endif
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
@@ -58,7 +62,7 @@ public class GameMovement : IGameMovement
 
 		ResetGetPointContentsCache();
 
-		// Cropping movement speed scales mv->m_fForwardSpeed etc. globally
+		// Cropping movement speed scales mv.m_fForwardSpeed etc. globally
 		// Once we crop, we don't want to recursively crop again, so we set the crop
 		//  flag globally here once per usercmd cycle.
 		SpeedCropped = SpeedCropped.Reset;
@@ -75,7 +79,7 @@ public class GameMovement : IGameMovement
 
 		FinishMove();
 
-		// CheckV( Player.CurrentCommandNumber(), "EndPos", mv->GetAbsOrigin() );
+		// CheckV( Player.CurrentCommandNumber(), "EndPos", mv.GetAbsOrigin() );
 
 		//This is probably not needed, but just in case.
 		gpGlobals.FrameTime = storeFrametime;
@@ -879,8 +883,12 @@ public class GameMovement : IGameMovement
 	}
 
 	// allow overridden versions to respond to jumping
-	protected virtual void OnJump(float fImpulse) { }
-	protected virtual void OnLand(float fVelocity) { }
+	protected virtual void OnJump(float fImpulse) {
+
+	}
+	protected virtual void OnLand(float fVelocity) {
+
+	}
 
 	// Implement this if you want to know when the player collides during OnPlayerMove
 	protected virtual void OnTryPlayerMoveCollision(ref Trace tr) { }
@@ -1253,6 +1261,34 @@ public class GameMovement : IGameMovement
 		mv.JumpVel.Z += mv.Velocity[2] - startz;
 		mv.StepHeight += 0.15f;
 
+		// Add a little forward velocity based on your current forward velocity - if you are not sprinting.
+#if HL2_DLL || HL2_CLIENT_DLL
+		if (gpGlobals.MaxClients == 1) {
+			HLMoveData pMoveData = (HLMoveData)mv;
+			MathLib.AngleVectors(mv.ViewAngles, out Vector3 vecForward);
+			vecForward.Z = 0;
+			MathLib.VectorNormalize(ref vecForward);
+
+			// We give a certain percentage of the current forward movement as a bonus to the jump speed.  That bonus is clipped
+			// to not accumulate over time.
+			float flSpeedBoostPerc = (!pMoveData.IsSprinting && !Player.Local.Ducked) ? 0.5f : 0.1f;
+			float flSpeedAddition = MathF.Abs(mv.ForwardMove * flSpeedBoostPerc);
+			float flMaxSpeed = mv.MaxSpeed + (mv.MaxSpeed * flSpeedBoostPerc);
+			float flNewSpeed = (flSpeedAddition + mv.Velocity.Length2D());
+
+			// If we're over the maximum, we want to only boost as much as will get us to the goal speed
+			if (flNewSpeed > flMaxSpeed) {
+				flSpeedAddition -= flNewSpeed - flMaxSpeed;
+			}
+
+			if (mv.ForwardMove < 0.0f)
+				flSpeedAddition *= -1.0f;
+
+			// Add it on
+			MathLib.VectorAdd((vecForward * flSpeedAddition), mv.Velocity, out mv.Velocity);
+		}
+#endif
+
 		OnJump(mv.JumpVel.Z);
 
 		// Set jump time.
@@ -1364,9 +1400,9 @@ public class GameMovement : IGameMovement
 		CheckWater();
 
 		// Was jump button pressed? If so, set velocity to 270 away from ladder.  
-		if ((mv!.Buttons & InButtons.Jump) != 0) 
+		if ((mv!.Buttons & InButtons.Jump) != 0)
 			CheckJumpButton();
-		else 
+		else
 			mv!.OldButtons &= ~InButtons.Jump;
 
 		// Perform the move accounting for any base velocity.
@@ -1663,9 +1699,9 @@ public class GameMovement : IGameMovement
 				Vector3 velocity, perp, cross, lateral, tmp;
 
 				//ALERT(at_console, "pev %.2f %.2f %.2f - ",
-				//	pev->velocity.x, pev->velocity.y, pev->velocity.z);
+				//	pev.velocity.x, pev.velocity.y, pev.velocity.z);
 				// Calculate player's intended velocity
-				//Vector velocity = (forward * gpGlobals->v_forward) + (right * gpGlobals->v_right);
+				//Vector velocity = (forward * gpGlobals.v_forward) + (right * gpGlobals.v_right);
 				MathLib.VectorScale(Forward, forwardSpeed, out velocity);
 				MathLib.VectorMA(velocity, rightSpeed, Right, out velocity);
 
@@ -1704,7 +1740,7 @@ public class GameMovement : IGameMovement
 
 				if (onFloor && normal > 0)  // On ground moving away from the ladder
 					MathLib.VectorMA(mv.Velocity, MAX_CLIMB_SPEED, pm.Plane.Normal, out mv.Velocity);
-				//pev->velocity = lateral - (CrossProduct( trace.vecPlaneNormal, perp ) * normal);
+				//pev.velocity = lateral - (CrossProduct( trace.vecPlaneNormal, perp ) * normal);
 			}
 			else
 				mv.Velocity.Init();
@@ -2336,7 +2372,7 @@ public class GameMovement : IGameMovement
 				//
 				if (Player.GetGroundEntity()!.GetAbsVelocity().Z < 0.0f) {
 					// Player landed on a descending object. Subtract the velocity of the ground entity.
-					Player.Local.FallVelocity += Player.GetGroundEntity().GetAbsVelocity().Z;
+					Player.Local.FallVelocity += Player.GetGroundEntity()!.GetAbsVelocity().Z;
 					Player.Local.FallVelocity = MathF.Max(0.1f, Player.Local.FallVelocity);
 				}
 
@@ -2590,7 +2626,6 @@ public class GameMovement : IGameMovement
 	}
 	protected virtual void FinishUnDuck() {
 		int i;
-		Trace trace;
 		Vector3 newOrigin = mv!.GetAbsOrigin();
 
 		if (Player.GetGroundEntity() != null)
@@ -2616,7 +2651,6 @@ public class GameMovement : IGameMovement
 		mv.SetAbsOrigin(newOrigin);
 
 #if CLIENT_DLL
-
 		Player.ResetLatched();
 #endif // CLIENT_DLL
 

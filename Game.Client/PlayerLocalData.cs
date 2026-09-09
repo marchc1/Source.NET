@@ -102,13 +102,13 @@ public class PlayerLocalData
 		RecvPropBool(FIELD.OF(nameof(DuckToggled))),
 	]); public static readonly ClientClass CC_Local = new ClientClass("Local", null, null, DT_Local);
 
-	public float SprintSpeed;
-	public float WalkSpeed;
-	public float SlowWalkSpeed;
-	public float LadderSpeed;
-	public float CrouchedWalkSpeed;
-	public float DuckSpeed;
-	public float UnDuckSpeed;
+	public float SprintSpeed = 400;
+	public float WalkSpeed = 200;
+	public float SlowWalkSpeed = 100;
+	public float LadderSpeed = 200;
+	public float CrouchedWalkSpeed = 0.3f;
+	public float DuckSpeed = 0.1f;
+	public float UnDuckSpeed = 0.1f;
 	public bool DuckToggled;
 
 	// TODO: NETWORK VARS!!!!!
