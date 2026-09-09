@@ -13,6 +13,7 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 using Source.Engine;
 
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -27,8 +28,9 @@ public enum PlayerConnectedState
 	Disconnected
 }
 
-public static class PlayerConvars {
-	public static readonly ConVar sv_noclipduringpause = new( "sv_noclipduringpause", "0", FCvar.Replicated | FCvar.Cheat, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.)." );
+public static class PlayerConvars
+{
+	public static readonly ConVar sv_noclipduringpause = new("sv_noclipduringpause", "0", FCvar.Replicated | FCvar.Cheat, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.).");
 
 }
 
@@ -427,10 +429,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 
-		public void SetBodyPitch( float pitch){
+	public void SetBodyPitch(float pitch) {
 		if (BodyPitchPoseParam >= 0)
 			SetPoseParameter(BodyPitchPoseParam, pitch);
-		}
+	}
 
 	public EHANDLE Vehicle = new();
 	public EHANDLE UseEntity = new();
@@ -564,7 +566,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 
 	public TimeUnit_t ConsumeMovementTimeForUserCmdProcessing(TimeUnit_t timeNeeded) {
-		if (MovementTimeForUserCmdProcessingRemaining <= 0.0) 
+		if (MovementTimeForUserCmdProcessingRemaining <= 0.0)
 			return 0.0;
 		else if (timeNeeded > MovementTimeForUserCmdProcessingRemaining + TimeUnit_t.Epsilon) {
 			TimeUnit_t result = MovementTimeForUserCmdProcessingRemaining;
@@ -612,8 +614,57 @@ public partial class BasePlayer : BaseCombatCharacter
 		return pent;
 	}
 
-	public void ImpulseCommands() {
-		// todo
+	public virtual void CheatImpulseCommands(int impulse) {
+		if (!sv_cheats.GetBool())
+			return;
+	}
+	public virtual void ImpulseCommands() {
+		Trace tr;
+
+		int iImpulse = (int)Impulse;
+		switch (iImpulse) {
+			case 100:
+				// temporary flashlight for level designers
+				if (FlashlightIsOn())
+					FlashlightTurnOff();
+				else
+					FlashlightTurnOn();
+				break;
+
+			case 200:
+				if (sv_cheats.GetBool()) {
+					BaseCombatWeapon weapon;
+
+					weapon = GetActiveWeapon()!;
+
+					if (weapon.IsEffectActive(EntityEffects.NoDraw))
+						weapon.Deploy();
+					else
+						weapon.Holster();
+				}
+				break;
+
+			case 201:// paint decal
+				if (gpGlobals.CurTime < NextDecalTime) {
+					// too early!
+					break;
+				} {
+					EyeVectors(out Vector3 forward);
+					Util.TraceLine(EyePosition(), EyePosition() + forward * 128, Mask.SolidBrushOnly, this, Source.CollisionGroup.None, out tr);
+				}
+
+				if (tr.Fraction != 1.0) { // line hit something, so paint a decal
+					// todo
+				}
+
+				break;
+			default:
+				// check all of the cheat impulse commands now
+				CheatImpulseCommands(iImpulse);
+				break;
+		}
+
+		Impulse = 0;
 	}
 
 	public virtual void InitialSpawn() {
@@ -1141,10 +1192,10 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	bool TouchedPhysObject;
 
-	static readonly ConVar xc_crouch_debounce = new( "xc_crouch_debounce", "0", 0);
+	static readonly ConVar xc_crouch_debounce = new("xc_crouch_debounce", "0", 0);
 
 	public bool GetToggledDuckState() => DuckToggled;
-	public void ToggleDuck(){
+	public void ToggleDuck() {
 		DuckToggled = !DuckToggled;
 	}
 
@@ -1200,6 +1251,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public int Frags;
 	public int Deaths;
+
+	public TimeUnit_t NextDecalTime;
 
 	public int FragCount() => Frags;
 	public int DeathCount() => Deaths;
