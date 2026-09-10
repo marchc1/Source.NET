@@ -1,4 +1,4 @@
-using Source;
+﻿using Source;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
@@ -14,6 +14,7 @@ class HudBaseTimer : HudNumericDisplay, IHudElement
 	[PanelAnimationVar("SecondaryColor", "FgColor")] protected Color FlashColor;
 
 	public HudBaseTimer(string panelName) : base(null, "HudBaseTimer") {
+		ElementName = panelName;
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 

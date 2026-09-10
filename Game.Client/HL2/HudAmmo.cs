@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 namespace Game.Client.HL2;
@@ -13,6 +13,7 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 	HudTexture? IconPrimaryAmmo;
 
 	public HudAmmo(string? panelName) : base(null, "HudAmmo") {
+		ElementName = panelName;
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit | HideHudBits.WeaponSelection);
 
 		hudlcd.SetGlobalStat("(ammo_primary)", "0");
@@ -192,6 +193,7 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 	HudTexture? IconSecondaryAmmo;
 
 	public HudAmmoSecondary(string? panelName) : base(null, "HudAmmoSecondary") {
+		ElementName = panelName;
 		Ammo = -1;
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit | HideHudBits.WeaponSelection);
 	}

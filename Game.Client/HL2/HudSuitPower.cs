@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -30,8 +30,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 
 	const int SUIT_POWER_INIT = -1;
 
-	public HudSuitPower(string? panelName) : base(null, "HudSuitPower") {
-		ElementName = panelName;
+	public HudSuitPower(string? panelName) : base("HudSuitPower", panelName) {
 		SetParent(clientMode.GetViewport());
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.NeedSuit | HideHudBits.PlayerDead);
 	}

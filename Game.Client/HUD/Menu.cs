@@ -48,7 +48,7 @@ class HudMenu : EditableHudElement
 	[PanelAnimationVar("MenuItemColor", "ItemColor", "color")] protected Color ItemColor;
 	[PanelAnimationVar("MenuBoxColor", "MenuBoxBg", "color")] protected Color BoxColor;
 
-	public HudMenu(string elementName) : base(null, "CHudMenu") {
+	public HudMenu(string elementName) : base("HudMenu", elementName) {
 		SelectedItem = -1;
 		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
