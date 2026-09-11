@@ -6,6 +6,7 @@ using Source.Common.GUI;
 
 
 namespace Game.Server;
+
 using Source;
 using Source.Common.Commands;
 using Source.Common.Formats.BSP;
@@ -110,7 +111,8 @@ public class PropDoorRotating : BasePropDoor
 	public static readonly new ServerClass ServerClass = new ServerClass("PropDoorRotating", DT_PropDoorRotating).WithManualClassID(StaticClassIndices.CPropDoorRotating);
 }
 
-public static class Props {
+public static class Props
+{
 	public static PhysicsProp? CreatePhysicsProp(ReadOnlySpan<char> modelName, in Vector3 traceStart, in Vector3 traceEnd, IHandleEntity? traceIgnore, bool requireVCollide, ReadOnlySpan<char> className = "physics_prop") {
 		MDLHandle_t h = mdlcache.FindMDL(modelName);
 		if (h == MDLHANDLE_INVALID)
@@ -125,7 +127,7 @@ public static class Props {
 		if (requireVCollide && null == mdlcache.GetVCollide(h))
 			return null;
 
-		QAngle angles = new( 0.0f, 0.0f, 0.0f );
+		QAngle angles = new(0.0f, 0.0f, 0.0f);
 		Vector3 vecSweepMins = studioHdr.HullMin;
 		Vector3 vecSweepMaxs = studioHdr.HullMax;
 
@@ -163,12 +165,15 @@ public static class Props {
 	}
 
 	[ConCommand("prop_physics_create", "Creates a physics prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}", FCvar.Cheat)]
-	public static void CC_Prop_Physics_Create(in TokenizedCommand args){
+	public static void CC_Prop_Physics_Create(in TokenizedCommand args) {
 		if (args.ArgC() != 2)
 			return;
 
 		Span<char> modelName = stackalloc char[512];
-		sprintf(modelName, "models/%s").S(args[1]);
+		if (!args[1].StartsWith("models/") && !args[1].StartsWith("models\\"))
+			sprintf(modelName, "models/%s").S(args[1]);
+		else
+			strcpy(modelName, args[1]);
 		StrTools.DefaultExtension(modelName, ".mdl");
 
 		BasePlayer? player = Util.GetCommandClient();
