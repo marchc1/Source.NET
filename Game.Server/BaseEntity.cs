@@ -1393,7 +1393,55 @@ public partial class BaseEntity : IServerEntity
 	public static readonly DataMap DataDesc = new(typeof(BaseEntity), []);
 	public virtual DataMap? GetDataDescMap() => DataDesc;
 
-	public virtual bool AcceptInput(ReadOnlySpan<char> inputName, BaseEntity? activator, BaseEntity? caller, Variant_t value, int outputID) => throw new NotImplementedException();
+	public virtual bool AcceptInput(ReadOnlySpan<char> inputName, BaseEntity? activator, BaseEntity? caller, Variant_t value, int outputID) {
+		// if (ent_messages_draw.GetBool()) todo
+
+		for (DataMap? dmap = GetDataDescMap(); dmap != null; dmap = dmap.BaseMap) {
+			for (int i = 0; i < dmap.DataNumFields; i++) {
+				TypeDescription desc = dmap.DataDesc[i];
+				if ((desc.Flags & FieldTypeDescFlags.Input) == 0)
+					continue;
+
+				if (stricmp(desc.ExternalName, inputName) != 0)
+					continue;
+
+				if (caller != null)
+					DevMsg(2, $"({gpGlobals.CurTime:F2}) input {caller.GetEntityName()}: {GetDebugName()}.{inputName}({value.ToString()})\n");
+				else
+					DevMsg(2, $"({gpGlobals.CurTime:F2}) input <NULL>: {GetDebugName()}.{inputName}({value.ToString()})\n");
+
+				// if ((DebugOverlays & OVERLAY_MESSAGE_BIT) != 0)
+				// 	DrawInputOverlay(inputName, caller, value);
+
+				if (value.FieldType() != desc.FieldType)
+					if (!(value.FieldType() == Source.Common.FieldType.Void && desc.FieldType == Source.Common.FieldType.String))
+						if (!value.Convert(desc.FieldType)) {
+							Warning($"!! ERROR: bad input/output link:\n!! {GetClassname()}({GetDebugName()},{inputName}) doesn't match type from {(caller != null ? caller.GetClassname() : "<null>")}({(caller != null ? caller.GetEntityName() : "<null>")})\n");
+							return false;
+						}
+
+				if (desc.InputFunc is INPUTFUNCPTR pfnInput) {
+					InputData data = new() {
+						Activator = activator,
+						Caller = caller,
+						Value = value,
+						OutputID = outputID
+					};
+
+					pfnInput(this, data);
+				}
+				else if ((desc.Flags & FieldTypeDescFlags.Key) != 0) {
+					value.SetOther(desc.Accessor, this);
+					NetworkStateChanged();
+				}
+
+				return true;
+			}
+		}
+
+		DevMsg(2, $"unhandled input: ({inputName}) -> ({GetClassname()},{GetDebugName()})\n");
+		return false;
+	}
 	public virtual void Spawn() { }
 	public virtual void Activate() { }
 	public virtual void Precache() {
