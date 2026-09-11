@@ -106,4 +106,16 @@ public class PlayerLocalData
 	public Sky3DParams Skybox3D = new();
 	public FogPlayerParams PlayerFog = new();
 	public AudioParams Audio = new();
+
+	public PlayerLocalData(){
+		Ducked = false;
+		Ducking = false;
+		DuckSpeed = 0.1f;         
+		UnDuckSpeed = 0.1f;       
+		SprintSpeed = 400.0f;     
+		WalkSpeed = 200.0f;       
+		SlowWalkSpeed = 100.0f;   
+		LadderSpeed = 150.0f;
+		CrouchedWalkSpeed = 0.3f; 
+	}
 }

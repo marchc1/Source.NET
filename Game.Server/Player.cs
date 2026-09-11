@@ -767,15 +767,6 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		g_pGameRules.GetPlayerSpawnSpot(this);
 
-		Local.Ducked = false;
-		Local.Ducking = false;
-		Local.DuckSpeed = 0.1f;                // GMod player_sandbox.DuckSpeed
-		Local.UnDuckSpeed = 0.1f;              // GMod player_sandbox.UnDuckSpeed
-		Local.SprintSpeed = 400.0f;            // GMod player_sandbox.RunSpeed
-		Local.WalkSpeed = 200.0f;              // GMod player_sandbox.WalkSpeed (default move speed)
-		Local.SlowWalkSpeed = 100.0f;          // GMod player_sandbox.SlowWalkSpeed (+walk)
-		Local.LadderSpeed = 150.0f;
-		Local.CrouchedWalkSpeed = 0.3f;        // GMod player_default.CrouchedWalkSpeed
 		SetViewOffset(VEC_VIEW_SCALED(this));
 		Precache();
 

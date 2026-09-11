@@ -114,6 +114,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	bool WasFrozen;
 	int Physics;
 	bool FiredWeapon;
+
+	
+
+
 	public bool HasFiredWeapon() => FiredWeapon;
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
@@ -516,7 +520,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual BaseEntity? GetObserverTarget() => null; // todo
 
 	static readonly ConVar demo_fov_override = new( "demo_fov_override", "0", FCvar.ClientDLL | FCvar.DontRecord, "If nonzero, this value will be used to override FOV during demo playback." );
-
 
 	public virtual float GetFOV(){
 		// Allow users to override the FOV during demo playback

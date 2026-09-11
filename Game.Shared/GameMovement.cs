@@ -2458,8 +2458,8 @@ public class GameMovement : IGameMovement
 	public float GAMEMOVEMENT_TIME_TO_UNDUCK_INV => (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
 
 
-	public float TIME_TO_DUCK => Player!.Local.DuckSpeed;
-	public float TIME_TO_UNDUCK => Player!.Local.UnDuckSpeed;
+	public float TIME_TO_DUCK => Player!.GetDuckSpeed();
+	public float TIME_TO_UNDUCK => Player!.GetUnDuckSpeed();
 	public float TIME_TO_UNDUCK_MS => TIME_TO_UNDUCK * 1000;
 
 	// Ducking

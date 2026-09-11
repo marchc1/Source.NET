@@ -422,6 +422,13 @@ public partial class
 
 	public bool IsOnLadder() => GetMoveType() == Source.MoveType.Ladder;
 
+	public virtual float GetDuckSpeed() => Local.DuckSpeed;
+	public virtual float GetSprintSpeed() => Local.SprintSpeed;
+	public virtual float GetSlowWalkSpeed() => Local.SlowWalkSpeed;
+	public virtual float GetWalkSpeed() => Local.WalkSpeed;
+	public virtual float GetUnDuckSpeed() => Local.UnDuckSpeed;
+
+
 	int SkipStep;
 	public void UpdateStepSound(SurfaceData_ptr? surface, in Vector3 origin, in Vector3 velocity) {
 		bool walking;
