@@ -1301,12 +1301,6 @@ public class GameMovement : IGameMovement
 
 		OnJump(mv.JumpVel.Z);
 
-		// Set jump time.
-		if (gpGlobals.MaxClients == 1) {
-			Player.Local.JumpTime = GAMEMOVEMENT_JUMP_TIME;
-			Player.Local.InDuckJump = true;
-		}
-
 		// Flag that we jumped.
 		mv.OldButtons |= InButtons.Jump;   // don't jump again until released
 		return true;
@@ -2293,7 +2287,7 @@ public class GameMovement : IGameMovement
 			}
 		}
 
-		if ((Player.GetFlags() & EntityFlags.OnTrain) != 0 ||
+		if ((Player.GetFlags() & EntityFlags.Frozen) != 0 ||
 			 (Player.GetFlags() & EntityFlags.OnTrain) != 0 ||
 			 IsDead()) {
 			mv.ForwardMove = 0;

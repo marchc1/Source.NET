@@ -31,6 +31,11 @@ GMOD_Player
 
 		return maxSpeed;
 	}
+
+	public override void PreThink() {
+		base.PreThink();
+		SetMaxSpeed(GetPlayerMaxSpeed());
+	}
 }
 
 #endif
