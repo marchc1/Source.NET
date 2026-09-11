@@ -15,6 +15,7 @@ using Source;
 using FIELD = Source.FIELD<GMODGameRulesProxy>;
 
 using Game.Shared;
+using Source.GUI.Controls;
 
 #if GAME_DLL
 [LinkEntityToClass("gmod_gamerules")]
@@ -78,5 +79,14 @@ public class
 
 	public float TimeScale;
 	public int SkillLevel;
+
+#if GAME_DLL
+	public override bool FlPlayerFallDeathDoesScreenFade(BasePlayer player) {
+		return base.FlPlayerFallDeathDoesScreenFade(player);
+	}
+	public override float FlPlayerFallDamage(BasePlayer player) {
+		return 10; // todo: lua hook
+	}
+#endif
 }
 #endif

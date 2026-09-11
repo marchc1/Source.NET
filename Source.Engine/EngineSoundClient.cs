@@ -170,7 +170,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		return lastGuid;
 	}
 
-	public float GetSoundDuration(ReadOnlySpan<char> sample) {
+	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
 		// TODO: return AudioSource_GetSoundDuration(sample);
 		return 0;
 	}

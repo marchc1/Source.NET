@@ -24,7 +24,7 @@ public interface IEngineSound
 
 	// Just loads the file header and checks for duration (not hooked up for .mp3's yet)
 	// Is accessible to server and client though
-	float GetSoundDuration( ReadOnlySpan<char> sample );
+	TimeUnit_t GetSoundDuration( ReadOnlySpan<char> sample );
 
 	// Pitch of 100 is no pitch shift.  Pitch > 100 up to 255 is a higher pitch, pitch < 100
 	// down to 1 is a lower pitch.   150 to 70 is the realistic range.

@@ -135,11 +135,11 @@ public class EngineToolImpl : IEngineToolInternal
 		throw new NotImplementedException();
 	}
 
-	public float GetSoundDuration(ReadOnlySpan<char> pszName) {
+	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> pszName) {
 		throw new NotImplementedException();
 	}
 
-	public float GetSoundDuration(int guid) {
+	public TimeUnit_t GetSoundDuration(int guid) {
 		throw new NotImplementedException();
 	}
 

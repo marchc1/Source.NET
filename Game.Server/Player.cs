@@ -213,6 +213,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public Vector3 PreviouslyPredictedOrigin;
 
+	public override bool IsNetClient() => true;
+
 	public BaseViewModel? GetViewModel(int index) => ViewModel[index].Get();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
@@ -1402,8 +1404,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		int l = strcpy(NetworkIDString, str);
 		return NetworkIDString.AsSpan()[..l];
 	}
-
-	public virtual bool IsNetClient() => false;
 
 	TimeUnit_t NextSuicideTime;
 	int SuicideCustomKillFlags;

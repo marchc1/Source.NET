@@ -15,6 +15,7 @@ using Source.Engine.Server;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Net.Mail;
 using System.Numerics;
@@ -24,6 +25,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 
 using static Source.Common.Engine.IEngine;
+using Color = Source.Color;
 
 namespace Game;
 
@@ -143,34 +145,36 @@ public static partial class Util_Globals
 		=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 }
 
-public struct EntitySphereQuery{
+public struct EntitySphereQuery
+{
 	public const int MAX_SPHERE_QUERY = 512;
 
-	public EntitySphereQuery(in Vector3 center, float radius, EntityFlags flagMask = 0){
+	public EntitySphereQuery(in Vector3 center, float radius, EntityFlags flagMask = 0) {
 		ListIndex = 0;
 		ListCount = Util.EntitiesInSphere(List, center, radius, flagMask);
 	}
-	public BaseEntity? GetCurrentEntity(){
+	public BaseEntity? GetCurrentEntity() {
 		if (ListIndex < ListCount)
 			return List[ListIndex];
 		return null;
 	}
 	public void NextEntity() => ListIndex++;
 
-	[InlineArray(MAX_SPHERE_QUERY)]	struct InlineArrayMaxSphereQuery<T>{ public T first; }
+	[InlineArray(MAX_SPHERE_QUERY)] struct InlineArrayMaxSphereQuery<T> { public T first; }
 	int ListIndex;
 	int ListCount;
 	InlineArrayMaxSphereQuery<BaseEntity?> List;
 }
 
-public ref struct FlaggedEntitiesEnum : IPartitionEnumerator {
-	public FlaggedEntitiesEnum(Span<BaseEntity> list, EntityFlags flagMask){
+public ref struct FlaggedEntitiesEnum : IPartitionEnumerator
+{
+	public FlaggedEntitiesEnum(Span<BaseEntity> list, EntityFlags flagMask) {
 		List = list;
 		FlagMask = flagMask;
 		Count = 0;
 	}
 
-	public IterationRetval EnumElement(IHandleEntity? handleEntity){
+	public IterationRetval EnumElement(IHandleEntity? handleEntity) {
 		BaseEntity? entity = gEntList.GetBaseEntity(handleEntity.GetRefEHandle());
 		if (entity != null) {
 			if (FlagMask != 0 && 0 == (entity.GetFlags() & FlagMask))  // Does it meet the criteria?
@@ -183,8 +187,8 @@ public ref struct FlaggedEntitiesEnum : IPartitionEnumerator {
 		return IterationRetval.Continue;
 	}
 	public int GetCount() => Count;
-	public bool AddToList(BaseEntity? entity){
-		if(Count >= List.Length){
+	public bool AddToList(BaseEntity? entity) {
+		if (Count >= List.Length) {
 			AssertMsg(false, "reached enumerated list limit.  Increase limit, decrease radius, or make it so entity flags will work for you");
 			return false;
 		}
@@ -214,11 +218,11 @@ public static partial class Util
 		ent.SetCollisionBounds(mins, maxs);
 	}
 
-	public static BasePlayer? GetLocalPlayer(){
+	public static BasePlayer? GetLocalPlayer() {
 		if (gpGlobals.MaxClients > 1) {
 			if (developer.GetBool()) {
 				AssertMsg(false, "Util.GetLocalPlayer");
-#if	DEBUG
+#if DEBUG
 				Warning("Util.GetLocalPlayer() called in multiplayer game.\n");
 #endif
 			}
@@ -236,7 +240,7 @@ public static partial class Util
 		SetMinMaxSize(ent, min, max);
 	}
 
-	public static int EntitiesInSphere(Span<BaseEntity> list, in Vector3 center, float radius, EntityFlags flagMask){
+	public static int EntitiesInSphere(Span<BaseEntity> list, in Vector3 center, float radius, EntityFlags flagMask) {
 		FlaggedEntitiesEnum sphereEnum = new(list, flagMask);
 		return EntitiesInSphere(center, radius, ref sphereEnum);
 	}
@@ -268,6 +272,55 @@ public static partial class Util
 		WRITE_STRING(param4);
 
 		MessageEnd();
+	}
+
+
+	public static void ScreenFade(BaseEntity? entity, in Color color, TimeUnit_t fadeTime, TimeUnit_t fadeHold, FadeFlags flags) {
+		ScreenFade fade = default;
+
+		Util.ScreenFadeBuild(ref fade, color, fadeTime, fadeHold, flags);
+		Util.ScreenFadeWrite(in fade, entity);
+	}
+
+	public static ushort FixedUnsigned16(TimeUnit_t value, float scale) {
+		int output;
+
+		output = (int)(value * scale);
+		if (output < 0)
+			output = 0;
+		if (output > 0xFFFF)
+			output = 0xFFFF;
+
+		return (ushort)output;
+	}
+
+
+	public static void ScreenFadeWrite(in ScreenFade fade, BaseEntity? entity) {
+		if (entity == null || !entity.IsNetClient())
+			return;
+
+		SingleUserRecipientFilter user = new((BasePlayer)entity);
+		user.MakeReliable();
+
+		UserMessageBegin(user, "Fade");     // use the magic #1 for "one client"
+		WRITE_SHORT((short)fade.Duration);     // fade lasts this long
+		WRITE_SHORT((short)fade.HoldTime);     // fade lasts this long
+		WRITE_SHORT((short)fade.FadeFlags);        // fade type (in / out)
+		WRITE_BYTE(fade.R);             // fade red
+		WRITE_BYTE(fade.G);             // fade green
+		WRITE_BYTE(fade.B);             // fade blue
+		WRITE_BYTE(fade.A);             // fade blue
+		MessageEnd();
+	}
+
+	public static void ScreenFadeBuild(ref ScreenFade fade, Source.Color color, double fadeTime, double fadeHold, FadeFlags flags) {
+		fade.Duration = FixedUnsigned16(fadeTime, 1 << Source.Common.ScreenFade.SCREENFADE_FRACBITS);        // 7.9 fixed
+		fade.HoldTime = FixedUnsigned16(fadeHold, 1 << Source.Common.ScreenFade.SCREENFADE_FRACBITS);        // 7.9 fixed
+		fade.R = color.R;
+		fade.G = color.G;
+		fade.B = color.B;
+		fade.A = color.A;
+		fade.FadeFlags = flags;
 	}
 
 	public static void TransmitShakeEvent(BasePlayer player, float localAmplitude, float frequency, TimeUnit_t duration, ShakeCommand command) {

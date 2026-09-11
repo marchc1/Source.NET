@@ -81,8 +81,8 @@ public class EngineSoundServer : IEngineSound
 		throw new NotImplementedException();
 	}
 
-	public float GetSoundDuration(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
+		return Host.GetSoundDuration(sample);
 	}
 
 	public bool IsSoundPrecached(ReadOnlySpan<char> sample) {

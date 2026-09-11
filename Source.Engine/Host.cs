@@ -1351,4 +1351,8 @@ public class Host
 		// 	Hunk_FreeToLowMark(HunkLevel);
 		// }
 	}
+
+	internal static TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
+		return 0; // todo
+	}
 }

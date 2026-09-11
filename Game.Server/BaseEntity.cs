@@ -219,6 +219,7 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
+	public virtual bool IsNetClient() => false;
 	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => Classname.AsSpan().SequenceEqual(classOrWildcard);
 	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
 	public virtual bool IsPredicted() => false;
