@@ -847,9 +847,9 @@ public partial class
 			return true;
 		}
 
-		// TODO: datamap keyfield parsing is not ported yet. C++ loops the entity's data description
-		// chain here (GetDataDescMap()) and calls ::ParseKeyvalue() to place any remaining keys into
-		// [Key]-flagged fields (plus the ent_debugkeys debug path). That subsystem doesn't exist yet.
+		for (DataMap? dmap = GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+			if (SaveRestoreGameDLL.ParseKeyvalue(this, dmap.DataDesc, dmap.DataNumFields, key, szValue))
+				return true;
 #endif
 
 		// key hasn't been handled

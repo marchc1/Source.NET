@@ -138,7 +138,7 @@ public class World : BaseEntity
 		SetModelName(modelinfo.GetModelName(modelinfo.GetModel(GetModelIndex())));
 		AddFlag(Source.EntityFlags.WorldBrush);
 
-		// EventQueue.Init();
+		g_EventQueue.Init();
 		Precache();
 
 		GlobalEntity.Add("is_console", gpGlobals.MapName, (IsConsole()) ? GlobalEState.On : GlobalEState.Off);

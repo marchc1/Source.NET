@@ -422,7 +422,7 @@ public static class CFormatting
 	public static float strtof(ReadOnlySpan<char> input, out ReadOnlySpan<char> output) {
 		Span<char> outputBuffer = stackalloc char[input.Length];
 		int i = 0;
-		while (input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
+		while (i < input.Length && input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
 			outputBuffer[i] = input[i];
 			i++;
 		}
@@ -432,6 +432,25 @@ public static class CFormatting
 		}
 		output = input;
 		return 0;
+	}
+
+	public static bool nexttoken(out ReadOnlySpan<char> token, ReadOnlySpan<char> str, char sep, out ReadOnlySpan<char> next) {
+		if (str.IsEmpty) {
+			token = default;
+			next = default;
+			return false;
+		}
+
+		int i = str.IndexOf(sep);
+		if (i < 0) {
+			token = str;
+			next = default;
+			return true;
+		}
+
+		token = str[..i];
+		next = str[(i + 1)..];
+		return true;
 	}
 
 	// C atoi: skip leading whitespace, optional sign, parse leading decimal digits, stop at first non-digit.

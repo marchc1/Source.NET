@@ -75,18 +75,19 @@ namespace Source.Common
 		public readonly FieldType FieldType;
 		public readonly string FieldName = "";
 		public readonly FieldInfo FieldInfo;
+		public IFieldAccessor Accessor => field ??= new DynamicAccessor(FieldInfo.DeclaringType!, FieldInfo.Name, FieldName);
 		public nuint PackedOffset = nuint.MaxValue;
 		public readonly ushort FieldSize;
 		public readonly FieldTypeDescFlags Flags;
 		public readonly string ExternalName = "";
 		public readonly ISaveRestoreOps? SaveRestoreOps;
-		// InputFunc?
+		public readonly Delegate? InputFunc;
 		public readonly DataMap? TD;
 		public TypeDescription? OverrideField;
 		public int OverrideCount;
 		public readonly double FieldTolerance;
 
-		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, FieldInfo field, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, DataMap? td, double fieldTolerance) {
+		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, FieldInfo field, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, DataMap? td, double fieldTolerance, Delegate? inputFunc = null) {
 			FieldType = type;
 			FieldName = new(fieldName);
 			FieldInfo = field;
@@ -96,6 +97,7 @@ namespace Source.Common
 			ExternalName = new(externalName);
 			SaveRestoreOps = saveRestoreOps;
 			FieldTolerance = fieldTolerance;
+			InputFunc = inputFunc;
 		}
 	}
 
@@ -775,6 +777,30 @@ namespace Source
 
 		public static TypeDescription FIELD(ReadOnlySpan<char> name, FieldType fieldType) {
 			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Save, null, 0);
+		}
+
+		public static TypeDescription KEYFIELD(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> mapname) {
+			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Key | FieldTypeDescFlags.Save, mapname, 0);
+		}
+
+		public static TypeDescription KEYFIELD_NOT_SAVED(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> mapname) {
+			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Key, mapname, 0);
+		}
+
+		public static TypeDescription AUTO_ARRAY_KEYFIELD(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> mapname) {
+			return _FIELD_ARRAY(name, fieldType, SIZE_OF_ARRAY(name), FieldTypeDescFlags.Save, mapname, 0);
+		}
+
+		public static TypeDescription INPUT(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> inputname) {
+			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Input | FieldTypeDescFlags.Save | FieldTypeDescFlags.Key, inputname, 0);
+		}
+
+		public static TypeDescription INPUTFUNC(FieldType fieldType, ReadOnlySpan<char> inputname, ReadOnlySpan<char> inputfunc, Delegate func) {
+			return new(fieldType, inputfunc, null!, 1, FieldTypeDescFlags.Input, inputname, null, null, 0, func);
+		}
+
+		public static TypeDescription OUTPUT(ReadOnlySpan<char> name, ReadOnlySpan<char> outputname, ISaveRestoreOps eventFuncs) {
+			return new(FieldType.Custom, name, GetField_R(typeof(T), new(name)), 1, FieldTypeDescFlags.Output | FieldTypeDescFlags.Save | FieldTypeDescFlags.Key, outputname, eventFuncs, null, 0);
 		}
 
 		public static TypeDescription AUTO_ARRAY(ReadOnlySpan<char> name, FieldType fieldType) {
