@@ -17,6 +17,7 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Server;
 
+using DEFINE = Source.DEFINE<BaseEntity>;
 using FIELD = Source.FIELD<BaseEntity>;
 
 #if HL2_DLL
@@ -187,6 +188,7 @@ public partial class BaseEntity : IServerEntity
 	public static Edict? g_pForceAttachEdict;
 
 	public delegate void BASEPTR(BaseEntity self);
+	public delegate void INPUTFUNCPTR(BaseEntity self, InputData data);
 	public delegate void ENTITYFUNCPTR(BaseEntity self, BaseEntity? other);
 	public delegate void TOUCHPTR(BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
@@ -271,11 +273,11 @@ public partial class BaseEntity : IServerEntity
 	public virtual int Save(ISave save) { throw new NotImplementedException(); }
 	public virtual int Restore(IRestore save) { throw new NotImplementedException(); }
 	public virtual bool ShouldSavePhysics() => true;
-	public virtual void OnSave(IEntitySaveUtils utils){
+	public virtual void OnSave(IEntitySaveUtils utils) {
 		// CalcAbsolutePosition();
 		// CalcAbsoluteVelocity();
 	}
-	public virtual void OnRestore(){
+	public virtual void OnRestore() {
 
 	}
 
@@ -1073,15 +1075,15 @@ public partial class BaseEntity : IServerEntity
 			MathLib.VectorTransform(localPosition, moveParent.EntityToWorldTransform(), out absPosition);
 	}
 
-	public void SetLocalAngularVelocity(in QAngle vecAngVelocity){
+	public void SetLocalAngularVelocity(in QAngle vecAngVelocity) {
 		if (!IsEntityQAngleVelReasonable(vecAngVelocity)) {
-			if (CheckEmitReasonablePhysicsSpew()) 
+			if (CheckEmitReasonablePhysicsSpew())
 				Warning($"Bad SetLocalAngularVelocity({vecAngVelocity.X},{vecAngVelocity.Y},{vecAngVelocity.Z}) on {GetDebugName()}");
 			Assert(false);
 			return;
 		}
 
-		if (AngVelocity != vecAngVelocity) 
+		if (AngVelocity != vecAngVelocity)
 			AngVelocity = vecAngVelocity;
 	}
 
@@ -1435,6 +1437,59 @@ public partial class BaseEntity : IServerEntity
 	public virtual ReadOnlySpan<char> GetClassname() {
 		return Classname;
 	}
+
+	public static readonly DataMap DataDesc = new(typeof(BaseEntity), []);
+	public virtual DataMap? GetDataDescMap() => DataDesc;
+
+	public virtual bool AcceptInput(ReadOnlySpan<char> inputName, BaseEntity? activator, BaseEntity? caller, Variant_t value, int outputID) {
+		// if (ent_messages_draw.GetBool()) todo
+
+		for (DataMap? dmap = GetDataDescMap(); dmap != null; dmap = dmap.BaseMap) {
+			for (int i = 0; i < dmap.DataNumFields; i++) {
+				TypeDescription desc = dmap.DataDesc[i];
+				if ((desc.Flags & FieldTypeDescFlags.Input) == 0)
+					continue;
+
+				if (stricmp(desc.ExternalName, inputName) != 0)
+					continue;
+
+				if (caller != null)
+					DevMsg(2, $"({gpGlobals.CurTime:F2}) input {caller.GetEntityName()}: {GetDebugName()}.{inputName}({value.ToString()})\n");
+				else
+					DevMsg(2, $"({gpGlobals.CurTime:F2}) input <NULL>: {GetDebugName()}.{inputName}({value.ToString()})\n");
+
+				// if ((DebugOverlays & OVERLAY_MESSAGE_BIT) != 0)
+				// 	DrawInputOverlay(inputName, caller, value);
+
+				if (value.FieldType() != desc.FieldType)
+					if (!(value.FieldType() == Source.Common.FieldType.Void && desc.FieldType == Source.Common.FieldType.String))
+						if (!value.Convert(desc.FieldType)) {
+							Warning($"!! ERROR: bad input/output link:\n!! {GetClassname()}({GetDebugName()},{inputName}) doesn't match type from {(caller != null ? caller.GetClassname() : "<null>")}({(caller != null ? caller.GetEntityName() : "<null>")})\n");
+							return false;
+						}
+
+				if (desc.InputFunc is INPUTFUNCPTR pfnInput) {
+					InputData data = new() {
+						Activator = activator,
+						Caller = caller,
+						Value = value,
+						OutputID = outputID
+					};
+
+					pfnInput(this, data);
+				}
+				else if ((desc.Flags & FieldTypeDescFlags.Key) != 0) {
+					value.SetOther(desc.Accessor, this);
+					NetworkStateChanged();
+				}
+
+				return true;
+			}
+		}
+
+		DevMsg(2, $"unhandled input: ({inputName}) -> ({GetClassname()},{GetDebugName()})\n");
+		return false;
+	}
 	public virtual void Spawn() { }
 	public virtual void Activate() { }
 	public virtual void Precache() {
@@ -1643,13 +1698,13 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetAbsOrigin() {
 		Assert(BaseEntity.IsAbsQueriesValid());
 
-		if (IsEFlagSet(EFL.DirtyAbsTransform)) 
+		if (IsEFlagSet(EFL.DirtyAbsTransform))
 			this.CalcAbsolutePosition();
-		
+
 		return ref AbsOrigin;
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
-	public ref readonly QAngle GetAbsAngles(){
+	public ref readonly QAngle GetAbsAngles() {
 		Assert(BaseEntity.IsAbsQueriesValid());
 
 		if (IsEFlagSet(EFL.DirtyAbsTransform))
@@ -1792,7 +1847,7 @@ public partial class BaseEntity : IServerEntity
 		if (FnThink != null)
 			FnThink(this);
 	}
-		
+
 	public virtual EntityCapabilities ObjectCaps() {
 		Model? model = GetModel();
 		bool isBrush = (model != null && modelinfo.GetModelType(model) == ModelType.Brush);

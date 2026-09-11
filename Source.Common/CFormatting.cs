@@ -140,6 +140,19 @@ public ref struct PrintF
 		return this;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF I(int i) => D(i);
+	public PrintF G(double i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[32];
+		if (i.TryFormat(buffer, out int written, t == 'f' ? "F6" : "G6", CultureInfo.InvariantCulture))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF F(double i) => G(i);
 	public PrintF S(scoped ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());
@@ -422,7 +435,7 @@ public static class CFormatting
 	public static float strtof(ReadOnlySpan<char> input, out ReadOnlySpan<char> output) {
 		Span<char> outputBuffer = stackalloc char[input.Length];
 		int i = 0;
-		while (input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
+		while (i < input.Length && input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
 			outputBuffer[i] = input[i];
 			i++;
 		}
@@ -432,6 +445,25 @@ public static class CFormatting
 		}
 		output = input;
 		return 0;
+	}
+
+	public static bool nexttoken(out ReadOnlySpan<char> token, ReadOnlySpan<char> str, char sep, out ReadOnlySpan<char> next) {
+		if (str.IsEmpty) {
+			token = default;
+			next = default;
+			return false;
+		}
+
+		int i = str.IndexOf(sep);
+		if (i < 0) {
+			token = str;
+			next = default;
+			return true;
+		}
+
+		token = str[..i];
+		next = str[(i + 1)..];
+		return true;
 	}
 
 	// C atoi: skip leading whitespace, optional sign, parse leading decimal digits, stop at first non-digit.

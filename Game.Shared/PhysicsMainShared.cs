@@ -202,12 +202,68 @@ namespace Game.Server
 		}
 
 
+		static readonly BASEPTR BaseThink = static self => self.Think();
+
 		public bool PhysicsRunThink(ThinkMethods thinkMethod = ThinkMethods.FireAllFunctions) {
 			if (IsEFlagSet(EFL.NoThinkFunction))
 				return true;
 
-			// todo
-			return true;
+			bool alive = true;
+
+			if (thinkMethod != ThinkMethods.FireAllButBase) {
+				alive = PhysicsRunSpecificThink(-1, BaseThink);
+				if (!alive)
+					return false;
+			}
+
+			if (thinkMethod == ThinkMethods.FireBaseOnly)
+				return alive;
+
+			for (int i = 0; i < ThinkFunctions.Count; i++) {
+#if DEBUG
+				CurrentThinkContext = i;
+#endif
+
+				alive = PhysicsRunSpecificThink(i, ThinkFunctions[i].Think);
+
+#if DEBUG
+				CurrentThinkContext = NO_THINK_CONTEXT;
+#endif
+
+				if (!alive)
+					return false;
+			}
+
+			return alive;
+		}
+
+		public bool PhysicsRunSpecificThink(int contextIndex, BASEPTR? thinkFunc) {
+			long thinktick = GetNextThinkTick(contextIndex);
+
+			if (thinktick <= 0 || thinktick > gpGlobals.TickCount)
+				return true;
+
+			TimeUnit_t thinktime = thinktick * TICK_INTERVAL;
+
+			if (thinktime < gpGlobals.CurTime)
+				thinktime = gpGlobals.CurTime;
+
+			SetNextThink(contextIndex, TICK_NEVER_THINK);
+
+			PhysicsDispatchThink(thinkFunc);
+
+			SetLastThink(contextIndex, gpGlobals.CurTime);
+
+			return !IsMarkedForDeletion();
+		}
+
+		public void PhysicsDispatchThink(BASEPTR? thinkFunc) {
+			if (IsDormant()) {
+				Warning($"Dormant entity {GetClassname()} ({GetDebugName()}) is thinking!!\n");
+				Assert(0);
+			}
+
+			thinkFunc?.Invoke(this);
 		}
 
 		public void UpdateWaterState() {

@@ -144,9 +144,9 @@ public class BaseAnimating : BaseEntity
 		return hdr;
 	}
 
-	static readonly ConVar npc_height_adjust = new( "npc_height_adjust", "1", FCvar.Archive, "Enable test mode for ik height adjustment" );
+	static readonly ConVar npc_height_adjust = new("npc_height_adjust", "1", FCvar.Archive, "Enable test mode for ik height adjustment");
 
-	public void UpdateStepOrigin(){
+	public void UpdateStepOrigin() {
 		// todo
 	}
 

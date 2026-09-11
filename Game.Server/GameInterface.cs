@@ -261,7 +261,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.FrameUpdatePostEntityThinkAllSystems();
 
-		// ServiceEventQueue();
+		ServiceEventQueue();
 
 		// UpdateAllClientData();
 

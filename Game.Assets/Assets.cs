@@ -201,7 +201,7 @@ static class AssetUtils
 	public static string FindProjectRoot() {
 		string? currentDir = AppDomain.CurrentDomain.BaseDirectory;
 		while (!string.IsNullOrEmpty(currentDir)) {
-			if (File.Exists(Path.Combine(currentDir, "Source.NET.sln")))
+			if (File.Exists(Path.Combine(currentDir, "Source.NET.slnx")))
 				return currentDir;
 
 			currentDir = Directory.GetParent(currentDir)?.FullName;

@@ -410,14 +410,14 @@ public class ModelInfoServer(IFileSystem filesystem, IModelLoader modelloader, I
 		if (IsDynamicModelIndex(modelIndex))
 			return LookupDynamicModel(modelIndex);
 
-		return cl.GetModel(modelIndex);
+		return sv.GetModel(modelIndex);
 	}
 
 	protected override INetworkStringTable? GetDynamicModelStringTable() {
-		return cl.DynamicModelsTable;
+		return sv.GetDynamicModelsTable();
 	}
 
 	protected override int LookupPrecachedModelIndex(ReadOnlySpan<char> name) {
-		return cl.LookupModelIndex(name);
+		return sv.LookupModelIndex(name);
 	}
 }

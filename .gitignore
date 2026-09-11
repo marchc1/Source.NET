@@ -408,3 +408,4 @@ Game.Assets/sourceengine
 Game.Assets/hl2/cfg/autoexec.cfg
 Source.Launcher/Properties/launchSettings.json
 /.idea
+Source.DataDescGen/

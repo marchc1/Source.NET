@@ -60,6 +60,8 @@ public class PhysicsHook : BaseGameSystemPerFrame
 	public bool Paused;
 
 	public override bool Init() {
+		PhysParseSurfaceData(physprops, filesystem);
+
 		return base.Init();
 	}
 	public override void LevelInitPreEntity() {

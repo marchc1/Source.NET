@@ -18,7 +18,10 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/Source.Dedicated/Source.Dedicated.csproj"
+        "${workspaceFolder}/Source.Dedicated/Source.Dedicated.csproj",
+        "-p:WarningLevel=0",
+        "-c",
+        "Debug (Dedicated)"
       ],
       "problemMatcher": "$msCompile"
     }
