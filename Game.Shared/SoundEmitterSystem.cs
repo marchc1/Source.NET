@@ -181,6 +181,46 @@ public class SoundEmitterSystem : BaseGameSystem
 		else
 			StopSound(entindex, sample);
 	}
+
+	internal void InternalPrecacheWaves(int soundIndex) {
+		ref SoundParametersInternal internalParms = ref soundemitterbase.InternalGetParametersForSound(soundIndex);
+		if (Unsafe.IsNullRef(ref internalParms))
+			return;
+
+		int waveCount = internalParms.NumSoundNames();
+		if (waveCount == 0) {
+			DevMsg($"CSoundEmitterSystem:  sounds.txt entry '{soundemitterbase.GetSoundName(soundIndex)}' has no waves listed under 'wave' or 'rndwave' key!!!\n");
+		}
+		else {
+			for (int wave = 0; wave < waveCount; wave++)
+				BaseEntity.PrecacheSound(soundemitterbase.GetWaveName(internalParms.GetSoundNames()[wave].Symbol));
+		}
+	}
+
+	public HSOUNDSCRIPTHANDLE PrecacheScriptSound(ReadOnlySpan<char> soundname) {
+		int soundIndex = soundemitterbase.GetSoundIndex(soundname);
+		if (!soundemitterbase.IsValidIndex(soundIndex)) {
+			if (!stristr(soundname, ".wav").IsEmpty || !stristr(soundname, ".mp3").IsEmpty) {
+				BaseEntity.PrecacheSound(soundname);
+				return SOUNDEMITTER_INVALID_HANDLE;
+			}
+
+#if !CLIENT_DLL
+			if (!soundname.IsEmpty && soundname[0] != '\0') {
+				if (PrecacheScriptSoundFailures.Add(new string(soundname)))
+					DevMsg($"PrecacheScriptSound '{soundname}' failed, no such sound script entry\n");
+			}
+#endif
+			return (HSOUNDSCRIPTHANDLE)soundIndex;
+		}
+
+		InternalPrecacheWaves(soundIndex);
+		return (HSOUNDSCRIPTHANDLE)soundIndex;
+	}
+
+#if !CLIENT_DLL
+	static readonly HashSet<string> PrecacheScriptSoundFailures = new();
+#endif
 }
 
 public static class SoundEmitterSystemGlobals

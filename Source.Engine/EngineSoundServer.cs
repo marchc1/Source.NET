@@ -86,7 +86,10 @@ public class EngineSoundServer : IEngineSound
 	}
 
 	public bool IsSoundPrecached(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence))
+			return true;
+
+		return sv.LookupSoundIndex(sample) != -1;
 	}
 
 	public bool IsSoundStillPlaying(int guid) {
@@ -106,11 +109,33 @@ public class EngineSoundServer : IEngineSound
 	}
 
 	public bool PrecacheSound(ReadOnlySpan<char> sample, bool preload = false, bool isUISound = false) {
-		throw new NotImplementedException();
+		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence))
+			return true;
+
+		if (sample.IsEmpty || sample[0] <= ' ') {
+			Warning($"CEngineSoundServer::PrecacheSound:  Bad string: {sample}\n");
+			return false;
+		}
+
+		// add the sound to the precache list
+		Res flags = Res.FatalIfMissing;
+		if (preload)
+			flags |= Res.Preload;
+
+		int i = sv.PrecacheSound(sample, flags);
+		if (i >= 0)
+			return true;
+
+		Warning($"CEngineSoundServer::PrecacheSound: '{sample}' overflow\n");
+		return false;
 	}
 
 	public void PrefetchSound(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence))
+			return;
+
+		// Clients prefetch on their own once precached; the server just needs the index to exist.
+		sv.LookupSoundIndex(sample);
 	}
 
 	public void SetPlayerDSP<T>(scoped in T filter, int dspType, bool fastReset) where T : IRecipientFilter {

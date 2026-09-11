@@ -6,10 +6,17 @@ using Source.Common.GUI;
 
 
 namespace Game.Server;
+using Source;
+using Source.Common.Commands;
+using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
+
+using System.Diagnostics;
 using System.Numerics;
+
+using FIELD_BPD = Source.FIELD<BasePropDoor>;
 using FIELD_DP = Source.FIELD<DynamicProp>;
 using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
-using FIELD_BPD = Source.FIELD<BasePropDoor>;
 using FIELD_PP = Source.FIELD<PhysicsProp>;
 using FIELD_PPM = Source.FIELD<PhysicsPropMultiplayer>;
 
@@ -31,6 +38,7 @@ public class BreakableProp : BaseProp
 	public static readonly new ServerClass ServerClass = new ServerClass("BreakableProp", DT_BreakableProp).WithManualClassID(StaticClassIndices.CBreakableProp);
 }
 
+[LinkEntityToClass("func_physbox_multiplayer")]
 public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
 {
 	public static readonly SendTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
@@ -42,6 +50,9 @@ public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
 	public float Mass;
 }
 
+[LinkEntityToClass("physics_prop")]
+[LinkEntityToClass("prop_physics")]
+[LinkEntityToClass("prop_physics_override")]
 public class PhysicsProp : BreakableProp
 {
 	public static readonly SendTable DT_PhysicsProp = new(DT_BreakableProp, [
@@ -51,6 +62,9 @@ public class PhysicsProp : BreakableProp
 	public bool Awake;
 }
 
+[LinkEntityToClass("dynamic_prop")]
+[LinkEntityToClass("prop_dynamic")]
+[LinkEntityToClass("prop_dynamic_override")]
 public class DynamicProp : BreakableProp
 {
 	public static readonly SendTable DT_DynamicProp = new(DT_BreakableProp, [
@@ -60,6 +74,7 @@ public class DynamicProp : BreakableProp
 	public bool UseHitboxesForRenderBox;
 }
 
+[LinkEntityToClass("prop_physics_multiplayer")]
 public class PhysicsPropMultiplayer : PhysicsProp
 {
 	public static readonly SendTable DT_PhysicsPropMultiplayer = new(DT_PhysicsProp, [
@@ -88,9 +103,79 @@ public class BasePropDoor : DynamicProp
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
 }
 
-
+[LinkEntityToClass("prop_door_rotating")]
 public class PropDoorRotating : BasePropDoor
 {
 	public static readonly SendTable DT_PropDoorRotating = new(DT_BasePropDoor, []);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropDoorRotating", DT_PropDoorRotating).WithManualClassID(StaticClassIndices.CPropDoorRotating);
+}
+
+public static class Props {
+	public static PhysicsProp? CreatePhysicsProp(ReadOnlySpan<char> modelName, in Vector3 traceStart, in Vector3 traceEnd, IHandleEntity? traceIgnore, bool requireVCollide, ReadOnlySpan<char> className = "physics_prop") {
+		MDLHandle_t h = mdlcache.FindMDL(modelName);
+		if (h == MDLHANDLE_INVALID)
+			return null;
+
+		// Must have vphysics to place as a physics prop
+		StudioHeader? studioHdr = mdlcache.GetStudioHdr(h);
+		if (studioHdr == null)
+			return null;
+
+		// Must have vphysics to place as a physics prop
+		if (requireVCollide && null == mdlcache.GetVCollide(h))
+			return null;
+
+		QAngle angles = new( 0.0f, 0.0f, 0.0f );
+		Vector3 vecSweepMins = studioHdr.HullMin;
+		Vector3 vecSweepMaxs = studioHdr.HullMax;
+
+		Util.TraceHull(traceStart, traceEnd, vecSweepMins, vecSweepMaxs, Mask.NPCSolid, traceIgnore, CollisionGroup.None, out GameTrace tr);
+
+		// No hit? We're done.
+		if ((tr.Fraction == 1.0 && (traceEnd - traceStart).Length() > 0.01) || tr.AllSolid)
+			return null;
+
+		MathLib.VectorMA(tr.EndPos, 1.0f, tr.Plane.Normal, out tr.EndPos);
+
+		bool allowPrecache = BaseEntity.IsPrecacheAllowed();
+		BaseEntity.SetAllowPrecache(true);
+
+		// Try to create entity
+		PhysicsProp? prop = (PhysicsProp?)CreateEntityByName(className);
+		if (prop != null) {
+			Span<char> buf = stackalloc char[512];
+			// Pass in standard key values
+			prop.KeyValue("origin", sprintf(buf, "%f %f %f").F(tr.EndPos.X).F(tr.EndPos.Y).F(tr.EndPos.Z).ToSpan());
+			prop.KeyValue("angles", sprintf(buf, "%f %f %f").F(angles.X).F(angles.Y).F(angles.Z).ToSpan());
+			prop.KeyValue("model", modelName);
+			prop.KeyValue("fademindist", "-1");
+			prop.KeyValue("fademaxdist", "0");
+			prop.KeyValue("fadescale", "1");
+			prop.KeyValue("inertiaScale", "1.0");
+			prop.KeyValue("physdamagescale", "0.1");
+			prop.Precache();
+			Util.DispatchSpawn(prop);
+			prop.Activate();
+		}
+		BaseEntity.SetAllowPrecache(allowPrecache);
+
+		return prop;
+	}
+
+	[ConCommand("prop_physics_create", "Creates a physics prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}", FCvar.Cheat)]
+	public static void CC_Prop_Physics_Create(in TokenizedCommand args){
+		if (args.ArgC() != 2)
+			return;
+
+		Span<char> modelName = stackalloc char[512];
+		sprintf(modelName, "models/%s").S(args[1]);
+		StrTools.DefaultExtension(modelName, ".mdl");
+
+		BasePlayer? player = Util.GetCommandClient();
+		if (player == null)
+			return;
+
+		player.EyeVectors(out Vector3 forward);
+		CreatePhysicsProp(modelName, player.EyePosition(), player.EyePosition() + forward * MAX_TRACE_LENGTH, player, true);
+	}
 }

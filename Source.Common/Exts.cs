@@ -883,6 +883,25 @@ public static class StrTools
 
 		return isMean;
 	}
+
+	public static void DefaultExtension(Span<char> path, ReadOnlySpan<char> extension) {
+		Assert(extension.Length > 0 && extension[0] == '.');
+
+		int len = (int)strlen(path);
+		if (len < 0) len = path.Length;
+
+		// Scan backwards from the last char looking for a '.' before any path separator
+		for (int i = len - 1; i > 0; i--) {
+			char c = path[i];
+			if (c == '/' || c == '\\')
+				break;
+			if (c == '.')
+				return; 
+		}
+
+		for (int i = 0; i < extension.Length && len + i < path.Length; i++)
+			path[len + i] = extension[i];
+	}
 }
 
 public static class BitVecExts
@@ -1801,7 +1820,7 @@ public static class ReflectionUtils
 
 	public static bool IsSourceEngineAssembly(Assembly assembly) =>
 		assembly.GetCustomAttribute<SourceDllAttribute>() != null;
-	
+
 	public static IEnumerable<Assembly> GetAssemblies()
 		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsSourceEngineAssembly);
 	public static IEnumerable<Type> GetLoadedTypes()

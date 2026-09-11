@@ -698,9 +698,19 @@ public partial class
 	}
 
 	internal static short PrecacheScriptSound(ReadOnlySpan<char> sound) {
-		// todo
-		return 0;
+		return g_SoundEmitterSystem.PrecacheScriptSound(sound);
 	}
+
+	public static bool PrecacheSound(ReadOnlySpan<char> name) {
+#if GAME_DLL
+		if (!IsPrecacheAllowed())
+			if (!enginesound.IsSoundPrecached(name))
+				Warning($"Late precache of {name}\n");
+#endif
+		return enginesound.PrecacheSound(name, true);
+	}
+
+	public static void PrefetchSound(ReadOnlySpan<char> name) => enginesound.PrefetchSound(name);
 	public virtual void ParseMapData(EntityMapData mapData) {
 		// The map data (and the parser) are byte-based (C++ char*); decode each key/value to ASCII
 		// char spans here so KeyValue can work in ReadOnlySpan<char>.
