@@ -20,6 +20,8 @@ public partial class SV
 		SoundInfo sound = default;
 		sound.SetDefault();
 
+		sample = sample.SliceNullTerminatedString();
+
 		sound.EntityIndex = soundEmittingEntity != null ? NUM_FOR_EDICT(soundEmittingEntity) : 0;
 		sound.Channel = (SoundEntityChannel)channel;
 		sound.Volume = volume;
