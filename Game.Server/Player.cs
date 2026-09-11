@@ -1435,7 +1435,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		if (UseEntity.Get() != null) {
 			// Stop controlling the train/object
 			// TODO: Send HUD Update
-			UseEntity.Get().Use(this, this, UseType.Off, 0);
+			UseEntity.Get()!.Use(this, this, UseType.Off, 0);
 			UseEntity.Set(null);
 			return true;
 		}

@@ -127,6 +127,19 @@ public ref struct PrintF
 		return this;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF I(int i) => D(i);
+	public PrintF G(double i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[32];
+		if (i.TryFormat(buffer, out int written, t == 'f' ? "F6" : "G6", CultureInfo.InvariantCulture))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF F(double i) => G(i);
 	public PrintF S(scoped ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());

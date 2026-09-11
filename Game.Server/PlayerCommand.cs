@@ -129,7 +129,7 @@ public class PlayerMove
 		if (player.ConstraintEntity.Get() != null)
 			Assert(move.ConstraintCenter == player.ConstraintEntity.Get()!.GetAbsOrigin());
 		else
-			Assert(move.ConstraintCenter == player.ConstraintCenter); // todo
+			Assert(move.ConstraintCenter == player.ConstraintCenter);
 
 		Assert(move.ConstraintRadius == player.ConstraintRadius);
 		Assert(move.ConstraintWidth == player.ConstraintWidth);
