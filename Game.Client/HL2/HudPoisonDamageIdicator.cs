@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -17,7 +17,7 @@ public class HudPoisonDamageIndicator : EditableHudElement, IHudElement
 	[PanelAnimationVar("text_ygap", "14", "proportional_float")] protected float TextYGap;
 	bool DamageIndicatorVisible;
 
-	public HudPoisonDamageIndicator(string? panelName) : base(null, "HudPoisonDamageIndicator") {
+	public HudPoisonDamageIndicator(string? panelName) : base("HudPoisonDamageIndicator", panelName) {
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 

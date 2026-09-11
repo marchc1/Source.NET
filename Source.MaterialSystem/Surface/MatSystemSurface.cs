@@ -1021,7 +1021,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public bool IsTextureIDValid(in TextureID id) {
-		return true;//todo
+		return true;
 	}
 
 	public bool IsWithin(int x, int y) {
@@ -1084,7 +1084,6 @@ public class MatSystemSurface : IMatSystemSurface
 	IPanel? RestrictedPanel;
 
 	public void PaintTraverseEx(IPanel panel, bool paintPopups) {
-		// todo: painting panels
 		if (!panel.IsVisible())
 			return;
 
@@ -1095,23 +1094,14 @@ public class MatSystemSurface : IMatSystemSurface
 			StartDrawing();
 
 			renderContext.ClearBuffers(false, true, true);
-
-			// Can comment this out later, this is just to test if ISurface is rendering.
-			/*DrawSetColor(255, 0, 0, 255);
-			for (int i = 0; i < 128; i++) {
-				int offset = (int)(float)(Math.Sin((globals.CurTime + (i / 3d) * 0.2d)) * 128);
-				DrawFilledRect(256 + offset, 64 + (i * 6), 512 + offset, 70 + (i * 6));
-			}*/
-
-			// TODO!!!
-			// renderContext.SetStencilEnable(true);
-			// renderContext.SetStencilFailOperation(STENCILOPERATION_KEEP);
-			// renderContext.SetStencilZFailOperation(STENCILOPERATION_KEEP);
-			// renderContext.SetStencilPassOperation(STENCILOPERATION_REPLACE);
-			// renderContext.SetStencilCompareFunction(STENCILCOMPARISONFUNCTION_GREATEREQUAL);
-			// renderContext.SetStencilReferenceValue(0);
-			// renderContext.SetStencilTestMask(0xFFFFFFFF);
-			// renderContext.SetStencilWriteMask(0xFFFFFFFF);
+			renderContext.SetStencilEnable(true);
+			renderContext.SetStencilFailOperation(StencilOperation.Keep);
+			renderContext.SetStencilZFailOperation(StencilOperation.Keep);
+			renderContext.SetStencilPassOperation(StencilOperation.Replace);
+			renderContext.SetStencilCompareFunction(StencilComparisonFunction.GreaterEqual);
+			renderContext.SetStencilReferenceValue(0);
+			renderContext.SetStencilTestMask(0xFFFFFFFF);
+			renderContext.SetStencilWriteMask(0xFFFFFFFF);
 		}
 
 		float oldZPos = zPos;
@@ -1135,7 +1125,7 @@ public class MatSystemSurface : IMatSystemSurface
 				Warning("Too many popups! Rendering will be bad!\n");
 
 			int stencilRef = 254;
-			for (int i = 0; i < popups; i++) {
+			for (int i = popups - 1; i >= 0; --i) {
 				IPanel? popupPanel = GetPopup(i);
 
 				if (popupPanel == null)
@@ -1149,7 +1139,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 				bool isTopmostPopup = popupPanel.IsTopmostPopup();
 
-				// renderContext.SetStencilReferenceValue(isTopmostPopup ? 255 : stencilRef);
+				renderContext.SetStencilReferenceValue(isTopmostPopup ? 255 : stencilRef);
 				--stencilRef;
 
 				zPos = i / (float)popups;
@@ -1160,7 +1150,7 @@ public class MatSystemSurface : IMatSystemSurface
 		zPos = oldZPos;
 
 		if (topLevelDraw) {
-			// renderContext.SetStencilEnable(false);
+			renderContext.SetStencilEnable(false);
 			FinishDrawing();
 		}
 	}

@@ -1,4 +1,4 @@
-using Game.Shared;
+﻿using Game.Shared;
 
 using Source.Common.Bitbuffers;
 using Source.Common.GUI;
@@ -12,7 +12,7 @@ class HudGeiger : EditableHudElement, IHudElement
 	int GeigerRange;
 	TimeUnit_t LastSoundTestTime;
 
-	public HudGeiger(string panelName) : base(null, "HudGeiger") {
+	public HudGeiger(string panelName) : base("HudGeiger", panelName) {
 		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
 

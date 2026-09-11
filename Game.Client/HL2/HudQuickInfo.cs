@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -38,6 +38,7 @@ public class HUDQuickInfo : HudNumericDisplay, IHudElement
 	HudTexture? IconLeft;
 
 	public HUDQuickInfo(string? panelName) : base(null, "HUDQuickInfo") {
+		ElementName = panelName;
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 
