@@ -214,7 +214,7 @@ public partial class
 				return TICK_NEVER_THINK;
 
 			// Old system
-			return (long)(TICK_INTERVAL * NextThinkTick);
+			return NextThinkTick;
 		}
 		else
 			// Find the think function in our list
@@ -228,7 +228,30 @@ public partial class
 		if (tf.NextThinkTick == TICK_NEVER_THINK)
 			return TICK_NEVER_THINK;
 
-		return (long)(TICK_INTERVAL * (tf.NextThinkTick));
+		return tf.NextThinkTick;
+	}
+
+	public void SetLastThink(int contextIndex, TimeUnit_t thinkTime) {
+		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
+
+		if (contextIndex < 0)
+			LastThinkTick = thinkTick;
+		else
+			ThinkFunctions.AsSpan()[contextIndex].LastThinkTick = thinkTick;
+	}
+
+	public TimeUnit_t GetNextThink(int contextIndex) {
+		if (contextIndex < 0)
+			return NextThinkTick * TICK_INTERVAL;
+
+		return ThinkFunctions.AsSpan()[contextIndex].NextThinkTick * TICK_INTERVAL;
+	}
+
+	public long GetNextThinkTick(int contextIndex) {
+		if (contextIndex < 0)
+			return NextThinkTick;
+
+		return ThinkFunctions.AsSpan()[contextIndex].NextThinkTick;
 	}
 
 	public TimeUnit_t GetLastThink(ReadOnlySpan<char> context) {
@@ -337,7 +360,7 @@ public partial class
 				return;
 			}
 
-			if (GetMoveType() == Source.MoveType.VPhysics) 
+			if (GetMoveType() == Source.MoveType.VPhysics)
 				VPhysicsGetObject()!.AddVelocity(default, in angImpulse);
 			else {
 				MathLib.AngularImpulseToQAngle(angImpulse, out QAngle vecResult);
