@@ -195,7 +195,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool PreferReducedFillrate() {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public bool ReadPixelsFromFrontBuffer() {

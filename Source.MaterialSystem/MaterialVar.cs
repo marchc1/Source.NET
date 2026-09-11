@@ -74,7 +74,10 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override Matrix4x4 GetMatrixValue() {
-		return MatrixVal;
+		if (Type == MaterialVarType.Matrix)
+			return Matrix.Matrix;
+
+		return Matrix4x4.Identity;
 	}
 
 	public override ReadOnlySpan<char> GetName() {
@@ -117,7 +120,10 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override bool MatrixIsIdentity() {
-		throw new NotImplementedException();
+		if (Type != MaterialVarType.Matrix)
+			return true;
+
+		return Matrix.IsIdent;
 	}
 
 	public override void SetFloatValue(float val) {
@@ -143,8 +149,11 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetMatrixValue(in Matrix4x4 matrix) {
-		MatrixVal = matrix;
+		Matrix.Matrix = matrix;
 		Type = MaterialVarType.Matrix;
+		Matrix.IsIdent = matrix.IsIdentity;
+		VecVal = default;
+		IntVal = (int)VecVal.X;
 		VarChanged();
 	}
 

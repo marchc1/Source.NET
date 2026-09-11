@@ -146,6 +146,7 @@ public interface IShaderDynamicAPI
 	void ExecuteCommandBuffer(ICommandStorageBuffer storage);
 	void CommitPixelShaderLighting(int lightInfoArray);
 	void SetPixelShaderStateAmbientLightCube(int ambientCube, bool v);
+	float GetLightMapScaleFactor();
 }
 
 public struct LightState

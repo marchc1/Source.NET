@@ -31,8 +31,15 @@ public struct TokenCache
 	public bool Cached;
 }
 
+public struct MaterialVarMatrix
+{
+	public Matrix4x4 Matrix;
+	public bool IsIdent;
+}
+
 public abstract class IMaterialVar
 {
+	protected MaterialVarMatrix Matrix;
 	protected string StringVal = "";
 	protected int IntVal;
 	protected Vector4 VecVal;

@@ -389,6 +389,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			ref BSPMSurface2 surfID = ref ModelLoader.SurfaceHandleFromIndex(surfaceIndex, host_state.WorldBrush);
 			ModelLoader.MSurf_Flags(ref surfID) &= ~SurfDraw.TangentSpace;
 
+			if (false /*TOOLS*/ || (ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetVertexFormat() & VertexFormat.TangentSpace) != 0)
+				ModelLoader.MSurf_Flags(ref surfID) |= SurfDraw.TangentSpace;
+
 			if (ModelLoader.SurfaceHasDispInfo(ref surfID)) {
 				ModelLoader.MSurf_VertBufferIndex(ref surfID) = 0xFFFF;
 				continue;

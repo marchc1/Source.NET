@@ -334,6 +334,11 @@ public sealed class VTFTexture : IVTFTexture
 				if (face == (int)CubeMapFaceIndex.Spheremap)
 					face--;
 			}
+			else if (Version[0] == 7 && Version[1] >= 5) {
+				facesToRead = 6;
+				if (face == (int)CubeMapFaceIndex.Spheremap)
+					face--;
+			}
 		}
 
 		int framesize = facesToRead * faceSize;
@@ -600,6 +605,8 @@ public sealed class VTFTexture : IVTFTexture
 		if (IsCubeMap()) {
 			if (Version[0] == 7 && Version[1] < 1)
 				facesToRead = 6;
+			else if (Version[0] == 7 && Version[1] >= 5)
+				facesToRead = 6;
 		}
 
 		if (!AllocateImageData(imageSize))
@@ -642,7 +649,7 @@ public sealed class VTFTexture : IVTFTexture
 				for (int face = 0; face < facesToRead; face++) {
 					Span<byte> mipBits = GetImageData(frame, face, mip);
 					int bytesRead = stream.Read(mipBits);
-					// Debug.Assert(mipBits.Length == bytesRead);
+					Assert(mipBits.Length == bytesRead);
 				}
 			}
 		}
