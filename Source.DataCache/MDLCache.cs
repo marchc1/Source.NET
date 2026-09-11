@@ -6,6 +6,7 @@ using Source.Common;
 using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Filesystem;
+using Source.Common.Physics;
 using Source.Common.Utilities;
 
 using System.Collections.Concurrent;
@@ -69,8 +70,10 @@ public class MDLCache : IMDLCache, IStudioDataCache
 	static readonly ConVar mod_load_fakestall = new("mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
 
 	readonly IFileSystem fileSystem;
-	public MDLCache(IFileSystem fileSystem) {
+	readonly IPhysicsCollision physcollision;
+	public MDLCache(IFileSystem fileSystem, IPhysicsCollision physcollision) {
 		this.fileSystem = fileSystem;
+		this.physcollision = physcollision;
 		FrameUnlockCounter = new int[(int)MDLCacheDataType.Count];
 		FrameUnlockCounterFieldPtr = new AnonymousSafeFieldPointer<int>[(int)MDLCacheDataType.Count];
 		for (MDLCacheDataType i = 0; i < MDLCacheDataType.Count - 1; i++)
@@ -579,10 +582,31 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MakeFilename(handle, ".phy", fileName);
 		fileName = fileName.SliceNullTerminatedString();
-		bool asyncLoad = false;
 
-		MdlCacheMsg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
+		MdlCacheMsg($"MDLCache: Sync load vcollide {GetModelName(handle)}\n");
+
+		// always marked as loaded, vcollides are not present for every model
+		studioData.Flags |= StudioDataFlags.VCollisionLoaded;
+
+		using MemoryStream buf = new();
+		if (!ReadFileNative(fileName, "GAME", buf))
+			return;
+
+		ReadOnlySpan<byte> phyData = buf.GetBuffer().AsSpan(0, (int)buf.Length);
+
+		// phyheader_t: int size; int id; int solidCount; int checksum;  (16 bytes)
+		if (phyData.Length < PHYHEADER_SIZE)
+			return;
+
+		int headerSize = MemoryMarshal.Read<int>(phyData);
+		int solidCount = MemoryMarshal.Read<int>(phyData[8..]);
+		if (headerSize != PHYHEADER_SIZE || solidCount <= 0)
+			return;
+
+		physcollision.VCollideLoad(studioData.VCollisionData, solidCount, phyData[headerSize..]);
 	}
+
+	const int PHYHEADER_SIZE = 16;
 
 	private void MakeFilename(MDLHandle_t handle, ReadOnlySpan<char> extension, Span<char> fileName) {
 		strcpy(fileName, GetActualModelName(handle));

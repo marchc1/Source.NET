@@ -834,6 +834,11 @@ public partial class
 			return true;
 		}
 
+		if (FStrEq(key, "model")) {
+			SetModelName(szValue); // DEFINE_KEYFIELD( m_ModelName, "model" )
+			return true;
+		}
+
 		// TODO: datamap keyfield parsing is not ported yet. C++ loops the entity's data description
 		// chain here (GetDataDescMap()) and calls ::ParseKeyvalue() to place any remaining keys into
 		// [Key]-flagged fields (plus the ent_debugkeys debug path). That subsystem doesn't exist yet.

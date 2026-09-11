@@ -17,6 +17,13 @@ using System.Text;
 
 namespace Source.Physics;
 
+public struct BBoxCache
+{
+	public Vector3 Mins;
+	public Vector3 Maxs;
+	public PhysCollideCompactSurface? Collide;
+}
+
 public class PhysicsCollide : IPhysicsCollision
 {
 	public PhysCollide BBoxToCollide(in Vector3 mins, in Vector3 maxs) {
@@ -28,7 +35,7 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void CollideGetAABB(out Vector3 mins, out Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles) {
-		throw new NotImplementedException();
+		TraceAPI.GetAABB(out mins, out maxs, collide, in collideOrigin, in collideAngles);
 	}
 
 	public Vector3 CollideGetExtent(PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, in Vector3 direction) {
@@ -238,6 +245,10 @@ public class PhysicsCollide : IPhysicsCollision
 	public void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser) {
 		throw new NotImplementedException();
 	}
+
+	private readonly PhysicsTrace TraceAPI = new();
+	private readonly List<BBoxCache> BBoxCache = [];
+	private readonly byte[] BBoxVertMap = new byte[8];
 }
 
 public class PhysCollideCompactSurface : PhysCollide

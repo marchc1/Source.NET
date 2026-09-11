@@ -4,7 +4,13 @@ using Source;
 using Source.Common;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Mathematics;
 using Source.Common.Physics;
+
+using System.Numerics;
+
+using Unsafe = System.Runtime.CompilerServices.Unsafe;
+
 namespace Game.Shared;
 
 [EngineComponent]
@@ -78,6 +84,71 @@ public static class PhysicsSharedGlobals
 			g_EntityCollisionHash.RemoveAllPairsForObject(entity);
 
 		physenv?.DestroyObject(obj);
+	}
+
+	public static bool PhysModelParseSolidByIndex(ref Solid solid, BaseEntity entity, VCollide? collide, int solidIndex) {
+		if (collide == null || collide.KeyValues == null)
+			return false;
+
+		bool parsed = false;
+
+		solid = default;
+		solid.Params = g_PhysDefaultObjectParams;
+
+		IVPhysicsKeyParser parse = physcollision.VPhysicsKeyParserCreate(collide.KeyValues);
+		while (!parse.Finished()) {
+			ReadOnlySpan<char> block = parse.GetCurrentBlockName();
+			if (strcmpi(block, "solid") == 0) {
+				Solid tmpSolid = default;
+				tmpSolid.Params = g_PhysDefaultObjectParams;
+
+				parse.ParseSolid(ref tmpSolid, null);
+
+				if (solidIndex < 0 || tmpSolid.Index == solidIndex) {
+					parsed = true;
+					solid = tmpSolid;
+					break;
+				}
+			}
+			else
+				parse.SkipBlock();
+		}
+		physcollision.VPhysicsKeyParserDestroy(parse);
+
+		// collisions are off by default
+		solid.Params.EnableCollisions = true;
+
+		solid.Params.GameData = entity;
+		solid.Params.Name = new string(((ReadOnlySpan<char>)entity.GetModelName()).SliceNullTerminatedString());
+		return parsed;
+	}
+
+	public static IPhysicsObject? PhysModelCreate(BaseEntity entity, int modelIndex, in Vector3 origin, in QAngle angles, ref Solid solid) {
+		if (physenv == null)
+			return null;
+
+		VCollide? collide = modelinfo.GetVCollide(modelIndex);
+		if (collide == null || collide.SolidCount == 0 || collide.Solids == null)
+			return null;
+
+		if (Unsafe.IsNullRef(ref solid)) {
+			Solid tmpSolid = default;
+			if (!PhysModelParseSolidByIndex(ref tmpSolid, entity, collide, -1))
+				return null;
+			return PhysModelCreateInternal(entity, collide, in origin, in angles, ref tmpSolid);
+		}
+
+		return PhysModelCreateInternal(entity, collide, in origin, in angles, ref solid);
+	}
+
+	static IPhysicsObject? PhysModelCreateInternal(BaseEntity entity, VCollide collide, in Vector3 origin, in QAngle angles, ref Solid solid) {
+		int surfaceProp = -1;
+		ReadOnlySpan<char> surfacePropName = ((ReadOnlySpan<char>)solid.SurfaceProp).SliceNullTerminatedString();
+		if (!surfacePropName.IsEmpty)
+			surfaceProp = (int)physprops.GetSurfaceIndex(surfacePropName);
+
+		IPhysicsObject? obj = physenv.CreatePolyObject(collide.Solids![solid.Index]!, surfaceProp, in origin, in angles, ref solid.Params);
+		return obj;
 	}
 
 	public static IPhysicsObject? PhysCreateWorld_Shared(BaseEntity world, VCollide? worldCollide, in ObjectParams defaultParams) {

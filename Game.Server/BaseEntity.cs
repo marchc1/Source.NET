@@ -727,6 +727,54 @@ public partial class BaseEntity : IServerEntity
 	IPhysicsObject? PhysicsObject = null!;
 	public void VPhysicsUpdate(IPhysicsObject physics) { }
 	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
+
+	public void VPhysicsSetObject(IPhysicsObject? physics) {
+		if (PhysicsObject != null && physics != null)
+			Warning($"Overwriting physics object for {GetClassname()}\n");
+		PhysicsObject = physics;
+	}
+
+	bool VPhysicsInitSetup() {
+		// don't support logical ents
+		if (Edict() == null || IsMarkedForDeletion())
+			return false;
+
+		// If this entity already has a physics object, then it should have been deleted prior to making this call.
+		Assert(PhysicsObject == null);
+		VPhysicsDestroyObject();
+
+		return true;
+	}
+
+	public IPhysicsObject? VPhysicsInitNormal(SolidType solidType, SolidFlags nSolidFlags, bool createAsleep) {
+		return VPhysicsInitNormal(solidType, nSolidFlags, createAsleep, ref Unsafe.NullRef<Solid>());
+	}
+
+	public IPhysicsObject? VPhysicsInitNormal(SolidType solidType, SolidFlags nSolidFlags, bool createAsleep, ref Solid solid) {
+		if (!VPhysicsInitSetup())
+			return null;
+
+		// NOTE: This has to occur before PhysModelCreate because that call will
+		// call back into ShouldCollide(), which uses solidtype for rules.
+		SetSolid(solidType);
+		SetSolidFlags(nSolidFlags);
+
+		// No physics
+		if (solidType == SolidType.None)
+			return null;
+
+		// create a normal physics object
+		IPhysicsObject? physicsObject = PhysModelCreate(this, GetModelIndex(), GetAbsOrigin(), GetAbsAngles(), ref solid);
+		if (physicsObject != null) {
+			VPhysicsSetObject(physicsObject);
+			SetMoveType(Source.MoveType.VPhysics);
+
+			if (!createAsleep)
+				physicsObject.Wake();
+		}
+
+		return physicsObject;
+	}
 	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
 
 	public bool IsFloating() => false; // TODO

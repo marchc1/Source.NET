@@ -11,6 +11,7 @@ using Source;
 using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 
 using System.Diagnostics;
 using System.Numerics;
@@ -23,10 +24,32 @@ using FIELD_PPM = Source.FIELD<PhysicsPropMultiplayer>;
 
 public class BaseProp : BaseAnimating
 {
-	public void Spawn() { }
-	public void Precache() { }
-	public void Activate() { }
-	public void KeyValue(ReadOnlySpan<char> name, ReadOnlySpan<char> value) { }
+	public override void Spawn() {
+		ReadOnlySpan<char> szModel = GetModelName();
+		if (szModel.IsEmpty) {
+			Vector3 org = GetAbsOrigin();
+			Warning($"prop at {org.X:0} {org.Y:0} {org.Z:0} missing modelname\n");
+			Util.Remove(this);
+			return;
+		}
+
+		PrecacheModel(szModel);
+		Precache();
+		SetModel(szModel);
+
+		// Load this prop's data from the propdata file
+		ParsePropData();
+
+		SetMoveType(Source.MoveType.Push);
+		m_takedamage = (byte)Damage.No;
+		SetNextThink(TICK_NEVER_THINK);
+
+		AnimTime = gpGlobals.CurTime;
+		PlaybackRate = 0.0;
+		SetCycle(0);
+	}
+	public override void Precache() { }
+	public override void Activate() { }
 	public void CalculateBlockLOS() { }
 	public void ParsePropData() { }
 	public virtual new bool IsAlive() => false;
@@ -61,6 +84,40 @@ public class PhysicsProp : BreakableProp
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PhysicsProp", DT_PhysicsProp).WithManualClassID(StaticClassIndices.CPhysicsProp);
 	public bool Awake;
+
+	public override void Spawn() {
+		// Condense classnames to one, except for "prop_physics_override"
+		if (FClassnameIs(this, "physics_prop"))
+			SetClassname("prop_physics");
+
+		base.Spawn();
+
+		if (IsMarkedForDeletion())
+			return;
+
+		// Now condense all classnames to one
+		if (FClassnameIs(this, "prop_physics_override"))
+			SetClassname("prop_physics");
+
+		CreateVPhysics();
+	}
+
+	public virtual bool CreateVPhysics() {
+		SetSolid(SolidType.VPhysics);
+
+		if (m_takedamage == (byte)Damage.No)
+			SetMoveType(Source.MoveType.None);
+
+		IPhysicsObject? physObj = VPhysicsInitNormal(SolidType.VPhysics, GetSolidFlags(), false);
+		if (physObj == null) {
+			SetSolid(SolidType.None);
+			SetMoveType(Source.MoveType.None);
+			Warning($"ERROR!: Can't create physics object for {GetModelName()}\n");
+			return false;
+		}
+
+		return true;
+	}
 }
 
 [LinkEntityToClass("dynamic_prop")]
@@ -113,7 +170,9 @@ public class PropDoorRotating : BasePropDoor
 
 public static class Props
 {
-	public static PhysicsProp? CreatePhysicsProp(ReadOnlySpan<char> modelName, in Vector3 traceStart, in Vector3 traceEnd, IHandleEntity? traceIgnore, bool requireVCollide, ReadOnlySpan<char> className = "physics_prop") {
+	public static PhysicsProp? CreatePhysicsProp(ReadOnlySpan<char> modelName, in Vector3 traceStart, in Vector3 traceEnd, IHandleEntity? traceIgnore, bool requireVCollide, ReadOnlySpan<char> className = default) {
+		if (className.IsStringEmpty)
+			className = "physics_prop";
 		MDLHandle_t h = mdlcache.FindMDL(modelName);
 		if (h == MDLHANDLE_INVALID)
 			return null;
@@ -134,7 +193,7 @@ public static class Props
 		Util.TraceHull(traceStart, traceEnd, vecSweepMins, vecSweepMaxs, Mask.NPCSolid, traceIgnore, CollisionGroup.None, out GameTrace tr);
 
 		// No hit? We're done.
-		if ((tr.Fraction == 1.0 && (traceEnd - traceStart).Length() > 0.01) || tr.AllSolid)
+		if ((tr.Fraction == 1.0 && (traceEnd - traceStart).Length() > 0.01) || tr.AllSolid) 
 			return null;
 
 		MathLib.VectorMA(tr.EndPos, 1.0f, tr.Plane.Normal, out tr.EndPos);
