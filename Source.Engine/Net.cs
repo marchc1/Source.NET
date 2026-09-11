@@ -137,6 +137,10 @@ public class Net
 		return res;
 	}
 
+	public static void OutOfBandPrint(NetSocketType sock, NetAddress adr, ReadOnlySpan<char> text){
+		// todo
+	}
+
 	public bool StringToAdr(ReadOnlySpan<char> host, int port, [NotNullWhen(true)] out IPEndPoint? ep) {
 		ep = null;
 		if (host.IsEmpty) return false;

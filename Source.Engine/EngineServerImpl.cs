@@ -15,6 +15,7 @@ using Source.Engine.Server;
 using Steamworks;
 
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
 
 namespace Source.Engine;
 
@@ -133,11 +134,14 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {}
 #else
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		if (IsDedicatedServer())
+			return;
+
+		Con.NPrintF(pos, msg);
 	}
 
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		Con.NXPrintF(in info, msg);
 	}
 #endif
 

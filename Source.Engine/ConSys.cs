@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 
 using MemoryExtensions = System.MemoryExtensions;
 
@@ -427,9 +428,9 @@ public class ConPanel : BasePanel
 #endif
 
 
-public class Con(Host Host, ICvar cvar
+public class Con(
 #if !SWDS
-, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
+ IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
 #endif
 )
 {
@@ -457,7 +458,7 @@ public class Con(Host Host, ICvar cvar
 	}
 
 	public void HideConsole() {
-	#if !SWDS
+#if !SWDS
 		if (EngineVGui.IsConsoleVisible())
 			EngineVGui.HideConsole();
 #endif
@@ -474,7 +475,9 @@ public class Con(Host Host, ICvar cvar
 #endif
 	}
 
-	public void Init() { }
+	public void Init() {
+		con_initialized = true;
+	}
 	public void Shutdown() { }
 	public void Execute() { }
 
@@ -490,10 +493,10 @@ public class Con(Host Host, ICvar cvar
 	}
 
 	[ConCommand] void clear() => Clear();
-
-	bool g_fColorPrintf;
-	bool g_fIsDebugPrint;
-	bool g_bInColorPrint;
+	
+	static bool g_fColorPrintf;
+	static bool g_fIsDebugPrint;
+	static bool g_bInColorPrint;
 
 	public void ColorPrintf(in Color clr, ReadOnlySpan<char> fmt) {
 #if !SWDS
@@ -504,7 +507,7 @@ public class Con(Host Host, ICvar cvar
 	}
 	static ConVar spew_consolelog_to_debugstring = new("0", 0, "Send console log to PLAT_DebugString()");
 
-	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
+	public static void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
 #if !SWDS
 		if (g_bInColorPrint)
 			return;
@@ -564,7 +567,7 @@ public class Con(Host Host, ICvar cvar
 				cvar.ConsolePrintf(msg);
 		}
 
-		if (Host.Sys != null && !Host.Sys.InSpew)
+		if (Sys.InSpew)
 			Msg(msg);
 
 #if !SWDS
@@ -577,7 +580,7 @@ public class Con(Host Host, ICvar cvar
 	}
 
 #if !SWDS
-	public bool IsVisible() => EngineVGui.IsConsoleVisible();
+	public static bool IsVisible() => __EngineVGui.IsConsoleVisible();
 #endif
 
 	internal void CreateConsolePanel(Panel parent) {
@@ -587,10 +590,64 @@ public class Con(Host Host, ICvar cvar
 #endif
 	}
 
+	public static void DebugLog(ReadOnlySpan<char> text){
+		// TODO
+	}
+
+	static bool con_debuglog = false;
+	static bool con_initialized = false;
+	static bool con_debuglogmapprefixed = false;
+
+	public static bool HandleRedirectAndDebugLog(ReadOnlySpan<char> msg) {
+		// Add to redirected message
+		if (SV.RedirectActive()) {
+			SV.RedirectAddText(msg);
+			return false;
+		}
+
+		// log all messages to file
+		if (con_debuglog)
+			DebugLog(msg);
+
+		if (!con_initialized) 
+			return false;
+		
+		return true;
+	}
+
+	static bool inupdate;
+	public static void PrintF(ReadOnlySpan<char> msg) {
+
+		if (!HandleRedirectAndDebugLog(msg)) {
+			return;
+		}
+
+#if SWDS
+	Msg("%s", msg);
+#else
+		if (sv.IsDedicated()) {
+			Msg(msg);
+		}
+		else {
+			Color clr = new(0, 0, 0, 255);
+			ColorPrint(clr, msg);
+		}
+#endif
+	}
+	public static void NPrintF(int idx, ReadOnlySpan<char> text) {
+#if !SWDS
+		if (IsPC())
+			conPanel!.Con_NPrintf(idx, text);
+		else
+			PrintF(text);
+#endif
+	}
 	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text) {
 #if !SWDS
 		if (IsPC())
 			conPanel!.Con_NXPrintf(in info, text);
+		else
+			PrintF(text);
 #endif
 	}
 

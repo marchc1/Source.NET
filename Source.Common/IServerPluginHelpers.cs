@@ -62,7 +62,7 @@ public interface IServerPluginCallbacks
 	// Added with version 2 of the interface.
 	void OnQueryCvarValueFinished(QueryCvarCookie_t iCookie, Edict playerEntity, QueryCvarValueStatus status, ReadOnlySpan<char> cvarName, ReadOnlySpan<char> cvarValue);
 	// added with version 3 of the interface.
-	void OnEdictAllocated(Edict edict);
+	void OnEdictAllocated(Edict? edict);
 	void OnEdictFreed(Edict edict);
 }
 

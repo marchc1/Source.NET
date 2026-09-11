@@ -13,6 +13,13 @@ public static class S2C
 	public const byte ConnectionRejected = (byte)'9';
 }
 
+public static class A2A {
+	public const byte Ping = (byte)'i';
+	public const byte Ack = (byte)'j';
+	public const byte Print = (byte)'l';
+	public const byte Custom = (byte)'t';
+}
+
 public static class A2S
 {
 	public const string KEY_STRING = "Source Engine Query";

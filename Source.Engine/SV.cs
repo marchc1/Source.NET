@@ -13,6 +13,14 @@ using static Source.Common.OptimizedModel;
 
 namespace Source.Engine;
 
+public enum RedirectType
+{
+	None,
+	Client,
+	Packet,
+	Socket
+}
+
 /// <summary>
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
