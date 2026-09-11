@@ -1250,6 +1250,8 @@ public partial class BaseEntity : IServerEntity
 	public CollisionProperty CollisionProp() => Collision;
 
 	public void SetModel(ReadOnlySpan<char> modelName) {
+		modelName = modelName.SliceNullTerminatedString();
+
 		int modelIndex = modelinfo.GetModelIndex(modelName);
 		Model? model = modelinfo.GetModel(modelIndex);
 		if (model != null && modelinfo.GetModelType(model) != ModelType.Brush)
@@ -1571,7 +1573,7 @@ public partial class BaseEntity : IServerEntity
 
 	public ReadOnlySpan<char> GetModelName() => ModelName;
 	public void SetModelName(ReadOnlySpan<char> modelName) {
-		ModelName = new(modelName);
+		ModelName = new(modelName.SliceNullTerminatedString());
 		DispatchUpdateTransmitState();
 	}
 

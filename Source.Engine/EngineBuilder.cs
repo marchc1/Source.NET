@@ -300,6 +300,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+		this.AddKeyedSingleton<ModelInfoServer>(Realm.Server);
+		this.AddKeyedSingleton(typeof(IVModelInfo), Realm.Server, (x, _) => x.GetRequiredKeyedService<ModelInfoServer>(Realm.Server));
 		// Engine VGUI and how to read it later
 		this.AddSingleton<EngineVGui>();
 		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
@@ -323,6 +325,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 #if SWDS
 		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+		// Game server DLL resolves modelinfo via the server realm key; route it to the same instance.
+		this.AddKeyedSingleton(typeof(IVModelInfo), Realm.Server, (x, _) => x.GetRequiredService<IVModelInfoClient>());
 		this.AddSingleton<DedicatedServerAPI>();
 		this.AddSingleton<IEngineAPI, DedicatedServerAPI>(x => x.GetRequiredService<DedicatedServerAPI>());
 		this.AddSingleton<IDedicatedServerAPI, DedicatedServerAPI>(x => x.GetRequiredService<DedicatedServerAPI>());
