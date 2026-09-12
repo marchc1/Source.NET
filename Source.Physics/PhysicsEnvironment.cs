@@ -85,7 +85,7 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 		linearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - damping, 0, 1), dt));
 		angularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - angDamping, 0, 1), dt));
 		env.GetGravity(out var grav);
-		gravityWideDt = Vector3Wide.Broadcast(grav * dt);
+		gravityWideDt = Vector3Wide.Broadcast(IVPConvert.PositionToIVP(grav) * dt);
 	}
 }
 
@@ -356,7 +356,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public IPhysicsPlayerController CreatePlayerController(IPhysicsObject obj) {
-		throw new NotImplementedException();
+		return new PhysicsPlayerController((PhysicsObject)obj);
 	}
 
 	public IPhysicsObject? CreatePolyObject(PhysCollide collisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
@@ -427,7 +427,6 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public void DestroyPlayerController(IPhysicsPlayerController controller) {
-		throw new NotImplementedException();
 	}
 
 	public void DestroyShadowController(IPhysicsShadowController controller) {

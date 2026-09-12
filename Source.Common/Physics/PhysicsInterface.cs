@@ -178,7 +178,7 @@ public interface IPhysicsCollision
 	void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser);
 
 	// creates a list of verts from a collision mesh
-	int CreateDebugMesh(PhysCollide collisionModel, Span<Vector3> outVerts);
+	int CreateDebugMesh(PhysCollide collisionModel, out Span<Vector3> outVerts);
 	// destroy the list of verts created by CreateDebugMesh
 	void DestroyDebugMesh(int vertCount, Span<Vector3> outVerts);
 

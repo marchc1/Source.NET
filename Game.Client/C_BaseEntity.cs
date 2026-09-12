@@ -1732,7 +1732,7 @@ public partial class C_BaseEntity : IClientEntity
 		return ent;
 	}
 
-	protected virtual void UpdateVisibility() {
+	public virtual void UpdateVisibility() {
 		// todo: tools
 		if (ShouldDraw() && !IsDormant())
 			AddToLeafSystem();

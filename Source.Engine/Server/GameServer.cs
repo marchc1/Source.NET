@@ -95,6 +95,13 @@ public class GameServer : BaseServer
 	}
 
 	public void CreateEngineStringTables() {
+		StringTableBits.SV_SetupNetworkStringTableBits();
+
+		ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
+		GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
+		DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
+		SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
+
 		StringTables!.SetTick(TickCount);
 
 		int size = Unsafe.SizeOf<PrecacheUserData>();
@@ -154,7 +161,7 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
 
-	public static readonly ConVar sv_forcepreload = new( "sv_forcepreload", "0", FCvar.Archive, "Force server side preloading.");
+	public static readonly ConVar sv_forcepreload = new("sv_forcepreload", "0", FCvar.Archive, "Force server side preloading.");
 
 	public int PrecacheModel(ReadOnlySpan<char> name, Res flags, Model? model = null) {
 		if (ModelPrecacheTable == null)
@@ -184,9 +191,9 @@ public class GameServer : BaseServer
 
 		bool loadNow;
 		loadNow = (slot.GetModel() == null && ((flags & Res.Preload) != 0 || IsX360()));
-		if (CommandLine.FindParm("-nopreload") != 0 || CommandLine.FindParm("-nopreloadmodels") != 0) 
+		if (CommandLine.FindParm("-nopreload") != 0 || CommandLine.FindParm("-nopreloadmodels") != 0)
 			loadNow = false;
-		else if (sv_forcepreload.GetInt() != 0|| CommandLine.FindParm("-preload") != 0) 
+		else if (sv_forcepreload.GetInt() != 0 || CommandLine.FindParm("-preload") != 0)
 			loadNow = true;
 
 		if (idx != 0) {
@@ -339,10 +346,10 @@ public class GameServer : BaseServer
 	}
 
 
-	public PrecacheItem[] ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
-	public PrecacheItem[] GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
-	public PrecacheItem[] SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
-	public PrecacheItem[] DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
+	public PrecacheItem[] ModelPrecache = null!;
+	public PrecacheItem[] GenericPrecache = null!;
+	public PrecacheItem[] SoundPrecache = null!;
+	public PrecacheItem[] DecalPrecache = null!;
 
 	public GameClient Client(int i) => (GameClient)Clients[i];
 

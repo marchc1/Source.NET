@@ -447,6 +447,11 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 		serverPluginHandler.GameFrame(isSimulating);
 	}
 
+	public static readonly ConVar sv_precache_modelbits = new("sv_precache_modelbits", "12", 0, "number of bits to use for the modelprecache stringtable", 4, 15);
+	public static readonly ConVar sv_precache_generalbits = new("sv_precache_generalbits", "9", 0, "number of bits to use for the generalprecache stringtable", 4, 15);
+	public static readonly ConVar sv_precache_soundbits = new("sv_precache_soundbits", "14", 0, "number of bits to use for the soundprecache stringtable", 4, 15);
+	public static readonly ConVar sv_precache_decalbits = new("sv_precache_decalbits", "9", 0, "number of bits to use for the decalprecache stringtable", 4, 15);
+
 	internal void CreateNetworkStringTables() {
 		networkStringTableContainerServer.RemoveAllTables();
 

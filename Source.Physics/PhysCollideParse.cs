@@ -116,7 +116,7 @@ public readonly ref struct PhyParser(ReadOnlySpan<byte> buffer)
 	public readonly int ExtractSize()
 		=> const_reinterpret<byte, PhyHeader>(buffer)[0].Size + sizeof(int);
 
-	public unsafe void ParseSurfaces(List<Vector3[]> outConvexHulls) {
+	public unsafe void ParseSurfaces(List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
 		ref readonly PhySurfaceHeader header = ref ExtractPhySurfaceHeader();
 
 		ReadOnlySpan<byte> surfaceData = buffer[sizeof(PhySurfaceHeader)..];
@@ -125,26 +125,26 @@ public readonly ref struct PhyParser(ReadOnlySpan<byte> buffer)
 		int massCentreFieldOffset = Marshal.OffsetOf<PhyCompactSurfaceHeader>(nameof(PhyCompactSurfaceHeader.MassCenter)).ToInt32();
 
 		int rootNodePos = massCentreFieldOffset + compactHeader.OffsetLedgetreeRoot;
-		WalkLedgetree(surfaceData, rootNodePos, outConvexHulls);
+		WalkLedgetree(surfaceData, rootNodePos, outConvexHulls, outTriangles);
 	}
 
-	private unsafe void WalkLedgetree(ReadOnlySpan<byte> surfaceData, int nodeOffset, List<Vector3[]> outConvexHulls) {
+	private unsafe void WalkLedgetree(ReadOnlySpan<byte> surfaceData, int nodeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
 		ref readonly PhyLedgeNode node = ref const_reinterpret<byte, PhyLedgeNode>(surfaceData[nodeOffset..])[0];
 
 		if (node.RightNodeOffset == 0) {
 			int ledgeOffset = nodeOffset + node.CompactNodeOffset;
-			ExtractLedgeVertices(surfaceData, ledgeOffset, outConvexHulls);
+			ExtractLedgeVertices(surfaceData, ledgeOffset, outConvexHulls, outTriangles);
 		}
 		else {
 			int leftOffset = nodeOffset + sizeof(PhyLedgeNode);
 			int rightOffset = nodeOffset + node.RightNodeOffset;
 
-			WalkLedgetree(surfaceData, leftOffset, outConvexHulls);
-			WalkLedgetree(surfaceData, rightOffset, outConvexHulls);
+			WalkLedgetree(surfaceData, leftOffset, outConvexHulls, outTriangles);
+			WalkLedgetree(surfaceData, rightOffset, outConvexHulls, outTriangles);
 		}
 	}
 
-	private unsafe void ExtractLedgeVertices(ReadOnlySpan<byte> surfaceData, int ledgeOffset, List<Vector3[]> outConvexHulls) {
+	private unsafe void ExtractLedgeVertices(ReadOnlySpan<byte> surfaceData, int ledgeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
 		ref readonly PhyLedge ledge = ref const_reinterpret<byte, PhyLedge>(surfaceData[ledgeOffset..])[0];
 
 		int triCount = ledge.TrianglesCount;
@@ -153,23 +153,35 @@ public readonly ref struct PhyParser(ReadOnlySpan<byte> buffer)
 
 		int verticesStart = ledgeOffset + ledge.PointOffset;
 
+		const int IVP_POINT_SIZE = 16;
+
+		Vector3 ReadPoint(int idx, ReadOnlySpan<byte> surfaceData) {
+			int vertAddr = verticesStart + idx * IVP_POINT_SIZE;
+			return IVPConvert.GeometryToSim(const_reinterpret<byte, Vector3>(surfaceData[vertAddr..])[0]);
+		}
+
 		var vertexIndices = new HashSet<int>();
 		for (int t = 0; t < triCount; t++) {
 			int triOffset = trianglesStart + t * sizeof(PhyCompactTriangle);
 			ref readonly PhyCompactTriangle tri = ref const_reinterpret<byte, PhyCompactTriangle>(surfaceData[triOffset..])[0];
-			for (int e = 0; e < 3; e++)
-				vertexIndices.Add(tri.Edges[e].StartPointIndex);
-		}
 
-		const int IVP_POINT_SIZE = 16;
+			int i0 = tri.Edges[0].StartPointIndex;
+			int i1 = tri.Edges[1].StartPointIndex;
+			int i2 = tri.Edges[2].StartPointIndex;
+
+			outTriangles.Add(ReadPoint(i0, surfaceData));
+			outTriangles.Add(ReadPoint(i1, surfaceData));
+			outTriangles.Add(ReadPoint(i2, surfaceData));
+
+			vertexIndices.Add(i0);
+			vertexIndices.Add(i1);
+			vertexIndices.Add(i2);
+		}
 
 		var hull = new Vector3[vertexIndices.Count];
 		int i = 0;
-		foreach (int idx in vertexIndices) {
-			int vertAddr = verticesStart + idx * IVP_POINT_SIZE;
-			ref readonly Vector3 point = ref const_reinterpret<byte, Vector3>(surfaceData[vertAddr..])[0];
-			hull[i++] = point;
-		}
+		foreach (int idx in vertexIndices)
+			hull[i++] = ReadPoint(idx, surfaceData);
 
 		outConvexHulls.Add(hull);
 	}

@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 using System;
+using System.Drawing;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Numerics;
@@ -18,6 +19,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using ClientModelRenderInfo = Source.Common.Engine.ModelRenderInfo;
+using Color = Source.Color;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseAnimating>;
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
@@ -1376,11 +1378,35 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return markAsDrawn ? 1 : 0;
 	}
 
+	public static readonly ConVar vcollide_wireframe = new("vcollide_wireframe", "0", FCvar.Cheat, "Render physics collision models in wireframe", callback: VCollideWireframe_ChangeCallback);
+
+	private static void VCollideWireframe_ChangeCallback(IConVar var, in ConVarChangeContext ctx) {
+		for (C_BaseEntity? entity = cl_entitylist.FirstBaseEntity(); entity != null; entity = cl_entitylist.NextBaseEntity(entity))
+			entity.UpdateVisibility();
+	}
+
+	static readonly Color debugColor = new(0, 255, 255, 0);
+	static readonly Color debugColorPhys = new(255, 0, 0, 0);
 	private void DoInternalDrawModel(ref ClientModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> boneToWorldArray) {
 		if (!Unsafe.IsNullRef(ref state))
 			modelrender.DrawModelExecute(ref state, ref info, boneToWorldArray);
 
-		// vcollide_wireframe todo
+		if (vcollide_wireframe.GetBool()) {
+			//if (IsRagdoll()) 
+			// m_pRagdoll->DrawWireframe();
+			// else
+			if (IsSolid() && CollisionProp().GetSolid() == SolidType.VPhysics) {
+				VCollide? collide = modelinfo.GetVCollide(GetModelIndex());
+				if (collide != null && collide.SolidCount == 1) {
+					MathLib.AngleMatrix(GetAbsAngles(), GetAbsOrigin(), out Matrix3x4 matrix);
+					engine.DebugDrawPhysCollide(collide.Solids![0]!, null, matrix, debugColor);
+					if (VPhysicsGetObject() != null) {
+						VPhysicsGetObject()!.GetPositionMatrix(out matrix);
+						engine.DebugDrawPhysCollide(collide.Solids![0]!, null, matrix, debugColorPhys);
+					}
+				}
+			}
+		}
 	}
 
 	protected virtual bool OnPostInternalDrawModel(ref ClientModelRenderInfo info) {
@@ -1616,7 +1642,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	int PrevResetEventsParity;
 
 	public int GetSequence() => Sequence;
-	protected override void UpdateVisibility() {
+	public override void UpdateVisibility() {
 		base.UpdateVisibility();
 
 		// todo

@@ -9,9 +9,11 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -27,7 +29,13 @@ public struct BBoxCache
 public class PhysicsCollide : IPhysicsCollision
 {
 	public PhysCollide BBoxToCollide(in Vector3 mins, in Vector3 maxs) {
-		throw new NotImplementedException();
+		Vector3 mn = mins * IVPConvert.HL2IVP_FACTOR;
+		Vector3 mx = maxs * IVPConvert.HL2IVP_FACTOR;
+		Vector3[] hull = [
+			new(mn.X, mn.Y, mn.Z), new(mx.X, mn.Y, mn.Z), new(mn.X, mx.Y, mn.Z), new(mx.X, mx.Y, mn.Z),
+			new(mn.X, mn.Y, mx.Z), new(mx.X, mn.Y, mx.Z), new(mn.X, mx.Y, mx.Z), new(mx.X, mx.Y, mx.Z),
+		];
+		return new PhysCollideCompactSurface(hull);
 	}
 
 	public PhysConvex BBoxToConvex(in Vector3 mins, in Vector3 maxs) {
@@ -118,8 +126,27 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public int CreateDebugMesh(PhysCollide collisionModel, Span<Vector3> outVerts) {
-		throw new NotImplementedException();
+	private readonly List<Vector3[]> DebugMeshRentals = [];
+
+	public int CreateDebugMesh(PhysCollide collisionModel, out Span<Vector3> outVerts) {
+		if (collisionModel is not PhysCollideCompactSurface surface) {
+			outVerts = default;
+			return 0;
+		}
+
+		int vertCount = surface.Triangles.Count;
+		if (vertCount == 0) {
+			outVerts = default;
+			return 0;
+		}
+
+		Vector3[] verts = ArrayPool<Vector3>.Shared.Rent(vertCount);
+		for (int i = 0; i < vertCount; i++)
+			verts[i] = IVPConvert.PositionToHL(surface.Triangles[i]);
+
+		DebugMeshRentals.Add(verts);
+		outVerts = verts.AsSpan(0, vertCount);
+		return vertCount;
 	}
 
 	public ICollisionQuery CreateQueryModel(PhysCollide collide) {
@@ -135,7 +162,17 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void DestroyDebugMesh(int vertCount, Span<Vector3> outVerts) {
-		throw new NotImplementedException();
+		if (outVerts.IsEmpty)
+			return;
+
+		ref Vector3 first = ref MemoryMarshal.GetReference(outVerts);
+		for (int i = 0; i < DebugMeshRentals.Count; i++) {
+			if (Unsafe.AreSame(ref DebugMeshRentals[i][0], ref first)) {
+				ArrayPool<Vector3>.Shared.Return(DebugMeshRentals[i]);
+				DebugMeshRentals.RemoveAt(i);
+				return;
+			}
+		}
 	}
 
 	public void DestroyQueryModel(ICollisionQuery query) {
@@ -254,11 +291,16 @@ public class PhysicsCollide : IPhysicsCollision
 public class PhysCollideCompactSurface : PhysCollide
 {
 	public readonly List<Vector3[]> ConvexHulls = [];
+	public readonly List<Vector3> Triangles = [];
 	private unsafe void Init(PhyParser parser, int index, bool swap) {
-		parser.ParseSurfaces(ConvexHulls);
+		parser.ParseSurfaces(ConvexHulls, Triangles);
 	}
 
 	public PhysCollideCompactSurface(PhyParser parser, int index, bool swap = false) {
 		Init(parser, index, swap);
+	}
+
+	public PhysCollideCompactSurface(Vector3[] hull) {
+		ConvexHulls.Add(hull);
 	}
 }

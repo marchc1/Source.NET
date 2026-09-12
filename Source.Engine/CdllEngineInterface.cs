@@ -25,7 +25,7 @@ namespace Source.Engine;
 
 #if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
-							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
+							MaterialSystem_Config MaterialSystemConfig,
 							MatSysInterface MatSys, ModelLoader modelloader, CL CL) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) => Key.NameForBinding(binding);
@@ -367,8 +367,80 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public void DebugDrawPhysCollide(PhysCollide collide, IMaterial material, in Matrix3x4 transform, in Color color) {
-		throw new NotImplementedException();
+	public static void DebugDrawPhysCollide(PhysCollide collide, IMaterial? material, in Matrix3x4 transform, in Color color, bool drawAxes) {
+		material ??= materials.FindMaterial("shadertest/wireframevertexcolor", MaterialDefines.TEXTURE_GROUP_OTHER);
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		Span<Vector3> outVerts;
+		int vertCount = physcollision.CreateDebugMesh(collide, out outVerts);
+		if (vertCount != 0) {
+			IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, vertCount / 3);
+
+			for (int j = 0; j < vertCount; j++) {
+				MathLib.VectorTransform(outVerts[j], transform, out Vector3 @out);
+				meshBuilder.Position3fv(@out.Base());
+				meshBuilder.Color4ub(color.R, color.G, color.B, color.A);
+				meshBuilder.TexCoord2f(0, 0, 0);
+				meshBuilder.AdvanceVertex();
+			}
+			meshBuilder.End();
+			mesh.Draw();
+		}
+		physcollision.DestroyDebugMesh(vertCount, outVerts);
+
+		// draw the axes
+		if (drawAxes) {
+			Vector3 xaxis = new(10,0,0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
+			Vector3 @out;
+
+			MathLib.MatrixGetColumn(transform, 3, out Vector3 center);
+			IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Lines, 3);
+
+			// X
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(255, 0, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(xaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(255, 0, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+
+			// Y
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(0, 255, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(yaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(0, 255, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+
+			// Z
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(0, 0, 255, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(zaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(0, 0, 255, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			meshBuilder.End();
+
+			mesh.Draw();
+		}
+	}
+	public void DebugDrawPhysCollide(PhysCollide collide, IMaterial? material, in Matrix3x4 transform, in Color color) {
+		DebugDrawPhysCollide(collide, material, transform, color, false);
 	}
 
 	public void CheckPoint(ReadOnlySpan<char> name) {
@@ -567,7 +639,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public uint GMOD_LoadModel(ReadOnlySpan<char> path) {
+	public MDLHandle_t GMOD_LoadModel(ReadOnlySpan<char> path) {
 		throw new NotImplementedException();
 	}
 

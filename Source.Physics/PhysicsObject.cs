@@ -24,6 +24,7 @@ internal class PhysicsObject : IPhysicsObject
 
 	internal PhysicsEnvironment Env = null!;
 	internal TypedIndex ShapeIndex;
+	internal Vector3 MassCenterOffset;
 	internal float Mass = 1.0f;
 	internal bool MotionEnabled = true;
 	internal bool GravityEnabled = true;
@@ -56,8 +57,8 @@ internal class PhysicsObject : IPhysicsObject
 		if (!Body.HasValue)
 			return;
 		var bodyRef = BodyRef;
-		bodyRef.Velocity.Linear += velocity;
-		bodyRef.Velocity.Angular += angularVelocity;
+		bodyRef.Velocity.Linear += IVPConvert.PositionToIVP(velocity);
+		bodyRef.Velocity.Angular += IVPConvert.AngularToIVP(angularVelocity);
 		bodyRef.Awake = true;
 	}
 
@@ -66,7 +67,7 @@ internal class PhysicsObject : IPhysicsObject
 			return;
 		var bodyRef = BodyRef;
 		bodyRef.Awake = true;
-		bodyRef.ApplyLinearImpulse(forceVector * Env.GetSimulationTimestepSeconds());
+		bodyRef.ApplyLinearImpulse(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds());
 	}
 
 	public void ApplyForceOffset(in Vector3 forceVector, in Vector3 worldPosition) {
@@ -74,8 +75,8 @@ internal class PhysicsObject : IPhysicsObject
 			return;
 		var bodyRef = BodyRef;
 		bodyRef.Awake = true;
-		Vector3 offset = worldPosition - bodyRef.Pose.Position;
-		bodyRef.ApplyImpulse(forceVector * Env.GetSimulationTimestepSeconds(), offset);
+		Vector3 offset = IVPConvert.PositionToIVP(worldPosition) - bodyRef.Pose.Position;
+		bodyRef.ApplyImpulse(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds(), offset);
 	}
 
 	public void ApplyTorqueCenter(in Vector3 torque) {
@@ -83,7 +84,7 @@ internal class PhysicsObject : IPhysicsObject
 			return;
 		var bodyRef = BodyRef;
 		bodyRef.Awake = true;
-		bodyRef.ApplyAngularImpulse(torque * Env.GetSimulationTimestepSeconds());
+		bodyRef.ApplyAngularImpulse(IVPConvert.AngularToIVP(torque) * Env.GetSimulationTimestepSeconds());
 	}
 
 	public void BecomeHinged(int localAxis) {
@@ -225,15 +226,17 @@ internal class PhysicsObject : IPhysicsObject
 		return RigidPose.Identity;
 	}
 
+	Vector3 OriginFromPose(in RigidPose pose) => pose.Position - Vector3.Transform(MassCenterOffset, pose.Orientation);
+
 	public void GetPosition(out Vector3 worldPosition, out QAngle angles) {
 		RigidPose pose = GetPose();
-		worldPosition = pose.Position;
-		MathLib.QuaternionAngles(pose.Orientation, out angles);
+		worldPosition = IVPConvert.PositionToHL(OriginFromPose(pose));
+		MathLib.QuaternionAngles(IVPConvert.RotationToHL(pose.Orientation), out angles);
 	}
 
 	public void GetPositionMatrix(out Matrix3x4 positionMatrix) {
 		RigidPose pose = GetPose();
-		MathLib.QuaternionMatrix(pose.Orientation, pose.Position, out positionMatrix);
+		MathLib.QuaternionMatrix(IVPConvert.RotationToHL(pose.Orientation), IVPConvert.PositionToHL(OriginFromPose(pose)), out positionMatrix);
 	}
 
 	public IPhysicsShadowController GetShadowController() {
@@ -251,8 +254,8 @@ internal class PhysicsObject : IPhysicsObject
 	public void GetVelocity(out Vector3 velocity, out Vector3 angularVelocity) {
 		if (Body.HasValue) {
 			var vel = BodyRef.Velocity;
-			velocity = vel.Linear;
-			angularVelocity = vel.Angular;
+			velocity = IVPConvert.PositionToHL(vel.Linear);
+			angularVelocity = IVPConvert.AngularToHL(vel.Angular);
 		}
 		else {
 			velocity = default;
@@ -386,7 +389,8 @@ internal class PhysicsObject : IPhysicsObject
 
 	public void SetPosition(in Vector3 worldPosition, in QAngle angles, bool isTeleport) {
 		MathLib.AngleQuaternion(in angles, out Quaternion orientation);
-		RigidPose pose = new(worldPosition, orientation);
+		Quaternion simOrient = IVPConvert.RotationToIVP(orientation);
+		RigidPose pose = new(IVPConvert.PositionToIVP(worldPosition) + Vector3.Transform(MassCenterOffset, simOrient), simOrient);
 		if (Body.HasValue) {
 			var bodyRef = BodyRef;
 			bodyRef.Pose = pose;
@@ -410,8 +414,8 @@ internal class PhysicsObject : IPhysicsObject
 		if (!Body.HasValue)
 			return;
 		var bodyRef = BodyRef;
-		bodyRef.Velocity.Linear = velocity;
-		bodyRef.Velocity.Angular = angularVelocity;
+		bodyRef.Velocity.Linear = IVPConvert.PositionToIVP(velocity);
+		bodyRef.Velocity.Angular = IVPConvert.AngularToIVP(angularVelocity);
 		bodyRef.Awake = true;
 	}
 
@@ -427,7 +431,25 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void UpdateShadow(in Vector3 targetPosition, in QAngle targetAngles, bool tempDisableGravity, float timeOffset) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+
+		float dt = timeOffset > 1e-4f ? timeOffset : Env.GetSimulationTimestepSeconds();
+		GetPosition(out Vector3 current, out _);
+		Vector3 velocity = (targetPosition - current) / dt;
+
+		var bodyRef = BodyRef;
+		bodyRef.Velocity.Linear = IVPConvert.PositionToIVP(velocity);
+		bodyRef.Velocity.Angular = default;
+		bodyRef.Awake = true;
+	}
+
+	internal void BecomeKinematic() {
+		if (Body.HasValue) {
+			var bodyRef = BodyRef;
+			bodyRef.LocalInertia = default;
+			bodyRef.Awake = true;
+		}
 	}
 
 	public void Wake() {
@@ -460,7 +482,7 @@ internal class PhysicsObject : IPhysicsObject
 		var pool = sim.BufferPool;
 
 		MathLib.AngleQuaternion(in angles, out Quaternion orientation);
-		RigidPose pose = new(position, orientation);
+		RigidPose pose = new(IVPConvert.PositionToIVP(position), IVPConvert.RotationToIVP(orientation));
 
 		PhysicsObject obj = new();
 		obj.AsleepSinceCreation = true;
@@ -470,28 +492,17 @@ internal class PhysicsObject : IPhysicsObject
 		obj.GameData = objParams.GameData;
 
 		if (isStatic) {
-			TypedIndex shapeIndex;
-			if (hulls.Count == 1) {
-				pool.Take<Vector3>(hulls[0].Length, out var bepuVerts);
-				for (int i = 0; i < hulls[0].Length; i++)
-					bepuVerts[i] = hulls[0][i];
-				var hull = new ConvexHull(bepuVerts, pool, out _);
-				shapeIndex = sim.Shapes.Add(hull);
-				pool.Return(ref bepuVerts);
+			var srcTriangles = compactSurface.Triangles;
+			int triCount = srcTriangles.Count / 3;
+			if (triCount == 0)
+				return null;
+
+			pool.Take<Triangle>(triCount, out var tris);
+			for (int t = 0; t < triCount; t++) {
+				tris[t] = new Triangle(srcTriangles[t * 3 + 0], srcTriangles[t * 3 + 2], srcTriangles[t * 3 + 1]);
 			}
-			else {
-				using var builder = new CompoundBuilder(pool, sim.Shapes, hulls.Count);
-				foreach (var hullVerts in hulls) {
-					pool.Take<Vector3>(hullVerts.Length, out var bepuVerts);
-					for (int i = 0; i < hullVerts.Length; i++)
-						bepuVerts[i] = hullVerts[i];
-					var hull = new ConvexHull(bepuVerts, pool, out _);
-					builder.Add(hull, RigidPose.Identity, 1f);
-					pool.Return(ref bepuVerts);
-				}
-				builder.BuildKinematicCompound(out var children);
-				shapeIndex = sim.Shapes.Add(new Compound(children));
-			}
+			var mesh = new Mesh(tris, Vector3.One, pool);
+			TypedIndex shapeIndex = sim.Shapes.Add(mesh);
 
 			obj.Static = sim.Statics.Add(new StaticDescription(
 				pose,
@@ -504,12 +515,13 @@ internal class PhysicsObject : IPhysicsObject
 
 			TypedIndex shapeIndex;
 			BodyInertia inertia;
+			Vector3 center;
 
 			if (hulls.Count == 1) {
 				pool.Take<Vector3>(hulls[0].Length, out var bepuVerts);
 				for (int i = 0; i < hulls[0].Length; i++)
 					bepuVerts[i] = hulls[0][i];
-				var hull = new ConvexHull(bepuVerts, pool, out _);
+				var hull = new ConvexHull(bepuVerts, pool, out center);
 				inertia = hull.ComputeInertia(mass);
 				shapeIndex = sim.Shapes.Add(hull);
 				pool.Return(ref bepuVerts);
@@ -520,13 +532,16 @@ internal class PhysicsObject : IPhysicsObject
 					pool.Take<Vector3>(hullVerts.Length, out var bepuVerts);
 					for (int i = 0; i < hullVerts.Length; i++)
 						bepuVerts[i] = hullVerts[i];
-					var hull = new ConvexHull(bepuVerts, pool, out _);
-					builder.Add(hull, RigidPose.Identity, 1f);
+					var hull = new ConvexHull(bepuVerts, pool, out var childCenter);
+					builder.Add(hull, new RigidPose(childCenter), 1f);
 					pool.Return(ref bepuVerts);
 				}
-				builder.BuildDynamicCompound(out var children, out inertia);
+				builder.BuildDynamicCompound(out var children, out inertia, out center);
 				shapeIndex = sim.Shapes.Add(new Compound(children));
 			}
+
+			obj.MassCenterOffset = center;
+			pose.Position += Vector3.Transform(center, pose.Orientation);
 
 			var bodyHandle = sim.Bodies.Add(BodyDescription.CreateDynamic(
 				pose,

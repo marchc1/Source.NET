@@ -221,11 +221,11 @@ public static class PhysicsSharedGlobals
 	}
 
 	public static IPhysicsObject? PhysCreateWorld_Shared(BaseEntity world, VCollide? worldCollide, in ObjectParams defaultParams) {
-		Solid solid;
-		Fluid fluid;
+		Solid solid = default;
+		Fluid fluid = default;
 
-		if (physenv == null) return null;
-		if (worldCollide == null) return null;
+		if (physenv == null || worldCollide == null || worldCollide.SolidCount < 1 || worldCollide.Solids == null)
+			return null;
 
 		int surfaceData = (int)physprops.GetSurfaceIndex("default");
 
@@ -233,7 +233,40 @@ public static class PhysicsSharedGlobals
 		oparams.GameData = world;
 		oparams.Name = "world";
 
-		IPhysicsObject? worldPhysics = physenv.CreatePolyObjectStatic(worldCollide.Solids![0]!, surfaceData, vec3_origin, vec3_angle, ref oparams);
+		IPhysicsObject? worldPhysics = physenv.CreatePolyObjectStatic(worldCollide.Solids[0]!, surfaceData, vec3_origin, vec3_angle, ref oparams);
+
+		IVPhysicsKeyParser parse = physcollision.VPhysicsKeyParserCreate(worldCollide.KeyValues!);
+		while (!parse.Finished()) {
+			ReadOnlySpan<char> block = parse.GetCurrentBlockName();
+
+			if (strcmpi(block, "solid") == 0 || strcmpi(block, "staticsolid") == 0) {
+				solid = default;
+				solid.Params = defaultParams;
+				parse.ParseSolid(ref solid, null);
+				solid.Params.EnableCollisions = true;
+				solid.Params.GameData = world;
+				solid.Params.Name = "world";
+				surfaceData = (int)physprops.GetSurfaceIndex("default");
+
+				if (solid.Index == 0)
+					continue;
+
+				if (solid.Index >= worldCollide.SolidCount || worldCollide.Solids[solid.Index] == null)
+					continue;
+
+				IPhysicsObject? obj = physenv.CreatePolyObjectStatic(worldCollide.Solids[solid.Index]!, surfaceData, vec3_origin, vec3_angle, ref solid.Params);
+				if (obj == null)
+					continue;
+
+				worldPhysics ??= obj;
+			}
+			else if (strcmpi(block, "fluid") == 0) {
+				parse.ParseFluid(ref fluid, null);
+			}
+			else
+				parse.SkipBlock();
+		}
+		physcollision.VPhysicsKeyParserDestroy(parse);
 
 		return worldPhysics;
 	}

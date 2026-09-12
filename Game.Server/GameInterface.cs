@@ -209,6 +209,14 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		// throw new NotImplementedException();
 
 		GameRulesRegister.CreateNetworkStringTables_GameRules();
+
+#if GMOD_DLL
+		// TODO: GarrysMod::StringTable::Create
+		// TODO: NetworkString::Create
+		// TODO: NetworkVarNames::Create
+
+		StringTableBits.SV_SetupNetworkStringTableBits();
+		#endif
 	}
 
 	public bool DLLInit(IServiceProvider services) {

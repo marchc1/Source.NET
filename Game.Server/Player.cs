@@ -789,6 +789,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		LaggedMovementValue = 1.0f;
 
 		base.Spawn();
+
+		InitVCollision(GetAbsOrigin(), GetAbsVelocity());
 	}
 
 	private void IncrementInterpolationFrame() => InterpolationFrame = (byte)((InterpolationFrame + 1) % NOINTERP_PARITY_MAX);
@@ -1306,10 +1308,48 @@ public partial class BasePlayer : BaseCombatCharacter
 			// 	Local.PunchAngleVel.Init();
 			// }
 
-			// PostThinkVPhysics();
+			PostThinkVPhysics();
 		}
 
 		SimulatePlayerSimulatedEntities();
+	}
+
+	IPhysicsPlayerController? PhysicsController;
+
+	public void InitVCollision(in Vector3 vecAbsOrigin, in Vector3 vecAbsVelocity) {
+		VPhysicsDestroyObject();
+
+		PhysCollide model = physcollision.BBoxToCollide(GetPlayerMins(), GetPlayerMaxs());
+
+		ObjectParams solid = g_PhysDefaultObjectParams;
+		solid.GameData = this;
+		solid.Name = "player";
+		solid.Mass = 85.0f;
+		solid.Inertia = 1e24f;
+		solid.EnableCollisions = true;
+		solid.DragCoefficient = 0;
+
+		IPhysicsObject? shadow = physenv.CreatePolyObject(model, (int)physprops.GetSurfaceIndex("player"), vecAbsOrigin, vec3_angle, ref solid);
+		if (shadow == null)
+			return;
+
+		VPhysicsSetObject(shadow);
+		PhysAddShadow(this);
+
+		PhysicsController = physenv.CreatePlayerController(shadow);
+		PhysicsController.SetPushMassLimit(350.0f);
+		PhysicsController.SetPushSpeedLimit(50.0f);
+
+		shadow.SetPosition(vecAbsOrigin, vec3_angle, true);
+	}
+
+	public void PostThinkVPhysics() {
+		if (PhysicsController == null)
+			return;
+
+		bool onground = (GetFlags() & EntityFlags.OnGround) != 0;
+		IPhysicsObject? ground = GetGroundEntity()?.VPhysicsGetObject();
+		PhysicsController.Update(GetAbsOrigin(), GetAbsVelocity(), (float)gpGlobals.FrameTime, onground, ground!);
 	}
 
 	public virtual void PreThink() {
