@@ -3265,4 +3265,8 @@ public static class VectorFieldExts
 	// Writable float[3] view over a vector's components (unlike the read-only Vector3 indexer).
 	public static Span<float> Base(this ref Vector3 v) => MemoryMarshal.CreateSpan(ref Unsafe.As<Vector3, float>(ref v), 3);
 	public static Span<float> Base(this ref QAngle a) => MemoryMarshal.CreateSpan(ref Unsafe.As<QAngle, float>(ref a), 3);
+
+
+	public static unsafe ReadOnlySpan<float> ReadOnlyBase(this in Vector3 v) => MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<Vector3, float>(ref Unsafe.AsRef<Vector3>(in v)), 3);
+	public static unsafe ReadOnlySpan<float> ReadOnlyBase(this in QAngle a) => MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<QAngle, float>(ref Unsafe.AsRef<QAngle>(in a)), 3);
 }
