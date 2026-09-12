@@ -1,19 +1,14 @@
 ﻿global using static Source.Physics.PhysicsEnvironmentGlobals;
 
-using BepuPhysics;
-using BepuPhysics.Collidables;
-using BepuPhysics.CollisionDetection;
-using BepuPhysics.Constraints;
-
-using BepuUtilities;
-using BepuUtilities.Memory;
+using Jitter2;
+using Jitter2.Collision;
+using Jitter2.LinearMath;
 
 using Source.Common;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System.Numerics;
-using System.Runtime.CompilerServices;
 
 namespace Source.Physics;
 
@@ -24,77 +19,11 @@ internal static class PhysicsEnvironmentGlobals
 	internal static IPhysicsObjectPairHash CreateObjectPairHash() => new ObjectPairHash();
 }
 
-internal struct PhysicsNarrowPhaseCallbacks(PhysicsEnvironment env) : INarrowPhaseCallbacks
-{
-	private readonly PhysicsEnvironment env = env;
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin) {
-		return a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic;
-	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB) {
-		return true;
-	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public bool ConfigureContactManifold<TManifold>(int workerIndex, CollidablePair pair, ref TManifold manifold, out PairMaterialProperties pairMaterial) where TManifold : unmanaged, IContactManifold<TManifold> {
-		pairMaterial.FrictionCoefficient = 1f;
-		pairMaterial.MaximumRecoveryVelocity = 2f;
-		pairMaterial.SpringSettings = new(30, 1);
-		return true;
-	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public bool ConfigureContactManifold(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB, ref ConvexContactManifold manifold) {
-		return true;
-	}
-
-	public void Dispose() {
-
-	}
-
-	public void Initialize(Simulation simulation) {
-
-	}
-}
-
-internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIntegratorCallbacks
-{
-	public AngularIntegrationMode AngularIntegrationMode => AngularIntegrationMode.Nonconserving;
-	public bool AllowSubstepsForUnconstrainedBodies => false;
-	public bool IntegrateVelocityForKinematics => false;
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void Initialize(Simulation simulation) {
-
-	}
-
-	Vector3Wide gravityWideDt;
-	Vector<float> linearDampingDt;
-	Vector<float> angularDampingDt;
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void IntegrateVelocity(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation, BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity) {
-		velocity.Linear = (velocity.Linear + gravityWideDt) * linearDampingDt;
-		velocity.Angular = velocity.Angular * angularDampingDt;
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void PrepareForIntegration(float dt) {
-		var damping = env.GetLinearDamping();
-		var angDamping = env.GetAngularDamping();
-		linearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - damping, 0, 1), dt));
-		angularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - angDamping, 0, 1), dt));
-		env.GetGravity(out var grav);
-		gravityWideDt = Vector3Wide.Broadcast(IVPConvert.PositionToIVP(grav) * dt);
-	}
-}
-
 internal class PhysicsEnvironment : IPhysicsEnvironment
 {
-	readonly Simulation PhysEnv;
-	readonly BufferPool BufferPool = new();
+	readonly World World;
 
-	public Simulation GetBepuEnvironment() => PhysEnv;
+	public World GetJitterWorld() => World;
 
 	Vector3 Gravity;
 	float AirDensity = 2.0f;
@@ -102,6 +31,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	TimeUnit_t SimulationTime;
 	TimeUnit_t NextFrameTime;
 	bool InSimulation;
+	TimeUnit_t Accumulator;
 	bool DeleteQueueEnabled = true;
 	bool QuickDeleteEnabled;
 
@@ -119,16 +49,16 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	bool ConstraintNotifyEnabled;
 
 	public PhysicsEnvironment() {
-		var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(this);
-		var poseIntegratorCallbacks = new PhysicsPoseIntegratorCallbacks(this);
-		var solveDescription = new SolveDescription(8, 1);
-		PhysEnv = Simulation.Create(BufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
+		World = new World();
+		World.NarrowPhaseFilter = new TriangleEdgeCollisionFilter();
+		World.SubstepCount = 2;
+		World.SolverIterations = (12, 4);
+		World.AllowDeactivation = true;
+		World.DynamicTree.EnableAutomaticOptimization = false;
 
 		PerformanceSettings.Defaults();
 	}
 
-	internal float GetLinearDamping() => 0.03f;
-	internal float GetAngularDamping() => 0.03f;
 	internal float GetSimulationTimestepSeconds() => (float)SimulationTimestep;
 
 	public void GetGravity(out Vector3 gravityVector) {
@@ -162,6 +92,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	public void ResetSimulationClock() {
 		SimulationTime = default;
 		NextFrameTime = default;
+		Accumulator = default;
 	}
 
 	public TimeUnit_t GetNextFrameTime() {
@@ -171,13 +102,25 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	public void Simulate(TimeUnit_t deltaTime) {
 		InSimulation = true;
 
-		float dt = (float)SimulationTimestep;
-		float remaining = (float)deltaTime;
+		double dt = SimulationTimestep;
 
-		while (remaining >= dt) {
-			PhysEnv.Timestep(dt);
+		if (deltaTime > 0.0 && deltaTime <= 1.0) {
+			if (deltaTime > 0.1)
+				deltaTime = 0.1;
+			Accumulator += deltaTime;
+		}
+
+		if (Accumulator > 0.25)
+			Accumulator = 0.25;
+
+		World.Gravity = JitterConvert.ToJ(IVPConvert.PositionToIVP(Gravity));
+
+		int steps = 0;
+		while (Accumulator >= dt) {
+			World.Step(dt, false);
 			SimulationTime += SimulationTimestep;
-			remaining -= dt;
+			Accumulator -= dt;
+			steps++;
 		}
 
 		NextFrameTime = SimulationTime + SimulationTimestep;
@@ -423,7 +366,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 
 		Objects.Remove(obj);
 		DeleteQueue.Remove(obj);
-		po.RemoveFromSimulation(PhysEnv, BufferPool);
+		po.RemoveFromSimulation(World);
 	}
 
 	public void DestroyPlayerController(IPhysicsPlayerController controller) {

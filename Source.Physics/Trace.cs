@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Source.Physics;
 
-public ref struct TraceBepu : ITraceObject
+public ref struct TraceJitter : ITraceObject
 {
 	public Vector3 GetVertByIndex(int index) {
 		throw new NotImplementedException();

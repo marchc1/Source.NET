@@ -1,6 +1,4 @@
-﻿using BepuUtilities;
-
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Formats.BSP;

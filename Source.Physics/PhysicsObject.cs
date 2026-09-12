@@ -1,7 +1,7 @@
-﻿using BepuPhysics;
-using BepuPhysics.Collidables;
-
-using BepuUtilities.Memory;
+using Jitter2;
+using Jitter2.Collision.Shapes;
+using Jitter2.Dynamics;
+using Jitter2.LinearMath;
 
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
@@ -17,21 +17,18 @@ namespace Source.Physics;
 internal class PhysicsObject : IPhysicsObject
 {
 	public object? GameData;
-	public BodyHandle? Body;
-	public StaticHandle? Static;
+	public RigidBody? Body;
 	public PhysCollide? Collide;
 	public IPhysicsShadowController? Shadow;
 
 	internal PhysicsEnvironment Env = null!;
-	internal TypedIndex ShapeIndex;
 	internal Vector3 MassCenterOffset;
 	internal float Mass = 1.0f;
 	internal bool MotionEnabled = true;
 	internal bool GravityEnabled = true;
 	internal bool CollisionsEnabled = true;
 
-	Simulation Sim => Env.GetBepuEnvironment();
-	BodyReference BodyRef => Sim.Bodies[Body!.Value];
+	World World => Env.GetJitterWorld();
 
 	public Vector3 DragBasis;
 	public Vector3 AngDragBasis;
@@ -53,38 +50,39 @@ internal class PhysicsObject : IPhysicsObject
 	public float DragCoefficient;
 	public float AngDragCoefficient;
 
+	Vector3 SimPosition => Body != null ? JitterConvert.ToVec(Body.Position) : default;
+	Quaternion SimOrientation => Body != null ? JitterConvert.ToQuat(Body.Orientation) : Quaternion.Identity;
+
+	Vector3 OriginFromPose(in Vector3 simPos, in Quaternion simOrient) => simPos - Vector3.Transform(MassCenterOffset, simOrient);
+
 	public void AddVelocity(in Vector3 velocity, in Vector3 angularVelocity) {
-		if (!Body.HasValue)
+		if (Body == null || Body.MotionType == MotionType.Static)
 			return;
-		var bodyRef = BodyRef;
-		bodyRef.Velocity.Linear += IVPConvert.PositionToIVP(velocity);
-		bodyRef.Velocity.Angular += IVPConvert.AngularToIVP(angularVelocity);
-		bodyRef.Awake = true;
+		Body.Velocity += JitterConvert.ToJ(IVPConvert.PositionToIVP(velocity));
+		Body.AngularVelocity += JitterConvert.ToJ(IVPConvert.AngularToIVP(angularVelocity));
+		Body.SetActivationState(true);
 	}
 
 	public void ApplyForceCenter(in Vector3 forceVector) {
-		if (!Body.HasValue)
+		if (Body == null)
 			return;
-		var bodyRef = BodyRef;
-		bodyRef.Awake = true;
-		bodyRef.ApplyLinearImpulse(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds());
+		JVector impulse = JitterConvert.ToJ(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds());
+		Body.ApplyImpulse(impulse, true);
 	}
 
 	public void ApplyForceOffset(in Vector3 forceVector, in Vector3 worldPosition) {
-		if (!Body.HasValue)
+		if (Body == null)
 			return;
-		var bodyRef = BodyRef;
-		bodyRef.Awake = true;
-		Vector3 offset = IVPConvert.PositionToIVP(worldPosition) - bodyRef.Pose.Position;
-		bodyRef.ApplyImpulse(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds(), offset);
+		JVector impulse = JitterConvert.ToJ(IVPConvert.ForceImpulseToIVP(forceVector) * Env.GetSimulationTimestepSeconds());
+		JVector worldPos = JitterConvert.ToJ(IVPConvert.PositionToIVP(worldPosition));
+		Body.ApplyImpulse(impulse, worldPos, true);
 	}
 
 	public void ApplyTorqueCenter(in Vector3 torque) {
-		if (!Body.HasValue)
+		if (Body == null || Body.MotionType == MotionType.Static)
 			return;
-		var bodyRef = BodyRef;
-		bodyRef.Awake = true;
-		bodyRef.ApplyAngularImpulse(IVPConvert.AngularToIVP(torque) * Env.GetSimulationTimestepSeconds());
+		Body.Torque += JitterConvert.ToJ(IVPConvert.AngularToIVP(torque));
+		Body.SetActivationState(true);
 	}
 
 	public void BecomeHinged(int localAxis) {
@@ -100,7 +98,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void CalculateForceOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerForce, out Vector3 centerTorque) {
-		Vector3 center = GetPose().Position;
+		GetPosition(out Vector3 center, out _);
 		centerForce = forceVector;
 		centerTorque = Vector3.Cross(worldPosition - center, forceVector);
 	}
@@ -110,7 +108,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void CalculateVelocityOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerVelocity, out Vector3 centerAngularVelocity) {
-		Vector3 center = GetPose().Position;
+		GetPosition(out Vector3 center, out _);
 		float invMass = Mass > 0 ? 1.0f / Mass : 0.0f;
 		centerVelocity = forceVector * invMass;
 		centerAngularVelocity = Vector3.Cross(worldPosition - center, forceVector) * invMass;
@@ -133,22 +131,23 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void EnableDrag(bool enable) {
-		// Drag handled via damping in the pose integrator; no per-object toggle yet.
+
 	}
 
 	public void EnableGravity(bool enable) {
 		GravityEnabled = enable;
+		if (Body != null)
+			Body.AffectedByGravity = enable;
 	}
 
 	public void EnableMotion(bool enable) {
 		if (MotionEnabled == enable)
 			return;
 		MotionEnabled = enable;
-		if (!enable && Body.HasValue) {
-			var bodyRef = BodyRef;
-			bodyRef.Velocity.Linear = default;
-			bodyRef.Velocity.Angular = default;
-			bodyRef.Awake = false;
+		if (!enable && Body != null && Body.MotionType != MotionType.Static) {
+			Body.Velocity = JVector.Zero;
+			Body.AngularVelocity = JVector.Zero;
+			Body.SetActivationState(false);
 		}
 	}
 
@@ -218,25 +217,17 @@ internal class PhysicsObject : IPhysicsObject
 		throw new NotImplementedException();
 	}
 
-	RigidPose GetPose() {
-		if (Body.HasValue)
-			return BodyRef.Pose;
-		if (Static.HasValue)
-			return Sim.Statics[Static.Value].Pose;
-		return RigidPose.Identity;
-	}
-
-	Vector3 OriginFromPose(in RigidPose pose) => pose.Position - Vector3.Transform(MassCenterOffset, pose.Orientation);
-
 	public void GetPosition(out Vector3 worldPosition, out QAngle angles) {
-		RigidPose pose = GetPose();
-		worldPosition = IVPConvert.PositionToHL(OriginFromPose(pose));
-		MathLib.QuaternionAngles(IVPConvert.RotationToHL(pose.Orientation), out angles);
+		Vector3 simPos = SimPosition;
+		Quaternion simOrient = SimOrientation;
+		worldPosition = IVPConvert.PositionToHL(OriginFromPose(simPos, simOrient));
+		MathLib.QuaternionAngles(IVPConvert.RotationToHL(simOrient), out angles);
 	}
 
 	public void GetPositionMatrix(out Matrix3x4 positionMatrix) {
-		RigidPose pose = GetPose();
-		MathLib.QuaternionMatrix(IVPConvert.RotationToHL(pose.Orientation), IVPConvert.PositionToHL(OriginFromPose(pose)), out positionMatrix);
+		Vector3 simPos = SimPosition;
+		Quaternion simOrient = SimOrientation;
+		MathLib.QuaternionMatrix(IVPConvert.RotationToHL(simOrient), IVPConvert.PositionToHL(OriginFromPose(simPos, simOrient)), out positionMatrix);
 	}
 
 	public IPhysicsShadowController GetShadowController() {
@@ -252,10 +243,9 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void GetVelocity(out Vector3 velocity, out Vector3 angularVelocity) {
-		if (Body.HasValue) {
-			var vel = BodyRef.Velocity;
-			velocity = IVPConvert.PositionToHL(vel.Linear);
-			angularVelocity = IVPConvert.AngularToHL(vel.Angular);
+		if (Body != null && Body.MotionType != MotionType.Static) {
+			velocity = IVPConvert.PositionToHL(JitterConvert.ToVec(Body.Velocity));
+			angularVelocity = IVPConvert.AngularToHL(JitterConvert.ToVec(Body.AngularVelocity));
 		}
 		else {
 			velocity = default;
@@ -268,9 +258,9 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public bool IsAsleep() {
-		if (!Body.HasValue)
+		if (Body == null)
 			return true;
-		return !BodyRef.Awake;
+		return !Body.IsActive;
 	}
 
 	public bool IsAttachedToConstraint(bool externalOnly) {
@@ -307,7 +297,7 @@ internal class PhysicsObject : IPhysicsObject
 		return true;
 	}
 
-	public bool IsStatic() => Static.HasValue;
+	public bool IsStatic() => Body == null || Body.MotionType == MotionType.Static;
 
 	public bool IsTrigger() {
 		throw new NotImplementedException();
@@ -388,17 +378,15 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void SetPosition(in Vector3 worldPosition, in QAngle angles, bool isTeleport) {
+		if (Body == null)
+			return;
 		MathLib.AngleQuaternion(in angles, out Quaternion orientation);
 		Quaternion simOrient = IVPConvert.RotationToIVP(orientation);
-		RigidPose pose = new(IVPConvert.PositionToIVP(worldPosition) + Vector3.Transform(MassCenterOffset, simOrient), simOrient);
-		if (Body.HasValue) {
-			var bodyRef = BodyRef;
-			bodyRef.Pose = pose;
-			bodyRef.Awake = true;
-		}
-		else if (Static.HasValue) {
-			Sim.Statics[Static.Value].Pose = pose;
-		}
+		Vector3 simPos = IVPConvert.PositionToIVP(worldPosition) + Vector3.Transform(MassCenterOffset, simOrient);
+		Body.Orientation = JitterConvert.ToJ(simOrient);
+		Body.Position = JitterConvert.ToJ(simPos);
+		if (Body.MotionType != MotionType.Static)
+			Body.SetActivationState(true);
 	}
 
 	public void SetPositionMatrix(in Matrix3x4 matrix, bool isTeleport) {
@@ -411,12 +399,11 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void SetVelocity(in Vector3 velocity, in Vector3 angularVelocity) {
-		if (!Body.HasValue)
+		if (Body == null || Body.MotionType == MotionType.Static)
 			return;
-		var bodyRef = BodyRef;
-		bodyRef.Velocity.Linear = IVPConvert.PositionToIVP(velocity);
-		bodyRef.Velocity.Angular = IVPConvert.AngularToIVP(angularVelocity);
-		bodyRef.Awake = true;
+		Body.Velocity = JitterConvert.ToJ(IVPConvert.PositionToIVP(velocity));
+		Body.AngularVelocity = JitterConvert.ToJ(IVPConvert.AngularToIVP(angularVelocity));
+		Body.SetActivationState(true);
 	}
 
 	public void SetVelocityInstantaneous(in Vector3 velocity, in Vector3 angularVelocity) {
@@ -424,39 +411,33 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void Sleep() {
-		if (Body.HasValue) {
-			var bodyRef = BodyRef;
-			bodyRef.Awake = false;
-		}
+		if (Body != null && Body.MotionType != MotionType.Static)
+			Body.SetActivationState(false);
 	}
 
 	public void UpdateShadow(in Vector3 targetPosition, in QAngle targetAngles, bool tempDisableGravity, float timeOffset) {
-		if (!Body.HasValue)
+		if (Body == null)
 			return;
 
 		float dt = timeOffset > 1e-4f ? timeOffset : Env.GetSimulationTimestepSeconds();
 		GetPosition(out Vector3 current, out _);
 		Vector3 velocity = (targetPosition - current) / dt;
 
-		var bodyRef = BodyRef;
-		bodyRef.Velocity.Linear = IVPConvert.PositionToIVP(velocity);
-		bodyRef.Velocity.Angular = default;
-		bodyRef.Awake = true;
+		Body.Velocity = JitterConvert.ToJ(IVPConvert.PositionToIVP(velocity));
+		Body.AngularVelocity = JVector.Zero;
+		Body.SetActivationState(true);
 	}
 
 	internal void BecomeKinematic() {
-		if (Body.HasValue) {
-			var bodyRef = BodyRef;
-			bodyRef.LocalInertia = default;
-			bodyRef.Awake = true;
-		}
+		if (Body == null)
+			return;
+		Body.MotionType = MotionType.Kinematic;
+		Body.SetActivationState(true);
 	}
 
 	public void Wake() {
-		if (Body.HasValue) {
-			var bodyRef = BodyRef;
-			bodyRef.Awake = true;
-		}
+		if (Body != null && Body.MotionType != MotionType.Static)
+			Body.SetActivationState(true);
 	}
 
 	public void WorldToLocal(out Vector3 localPosition, in Vector3 worldPosition) {
@@ -474,15 +455,11 @@ internal class PhysicsObject : IPhysicsObject
 		if (collisionModel is not PhysCollideCompactSurface compactSurface)
 			return null;
 
-		var hulls = compactSurface.ConvexHulls;
-		if (hulls.Count == 0)
-			return null;
-
-		var sim = environment.GetBepuEnvironment();
-		var pool = sim.BufferPool;
+		World world = environment.GetJitterWorld();
 
 		MathLib.AngleQuaternion(in angles, out Quaternion orientation);
-		RigidPose pose = new(IVPConvert.PositionToIVP(position), IVPConvert.RotationToIVP(orientation));
+		Quaternion simOrient = IVPConvert.RotationToIVP(orientation);
+		Vector3 simPos = IVPConvert.PositionToIVP(position);
 
 		PhysicsObject obj = new();
 		obj.AsleepSinceCreation = true;
@@ -491,67 +468,79 @@ internal class PhysicsObject : IPhysicsObject
 		obj.Env = environment;
 		obj.GameData = objParams.GameData;
 
+		RigidBody body = world.CreateRigidBody();
+		body.Tag = obj;
+
 		if (isStatic) {
 			var srcTriangles = compactSurface.Triangles;
 			int triCount = srcTriangles.Count / 3;
-			if (triCount == 0)
+			if (triCount == 0) {
+				world.Remove(body);
 				return null;
-
-			pool.Take<Triangle>(triCount, out var tris);
-			for (int t = 0; t < triCount; t++) {
-				tris[t] = new Triangle(srcTriangles[t * 3 + 0], srcTriangles[t * 3 + 2], srcTriangles[t * 3 + 1]);
 			}
-			var mesh = new Mesh(tris, Vector3.One, pool);
-			TypedIndex shapeIndex = sim.Shapes.Add(mesh);
 
-			obj.Static = sim.Statics.Add(new StaticDescription(
-				pose,
-				shapeIndex
-			));
-			obj.ShapeIndex = shapeIndex;
+			JTriangle[] soup = new JTriangle[triCount];
+			for (int t = 0; t < triCount; t++) {
+				soup[t] = new JTriangle(
+					JitterConvert.ToJ(srcTriangles[t * 3 + 0]),
+					JitterConvert.ToJ(srcTriangles[t * 3 + 1]),
+					JitterConvert.ToJ(srcTriangles[t * 3 + 2]));
+			}
+
+			var mesh = new TriangleMesh(soup, ignoreDegenerated: true);
+			body.AddShapes(TriangleShape.CreateAllShapes(mesh), MassInertiaUpdateMode.Preserve);
+			body.Position = JitterConvert.ToJ(simPos);
+			body.Orientation = JitterConvert.ToJ(simOrient);
+			body.MotionType = MotionType.Static;
+			obj.MassCenterOffset = Vector3.Zero;
+			obj.Body = body;
+			return obj;
 		}
 		else {
+			var hulls = compactSurface.ConvexHulls;
+			if (hulls.Count == 0) {
+				world.Remove(body);
+				return null;
+			}
+
 			float mass = objParams.Mass > 0 ? objParams.Mass : 1f;
 
-			TypedIndex shapeIndex;
-			BodyInertia inertia;
-			Vector3 center;
+			var shapes = new List<PointCloudShape>(hulls.Count);
+			Vector3 combinedCom = default;
+			float totalMass = 0f;
 
-			if (hulls.Count == 1) {
-				pool.Take<Vector3>(hulls[0].Length, out var bepuVerts);
-				for (int i = 0; i < hulls[0].Length; i++)
-					bepuVerts[i] = hulls[0][i];
-				var hull = new ConvexHull(bepuVerts, pool, out center);
-				inertia = hull.ComputeInertia(mass);
-				shapeIndex = sim.Shapes.Add(hull);
-				pool.Return(ref bepuVerts);
-			}
-			else {
-				using var builder = new CompoundBuilder(pool, sim.Shapes, hulls.Count);
-				foreach (var hullVerts in hulls) {
-					pool.Take<Vector3>(hullVerts.Length, out var bepuVerts);
-					for (int i = 0; i < hullVerts.Length; i++)
-						bepuVerts[i] = hullVerts[i];
-					var hull = new ConvexHull(bepuVerts, pool, out var childCenter);
-					builder.Add(hull, new RigidPose(childCenter), 1f);
-					pool.Return(ref bepuVerts);
-				}
-				builder.BuildDynamicCompound(out var children, out inertia, out center);
-				shapeIndex = sim.Shapes.Add(new Compound(children));
+			foreach (var hullVerts in hulls) {
+				PointCloudShape? shape = BuildHullShape(hullVerts);
+				if (shape == null)
+					continue;
+
+				shape.CalculateMassInertia(out _, out JVector c, out double sm);
+				Vector3 com = JitterConvert.ToVec(c);
+				combinedCom += com * (float)sm;
+				totalMass += (float)sm;
+				shapes.Add(shape);
 			}
 
-			obj.MassCenterOffset = center;
-			pose.Position += Vector3.Transform(center, pose.Orientation);
+			if (shapes.Count == 0) {
+				world.Remove(body);
+				return null;
+			}
 
-			var bodyHandle = sim.Bodies.Add(BodyDescription.CreateDynamic(
-				pose,
-				inertia,
-				shapeIndex,
-				0.01f
-			));
+			combinedCom /= totalMass > 0 ? totalMass : 1f;
 
-			obj.Body = bodyHandle;
-			obj.ShapeIndex = shapeIndex;
+			JVector shift = JitterConvert.ToJ(-combinedCom);
+			foreach (var shape in shapes)
+				shape.Shift = shift;
+
+			body.AddShapes(shapes);
+			body.SetMassInertia(mass);
+			body.Damping = (0.03f, 0.03f);
+
+			obj.MassCenterOffset = combinedCom;
+			Vector3 bodyPos = simPos + Vector3.Transform(combinedCom, simOrient);
+			body.Position = JitterConvert.ToJ(bodyPos);
+			body.Orientation = JitterConvert.ToJ(simOrient);
+
 			obj.Mass = mass;
 
 			if (objParams.Damping > 0 || objParams.RotDamping > 0) {
@@ -560,22 +549,56 @@ internal class PhysicsObject : IPhysicsObject
 			}
 		}
 
+		obj.Body = body;
 		return obj;
 	}
 
-	internal void RemoveFromSimulation(Simulation sim, BufferPool pool) {
-		if (Body.HasValue) {
-			sim.Bodies.Remove(Body.Value);
-			Body = null;
+	static PointCloudShape? BuildHullShape(Vector3[] hullVerts) {
+		if (hullVerts.Length == 0)
+			return null;
+
+		JVector[] pts = new JVector[hullVerts.Length];
+		for (int i = 0; i < hullVerts.Length; i++)
+			pts[i] = JitterConvert.ToJ(hullVerts[i]);
+
+		try {
+			return new PointCloudShape(pts);
 		}
-		else if (Static.HasValue) {
-			sim.Statics.Remove(Static.Value);
-			Static = null;
+		catch (InvalidOperationException) {
 		}
 
-		if (ShapeIndex.Exists) {
-			sim.Shapes.RemoveAndDispose(ShapeIndex, pool);
-			ShapeIndex = default;
+		Vector3 mn = hullVerts[0], mx = hullVerts[0];
+		for (int i = 1; i < hullVerts.Length; i++) {
+			mn = Vector3.Min(mn, hullVerts[i]);
+			mx = Vector3.Max(mx, hullVerts[i]);
+		}
+		Vector3 ext = mx - mn;
+
+		const float depth = 0.5f;
+		Vector3 extrude = ext.X <= ext.Y && ext.X <= ext.Z ? new Vector3(depth, 0, 0)
+			: ext.Y <= ext.Z ? new Vector3(0, depth, 0)
+			: new Vector3(0, 0, depth);
+		if (extrude.Z > 0)
+			extrude = -extrude;
+
+		JVector[] pts2 = new JVector[hullVerts.Length * 2];
+		for (int i = 0; i < hullVerts.Length; i++) {
+			pts2[i] = pts[i];
+			pts2[hullVerts.Length + i] = JitterConvert.ToJ(hullVerts[i] + extrude);
+		}
+
+		try {
+			return new PointCloudShape(pts2);
+		}
+		catch (InvalidOperationException) {
+			return null;
+		}
+	}
+
+	internal void RemoveFromSimulation(World world) {
+		if (Body != null) {
+			world.Remove(Body);
+			Body = null;
 		}
 	}
 }
