@@ -475,7 +475,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void PrepareLevelResources(Span<char> mapName, Span<char> mapFile) {
-		throw new NotImplementedException();
+
 	}
 
 	public void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame) {

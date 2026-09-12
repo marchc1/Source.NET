@@ -1462,7 +1462,8 @@ public abstract class BaseServer : IServer
 		}
 	}
 
-	protected void SetRestartOnLevelChange(bool state) { RestartOnLevelChange = state; }
+	public bool RestartOnLevelChange() => bRestartOnLevelChange;
+	public void SetRestartOnLevelChange(bool state) { bRestartOnLevelChange = state; }
 
 	protected bool RequireValidChallenge(NetAddress adr) => !sv_enableoldqueries.GetBool();
 	protected bool ValidChallenge(NetAddress adr, int challengeNr) {
@@ -1567,7 +1568,7 @@ public abstract class BaseServer : IServer
 	protected TimeUnit_t LastCPUCheckTime;
 
 	// This is only used for Steam's master server updater to refer to this server uniquely.
-	protected bool RestartOnLevelChange;
+	public bool bRestartOnLevelChange;
 
 	protected bool MasterServerRulesDirty;
 	protected TimeUnit_t LastMasterServerUpdateTime;

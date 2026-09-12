@@ -130,6 +130,8 @@ public static partial class CM
 		return PointLeafnum_r(bspData, in point, 0);
 	}
 
+	public static ReadOnlyMemory<byte> EntityString() => GetCollisionBSPData()!.MapEntityData;
+
 	public static int PointLeafnum_r(CollisionBSPData bspData, in Vector3 point, int num) {
 		float d;
 		ref CollisionNode node = ref Unsafe.NullRef<CollisionNode>();

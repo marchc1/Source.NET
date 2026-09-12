@@ -379,4 +379,8 @@ public class Cbuf(IServiceProvider provider)
 
 		return true;
 	}
+
+	internal void Clear() {
+		Init();
+	}
 }
