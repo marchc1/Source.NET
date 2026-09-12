@@ -194,14 +194,17 @@ public static class PhysicsSharedGlobals
 			return null;
 
 		VCollide? collide = modelinfo.GetVCollide(modelIndex);
-		if (collide == null || collide.SolidCount == 0 || collide.Solids == null)
+		if (collide == null || collide.SolidCount == 0 || collide.Solids == null) {
 			return null;
+		}
 
 		if (Unsafe.IsNullRef(ref solid)) {
 			Solid tmpSolid = default;
-			if (!PhysModelParseSolidByIndex(ref tmpSolid, entity, collide, -1))
+			if (!PhysModelParseSolidByIndex(ref tmpSolid, entity, collide, -1)) {
 				return null;
-			return PhysModelCreateInternal(entity, collide, in origin, in angles, ref tmpSolid);
+			}
+			IPhysicsObject? r = PhysModelCreateInternal(entity, collide, in origin, in angles, ref tmpSolid);
+			return r;
 		}
 
 		return PhysModelCreateInternal(entity, collide, in origin, in angles, ref solid);

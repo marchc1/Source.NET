@@ -211,7 +211,20 @@ public class GameServer : BaseServer
 		if (index >= ModelPrecacheTable.GetNumStrings())
 			return null;
 		PrecacheItem slot = ModelPrecache[index];
-		return slot.GetModel();
+		Model? model = slot.GetModel();
+		if (model != null)
+			return model;
+
+		if (index == 1)
+			return null;
+
+		ReadOnlySpan<char> name = ModelPrecacheTable.GetString(index);
+		if (name.IsEmpty)
+			return null;
+
+		model = modelloader.GetModelForName(name, ModelLoaderFlags.Server);
+		slot.SetModel(model);
+		return model;
 	}
 	public int LookupModelIndex(ReadOnlySpan<char> name) {
 		if (ModelPrecacheTable == null)
