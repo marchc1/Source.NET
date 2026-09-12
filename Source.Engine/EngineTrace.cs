@@ -36,11 +36,127 @@ public abstract class EngineTrace : IEngineTrace
 	public abstract ICollideable? GetWorldCollideable();
 	public abstract void SetTraceEntity(ICollideable? collideable, ref Trace trace);
 
+	protected Matrix3x4? RootMoveParent;
+
 	public void ClipRayToCollideable(in Ray ray, Mask mask, ICollideable? collide, ref Trace trace) {
-		throw new NotImplementedException();
+		CM.ClearTrace(ref trace);
+		MathLib.VectorAdd(in ray.Start, in ray.StartOffset, out trace.StartPos);
+		MathLib.VectorAdd(in trace.StartPos, in ray.Delta, out trace.EndPos);
+
+		if (collide == null)
+			return;
+
+		Model? model = collide.GetCollisionModel();
+
+		Matrix3x4? oldRoot = RootMoveParent;
+		if (((SolidFlags)collide.GetSolidFlags() & SolidFlags.RootParentAligned) != 0)
+			RootMoveParent = collide.GetRootParentToWorldTransform();
+
+		bool traced = false;
+		bool customPerformed = false;
+		if (ShouldPerformCustomRayTest(in ray, collide)) {
+			ClipRayToCustom(in ray, mask, collide, ref trace);
+			traced = true;
+			customPerformed = true;
+		}
+		else {
+			traced = ClipRayToVPhysics(in ray, mask, collide, ref trace);
+		}
+
+		// FIXME: Why aren't we using solid type to check what kind of collisions to test against?!?!
+		if (!traced && model != null && model.Type == ModelType.Brush)
+			traced = ClipRayToBSP(in ray, mask, collide, ref trace);
+
+		if (!traced)
+			traced = ClipRayToOBB(in ray, mask, collide, ref trace);
+
+		if (!traced)
+			ClipRayToBBox(in ray, mask, collide, ref trace);
+
+		if (trace.EntHandle == null && trace.DidHit())
+			SetTraceEntity(collide, ref trace);
+
+		RootMoveParent = oldRoot;
 	}
 
 	public void ClipRayToEntity(in Ray ray, Mask mask, IHandleEntity ent, ref Trace trace) {
+		ClipRayToCollideable(in ray, mask, GetCollideable(ent), ref trace);
+	}
+
+	protected virtual bool ShouldPerformCustomRayTest(in Ray ray, ICollideable collide) {
+		return ((SolidFlags)collide.GetSolidFlags() & SolidFlags.CustomRayTest) != 0;
+	}
+
+	protected void ClipRayToCustom(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+		collide.TestCollision(in ray, (Contents)mask, ref trace);
+	}
+
+	protected bool ClipRayToVPhysics(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+		if (collide.GetSolid() != SolidType.VPhysics)
+			return false;
+
+		Model? model = collide.GetCollisionModel();
+		if (model == null)
+			return false;
+
+		VCollide? pCollide = VCollideForModel(collide.GetCollisionModelIndex(), model);
+		if (pCollide == null || pCollide.SolidCount == 0 || pCollide.Solids == null)
+			return false;
+
+		IConvexInfo? convexInfo = model.Type == ModelType.Brush ? BrushConvexInfo(collide) : null;
+		physcollision.TraceBox(in ray, (Contents)mask, convexInfo, pCollide.Solids[0]!, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), out trace);
+		return true;
+	}
+
+	protected bool ClipRayToBSP(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+		int nModelIndex = collide.GetCollisionModelIndex();
+		int nHeadNode = InlineModelHeadNode(nModelIndex - 1);
+		if (nHeadNode < 0)
+			return false;
+
+		TransformedBoxTrace(in ray, nHeadNode, mask, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), ref trace);
+		return true;
+	}
+
+	protected bool ClipRayToOBB(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+		if (collide.GetSolid() != SolidType.OBB)
+			return false;
+
+		IntersectRayWithOBB(in ray, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), in collide.OBBMins(), in collide.OBBMaxs(), DIST_EPSILON, ref trace);
+		return true;
+	}
+
+	protected bool ClipRayToBBox(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+		if (collide.GetSolid() != SolidType.BBox)
+			return false;
+
+		MathLib.VectorAdd(in collide.GetCollisionOrigin(), in collide.OBBMins(), out Vector3 vecAbsMins);
+		MathLib.VectorAdd(in collide.GetCollisionOrigin(), in collide.OBBMaxs(), out Vector3 vecAbsMaxs);
+		IntersectRayWithBox(in ray, in vecAbsMins, in vecAbsMaxs, ref trace);
+		return true;
+	}
+
+	protected virtual VCollide? VCollideForModel(int modelIndex, Model model) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual IConvexInfo? BrushConvexInfo(ICollideable collide) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual int InlineModelHeadNode(int inlineModelIndex) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual void TransformedBoxTrace(in Ray ray, int headNode, Mask mask, in Vector3 origin, in QAngle angles, ref Trace trace) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual void IntersectRayWithOBB(in Ray ray, in Vector3 origin, in QAngle angles, in Vector3 mins, in Vector3 maxs, float tolerance, ref Trace trace) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual void IntersectRayWithBox(in Ray ray, in Vector3 mins, in Vector3 maxs, ref Trace trace) {
 		throw new NotImplementedException();
 	}
 

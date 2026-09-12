@@ -2,6 +2,7 @@
 
 using Jitter2;
 using Jitter2.Collision;
+using Jitter2.Collision.Shapes;
 using Jitter2.Dynamics;
 using Jitter2.LinearMath;
 
@@ -18,6 +19,17 @@ internal static class PhysicsEnvironmentGlobals
 	public static IPhysicsEnvironment CreatePhysicsEnvironment() => new PhysicsEnvironment();
 
 	internal static IPhysicsObjectPairHash CreateObjectPairHash() => new ObjectPairHash();
+}
+
+internal sealed class CollisionEnabledFilter : IBroadPhaseFilter
+{
+	public bool Filter(IDynamicTreeProxy proxyA, IDynamicTreeProxy proxyB) {
+		if (proxyA is RigidBodyShape sa && sa.RigidBody?.Tag is PhysicsObject pa && !pa.CollisionsEnabled)
+			return false;
+		if (proxyB is RigidBodyShape sb && sb.RigidBody?.Tag is PhysicsObject pb && !pb.CollisionsEnabled)
+			return false;
+		return true;
+	}
 }
 
 internal class PhysicsEnvironment : IPhysicsEnvironment
@@ -52,6 +64,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	public PhysicsEnvironment() {
 		World = new World();
 		World.NarrowPhaseFilter = new TriangleEdgeCollisionFilter();
+		World.BroadPhaseFilter = new CollisionEnabledFilter();
 		World.SubstepCount = 2;
 		World.SolverIterations = (12, 4);
 		World.AllowDeactivation = true;

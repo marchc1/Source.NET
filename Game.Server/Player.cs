@@ -1343,9 +1343,26 @@ public partial class BasePlayer : BaseCombatCharacter
 		shadow.SetPosition(vecAbsOrigin, vec3_angle, true);
 	}
 
+	bool ShadowCollisionsDisabled;
+
+	void UpdateVPhysicsShadowState() {
+		IPhysicsObject? shadow = VPhysicsGetObject();
+		if (shadow == null)
+			return;
+
+		MoveType mt = (MoveType)GetMoveType();
+		bool noclip = mt == Source.MoveType.Noclip || mt == Source.MoveType.Observer;
+		if (noclip != ShadowCollisionsDisabled) {
+			ShadowCollisionsDisabled = noclip;
+			shadow.EnableCollisions(!noclip);
+		}
+	}
+
 	public void PostThinkVPhysics() {
 		if (PhysicsController == null)
 			return;
+
+		UpdateVPhysicsShadowState();
 
 		bool onground = (GetFlags() & EntityFlags.OnGround) != 0;
 		IPhysicsObject? ground = GetGroundEntity()?.VPhysicsGetObject();

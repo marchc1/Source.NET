@@ -16,7 +16,7 @@ internal class PhysicsPlayerController : IPhysicsPlayerController
 
 	public PhysicsPlayerController(PhysicsObject obj) {
 		Object = obj;
-		Object.BecomeKinematic();
+		Object.BecomeController();
 	}
 
 	public void Update(in Vector3 position, in Vector3 velocity, float secondsToArrival, bool onground, IPhysicsObject ground) {
@@ -38,7 +38,7 @@ internal class PhysicsPlayerController : IPhysicsPlayerController
 
 	public void SetObject(IPhysicsObject obj) {
 		Object = (PhysicsObject)obj;
-		Object.BecomeKinematic();
+		Object.BecomeController();
 	}
 
 	public int GetShadowPosition(out Vector3 position, out QAngle angles) {

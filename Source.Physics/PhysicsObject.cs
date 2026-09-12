@@ -435,6 +435,16 @@ internal class PhysicsObject : IPhysicsObject
 		Body.SetActivationState(true);
 	}
 
+	internal void BecomeController() {
+		if (Body == null)
+			return;
+		Body.MotionType = MotionType.Dynamic;
+		Body.AffectedByGravity = false;
+		Body.SetMassInertia(JMatrix.Zero, Mass > 0 ? 1f / Mass : 0f, true);
+		Body.Damping = (0f, 0f);
+		Body.SetActivationState(true);
+	}
+
 	public void Wake() {
 		if (Body != null && Body.MotionType != MotionType.Static)
 			Body.SetActivationState(true);
