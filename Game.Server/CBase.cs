@@ -8,6 +8,7 @@ using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Game.Server;
 
@@ -41,7 +42,7 @@ public static class CBaseGlobals
 	// public static readonly ISaveRestoreOps variantFuncs = g_VariantSaveDataOps;
 
 	[ConCommand("dumpeventqueue", "Dump the contents of the Entity I/O event queue to the console.")]
-	static void CC_DumpEventQueue() => throw new NotImplementedException();
+	static void CC_DumpEventQueue() => g_EventQueue.Dump();
 
 	public static void ServiceEventQueue() => g_EventQueue.ServiceEvents();
 }
@@ -180,31 +181,50 @@ public class BaseEntityOutput
 	public FieldType ValueFieldType() => throw new NotImplementedException();
 }
 
-public class EntityOutputTemplate<T> : BaseEntityOutput
+public class EntityOutputTemplate<T>(FieldType fieldType) : BaseEntityOutput
 {
-	public void Init(T value) => throw new NotImplementedException();
+	public void Init(T value) => Value.Set(fieldType, ref value);
 
-	public void Set(T value, BaseEntity? activator, BaseEntity? caller) => throw new NotImplementedException();
+	public void Set(T value, BaseEntity? activator, BaseEntity? caller) {
+		Value.Set(fieldType, ref value);
+		FireOutput(Value, activator, caller);
+	}
 
-	public T Get() => throw new NotImplementedException();
+	public T Get() {
+		if (typeof(T) == typeof(bool)) { bool v = Value.Bool(); return Unsafe.As<bool, T>(ref v); }
+		if (typeof(T) == typeof(int)) { int v = Value.Int(); return Unsafe.As<int, T>(ref v); }
+		if (typeof(T) == typeof(float)) { float v = Value.Float(); return Unsafe.As<float, T>(ref v); }
+		if (typeof(T) == typeof(Color)) { Color v = Value.Color32(); return Unsafe.As<Color, T>(ref v); }
+		if (typeof(T) == typeof(string)) { string? v = Value.StringID(); return Unsafe.As<string?, T>(ref v); }
+		if (typeof(T) == typeof(EHANDLE)) { EHANDLE v = Value.Entity(); return Unsafe.As<EHANDLE, T>(ref v); }
+
+		Variant_t variant = Value;
+		return Unsafe.As<Variant_t, T>(ref variant);
+	}
 }
 
 public class OutputVector : BaseEntityOutput
 {
-	public void Init(in Vector3 value) => throw new NotImplementedException();
+	public void Init(in Vector3 value) => Value.SetVector3D(value);
 
-	public void Set(in Vector3 value, BaseEntity? activator, BaseEntity? caller) => throw new NotImplementedException();
+	public void Set(in Vector3 value, BaseEntity? activator, BaseEntity? caller) {
+		Value.SetVector3D(value);
+		FireOutput(Value, activator, caller);
+	}
 
-	public void Get(out Vector3 vec) => throw new NotImplementedException();
+	public void Get(out Vector3 vec) => Value.Vector3D(out vec);
 }
 
 public class OutputPositionVector : BaseEntityOutput
 {
-	public void Init(in Vector3 value) => throw new NotImplementedException();
+	public void Init(in Vector3 value) => Value.SetPositionVector3D(value);
 
-	public void Set(in Vector3 value, BaseEntity? activator, BaseEntity? caller) => throw new NotImplementedException();
+	public void Set(in Vector3 value, BaseEntity? activator, BaseEntity? caller) {
+		Value.SetPositionVector3D(value);
+		FireOutput(Value, activator, caller);
+	}
 
-	public void Get(out Vector3 vec) => throw new NotImplementedException();
+	public void Get(out Vector3 vec) => Value.Vector3D(out vec);
 }
 
 public class OutputEvent : BaseEntityOutput
@@ -216,12 +236,12 @@ public class OutputEvent : BaseEntityOutput
 	}
 }
 
-public class OutputVariant : EntityOutputTemplate<Variant_t>;
-public class OutputInt : EntityOutputTemplate<int>;
-public class OutputFloat : EntityOutputTemplate<float>;
-public class OutputString : EntityOutputTemplate<string?>;
-public class OutputEHANDLE : EntityOutputTemplate<EHANDLE>;
-public class OutputColor32 : EntityOutputTemplate<Color>;
+public class OutputVariant() : EntityOutputTemplate<Variant_t>(FieldType.Input);
+public class OutputInt() : EntityOutputTemplate<int>(FieldType.Integer);
+public class OutputFloat() : EntityOutputTemplate<float>(FieldType.Float);
+public class OutputString() : EntityOutputTemplate<string?>(FieldType.String);
+public class OutputEHANDLE() : EntityOutputTemplate<EHANDLE>(FieldType.EHandle);
+public class OutputColor32() : EntityOutputTemplate<Color>(FieldType.Color32);
 
 public class EventsSaveDataOps : ISaveRestoreOps
 {
@@ -366,7 +386,21 @@ public class EventQueue
 
 	public void Clear() => Events.Next = null;
 
-	public void Dump() => throw new NotImplementedException();
+	public void Dump() {
+		EventQueuePrioritizedEvent? pe = Events.Next;
+
+		Msg($"Dumping event queue. Current time is: {gpGlobals.CurTime:F2}\n");
+
+		while (pe != null) {
+			EventQueuePrioritizedEvent? next = pe.Next;
+
+			Msg($"   ({pe.FireTime:F2}) Target: '{pe.Target}', Input: '{pe.TargetInput}', Parameter '{pe.VariantValue.String()}'. Activator: '{(pe.Activator.Get() != null ? pe.Activator.Get()!.GetDebugName() : "None")}', Caller '{(pe.Caller.Get() != null ? pe.Caller.Get()!.GetDebugName() : "None")}'.  \n");
+
+			pe = next;
+		}
+
+		Msg("Finished dump.\n");
+	}
 
 	public void ServiceEvents() {
 		// if (!BaseEntity.Debug_ShouldStep())

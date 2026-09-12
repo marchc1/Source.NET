@@ -2,9 +2,9 @@
 using Source.Common;
 
 using FT = Source.Common.FieldType;
-using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
@@ -68,6 +68,31 @@ public struct Variant_t
 	public void SetPositionVector3D(in Vector3 val) { VecVal[0] = val[0]; VecVal[1] = val[1]; VecVal[2] = val[2]; fieldType = FT.PositionVector; }
 	public void SetColor32(Color val) { RgbaVal = val; fieldType = FT.Color32; }
 	public void SetColor32(byte r, byte g, byte b, byte a) { RgbaVal.R = r; RgbaVal.G = g; RgbaVal.B = b; RgbaVal.A = a; fieldType = FT.Color32; }
+
+	public void Set<T>(FieldType ftype, ref T value) {
+		fieldType = ftype;
+
+		switch (ftype) {
+			case FT.Boolean: BoolVal = Unsafe.As<T, bool>(ref value); break;
+			case FT.Character: IntVal = Unsafe.As<T, sbyte>(ref value); break;
+			case FT.Short: IntVal = Unsafe.As<T, short>(ref value); break;
+			case FT.Integer: IntVal = Unsafe.As<T, int>(ref value); break;
+			case FT.String: StrVal = Unsafe.As<T, string?>(ref value); break;
+			case FT.Float: FloatVal = Unsafe.As<T, float>(ref value); break;
+			case FT.Color32: RgbaVal = Unsafe.As<T, Color>(ref value); break;
+			case FT.Vector:
+			case FT.PositionVector:
+				VecVal = Unsafe.As<T, Vector3>(ref value);
+				break;
+#if CLIENT_DLL || GAME_DLL
+			case FT.EHandle: EntVal = Unsafe.As<T, Handle<BaseEntity>>(ref value); break;
+#endif
+			case FT.Void:
+			default:
+				IntVal = 0; fieldType = FT.Void;
+				break;
+		}
+	}
 
 	public void Set(FieldType ftype, IFieldAccessor field, object instance) {
 		fieldType = ftype;
