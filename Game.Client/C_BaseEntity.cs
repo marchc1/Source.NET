@@ -3023,7 +3023,7 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	EHANDLE ShadowDirUseOtherEntity = default;
+	EHANDLE ShadowDirUseOtherEntity = new();
 
 	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) {
 		if (ShadowDirUseOtherEntity.Get() != null)

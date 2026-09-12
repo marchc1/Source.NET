@@ -243,7 +243,18 @@ public class CollisionProperty : ICollideable
 		// todo
 	}
 	public void SetSolid(SolidType val) {
-		// todo
+		if ((byte)val == SolidType)
+			return;
+
+		MarkSurroundingBoundsDirty();
+
+		SolidType = (byte)val;
+
+#if !CLIENT_DLL
+		GetOuter().CollisionRulesChanged();
+		UpdateServerPartitionMask();
+		// (SOLID_BSP parent-alignment and CheckForUntouch handling omitted; not needed for props yet)
+#endif
 	}
 
 	public bool IsBoundsDefinedInEntitySpace() => (((Source.SolidFlags)SolidFlags) & Source.SolidFlags.ForceWorldAligned) == 0 || (SolidType != (byte)Source.SolidType.BBox) && (SolidType != (byte)Source.SolidType.None);

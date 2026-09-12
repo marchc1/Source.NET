@@ -740,7 +740,7 @@ public class GameServer : BaseServer
 				continue;
 			}
 
-			clientTable.SetMirrorTable(serverTable);
+			serverTable.SetMirrorTable(clientTable);
 		}
 #endif
 	}

@@ -107,7 +107,8 @@ public class PhysicsHook : BaseGameSystemPerFrame
 	}
 	public static IPhysicsObject? PhysCreateWorld(BaseEntity world){
 		// todo staticpropmgr
-		return PhysCreateWorld_Shared(world, modelinfo.GetVCollide(1), g_PhysDefaultObjectParams);
+		VCollide? worldCollide = modelinfo.GetVCollide(1);
+		return PhysCreateWorld_Shared(world, worldCollide, g_PhysDefaultObjectParams);
 	}
 	public static HSOUNDSCRIPTHANDLE PrecachePhysicsSoundByStringIndex(UtlSymId_t idx) => idx != 0 ? BaseEntity.PrecacheScriptSound(physprops.GetString(idx)) : SOUNDEMITTER_INVALID_HANDLE;
 	public void PrecachePhysicsSounds(){

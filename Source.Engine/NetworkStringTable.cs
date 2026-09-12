@@ -722,7 +722,7 @@ public class NetworkStringTable : INetworkStringTable
 			NetworkStringTableItem p = Items.Element(i);
 
 			// mirror is up to date
-			if (!bFullUpdate && p.GetTickChanged() <= tick_ack)
+			if (!bFullUpdate && p.GetTickChanged() <= tick_ack && i < MirrorTable.GetNumStrings())
 				continue;
 
 			byte[]? userData = p.GetUserData(out int length);
