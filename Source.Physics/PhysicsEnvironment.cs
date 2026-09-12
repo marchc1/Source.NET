@@ -2,6 +2,7 @@
 
 using Jitter2;
 using Jitter2.Collision;
+using Jitter2.Dynamics;
 using Jitter2.LinearMath;
 
 using Source.Common;
@@ -115,12 +116,11 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 
 		World.Gravity = JitterConvert.ToJ(IVPConvert.PositionToIVP(Gravity));
 
-		int steps = 0;
 		while (Accumulator >= dt) {
 			World.Step(dt, false);
+			ClampVelocities();
 			SimulationTime += SimulationTimestep;
 			Accumulator -= dt;
-			steps++;
 		}
 
 		NextFrameTime = SimulationTime + SimulationTimestep;
@@ -131,6 +131,30 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 			CleanupDeleteList();
 
 		InSimulation = false;
+	}
+
+	void ClampVelocities() {
+		double maxV = PerformanceSettings.MaxVelocity * IVPConvert.HL2IVP_FACTOR;
+		double maxW = PerformanceSettings.MaxAngularVelocity * (Math.PI / 180.0);
+		double maxV2 = maxV * maxV;
+		double maxW2 = maxW * maxW;
+
+		for (int i = 0; i < Objects.Count; i++) {
+			if (Objects[i] is not PhysicsObject po || po.Body is not RigidBody body)
+				continue;
+			if (body.MotionType != MotionType.Dynamic || !body.IsActive)
+				continue;
+
+			JVector v = body.Velocity;
+			double v2 = v.LengthSquared();
+			if (v2 > maxV2)
+				body.Velocity = v * (maxV / Math.Sqrt(v2));
+
+			JVector w = body.AngularVelocity;
+			double w2 = w.LengthSquared();
+			if (w2 > maxW2)
+				body.AngularVelocity = w * (maxW / Math.Sqrt(w2));
+		}
 	}
 
 	public bool IsInSimulation() {

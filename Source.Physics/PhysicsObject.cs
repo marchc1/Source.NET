@@ -461,6 +461,8 @@ internal class PhysicsObject : IPhysicsObject
 		Quaternion simOrient = IVPConvert.RotationToIVP(orientation);
 		Vector3 simPos = IVPConvert.PositionToIVP(position);
 
+		physprops.GetPhysicsProperties(materialIndex, out _, out _, out float matFriction, out float matElasticity);
+
 		PhysicsObject obj = new();
 		obj.AsleepSinceCreation = true;
 		obj.Collide = collisionModel;
@@ -470,6 +472,8 @@ internal class PhysicsObject : IPhysicsObject
 
 		RigidBody body = world.CreateRigidBody();
 		body.Tag = obj;
+		body.Friction = matFriction;
+		body.Restitution = matElasticity;
 
 		if (isStatic) {
 			var srcTriangles = compactSurface.Triangles;
@@ -503,7 +507,7 @@ internal class PhysicsObject : IPhysicsObject
 				return null;
 			}
 
-			float mass = objParams.Mass > 0 ? objParams.Mass : 1f;
+			float mass = Math.Clamp(objParams.Mass > 0 ? objParams.Mass : 1f, PhysicsConstants.VPHYSICS_MIN_MASS, PhysicsConstants.VPHYSICS_MAX_MASS);
 
 			var shapes = new List<PointCloudShape>(hulls.Count);
 			Vector3 combinedCom = default;
@@ -534,7 +538,7 @@ internal class PhysicsObject : IPhysicsObject
 
 			body.AddShapes(shapes);
 			body.SetMassInertia(mass);
-			body.Damping = (0.03f, 0.03f);
+			body.Damping = (objParams.Damping, objParams.RotDamping);
 
 			obj.MassCenterOffset = combinedCom;
 			Vector3 bodyPos = simPos + Vector3.Transform(combinedCom, simOrient);
