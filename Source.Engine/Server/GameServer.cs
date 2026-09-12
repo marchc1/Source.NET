@@ -154,9 +154,12 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
 
+	public static readonly ConVar sv_forcepreload = new( "sv_forcepreload", "0", FCvar.Archive, "Force server side preloading.");
+
 	public int PrecacheModel(ReadOnlySpan<char> name, Res flags, Model? model = null) {
 		if (ModelPrecacheTable == null)
 			return -1;
+
 		int idx = ModelPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
@@ -179,7 +182,26 @@ public class GameServer : BaseServer
 		if (model != null)
 			slot.SetModel(model);
 
-		// todo finish
+		bool loadNow;
+		loadNow = (slot.GetModel() == null && ((flags & Res.Preload) != 0 || IsX360()));
+		if (CommandLine.FindParm("-nopreload") != 0 || CommandLine.FindParm("-nopreloadmodels") != 0) 
+			loadNow = false;
+		else if (sv_forcepreload.GetInt() != 0|| CommandLine.FindParm("-preload") != 0) 
+			loadNow = true;
+
+		if (idx != 0) {
+			if (loadNow) {
+				slot.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Server));
+#if !SWDS
+				EngineVGui().UpdateProgressBar(LevelLoadingProgress.Precache);
+#endif
+				// todo: MapReslistGenerator().OnModelPrecached(name);
+			}
+			else {
+				modelloader.ReferenceModel(name, ModelLoaderFlags.Server);
+				slot.SetModel(null);
+			}
+		}
 
 		return idx;
 	}

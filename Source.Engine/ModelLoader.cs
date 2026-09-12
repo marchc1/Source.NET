@@ -1964,7 +1964,11 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public Model? ReferenceModel(ReadOnlySpan<char> name, ModelLoaderFlags referenceType) {
-		throw new NotImplementedException();
+		AssertMsg(0 == (referenceType & ModelLoaderFlags.Dynamic), "ReferenceModel: do not use for dynamic models");
+
+		Model model = FindModel(name)!;
+		model.LoadFlags |= referenceType;
+		return model;
 	}
 
 	public void ResetModelServerCounts() {
