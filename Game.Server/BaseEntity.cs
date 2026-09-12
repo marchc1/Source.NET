@@ -256,8 +256,50 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
 	public virtual bool IsNetClient() => false;
-	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => Classname.AsSpan().SequenceEqual(classOrWildcard);
-	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
+	static bool GoodMatch(char cName, char cQuery) {
+		if (cName == cQuery)
+			return true;
+
+		if ((uint)(cName - 'A') <= 'Z' - 'A' && cName - 'A' + 'a' == cQuery)
+			return true;
+		else if ((uint)(cName - 'a') <= 'z' - 'a' && cName - 'a' + 'A' == cQuery)
+			return true;
+
+		return false;
+	}
+
+	static bool NamesMatch(ReadOnlySpan<char> query, ReadOnlySpan<char> nameToMatch, bool nullName) {
+		if (nullName)
+			return query.IsEmpty || query[0] == '*';
+
+		int n = 0, q = 0;
+		while (n < nameToMatch.Length && q < query.Length) {
+			if (!GoodMatch(nameToMatch[n], query[q]))
+				break;
+
+			++n;
+			++q;
+		}
+
+		if (q == query.Length && n == nameToMatch.Length)
+			return true;
+
+		if (q < query.Length && query[q] == '*')
+			return true;
+
+		return false;
+	}
+
+	public bool NameMatchesComplex(ReadOnlySpan<char> nameOrWildcard) {
+		if (stricmp("!player", nameOrWildcard) == 0)
+			return IsPlayer();
+
+		return NamesMatch(nameOrWildcard, Name, Name == null);
+	}
+
+	public bool ClassMatchesComplex(ReadOnlySpan<char> classOrWildcard) => NamesMatch(classOrWildcard, Classname, Classname == null);
+	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => ClassMatchesComplex(classOrWildcard);
+	public bool NameMatches(ReadOnlySpan<char> nameOrWildcard) => NameMatchesComplex(nameOrWildcard);
 	public virtual bool IsPredicted() => false;
 	public virtual bool IsTemplate() => false;
 	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
