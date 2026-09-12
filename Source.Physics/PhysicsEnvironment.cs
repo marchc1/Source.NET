@@ -60,8 +60,10 @@ internal struct PhysicsNarrowPhaseCallbacks(PhysicsEnvironment env) : INarrowPha
 internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIntegratorCallbacks
 {
 	public AngularIntegrationMode AngularIntegrationMode => AngularIntegrationMode.Nonconserving;
-	public bool AllowSubstepsForUnconstrainedBodies => true;
+	public bool AllowSubstepsForUnconstrainedBodies => false;
 	public bool IntegrateVelocityForKinematics => false;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Initialize(Simulation simulation) {
 
 	}
@@ -70,11 +72,13 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 	Vector<float> linearDampingDt;
 	Vector<float> angularDampingDt;
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void IntegrateVelocity(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation, BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity) {
 		velocity.Linear = (velocity.Linear + gravityWideDt) * linearDampingDt;
 		velocity.Angular = velocity.Angular * angularDampingDt;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void PrepareForIntegration(float dt) {
 		var damping = env.GetLinearDamping();
 		var angDamping = env.GetAngularDamping();
@@ -88,7 +92,7 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 internal class PhysicsEnvironment : IPhysicsEnvironment
 {
 	readonly Simulation PhysEnv;
-	readonly static BufferPool BufferPool = new();
+	readonly BufferPool BufferPool = new();
 
 	public Simulation GetBepuEnvironment() => PhysEnv;
 
@@ -117,10 +121,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	public PhysicsEnvironment() {
 		var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(this);
 		var poseIntegratorCallbacks = new PhysicsPoseIntegratorCallbacks(this);
-		var solveDescription = new SolveDescription() {
-			SubstepCount = 2,
-			VelocityIterationCount = 2
-		};
+		var solveDescription = new SolveDescription(8, 1);
 		PhysEnv = Simulation.Create(BufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
 		PerformanceSettings.Defaults();
