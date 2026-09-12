@@ -787,6 +787,18 @@ namespace Source
 			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Key, mapname, 0);
 		}
 
+		public static TypeDescription ARRAY(ReadOnlySpan<char> name, FieldType fieldType, int count) {
+			return _FIELD_ARRAY(name, fieldType, count, FieldTypeDescFlags.Save, null, 0);
+		}
+
+		public static TypeDescription GLOBAL_FIELD(ReadOnlySpan<char> name, FieldType fieldType) {
+			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Global | FieldTypeDescFlags.Save, null, 0);
+		}
+
+		public static TypeDescription GLOBAL_KEYFIELD(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> mapname) {
+			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Global | FieldTypeDescFlags.Key | FieldTypeDescFlags.Save, mapname, 0);
+		}
+
 		public static TypeDescription AUTO_ARRAY_KEYFIELD(ReadOnlySpan<char> name, FieldType fieldType, ReadOnlySpan<char> mapname) {
 			return _FIELD_ARRAY(name, fieldType, SIZE_OF_ARRAY(name), FieldTypeDescFlags.Save, mapname, 0);
 		}

@@ -138,7 +138,41 @@ public static class BaseEntity_ConCommands
 	}
 	[ConCommand("ent_fire", "Usage:\n   ent_fire <target> [action] [value] [delay]\n", FCvar.Cheat)]
 	public static void EntFireAutoComplete(in TokenizedCommand args) {
+		BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
+		if (player == null)
+			return;
 
+		if (args.ArgC() < 2) {
+			// ClientPrint(player, HUD_PRINTCONSOLE, "Usage:\n   ent_fire <target> [action] [value] [delay]\n");
+		}
+		else {
+			ReadOnlySpan<char> target, action = "Use";
+			Variant_t value = new();
+			int delay = 0;
+
+			target = args[1];
+
+			if (engine.IsDedicatedServer()) {
+				// if (player.IsAutoKickDisabled() == false)
+				// 	return;
+			}
+			else if (gpGlobals.MaxClients > 1) {
+				BasePlayer? hostPlayer = Util.GetListenServerHost();
+				if (player != hostPlayer)
+					return;
+			}
+
+			if (args.ArgC() >= 3)
+				action = args[2];
+
+			if (args.ArgC() >= 4)
+				value.SetString(args[3]);
+
+			if (args.ArgC() >= 5)
+				delay = atoi(args[4]);
+
+			g_EventQueue.AddEvent(target, action, value, delay, player, player);
+		}
 	}
 	[ConCommand("ent_info", "Usage:\n   ent_info <class name>\n", FCvar.Cheat)]
 	public static void CC_Ent_Info(in TokenizedCommand args) {
@@ -616,7 +650,7 @@ public partial class BaseEntity : IServerEntity
 
 	}
 
-	public void SetParent(BaseEntity parentEntity, int attachment = -1) {
+	public void SetParent(BaseEntity? parentEntity, int attachment = -1) {
 		if (attachment == -1)
 			attachment = ParentAttachment;
 
@@ -636,7 +670,7 @@ public partial class BaseEntity : IServerEntity
 			return;
 		}
 
-		ParentName = parentEntity.Name;
+		ParentName = parentEntity!.Name;
 		RemoveSolidFlags(SolidFlags.RootParentAligned);
 
 		if (parentEntity != null) {
@@ -1465,8 +1499,183 @@ public partial class BaseEntity : IServerEntity
 		return Classname;
 	}
 
-	public static readonly DataMap DataDesc = new(typeof(BaseEntity), []);
+	public static readonly DataMap DataDesc = new(typeof(BaseEntity), [
+		DEFINE.KEYFIELD(nameof(Classname), FieldType.String, "classname"),
+		DEFINE.GLOBAL_KEYFIELD(nameof(GlobalName), FieldType.String, "globalname"),
+		DEFINE.KEYFIELD(nameof(Parent), FieldType.String, "parentname"),
+		DEFINE.KEYFIELD(nameof(HammerID), FieldType.Integer, "hammerid"),
+		DEFINE.KEYFIELD(nameof(Speed), FieldType.Float, "speed"),
+		DEFINE.KEYFIELD(nameof(RenderFX), FieldType.Character, "renderfx"),
+		DEFINE.KEYFIELD(nameof(RenderMode), FieldType.Character, "rendermode"),
+		// DEFINE.FIELD(nameof(PrevAnimTime), FieldType.Time),
+		DEFINE.FIELD(nameof(AnimTime), FieldType.Time),
+		DEFINE.FIELD(nameof(SimulationTime), FieldType.Time),
+		DEFINE.FIELD(nameof(LastThinkTick), FieldType.Tick),
+		DEFINE.KEYFIELD(nameof(NextThinkTick), FieldType.Tick, "nextthink"),
+		DEFINE.KEYFIELD(nameof(Effects), FieldType.Integer, "effects"),
+		DEFINE.KEYFIELD(nameof(ColorRender), FieldType.Color32, "rendercolor"),
+		DEFINE.GLOBAL_KEYFIELD(nameof(ModelIndex), FieldType.Short, "modelindex"),
+		// DEFINE.FIELD(nameof(TouchStamp), FieldType.Integer),
+		// DEFINE_CUSTOM_FIELD( m_aThinkFunctions, thinkcontextFuncs ),
+		// DEFINE_UTLVECTOR(m_ResponseContexts, FIELD_EMBEDDED),
+		// DEFINE.KEYFIELD(nameof(ResponseContext), FieldType.String, "ResponseContext"),
+		// DEFINE.FIELD(nameof(PfnThink), FieldType.Function),
+		// DEFINE.FIELD(nameof(PfnTouch), FieldType.Function),
+		// DEFINE.FIELD(nameof(PfnUse), FieldType.Function),
+		// DEFINE.FIELD(nameof(PfnBlocked), FieldType.Function),
+		// DEFINE.FIELD(nameof(PfnMoveDone), FieldType.Function),
+		DEFINE.FIELD(nameof(LifeState), FieldType.Character),
+		// DEFINE.FIELD(nameof(TakeDamage), FieldType.Character),
+		DEFINE.KEYFIELD(nameof(__nv_MaxHealth), FieldType.Integer, "max_health"),
+		DEFINE.KEYFIELD(nameof(Health), FieldType.Integer, "health"),
+		DEFINE.KEYFIELD(nameof(Target), FieldType.String, "target"),
+		// DEFINE.KEYFIELD(nameof(DamageFilterName), FieldType.String, "damagefilter"),
+		DEFINE.FIELD(nameof(DamageFilter), FieldType.EHandle),
+		// DEFINE.FIELD(nameof(DebugOverlays), FieldType.Integer),
+		DEFINE.GLOBAL_FIELD(nameof(Parent), FieldType.EHandle),
+		DEFINE.FIELD(nameof(ParentAttachment), FieldType.Character),
+		DEFINE.GLOBAL_FIELD(nameof(MoveParent), FieldType.EHandle),
+		DEFINE.GLOBAL_FIELD(nameof(MoveChild), FieldType.EHandle),
+		DEFINE.GLOBAL_FIELD(nameof(MovePeer), FieldType.EHandle),
+		DEFINE.FIELD(nameof(eflags), FieldType.Integer),
+		DEFINE.FIELD(nameof(Name), FieldType.String),
+		// DEFINE_EMBEDDED( m_Collision ),
+		// DEFINE_EMBEDDED( m_Network ),
+		DEFINE.FIELD(nameof(MoveType), FieldType.Character),
+		DEFINE.FIELD(nameof(MoveCollide), FieldType.Character),
+		DEFINE.FIELD(nameof(OwnerEntity), FieldType.EHandle),
+		DEFINE.FIELD(nameof(CollisionGroup), FieldType.Integer),
+		// DEFINE_PHYSPTR( m_pPhysicsObject),
+		DEFINE.FIELD(nameof(Elasticity), FieldType.Float),
+		DEFINE.KEYFIELD(nameof(__nv_ShadowCastDistance), FieldType.Float, "shadowcastdist"),
+		// DEFINE.FIELD(nameof(DesiredShadowCastDistance), FieldType.Float),
+		// DEFINE.INPUT(nameof(InitialTeamNum), FieldType.Integer, "TeamNum"),
+		DEFINE.FIELD(nameof(TeamNum), FieldType.Integer),
+		DEFINE.FIELD(nameof(GroundEntity), FieldType.EHandle),
+		// DEFINE.FIELD(nameof(GroundChangeTime), FieldType.Time),
+		DEFINE.GLOBAL_KEYFIELD(nameof(ModelName), FieldType.ModelName, "model"),
+		DEFINE.KEYFIELD(nameof(BaseVelocity), FieldType.Vector, "basevelocity"),
+		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
+		DEFINE.KEYFIELD(nameof(AngVelocity), FieldType.Vector, "avelocity"),
+		// DEFINE.ARRAY(nameof(CoordinateFrame), FieldType.Float, 12),
+		DEFINE.KEYFIELD(nameof(WaterLevel), FieldType.Character, "waterlevel"),
+		DEFINE.FIELD(nameof(WaterType), FieldType.Character),
+		// DEFINE.FIELD(nameof(Blocker), FieldType.EHandle),
+		DEFINE.KEYFIELD(nameof(Gravity), FieldType.Float, "gravity"),
+		DEFINE.KEYFIELD(nameof(Friction), FieldType.Float, "friction"),
+		// DEFINE.KEYFIELD(nameof(LocalTime), FieldType.Float, "ltime"),
+		// DEFINE.FIELD(nameof(VPhysicsUpdateLocalTime), FieldType.Float),
+		// DEFINE.FIELD(nameof(MoveDoneTime), FieldType.Float),
+		DEFINE.FIELD(nameof(AbsOrigin), FieldType.PositionVector),
+		DEFINE.KEYFIELD(nameof(Velocity), FieldType.Vector, "velocity"),
+		DEFINE.KEYFIELD(nameof(TextureFrameIndex), FieldType.Character, "texframeindex"),
+		DEFINE.FIELD(nameof(SimulatedEveryTick), FieldType.Boolean),
+		DEFINE.FIELD(nameof(AnimatedEveryTick), FieldType.Boolean),
+		// DEFINE.FIELD(nameof(AlternateSorting), FieldType.Boolean),
+		DEFINE.KEYFIELD(nameof(SpawnFlags), FieldType.Integer, "spawnflags"),
+		DEFINE.FIELD(nameof(TransmitStateOwnedCounter), FieldType.Character),
+		DEFINE.FIELD(nameof(AbsRotation), FieldType.Vector),
+		DEFINE.FIELD(nameof(__nv_Origin), FieldType.Vector),
+		DEFINE.FIELD(nameof(__nv_Rotation), FieldType.Vector),
+		DEFINE.KEYFIELD(nameof(ViewOffset), FieldType.Vector, "view_ofs"),
+		DEFINE.FIELD(nameof(flags), FieldType.Integer),
+		DEFINE.FIELD(nameof(SimulationTick), FieldType.Tick),
+		// DEFINE.FIELD(nameof(NavIgnoreUntilTime), FieldType.Time),
+		// DEFINE.INPUTFUNC(FieldType.Integer, "SetTeam", nameof(InputSetTeam), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputSetTeam(data))),
+		DEFINE.INPUTFUNC(FieldType.Void, "Kill", nameof(InputKill), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputKill(data))),
+		DEFINE.INPUTFUNC(FieldType.Void, "KillHierarchy", nameof(InputKillHierarchy), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputKillHierarchy(data))),
+		DEFINE.INPUTFUNC(FieldType.Void, "Use", nameof(InputUse), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputUse(data))),
+		DEFINE.INPUTFUNC(FieldType.Integer, "Alpha", nameof(InputAlpha), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputAlpha(data))),
+		// DEFINE.INPUTFUNC(FieldType.Boolean, "AlternativeSorting", nameof(InputAlternativeSorting), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputAlternativeSorting(data))),
+		DEFINE.INPUTFUNC(FieldType.Color32, "Color", nameof(InputColor), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputColor(data))),
+		DEFINE.INPUTFUNC(FieldType.String, "SetParent", nameof(InputSetParent), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputSetParent(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "SetParentAttachment", nameof(InputSetParentAttachment), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputSetParentAttachment(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "SetParentAttachmentMaintainOffset", nameof(InputSetParentAttachmentMaintainOffset), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputSetParentAttachmentMaintainOffset(data))),
+		DEFINE.INPUTFUNC(FieldType.Void, "ClearParent", nameof(InputClearParent), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputClearParent(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "SetDamageFilter", nameof(InputSetDamageFilter), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputSetDamageFilter(data))),
+		// DEFINE.INPUTFUNC(FieldType.Void, "EnableDamageForces", nameof(InputEnableDamageForces), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputEnableDamageForces(data))),
+		// DEFINE.INPUTFUNC(FieldType.Void, "DisableDamageForces", nameof(InputDisableDamageForces), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputDisableDamageForces(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "DispatchEffect", nameof(InputDispatchEffect), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputDispatchEffect(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "DispatchResponse", nameof(InputDispatchResponse), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputDispatchResponse(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "AddContext", nameof(InputAddContext), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputAddContext(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "RemoveContext", nameof(InputRemoveContext), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputRemoveContext(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "ClearContext", nameof(InputClearContext), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputClearContext(data))),
+		// DEFINE.INPUTFUNC(FieldType.Void, "DisableShadow", nameof(InputDisableShadow), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputDisableShadow(data))),
+		// DEFINE.INPUTFUNC(FieldType.Void, "EnableShadow", nameof(InputEnableShadow), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputEnableShadow(data))),
+		// DEFINE.INPUTFUNC(FieldType.String, "AddOutput", nameof(InputAddOutput), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputAddOutput(data))),
+		DEFINE.INPUTFUNC(FieldType.String, "FireUser1", nameof(InputFireUser1), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputFireUser1(data))),
+		DEFINE.INPUTFUNC(FieldType.String, "FireUser2", nameof(InputFireUser2), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputFireUser2(data))),
+		DEFINE.INPUTFUNC(FieldType.String, "FireUser3", nameof(InputFireUser3), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputFireUser3(data))),
+		DEFINE.INPUTFUNC(FieldType.String, "FireUser4", nameof(InputFireUser4), (INPUTFUNCPTR)((self, data) => ((BaseEntity)self).InputFireUser4(data))),
+		DEFINE.OUTPUT(nameof(OnUser1), "OnUser1", eventFuncs),
+		DEFINE.OUTPUT(nameof(OnUser2), "OnUser2", eventFuncs),
+		DEFINE.OUTPUT(nameof(OnUser3), "OnUser3", eventFuncs),
+		DEFINE.OUTPUT(nameof(OnUser4), "OnUser4", eventFuncs),
+		// DEFINE_FUNCTION( SUB_Remove ),
+		// DEFINE_FUNCTION( SUB_DoNothing ),
+		// DEFINE_FUNCTION( SUB_StartFadeOut ),
+		// DEFINE_FUNCTION( SUB_StartFadeOutInstant ),
+		// DEFINE_FUNCTION( SUB_FadeOut ),
+		// DEFINE_FUNCTION( SUB_Vanish ),
+		// DEFINE_FUNCTION( SUB_CallUseToggle ),
+		// DEFINE_THINKFUNC( ShadowCastDistThink ),
+		DEFINE.FIELD(nameof(EffectEntity), FieldType.EHandle),
+		// DEFINE_ARRAY( m_nModelIndexOverrides, FIELD_INTEGER, MAX_VISION_MODES ),
+	]);
 	public virtual DataMap? GetDataDescMap() => DataDesc;
+
+	public OutputEvent OnUser1 = new();
+	public OutputEvent OnUser2 = new();
+	public OutputEvent OnUser3 = new();
+	public OutputEvent OnUser4 = new();
+
+	public void InputAlpha(InputData inputdata) => SetRenderColorA((byte)Math.Clamp(inputdata.Value.Int(), 0, 255));
+
+	public void InputColor(InputData inputdata) {
+		Source.Color clr = inputdata.Value.Color32();
+		SetRenderColor(clr.R, clr.G, clr.B);
+	}
+
+	public void InputUse(InputData inputdata) => Use(inputdata.Activator, inputdata.Caller, (UseType)inputdata.OutputID, 0);
+
+	public void InputKill(InputData inputdata) {
+		BaseEntity? owner = GetOwnerEntity();
+		if (owner != null) {
+			// owner.DeathNotice(this);
+			SetOwnerEntity(null);
+		}
+
+		Util.Remove(this);
+	}
+
+	public void InputKillHierarchy(InputData inputdata) {
+		BaseEntity? child, next;
+		for (child = FirstMoveChild(); child != null; child = next) {
+			next = child.NextMovePeer();
+			child.InputKillHierarchy(inputdata);
+		}
+
+		BaseEntity? owner = GetOwnerEntity();
+		if (owner != null) {
+			// owner.DeathNotice(this);
+			SetOwnerEntity(null);
+		}
+
+		Util.Remove(this);
+	}
+
+	public void InputSetParent(InputData inputdata) {
+		if (ParentAttachment != 0)
+			ParentAttachment = 0;
+
+		SetParent(inputdata.Value.StringID()!, inputdata.Activator!);
+	}
+
+	public void InputClearParent(InputData inputdata) => SetParent(null);
+	public void InputFireUser1(InputData inputdata) => OnUser1.FireOutput(inputdata.Activator, this);
+	public void InputFireUser2(InputData inputdata) => OnUser2.FireOutput(inputdata.Activator, this);
+	public void InputFireUser3(InputData inputdata) => OnUser3.FireOutput(inputdata.Activator, this);
+	public void InputFireUser4(InputData inputdata) => OnUser4.FireOutput(inputdata.Activator, this);
 
 	public virtual bool AcceptInput(ReadOnlySpan<char> inputName, BaseEntity? activator, BaseEntity? caller, Variant_t value, int outputID) {
 		// if (ent_messages_draw.GetBool()) todo
