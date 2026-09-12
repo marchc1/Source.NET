@@ -1,4 +1,4 @@
-global using static Game.Server.CBaseGlobals;
+﻿global using static Game.Server.CBaseGlobals;
 
 using Game.Shared;
 
@@ -71,25 +71,27 @@ public class EventAction
 		if (actionData.IsEmpty)
 			return;
 
-		nexttoken(out ReadOnlySpan<char> token, actionData, ',', out ReadOnlySpan<char> psz);
+		char sep = actionData.Contains('\x1b') ? '\x1b' : ',';
+
+		nexttoken(out ReadOnlySpan<char> token, actionData, sep, out ReadOnlySpan<char> psz);
 		if (!token.IsEmpty)
 			Target = new(token);
 
-		nexttoken(out token, psz, ',', out psz);
+		nexttoken(out token, psz, sep, out psz);
 		if (!token.IsEmpty)
 			TargetInput = new(token);
 		else
 			TargetInput = "Use";
 
-		nexttoken(out token, psz, ',', out psz);
+		nexttoken(out token, psz, sep, out psz);
 		if (!token.IsEmpty)
 			Parameter = new(token);
 
-		nexttoken(out token, psz, ',', out psz);
+		nexttoken(out token, psz, sep, out psz);
 		if (!token.IsEmpty)
 			Delay = strtof(token, out _);
 
-		nexttoken(out token, psz, ',', out _);
+		nexttoken(out token, psz, sep, out _);
 		if (!token.IsEmpty) {
 			TimesToFire = atoi(token);
 			if (TimesToFire == 0)
