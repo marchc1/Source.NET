@@ -128,6 +128,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 
 	internal float GetLinearDamping() => 0.03f;
 	internal float GetAngularDamping() => 0.03f;
+	internal float GetSimulationTimestepSeconds() => (float)SimulationTimestep;
 
 	public void GetGravity(out Vector3 gravityVector) {
 		gravityVector = Gravity;
@@ -193,10 +194,18 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public int GetActiveObjectCount() {
-		return PhysEnv.Bodies.ActiveSet.Count;
+		int count = 0;
+		for (int i = 0; i < Objects.Count; i++)
+			if (!Objects[i].IsStatic() && !Objects[i].IsAsleep())
+				count++;
+		return count;
 	}
 
 	public void GetActiveObjects(Span<IPhysicsObject> outputObjectList) {
+		int n = 0;
+		for (int i = 0; i < Objects.Count && n < outputObjectList.Length; i++)
+			if (!Objects[i].IsStatic() && !Objects[i].IsAsleep())
+				outputObjectList[n++] = Objects[i];
 	}
 
 	public ReadOnlySpan<IPhysicsObject> GetObjectList() {
@@ -350,7 +359,10 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public IPhysicsObject? CreatePolyObject(PhysCollide collisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
-		throw new NotImplementedException();
+		IPhysicsObject? obj = PhysicsObject.CreatePhysicsObject(this, collisionModel, materialIndex, in position, in angles, ref objParams, false);
+		if (obj != null)
+			Objects.Add(obj);
+		return obj;
 	}
 
 	public IPhysicsObject? CreatePolyObjectStatic(PhysCollide collisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
@@ -405,7 +417,12 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public void DestroyObject(IPhysicsObject? obj) {
-		throw new NotImplementedException();
+		if (obj is not PhysicsObject po)
+			return;
+
+		Objects.Remove(obj);
+		DeleteQueue.Remove(obj);
+		po.RemoveFromSimulation(PhysEnv, BufferPool);
 	}
 
 	public void DestroyPlayerController(IPhysicsPlayerController controller) {

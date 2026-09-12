@@ -239,11 +239,11 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public IVPhysicsKeyParser VPhysicsKeyParserCreate(ReadOnlySpan<byte> keyData) {
-		throw new NotImplementedException();
+		return new VPhysicsKeyParser(keyData);
 	}
 
 	public void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser) {
-		throw new NotImplementedException();
+		// Managed parser; nothing to free.
 	}
 
 	private readonly PhysicsTrace TraceAPI = new();

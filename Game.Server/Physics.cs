@@ -9,6 +9,8 @@ using Source.Common.Physics;
 using Source.Engine;
 
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
@@ -20,6 +22,11 @@ public static class PhysicsHookGlobals {
 	public static readonly PhysicsHook g_PhysicsHook = new();
 	public static readonly CollisionEvent g_Collisions = new();
 	public static EntityList? g_ShadowEntities = null;
+	public static TimeUnit_t g_PhysAverageSimTime;
+	public static readonly ConcurrentQueue<Action> g_PostSimulationQueue = new();
+
+	public const float VPHYSICS_LARGE_OBJECT_MASS = 500.0f;
+
 	static PhysicsHookGlobals(){
 		SetPhysicsGameSystem(g_PhysicsHook);
 	}
@@ -123,6 +130,37 @@ public class PhysicsHook : BaseGameSystemPerFrame
 	}
 	public override void LevelInitPostEntity() {
 		base.LevelInitPostEntity();
+		Paused = false;
+	}
+
+	public bool ShouldSimulate() => physenv != null && !Paused;
+
+	void PhysFrame(TimeUnit_t deltaTime) {
+		if (!ShouldSimulate())
+			return;
+
+		// Trap interrupts and clock changes
+		if (deltaTime > 1.0 || deltaTime < 0.0)
+			deltaTime = 0;
+		else if (deltaTime > 0.1)
+			deltaTime = 0.1; // limit incoming time to 100ms
+
+		physenv!.DebugCheckContacts();
+		physenv.Simulate(deltaTime);
+
+		int activeCount = physenv.GetActiveObjectCount();
+		if (activeCount != 0) {
+			IPhysicsObject?[] activeList = ArrayPool<IPhysicsObject>.Shared.Rent(activeCount);
+			physenv.GetActiveObjects(activeList);
+
+			for (int i = 0; i < activeCount; i++) {
+				BaseEntity? entity = (BaseEntity?)activeList[i]?.GetGameData();
+				if (entity != null)
+					entity.VPhysicsUpdate(activeList[i]!);
+			}
+
+			ArrayPool<IPhysicsObject>.Shared.Return(activeList, true);
+		}
 	}
 	public override void LevelShutdownPreEntity() {
 		base.LevelShutdownPreEntity();
@@ -132,6 +170,7 @@ public class PhysicsHook : BaseGameSystemPerFrame
 	}
 	public override void FrameUpdatePostEntityThink() {
 		base.FrameUpdatePostEntityThink();
+		PhysFrame(gpGlobals.FrameTime);
 	}
 	public override void PreClientUpdate() {
 		base.PreClientUpdate();

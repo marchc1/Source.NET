@@ -1835,6 +1835,13 @@ public static class MathLib
 		QuaternionNormalize2(ref output);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float RemapVal(float val, float A, float B, float C, float D) {
+		if (A == B)
+			return val >= B ? D : C;
+		return C + (D - C) * (val - A) / (B - A);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double RemapVal(double val, double A, double B, double C, double D) {
 		if (A == B)
 			return val >= B ? D : C;
@@ -1849,6 +1856,19 @@ public static class MathLib
 
 	public static float Approach(float target, float value, float speed) {
 		float delta = target - value;
+
+		if (delta > speed)
+			value += speed;
+		else if (delta < -speed)
+			value -= speed;
+		else
+			value = target;
+
+		return value;
+	}
+
+	public static double Approach(double target, double value, double speed) {
+		double delta = target - value;
 
 		if (delta > speed)
 			value += speed;

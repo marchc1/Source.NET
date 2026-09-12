@@ -1,6 +1,8 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 
+using BepuUtilities.Memory;
+
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -19,6 +21,16 @@ internal class PhysicsObject : IPhysicsObject
 	public StaticHandle? Static;
 	public PhysCollide? Collide;
 	public IPhysicsShadowController? Shadow;
+
+	internal PhysicsEnvironment Env = null!;
+	internal TypedIndex ShapeIndex;
+	internal float Mass = 1.0f;
+	internal bool MotionEnabled = true;
+	internal bool GravityEnabled = true;
+	internal bool CollisionsEnabled = true;
+
+	Simulation Sim => Env.GetBepuEnvironment();
+	BodyReference BodyRef => Sim.Bodies[Body!.Value];
 
 	public Vector3 DragBasis;
 	public Vector3 AngDragBasis;
@@ -41,19 +53,37 @@ internal class PhysicsObject : IPhysicsObject
 	public float AngDragCoefficient;
 
 	public void AddVelocity(in Vector3 velocity, in Vector3 angularVelocity) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+		var bodyRef = BodyRef;
+		bodyRef.Velocity.Linear += velocity;
+		bodyRef.Velocity.Angular += angularVelocity;
+		bodyRef.Awake = true;
 	}
 
 	public void ApplyForceCenter(in Vector3 forceVector) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+		var bodyRef = BodyRef;
+		bodyRef.Awake = true;
+		bodyRef.ApplyLinearImpulse(forceVector * Env.GetSimulationTimestepSeconds());
 	}
 
 	public void ApplyForceOffset(in Vector3 forceVector, in Vector3 worldPosition) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+		var bodyRef = BodyRef;
+		bodyRef.Awake = true;
+		Vector3 offset = worldPosition - bodyRef.Pose.Position;
+		bodyRef.ApplyImpulse(forceVector * Env.GetSimulationTimestepSeconds(), offset);
 	}
 
 	public void ApplyTorqueCenter(in Vector3 torque) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+		var bodyRef = BodyRef;
+		bodyRef.Awake = true;
+		bodyRef.ApplyAngularImpulse(torque * Env.GetSimulationTimestepSeconds());
 	}
 
 	public void BecomeHinged(int localAxis) {
@@ -69,7 +99,9 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void CalculateForceOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerForce, out Vector3 centerTorque) {
-		throw new NotImplementedException();
+		Vector3 center = GetPose().Position;
+		centerForce = forceVector;
+		centerTorque = Vector3.Cross(worldPosition - center, forceVector);
 	}
 
 	public float CalculateLinearDrag(in Vector3 unitDirection) {
@@ -77,7 +109,10 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void CalculateVelocityOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerVelocity, out Vector3 centerAngularVelocity) {
-		throw new NotImplementedException();
+		Vector3 center = GetPose().Position;
+		float invMass = Mass > 0 ? 1.0f / Mass : 0.0f;
+		centerVelocity = forceVector * invMass;
+		centerAngularVelocity = Vector3.Cross(worldPosition - center, forceVector) * invMass;
 	}
 
 	public float ComputeShadowControl(in HLShadowControlParams parms, double secondsToArrival, double dt) {
@@ -93,19 +128,27 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void EnableCollisions(bool enable) {
-		throw new NotImplementedException();
+		CollisionsEnabled = enable;
 	}
 
 	public void EnableDrag(bool enable) {
-		throw new NotImplementedException();
+		// Drag handled via damping in the pose integrator; no per-object toggle yet.
 	}
 
 	public void EnableGravity(bool enable) {
-		throw new NotImplementedException();
+		GravityEnabled = enable;
 	}
 
 	public void EnableMotion(bool enable) {
-		throw new NotImplementedException();
+		if (MotionEnabled == enable)
+			return;
+		MotionEnabled = enable;
+		if (!enable && Body.HasValue) {
+			var bodyRef = BodyRef;
+			bodyRef.Velocity.Linear = default;
+			bodyRef.Velocity.Angular = default;
+			bodyRef.Awake = false;
+		}
 	}
 
 	public CallbackFlags GetCallbackFlags() {
@@ -113,7 +156,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public PhysCollide GetCollide() {
-		throw new NotImplementedException();
+		return Collide!;
 	}
 
 	public bool GetContactPoint(out Vector3 contactPoint, IPhysicsObject contactObject) {
@@ -159,7 +202,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public float GetMass() {
-		throw new NotImplementedException();
+		return Mass;
 	}
 
 	public Vector3 GetMassCenterLocalSpace() {
@@ -174,12 +217,23 @@ internal class PhysicsObject : IPhysicsObject
 		throw new NotImplementedException();
 	}
 
+	RigidPose GetPose() {
+		if (Body.HasValue)
+			return BodyRef.Pose;
+		if (Static.HasValue)
+			return Sim.Statics[Static.Value].Pose;
+		return RigidPose.Identity;
+	}
+
 	public void GetPosition(out Vector3 worldPosition, out QAngle angles) {
-		throw new NotImplementedException();
+		RigidPose pose = GetPose();
+		worldPosition = pose.Position;
+		MathLib.QuaternionAngles(pose.Orientation, out angles);
 	}
 
 	public void GetPositionMatrix(out Matrix3x4 positionMatrix) {
-		throw new NotImplementedException();
+		RigidPose pose = GetPose();
+		MathLib.QuaternionMatrix(pose.Orientation, pose.Position, out positionMatrix);
 	}
 
 	public IPhysicsShadowController GetShadowController() {
@@ -195,7 +249,15 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void GetVelocity(out Vector3 velocity, out Vector3 angularVelocity) {
-		throw new NotImplementedException();
+		if (Body.HasValue) {
+			var vel = BodyRef.Velocity;
+			velocity = vel.Linear;
+			angularVelocity = vel.Angular;
+		}
+		else {
+			velocity = default;
+			angularVelocity = default;
+		}
 	}
 
 	public void GetVelocityAtPoint(in Vector3 worldPosition, out Vector3 velocity) {
@@ -203,7 +265,9 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public bool IsAsleep() {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return true;
+		return !BodyRef.Awake;
 	}
 
 	public bool IsAttachedToConstraint(bool externalOnly) {
@@ -211,7 +275,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public bool IsCollisionEnabled() {
-		throw new NotImplementedException();
+		return CollisionsEnabled;
 	}
 
 	public bool IsDragEnabled() {
@@ -223,7 +287,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public bool IsGravityEnabled() {
-		throw new NotImplementedException();
+		return GravityEnabled;
 	}
 
 	public bool IsHinged() {
@@ -231,7 +295,7 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public bool IsMotionEnabled() {
-		throw new NotImplementedException();
+		return MotionEnabled;
 	}
 
 	public bool IsMoveable() {
@@ -321,11 +385,21 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void SetPosition(in Vector3 worldPosition, in QAngle angles, bool isTeleport) {
-		throw new NotImplementedException();
+		MathLib.AngleQuaternion(in angles, out Quaternion orientation);
+		RigidPose pose = new(worldPosition, orientation);
+		if (Body.HasValue) {
+			var bodyRef = BodyRef;
+			bodyRef.Pose = pose;
+			bodyRef.Awake = true;
+		}
+		else if (Static.HasValue) {
+			Sim.Statics[Static.Value].Pose = pose;
+		}
 	}
 
 	public void SetPositionMatrix(in Matrix3x4 matrix, bool isTeleport) {
-		throw new NotImplementedException();
+		MathLib.MatrixAngles(in matrix, out QAngle angles, out Vector3 position);
+		SetPosition(in position, in angles, isTeleport);
 	}
 
 	public void SetShadow(float maxSpeed, float maxAngularSpeed, bool allowPhysicsMovement, bool allowPhysicsRotation) {
@@ -333,15 +407,23 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void SetVelocity(in Vector3 velocity, in Vector3 angularVelocity) {
-		throw new NotImplementedException();
+		if (!Body.HasValue)
+			return;
+		var bodyRef = BodyRef;
+		bodyRef.Velocity.Linear = velocity;
+		bodyRef.Velocity.Angular = angularVelocity;
+		bodyRef.Awake = true;
 	}
 
 	public void SetVelocityInstantaneous(in Vector3 velocity, in Vector3 angularVelocity) {
-		throw new NotImplementedException();
+		SetVelocity(in velocity, in angularVelocity);
 	}
 
 	public void Sleep() {
-		throw new NotImplementedException();
+		if (Body.HasValue) {
+			var bodyRef = BodyRef;
+			bodyRef.Awake = false;
+		}
 	}
 
 	public void UpdateShadow(in Vector3 targetPosition, in QAngle targetAngles, bool tempDisableGravity, float timeOffset) {
@@ -349,7 +431,10 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void Wake() {
-		throw new NotImplementedException();
+		if (Body.HasValue) {
+			var bodyRef = BodyRef;
+			bodyRef.Awake = true;
+		}
 	}
 
 	public void WorldToLocal(out Vector3 localPosition, in Vector3 worldPosition) {
@@ -381,6 +466,8 @@ internal class PhysicsObject : IPhysicsObject
 		obj.AsleepSinceCreation = true;
 		obj.Collide = collisionModel;
 		obj.MaterialIndex = (ushort)materialIndex;
+		obj.Env = environment;
+		obj.GameData = objParams.GameData;
 
 		if (isStatic) {
 			TypedIndex shapeIndex;
@@ -410,6 +497,7 @@ internal class PhysicsObject : IPhysicsObject
 				pose,
 				shapeIndex
 			));
+			obj.ShapeIndex = shapeIndex;
 		}
 		else {
 			float mass = objParams.Mass > 0 ? objParams.Mass : 1f;
@@ -448,6 +536,8 @@ internal class PhysicsObject : IPhysicsObject
 			));
 
 			obj.Body = bodyHandle;
+			obj.ShapeIndex = shapeIndex;
+			obj.Mass = mass;
 
 			if (objParams.Damping > 0 || objParams.RotDamping > 0) {
 				obj.DragCoefficient = objParams.Damping;
@@ -456,5 +546,21 @@ internal class PhysicsObject : IPhysicsObject
 		}
 
 		return obj;
+	}
+
+	internal void RemoveFromSimulation(Simulation sim, BufferPool pool) {
+		if (Body.HasValue) {
+			sim.Bodies.Remove(Body.Value);
+			Body = null;
+		}
+		else if (Static.HasValue) {
+			sim.Statics.Remove(Static.Value);
+			Static = null;
+		}
+
+		if (ShapeIndex.Exists) {
+			sim.Shapes.RemoveAndDispose(ShapeIndex, pool);
+			ShapeIndex = default;
+		}
 	}
 }

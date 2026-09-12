@@ -727,7 +727,32 @@ public partial class BaseEntity : IServerEntity
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
 	IPhysicsObject? PhysicsObject = null!;
-	public void VPhysicsUpdate(IPhysicsObject physics) { }
+	public void VPhysicsUpdate(IPhysicsObject physics) {
+		switch (GetMoveType()) {
+			case Source.MoveType.VPhysics: {
+					if (GetMoveParent() != null) {
+						DevWarning($"Updating physics on object in hierarchy {GetClassname()}!\n");
+						return;
+					}
+
+					physics.GetPosition(out Vector3 origin, out QAngle angles);
+
+					if (!IsEntityQAngleReasonable(angles))
+						angles = vec3_angle;
+
+					if (IsEntityPositionReasonable(origin))
+						SetAbsOrigin(origin);
+
+					angles.X = MathLib.AngleNormalize(angles.X);
+					angles.Y = MathLib.AngleNormalize(angles.Y);
+					angles.Z = MathLib.AngleNormalize(angles.Z);
+					SetAbsAngles(angles);
+					break;
+				}
+			default:
+				break;
+		}
+	}
 	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
 
 	public void VPhysicsSetObject(IPhysicsObject? physics) {

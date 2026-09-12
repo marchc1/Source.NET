@@ -1,4 +1,5 @@
-﻿global using static Game.Shared.PhysicsSharedGlobals;
+﻿
+global using static Game.Shared.PhysicsSharedGlobals;
 
 using Source;
 using Source.Common;
@@ -12,6 +13,71 @@ using System.Numerics;
 using Unsafe = System.Runtime.CompilerServices.Unsafe;
 
 namespace Game.Shared;
+
+#if CLIENT_DLL || GAME_DLL
+
+public struct Friction
+{
+	public SoundPatch? Patch;
+	public BaseEntity? Object;
+	public TimeUnit_t LastUpdateTime;
+	public TimeUnit_t LastEffectTime;
+}
+
+public struct GameVCollisionEvent {
+	public VCollisionEvent VCollisionEvent;
+	public InlineArray2<Vector3> PreVelocity;
+	public InlineArray2<Vector3> PostVelocity;
+	public InlineArray2<Vector3> PreAngularVelocity;
+	public InlineArray2<BaseEntity?> Entities;
+
+	public void Init(ref VCollisionEvent ev){
+		this.VCollisionEvent = ev;
+		Entities[0] = null;
+		Entities[1] = null;
+	}
+}
+
+public enum TouchType
+{
+	Start,
+	End
+}
+
+public struct TouchEvent
+{
+	public BaseEntity? Entity0;
+	public BaseEntity? Entity1;
+	public TouchType TouchType;
+	public Vector3 EndPoint;
+	public Vector3 Normal;
+}
+
+public struct FluidEvent
+{
+	public EHANDLE Entity;
+	public Vector3 ImpactTime;
+}
+
+public struct TriggerEvent
+{
+	public BaseEntity? TriggerEntity;
+	public IPhysicsObject? TriggerPhysics;
+	public BaseEntity? Entity;
+	public IPhysicsObject? Object;
+	public bool Start;
+	public void Init(BaseEntity? triggerEntity, IPhysicsObject? triggerPhysics, BaseEntity? entity, IPhysicsObject? @object, bool startTouch) {
+		TriggerEntity = triggerEntity;
+		TriggerPhysics = triggerPhysics;
+		Entity = entity;
+		Object = @object;
+		Start = startTouch;
+	}
+	public void Clear() {
+		this = default;
+	}
+}
+#endif
 
 [EngineComponent]
 public static class PhysicsSharedGlobals
@@ -166,7 +232,7 @@ public static class PhysicsSharedGlobals
 
 		IPhysicsObject? worldPhysics = physenv.CreatePolyObjectStatic(worldCollide.Solids![0]!, surfaceData, vec3_origin, vec3_angle, ref oparams);
 
-		return null;
+		return worldPhysics;
 	}
 #endif
 }
