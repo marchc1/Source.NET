@@ -623,7 +623,7 @@ public class Con(
 		}
 
 #if SWDS
-	Msg("%s", msg);
+	Msg(msg);
 #else
 		if (sv.IsDedicated()) {
 			Msg(msg);
