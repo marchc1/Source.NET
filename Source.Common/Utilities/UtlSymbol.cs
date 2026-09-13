@@ -33,7 +33,7 @@ public struct UtlSymbol
 		id = CurrTable().AddString(str);
 		ValidId = id != UTL_INVAL_SYMBOL;
 	}
-	internal UtlSymbol(UtlSymId_t str) {
+	public UtlSymbol(UtlSymId_t str) {
 		id = str;
 		ValidId = id != UTL_INVAL_SYMBOL;
 	}
