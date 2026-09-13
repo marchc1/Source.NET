@@ -792,14 +792,14 @@ public partial class BaseVSShader
 
 					if (HardwareConfig.SupportsPixelShaders_2_b() || HardwareConfig.ShouldAlwaysUseShaderModel2bShaders()) {
 						DynamicShaderIndex pshIndex = new(shaderAPI, ShaderType.Pixel);
-						pshIndex.Set("NUM_LIGHTS", useStaticControlFlow ? 0 : lightState.NumLights);
+						pshIndex.Set("NUM_LIGHTS", lightState.NumLights);
 						pshIndex.Set("AMBIENT_LIGHT", lightState.AmbientLight ? 1 : 0);
 						pshIndex.Set("FLASHLIGHTSHADOWS", bFlashlightShadows);
 						dynamicCmdsOut.SetPixelShaderIndex(pshIndex.GetIndex());
 					}
 					else {
 						DynamicShaderIndex pshIndex = new(shaderAPI, ShaderType.Pixel);
-						pshIndex.Set("NUM_LIGHTS", useStaticControlFlow ? 0 : lightState.NumLights);
+						pshIndex.Set("NUM_LIGHTS", lightState.NumLights);
 						pshIndex.Set("AMBIENT_LIGHT", lightState.AmbientLight ? 1 : 0);
 						pshIndex.Set("WRITEWATERFOGTODESTALPHA", writeWaterFogToAlpha);
 						pshIndex.Set("PIXELFOGTYPE", shaderAPI.GetPixelFogCombo());
