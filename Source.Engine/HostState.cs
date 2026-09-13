@@ -140,6 +140,7 @@ public class HostState : IHostState
 	}
 
 	void IHostState.ChangeLevelMP(ReadOnlySpan<char> newLevel, ReadOnlySpan<char> landmarkName) {
+		// Steam3Server().NotifyOfLevelChange();
 		strcpy(LevelName, newLevel);
 		strcpy(LevelName, landmarkName);
 		SetNextState(HostStates.ChangeLevelMP);
@@ -213,7 +214,28 @@ public class HostState : IHostState
 
 	}
 	protected void State_ChangeLevelMP() {
+		if (Host.ValidGame()) {
+			// Steam3Server().NotifyOfLevelChange();
 
+#if !SWDS
+			// start progress bar immediately for multiplayer level transitions
+			EngineVGui().EnabledProgressBarForNextLoad();
+#endif
+			if (Host.Changelevel(false, LevelName, LandmarkName)) {
+				SetState(HostStates.Run, true);
+				return;
+			}
+		}
+
+		// fail
+		ConMsg("Unable to change level!\n");
+		SetState(HostStates.Run, true);
+
+		IGameEvent? ev = g_GameEventManager.CreateEvent("server_changelevel_failed");
+		if (ev != null) {
+			ev.SetString("levelname", LevelName);
+			g_GameEventManager.FireEvent(ev);
+		}
 	}
 	protected void State_ChangeLevelSP() {
 

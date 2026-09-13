@@ -11,7 +11,7 @@
 		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Include="BepuPhysics" Version="2.4.0" />
+	  <PackageReference Include="Jitter2.Double" Version="2.8.11" />
 	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Source.Common\Source.Common.csproj" />

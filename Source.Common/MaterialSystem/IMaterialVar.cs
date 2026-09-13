@@ -48,7 +48,7 @@ public abstract class IMaterialVar
 	protected byte NumVectorComps;
 	protected bool FakeMaterialVar;
 	protected byte TempIndex;
-	protected UtlSymbol Name = "";
+	protected UtlSymbol Name = new();
 	public MaterialVarGPU GPU;
 
 	public override string ToString() {
@@ -168,7 +168,17 @@ public abstract class IMaterialVar
 		return VecVal.X;
 	}
 
-	static readonly UtlSymbolTableMT MaterialVarSymbols = new();
+	public static readonly UtlSymbolTableMT MaterialVarSymbols = new(true);
+	public static UtlSymId_t GetSymbol(ReadOnlySpan<char> name) {
+		if (name.IsEmpty)
+			return UTL_INVAL_SYMBOL;
+
+		Span<char> temp = stackalloc char[1024];
+		strcpy(temp, name);
+		strlower(temp);
+		return MaterialVarSymbols.AddString(temp.SliceNullTerminatedString());
+	}
+
 	public static UtlSymId_t FindSymbol(ReadOnlySpan<char> name) {
 		if (name.IsEmpty)
 			return UTL_INVAL_SYMBOL;
@@ -180,7 +190,7 @@ public abstract class IMaterialVar
 	}
 
 	public static bool SymbolMatches(ReadOnlySpan<char> varName, UtlSymId_t symbol) {
-		return varName.CompareTo(MaterialVarSymbols.String(symbol), StringComparison.InvariantCultureIgnoreCase) != 0;
+		return varName.CompareTo(MaterialVarSymbols.String(symbol), StringComparison.InvariantCultureIgnoreCase) == 0;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

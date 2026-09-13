@@ -560,15 +560,22 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		return hdr.Texture(inMaterialID).Name();
 	}
 
-	static uint bumpvarCache = 0;
-
+	static TokenCache bumpvarCache = default;
+	static TokenCache phongVarCache = default;
 	private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
 		if (material.UsesEnvCubemap())
 			hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
 
-		//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
-		//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;
-		// todo
+		if (material.NeedsPowerOfTwoFrameBufferTexture(false))
+			hdr.Flags |= StudioHdrFlags.UsesFbTexture;
+
+		IMaterialVar? bumpMatVar = material.FindVarFast("$bumpmap", ref bumpvarCache);
+		if (bumpMatVar != null && bumpMatVar.IsDefined() && material.NeedsTangentSpace())
+			hdr.Flags |= StudioHdrFlags.UsesBumpmapping;
+
+		IMaterialVar? phongMatVar = material.FindVarFast("$phong", ref phongVarCache);
+		if (phongMatVar != null && phongMatVar.IsDefined() && phongMatVar.GetIntValue() != 0)
+			hdr.Flags |= StudioHdrFlags.UsesBumpmapping;
 	}
 
 	// DEVIATION: But the way Source does it is so confusing and very much so built for C++ it seems...
