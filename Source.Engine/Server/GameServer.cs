@@ -29,7 +29,6 @@ public class GameServer : BaseServer
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
 	public readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
-	public readonly ClientFrameManager FrameManager = new();
 
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);

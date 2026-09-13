@@ -47,6 +47,7 @@ public class GameClient : BaseClient
 	public readonly List<SoundInfo> Sounds = [];
 	public Edict? ViewEntity;
 	public ClientFrame? CurrentFrame;
+	public readonly ClientFrameManager FrameManager = new();
 	public readonly CheckTransmitInfo PackInfo = new();
 	public bool IsInReplayMode;
 	public readonly CheckTransmitInfo PrevPackInfo = new();
@@ -158,12 +159,12 @@ public class GameClient : BaseClient
 
 	public void SetupPackInfo(FrameSnapshot snapshot) {
 
-		CurrentFrame = sv.FrameManager.AllocateFrame();
+		CurrentFrame = FrameManager.AllocateFrame();
 		CurrentFrame.Init(snapshot);
 
 		int maxFrames = MAX_CLIENT_FRAMES;
-		if (maxFrames < sv.FrameManager.AddClientFrame(CurrentFrame))
-			sv.FrameManager.RemoveOldestFrame();
+		if (maxFrames < FrameManager.AddClientFrame(CurrentFrame))
+			FrameManager.RemoveOldestFrame();
 	}
 
 	public void SetupPrevPackInfo() { }
@@ -192,7 +193,7 @@ public class GameClient : BaseClient
 		VoiceStreams.ClearAll();
 		VoiceProximity.ClearAll();
 
-		sv.FrameManager.DeleteClientFrames(-1);
+		FrameManager.DeleteClientFrames(-1);
 	}
 
 	protected override bool UpdateAcknowledgedFramecount(int tick) {
@@ -200,7 +201,7 @@ public class GameClient : BaseClient
 			int removeTick = tick;
 
 			if (removeTick > 0)
-				sv.FrameManager.DeleteClientFrames(removeTick);
+				FrameManager.DeleteClientFrames(removeTick);
 		}
 
 		return base.UpdateAcknowledgedFramecount(tick);
@@ -217,7 +218,7 @@ public class GameClient : BaseClient
 
 		base.Clear();
 
-		sv.FrameManager.DeleteClientFrames(-1);
+		FrameManager.DeleteClientFrames(-1);
 
 		Sounds.Clear();
 		VoiceStreams.ClearAll();
@@ -414,7 +415,7 @@ public class GameClient : BaseClient
 
 	protected override ClientFrame? GetDeltaFrame(int tick) {
 		Assert(!IsHLTV());
-		return sv.FrameManager.GetClientFrame(tick);
+		return FrameManager.GetClientFrame(tick);
 	}
 
 	void WriteViewAngleUpdate() {
