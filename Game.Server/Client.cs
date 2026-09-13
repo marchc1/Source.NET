@@ -10,6 +10,44 @@ namespace Game.Server;
 public static class GameServerClientGlobals
 {
 	public static ConVar sv_cheats { get => field ??= cvar.FindVar("sv_cheats")!; }
+
+	public static BaseEntity? GetNextCommandEntity(BasePlayer? player, ReadOnlySpan<char> name, BaseEntity? ent) {
+		if (player == null)
+			return null;
+
+		if (FStrEq(name, "")) {
+			if (ent != null)
+				return null;
+
+			return FindPickerEntity(player);
+		}
+
+		int index = atoi(name);
+		if (index != 0) {
+			if (ent != null)
+				return null;
+
+			return BaseEntity.Instance(index);
+		}
+
+		while ((ent = gEntList.NextEnt(ent)) != null)
+			if ((ent.GetEntityName() != null && ent.NameMatches(name)) || (ent.Classname != null && ent.ClassMatches(name)))
+				return ent;
+
+		return null;
+	}
+
+	public static void SetDebugBits(BasePlayer? player, ReadOnlySpan<char> name, DebugOverlayBits bit) {
+		if (player == null)
+			return;
+
+		BaseEntity? entity = null;
+		while ((entity = GetNextCommandEntity(player, name, entity)) != null)
+			if ((entity.DebugOverlays & bit) != 0)
+				entity.DebugOverlays &= ~bit;
+			else
+				entity.DebugOverlays |= bit;
+	}
 }
 
 [EngineComponent]

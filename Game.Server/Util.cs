@@ -381,6 +381,16 @@ public static partial class Util
 
 		MessageEnd();
 	}
+	public static void ClientPrint(BasePlayer? player, HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
+		if (player == null)
+			return;
+
+		SingleUserRecipientFilter user = new(player);
+		user.MakeReliable();
+
+		ClientPrintFilter(user, dest, msgName, param1, param2, param3, param4);
+	}
+
 	public static Edict? INDEXENT(int edictNum) => engine.PEntityOfEntIndex(edictNum);
 
 	public static BasePlayer? PlayerByIndex(int playerIndex) {

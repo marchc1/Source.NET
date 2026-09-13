@@ -32,6 +32,55 @@ public static class PlayerConvars
 {
 	public static readonly ConVar sv_noclipduringpause = new("sv_noclipduringpause", "0", FCvar.Replicated | FCvar.Cheat, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.).");
 
+	public static BaseEntity? FindEntityClassForward(BasePlayer me, ReadOnlySpan<char> classname) {
+		me.EyeVectors(out Vector3 forward);
+		Util.TraceLine(me.EyePosition(), me.EyePosition() + forward * MAX_COORD_RANGE, Mask.Solid, me, CollisionGroup.None, out Trace tr);
+		if (tr.Fraction != 1.0 && tr.DidHitNonWorldEntity()) {
+			BaseEntity? hit = tr.Ent;
+			if (BaseEntity.FClassnameIs(hit, classname))
+				return hit;
+		}
+		return null;
+	}
+
+	public static BaseEntity? FindEntityForward(BasePlayer? me, bool hull) {
+		if (me != null) {
+			Mask mask;
+
+			if (hull)
+				mask = Mask.Solid;
+			else
+				mask = Mask.Shot;
+
+			me.EyeVectors(out Vector3 forward);
+			Util.TraceLine(me.EyePosition(), me.EyePosition() + forward * MAX_COORD_RANGE, mask, me, CollisionGroup.None, out Trace tr);
+			if (tr.Fraction != 1.0 && tr.DidHitNonWorldEntity())
+				return tr.Ent;
+		}
+		return null;
+	}
+
+	public static BaseEntity? FindPickerEntityClass(BasePlayer player, ReadOnlySpan<char> classname) {
+		BaseEntity? entity = FindEntityClassForward(player, classname);
+
+		if (entity == null) {
+			player.EyeVectors(out Vector3 forward);
+			Vector3 origin = player.WorldSpaceCenter();
+			entity = gEntList.FindEntityClassNearestFacing(origin, forward, 0.95f, classname);
+		}
+		return entity;
+	}
+
+	public static BaseEntity? FindPickerEntity(BasePlayer? player) {
+		BaseEntity? entity = FindEntityForward(player, true);
+
+		if (entity == null) {
+			player!.EyeVectors(out Vector3 forward);
+			Vector3 origin = player.WorldSpaceCenter();
+			entity = gEntList.FindEntityNearestFacing(origin, forward, 0.95f);
+		}
+		return entity;
+	}
 }
 
 public class GamePlayerInfo : IBotController, IPlayerInfo

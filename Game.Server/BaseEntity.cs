@@ -1,4 +1,4 @@
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using Game.Shared;
 
@@ -85,55 +85,247 @@ public enum ToggleState
 	GoingDown
 }
 
+[Flags]
+public enum DebugOverlayBits
+{
+	Text = 0x00000001,
+	Name = 0x00000002,
+	BBox = 0x00000004,
+	Pivot = 0x00000008,
+	Message = 0x00000010,
+	AbsBox = 0x00000020,
+	RBox = 0x00000040,
+	ShowBlocksLOS = 0x00000080,
+	Attachments = 0x00000100,
+	Autoaim = 0x00000200,
+	NPCSelected = 0x00001000,
+	NPCNearest = 0x00002000,
+	NPCRoute = 0x00004000,
+	NPCTriangulate = 0x00008000,
+	NPCZap = 0x00010000,
+	NPCEnemies = 0x00020000,
+	NPCConditions = 0x00040000,
+	NPCSquad = 0x00080000,
+	NPCTask = 0x00100000,
+	NPCFocus = 0x00200000,
+	NPCViewcone = 0x00400000,
+	NPCKill = 0x00800000,
+	WCChangeEntity = 0x01000000,
+	BuddhaMode = 0x02000000,
+	NPCSteeringRegulations = 0x04000000,
+	TaskText = 0x08000000,
+	PropDebug = 0x10000000,
+	NPCRelation = 0x20000000,
+	ViewOffset = 0x40000000
+}
+
 public static class BaseEntity_ConCommands
 {
+	public static void ConsoleFireTargets(BasePlayer? player, ReadOnlySpan<char> name) {
+		if (FStrEq(name, "")) {
+			BaseEntity? entity = FindPickerEntity(player);
+			if (entity != null && !entity.IsMarkedForDeletion()) {
+				Msg($"[{gpGlobals.TickCount % 1000:D3}] Found: {entity.GetDebugName()}, firing\n");
+				entity.Use(player, player, UseType.Toggle, 0);
+				return;
+			}
+		}
+
+		FireTargets(name, player, player, UseType.Toggle, 0);
+	}
+
+	[ConCommand("ent_name", null, FCvar.Cheat)]
+	public static void CC_Ent_Name(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Name);
 	[ConCommand("ent_text", "Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text)\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_Text(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_Text(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Text);
 	[ConCommand("ent_bbox", "Displays the movement bounding box for the given entity(ies) in orange.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_BBox(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_BBox(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.BBox);
 	[ConCommand("ent_absbox", "Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_AbsBox(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_AbsBox(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.AbsBox);
 	[ConCommand("ent_rbox", "Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_RBox(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_RBox(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.RBox);
 	[ConCommand("ent_attachments", "Displays the attachment points on an entity.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_AttachmentPoints(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_AttachmentPoints(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Attachments);
 	[ConCommand("ent_viewoffset", "Displays the eye position for the given entity(ies) in red.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_ViewOffset(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_ViewOffset(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.ViewOffset);
 	[ConCommand("ent_remove", "Removes the given entity(s)\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
 	public static void CC_Ent_Remove(in TokenizedCommand args) {
+		BaseEntity? entity = null;
 
+		if (FStrEq(args[1], ""))
+			entity = FindPickerEntity(Util.GetCommandClient());
+		else {
+			int index = atoi(args[1]);
+			if (index != 0)
+				entity = BaseEntity.Instance(index);
+			else {
+				BaseEntity? ent = null;
+				while ((ent = gEntList.NextEnt(ent)) != null)
+					if ((ent.GetEntityName() != null && FStrEq(args[1], ent.GetEntityName())) || (ent.Classname != null && FStrEq(args[1], ent.Classname)) || (!ent.GetClassname().IsEmpty && FStrEq(args[1], ent.GetClassname()))) {
+						entity = ent;
+						break;
+					}
+			}
+		}
+
+		if (entity != null) {
+			Msg($"Removed {entity.Classname}({entity.GetDebugName()})\n");
+			Util.Remove(entity);
+		}
 	}
 	[ConCommand("ent_remove_all", "Removes all entities of the specified type\n\tArguments:   	{entity_name} / {class_name} ", FCvar.Cheat)]
 	public static void CC_Ent_RemoveAll(in TokenizedCommand args) {
+		if (args.ArgC() < 2)
+			Msg("Removes all entities of the specified type\n\tArguments:   	{entity_name} / {class_name}\n");
+		else {
+			int count = 0;
+			BaseEntity? ent = null;
+			while ((ent = gEntList.NextEnt(ent)) != null)
+				if ((ent.GetEntityName() != null && FStrEq(args[1], ent.GetEntityName())) || (ent.Classname != null && FStrEq(args[1], ent.Classname)) || (!ent.GetClassname().IsEmpty && FStrEq(args[1], ent.GetClassname()))) {
+					Util.Remove(ent);
+					count++;
+				}
 
+			if (count != 0)
+				Msg($"Removed {count} {args[1]}'s\n");
+			else
+				Msg($"No {args[1]} found.\n");
+		}
 	}
 	[ConCommand("ent_setname", "Sets the targetname of the given entity(s)\n\tArguments:   	{new entity name} {entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
 	public static void CC_Ent_SetName(in TokenizedCommand args) {
+		BaseEntity? entity = null;
 
+		if (args.ArgC() < 2) {
+			BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
+			if (player == null)
+				return;
+
+			Util.ClientPrint(player, HudPrint.Console, "Usage:\n   ent_setname <new name> <entity name>\n");
+		}
+		else {
+			if (FStrEq(args[2], ""))
+				entity = FindPickerEntity(Util.GetCommandClient());
+			else {
+				BaseEntity? ent = null;
+				while ((ent = gEntList.NextEnt(ent)) != null)
+					if ((ent.GetEntityName() != null && FStrEq(args[2], ent.GetEntityName())) || (ent.Classname != null && FStrEq(args[2], ent.Classname)) || (!ent.GetClassname().IsEmpty && FStrEq(args[2], ent.GetClassname()))) {
+						entity = ent;
+						break;
+					}
+
+				if (entity == null) {
+					Warning($"No such entity with name {args[2]} found to set new name for.\n");
+					return;
+				}
+			}
+
+			if (entity != null) {
+				Msg($"Set the name of {entity.Classname} to {args[1]}\n");
+				entity.SetName(args[1]);
+			}
+		}
 	}
 	[ConCommand("find_ent", "Find and list all entities with classnames or targetnames that contain the specified substring.\nFormat: find_ent <substring>\n", FCvar.Cheat)]
 	public static void CC_Find_Ent(in TokenizedCommand args) {
+		if (args.ArgC() < 2) {
+			Msg($"Total entities: {gEntList.NumberOfEntities()} ({gEntList.NumberOfEdicts()} edicts)\n");
+			Msg("Format: find_ent <substring>\n");
+			return;
+		}
 
+		int count = 0;
+		ReadOnlySpan<char> subString = args[1];
+		Msg($"Searching for entities with class/target name containing substring: '{subString}'\n");
+
+		BaseEntity? ent = null;
+		while ((ent = gEntList.NextEnt(ent)) != null) {
+			ReadOnlySpan<char> classname = ent.GetClassname();
+			ReadOnlySpan<char> targetname = ent.GetEntityName();
+
+			bool matches = false;
+			if (!classname.IsEmpty)
+				if (!stristr(classname, subString).IsEmpty)
+					matches = true;
+
+			if (!matches && !targetname.IsEmpty)
+				if (!stristr(targetname, subString).IsEmpty)
+					matches = true;
+
+			if (matches) {
+				count++;
+				Msg($"   '{ent.GetClassname()}' : '{ent.GetEntityName()}' (entindex {ent.EntIndex()}) \n");
+			}
+		}
+
+		Msg($"Found {count} matches.\n");
 	}
 	[ConCommand("find_ent_index", "Display data for entity matching specified index.\nFormat: find_ent_index <index>\n", FCvar.Cheat)]
 	public static void CC_Find_Ent_Index(in TokenizedCommand args) {
+		if (args.ArgC() < 2) {
+			Msg("Format: find_ent_index <index>\n");
+			return;
+		}
 
+		int index = atoi(args[1]);
+		BaseEntity? ent = Util.EntityByIndex(index);
+		if (ent != null)
+			Msg($"   '{ent.GetClassname()}' : '{ent.GetEntityName()}' (entindex {index}) \n");
+		else
+			Msg($"Found no entity at {index}.\n");
 	}
 	[ConCommand("ent_dump", "Usage:\n   ent_dump <entity name>\n", FCvar.Cheat)]
 	public static void CC_Ent_Dump(in TokenizedCommand args) {
+		BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
+		if (player == null)
+			return;
 
+		if (args.ArgC() < 2)
+			Util.ClientPrint(player, HudPrint.Console, "Usage:\n   ent_dump <entity name>\n");
+		else {
+			BaseEntity? ent = null;
+			bool found = false;
+			Span<char> buf = stackalloc char[256];
+			while ((ent = gEntList.FindEntityByName(ent, args[1])) != null) {
+				found = true;
+				for (DataMap? dmap = ent.GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+					for (int i = 0; i < dmap.DataNumFields; i++) {
+						Variant_t var = new();
+						if (!ent.ReadKeyField(dmap.DataDesc[i].ExternalName, ref var))
+							continue;
+
+						buf[0] = '\0';
+						switch (var.FieldType()) {
+							case FieldType.String: strcpy(buf, var.String()); break;
+							case FieldType.Integer: if (var.Int() != 0 && var.Int().TryFormat(buf, out int intWritten)) buf[intWritten] = '\0'; break;
+							case FieldType.Float: if (var.Float() != 0 && var.Float().TryFormat(buf, out int floatWritten, "F2")) buf[floatWritten] = '\0'; break;
+							case FieldType.EHandle: if (var.Entity().Get<BaseEntity>() != null) strcpy(buf, var.Entity().Get<BaseEntity>()!.GetEntityName()); break;
+						}
+
+						if (FStrEq("parentname", dmap.DataDesc[i].ExternalName) || FStrEq("targetname", dmap.DataDesc[i].ExternalName))
+							continue;
+
+						if (buf[0] != '\0')
+							Util.ClientPrint(player, HudPrint.Console, $"  {dmap.DataDesc[i].ExternalName}: {buf.SliceNullTerminatedString()}\n");
+					}
+			}
+
+			if (!found)
+				Util.ClientPrint(player, HudPrint.Console, "ent_dump: no such entity");
+		}
+	}
+	[ConCommand("firetarget", null, FCvar.Cheat)]
+	public static void CC_Ent_FireTarget(in TokenizedCommand args) => ConsoleFireTargets(Util.GetCommandClient(), args[1]);
+	[ConCommand("ent_cancelpendingentfires", "Cancels all ent_fire created outputs that are currently waiting for their delay to expire.")]
+	public static void CC_Ent_CancelPendingEntFires(in TokenizedCommand args) {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
+		if (player == null)
+			return;
+
+		g_EventQueue.CancelEvents(player);
 	}
 	[ConCommand("ent_fire", "Usage:\n   ent_fire <target> [action] [value] [delay]\n", FCvar.Cheat)]
 	public static void EntFireAutoComplete(in TokenizedCommand args) {
@@ -175,43 +367,181 @@ public static class BaseEntity_ConCommands
 	}
 	[ConCommand("ent_info", "Usage:\n   ent_info <class name>\n", FCvar.Cheat)]
 	public static void CC_Ent_Info(in TokenizedCommand args) {
+		BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
+		if (player == null)
+			return;
 
+		if (args.ArgC() < 2)
+			Util.ClientPrint(player, HudPrint.Console, "Usage:\n   ent_info <class name>\n");
+		else {
+			BaseEntity? ent = CreateEntityByName(args[1]);
+
+			if (ent != null) {
+				DataMap? dmap;
+				for (dmap = ent.GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+					for (int i = 0; i < dmap.DataNumFields; i++)
+						if ((dmap.DataDesc[i].Flags & FieldTypeDescFlags.Output) != 0)
+							Util.ClientPrint(player, HudPrint.Console, $"  output: {dmap.DataDesc[i].ExternalName}\n");
+
+				for (dmap = ent.GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+					for (int i = 0; i < dmap.DataNumFields; i++)
+						if ((dmap.DataDesc[i].Flags & FieldTypeDescFlags.Input) != 0)
+							Util.ClientPrint(player, HudPrint.Console, $"  input: {dmap.DataDesc[i].ExternalName}\n");
+
+				Util.Remove(ent);
+			}
+			else
+				Util.ClientPrint(player, HudPrint.Console, $"no such entity {args[1]}\n");
+		}
 	}
+	[ConCommand("ent_messages", "Toggles input/output message display for the selected entity(ies).  The name of the entity will be displayed as well as any messages that it sends or receives.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at", FCvar.Cheat)]
+	public static void CC_Ent_Messages(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Message);
 	[ConCommand("ent_pause", "Toggles pausing of input/output message processing for entities.  When turned on processing of all message will stop.  Any messages displayed with 'ent_messages' will stop fading and be displayed indefinitely. To step through the messages one by one use 'ent_step'.", FCvar.Cheat)]
 	public static void CC_Ent_Pause(in TokenizedCommand args) {
-
+		if (BaseEntity.Debug_IsPaused()) {
+			Msg("Resuming entity I/O events\n");
+			BaseEntity.Debug_Pause(false);
+		}
+		else {
+			Msg("Pausing entity I/O events\n");
+			BaseEntity.Debug_Pause(true);
+		}
 	}
 	[ConCommand("picker", "Toggles 'picker' mode.  When picker is on, the bounding box, pivot and debugging text is displayed for whatever entity the player is looking at.\n\tArguments:	full - enables all debug information", FCvar.Cheat)]
 	public static void CC_Ent_Picker(in TokenizedCommand args) {
+		BaseEntity.InDebugSelect = BaseEntity.InDebugSelect ? false : true;
 
+		BaseEntity.DebugPlayer = Util.GetCommandClientIndex();
 	}
 	[ConCommand("ent_pivot", "Displays the pivot for the given entity(ies).\n\t(y=up=green, z=forward=blue, x=left=red). \n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
-	public static void CC_Ent_Pivot(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_Pivot(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Pivot);
 	[ConCommand("ent_step", "When 'ent_pause' is set this will step through one waiting input / output message at a time.", FCvar.Cheat)]
 	public static void CC_Ent_Step(in TokenizedCommand args) {
+		int steps = atoi(args[1]);
+		if (steps <= 0)
+			steps = 1;
 
+		BaseEntity.Debug_SetSteps(steps);
 	}
 	[ConCommand("ent_show_response_criteria", "Print, to the console, an entity's current criteria set used to select responses.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
 	public static void CC_Ent_Show_Response_Criteria(in TokenizedCommand args) {
-
+		BaseEntity? entity = null;
+		while ((entity = GetNextCommandEntity(Util.GetCommandClient(), args[1], entity)) != null) {
+			// entity.DumpResponseCriteria();
+		}
 	}
 	[ConCommand("ent_autoaim", "Displays the entity's autoaim radius.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at", FCvar.Cheat)]
-	public static void CC_Ent_Autoaim(in TokenizedCommand args) {
-
-	}
+	public static void CC_Ent_Autoaim(in TokenizedCommand args) => SetDebugBits(Util.GetCommandClient(), args[1], DebugOverlayBits.Autoaim);
 	[ConCommand("ent_create", "Creates an entity of the given type where the player is looking.  Additional parameters can be passed in in the form: ent_create <entity name> <param 1 name> <param 1> <param 2 name> <param 2>...<param N name> <param N>", FCvar.GameDLL | FCvar.Cheat)]
 	public static void CC_Ent_Create(in TokenizedCommand args) {
+		BasePlayer? player = Util.GetCommandClient();
+		if (player == null)
+			return;
 
+		if (FStrEq(args[1], "point_servercommand")) {
+			if (engine.IsDedicatedServer()) {
+				// if (player.IsAutoKickDisabled() == false)
+				// 	return;
+			}
+			else if (gpGlobals.MaxClients > 1) {
+				BasePlayer? hostPlayer = Util.GetListenServerHost();
+				if (player != hostPlayer)
+					return;
+			}
+		}
+
+		bool allowPrecache = BaseEntity.IsPrecacheAllowed();
+		BaseEntity.SetAllowPrecache(true);
+
+		BaseEntity? entity = CreateEntityByName(args[1]);
+		if (entity != null) {
+			entity.Precache();
+
+			for (int i = 2; i + 1 < args.ArgC(); i += 2) {
+				ReadOnlySpan<char> keyName = args[i];
+				ReadOnlySpan<char> value = args[i + 1];
+				entity.KeyValue(keyName, value);
+			}
+
+			Util.DispatchSpawn(entity);
+
+			player.EyeVectors(out Vector3 forward);
+			Util.TraceLine(player.EyePosition(), player.EyePosition() + forward * MAX_TRACE_LENGTH, Mask.Solid, player, CollisionGroup.None, out Trace tr);
+			if (tr.Fraction != 1.0) {
+				// tr.EndPos.Z += 12;
+				// entity.Teleport(tr.EndPos, null, null);
+				// Util.DropToFloor(entity, Mask.Solid);
+			}
+
+			entity.Activate();
+		}
+		BaseEntity.SetAllowPrecache(allowPrecache);
+	}
+	public static bool CC_GetCommandEnt(in TokenizedCommand args, out BaseEntity? ent, ref Vector3 targetPoint, ref QAngle playerAngle, bool wantTargetPoint, bool wantPlayerAngle) {
+		ent = null;
+		int entIndex = atoi(args[1]);
+		if (entIndex != 0)
+			ent = BaseEntity.Instance(entIndex);
+		else {
+			ent = gEntList.FindEntityByName(null, args[1]);
+			ent ??= gEntList.FindEntityByClassname(null, args[1]);
+		}
+
+		if (ent == null) {
+			Msg($"Couldn't find any entity named '{args[1]}'\n");
+			return false;
+		}
+
+		BasePlayer? player = Util.GetCommandClient();
+		if (player == null) {
+			Msg("Command must originate from a player\n");
+			return false;
+		}
+
+		if (wantTargetPoint) {
+			player.EyeVectors(out Vector3 forward);
+			Util.TraceLine(player.EyePosition(), player.EyePosition() + forward * MAX_TRACE_LENGTH, Mask.NPCSolid, player, CollisionGroup.None, out Trace tr);
+
+			if (tr.Fraction != 1.0)
+				targetPoint = tr.EndPos;
+		}
+
+		if (wantPlayerAngle)
+			playerAngle = player.EyeAngles();
+
+		return true;
 	}
 	[ConCommand("ent_teleport", "Teleport the specified entity to where the player is looking.\n\tFormat: ent_teleport <entity name>", FCvar.Cheat)]
 	public static void CC_Ent_Teleport(in TokenizedCommand args) {
+		if (args.ArgC() < 2) {
+			Msg("Format: ent_teleport <entity name>\n");
+			return;
+		}
 
+		Vector3 targetPoint = default;
+		QAngle unused = default;
+		if (CC_GetCommandEnt(args, out BaseEntity? ent, ref targetPoint, ref unused, true, false)) {
+			// ent!.Teleport(targetPoint, null, null);
+		}
 	}
 	[ConCommand("ent_orient", "Orient the specified entity to match the player's angles. By default, only orients target entity's YAW. Use the 'allangles' option to orient on all axis.\n\tFormat: ent_orient <entity name> <optional: allangles>", FCvar.Cheat)]
 	public static void CC_Ent_Orient(in TokenizedCommand args) {
+		if (args.ArgC() < 2) {
+			Msg("Format: ent_orient <entity name> <optional: allangles>\n");
+			return;
+		}
 
+		Vector3 unused = default;
+		QAngle playerAngles = default;
+		if (CC_GetCommandEnt(args, out BaseEntity? ent, ref unused, ref playerAngles, false, true)) {
+			QAngle entAngles = ent!.GetAbsAngles();
+			if (args.ArgC() == 3 && strncmp(args[2], "allangles", 9) == 0)
+				entAngles = playerAngles;
+			else
+				entAngles[YAW] = playerAngles[YAW];
+
+			ent.SetAbsAngles(entAngles);
+		}
 	}
 
 }
@@ -1814,6 +2144,39 @@ public partial class BaseEntity : IServerEntity
 	static bool _AllowPrecache;
 	public static bool IsPrecacheAllowed() => _AllowPrecache;
 	public static bool SetAllowPrecache(bool allow) => _AllowPrecache = allow;
+
+	public DebugOverlayBits DebugOverlays;
+	public static bool InDebugSelect = false;
+	public static int DebugPlayer = -1;
+	static bool DebugPause = false;
+	static int DebugSteps = 1;
+
+	public static void Debug_Pause(bool pause) => DebugPause = pause;
+	public static bool Debug_IsPaused() => DebugPause;
+	public static void Debug_SetSteps(int steps) => DebugSteps = steps;
+	public static bool Debug_Step() {
+		if (DebugSteps > 0)
+			DebugSteps--;
+
+		return DebugSteps > 0;
+	}
+
+	public static bool Debug_ShouldStep() => !DebugPause || DebugSteps > 0;
+
+	public bool ReadKeyField(ReadOnlySpan<char> varName, ref Variant_t var) {
+		if (varName.IsEmpty)
+			return false;
+
+		for (DataMap? dmap = GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+			for (int i = 0; i < dmap.DataNumFields; i++)
+				if ((dmap.DataDesc[i].Flags & (FieldTypeDescFlags.Output | FieldTypeDescFlags.Key)) != 0)
+					if (FStrEq(dmap.DataDesc[i].ExternalName, varName)) {
+						var.Set(dmap.DataDesc[i].FieldType, dmap.DataDesc[i].Accessor, this);
+						return true;
+					}
+
+		return false;
+	}
 
 	public static int PrecacheModel(ReadOnlySpan<char> name, bool preload = true) {
 		if (name.IsStringEmpty)

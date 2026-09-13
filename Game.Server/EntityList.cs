@@ -262,6 +262,69 @@ public class GlobalEntityList : BaseEntityList
 		return null;
 	}
 
+	public BaseEntity? FindEntityClassNearestFacing(in Vector3 origin, in Vector3 facing, float threshold, ReadOnlySpan<char> classname) {
+		float bestDot = threshold;
+		BaseEntity? bestEnt = null;
+
+		EntInfo? info = FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.IsPointSized())
+				continue;
+
+			Vector3 toEnt = ent.GetAbsOrigin() - origin;
+
+			MathLib.VectorNormalize(ref toEnt);
+			float dot = MathLib.DotProduct(facing, toEnt);
+			if (dot > bestDot)
+				if (BaseEntity.FClassnameIs(ent, classname))
+					if (!BaseEntity.FClassnameIs(ent, "worldspawn") && !BaseEntity.FClassnameIs(ent, "soundent")) {
+						bestDot = dot;
+						bestEnt = ent;
+					}
+		}
+
+		return bestEnt;
+	}
+
+	public BaseEntity? FindEntityNearestFacing(in Vector3 origin, in Vector3 facing, float threshold) {
+		float bestDot = threshold;
+		BaseEntity? bestEnt = null;
+
+		EntInfo? info = FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.Edict() == null)
+				continue;
+
+			Vector3 toEnt = ent.WorldSpaceCenter() - origin;
+			MathLib.VectorNormalize(ref toEnt);
+
+			float dot = MathLib.DotProduct(facing, toEnt);
+			if (dot <= bestDot)
+				continue;
+
+			if (!FStrEq(ent.Classname, "worldspawn") && !FStrEq(ent.Classname, "soundent")) {
+				bestDot = dot;
+				bestEnt = ent;
+			}
+		}
+
+		return bestEnt;
+	}
+
 	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, IEntityFindFilter filter = null) {
 		if (name.IsEmpty)
 			return null;

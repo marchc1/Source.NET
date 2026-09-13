@@ -405,8 +405,8 @@ public class EventQueue
 	}
 
 	public void ServiceEvents() {
-		// if (!BaseEntity.Debug_ShouldStep())
-		// 	return;
+		if (!BaseEntity.Debug_ShouldStep())
+			return;
 
 		EventQueuePrioritizedEvent? pe = Events.Next;
 
@@ -459,10 +459,10 @@ public class EventQueue
 
 			RemoveEvent(pe);
 
-			// if (BaseEntity.Debug_IsPaused()) {
-			// 	if (!BaseEntity.Debug_Step())
-			// 		break;
-			// }
+			if (BaseEntity.Debug_IsPaused()) {
+				if (!BaseEntity.Debug_Step())
+					break;
+			}
 
 			pe = Events.Next;
 		}
