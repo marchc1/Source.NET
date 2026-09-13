@@ -757,6 +757,7 @@ public partial class
 		}
 	}
 	public void SetRenderColor(byte r, byte g, byte b) => ColorRender = new Color(r, g, b, ColorRender.A);
+	public void SetRenderColor(byte r, byte g, byte b, byte a) => ColorRender = new Color(r, g, b, a);
 	public void SetRenderColorA(byte a) => ColorRender = new Color(ColorRender.R, ColorRender.G, ColorRender.B, a);
 
 	public virtual bool KeyValue(ReadOnlySpan<char> szKeyName, ReadOnlySpan<char> szValue) {

@@ -11,7 +11,6 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System.Buffers;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -440,23 +439,41 @@ public partial class BaseEntity : IServerEntity
 	]);
 
 	public BaseEntity(bool serverOnly = false) {
-		// todo todo
+		CollisionGroup = (int)Source.CollisionGroup.None;
 
 		CollisionProp().Init(this);
 		NetworkProp().Init(this);
 
 		AddEFlags(EFL.NoThinkFunction | EFL.NoGamePhysicsSimulation | EFL.UsePartitionWhenNotSolid);
 
+		Elasticity = 1.0f;
+
+		SetRenderColor(255, 255, 255, 255);
+
+		// TeamNum = InitialTeamNum =Constants.TEAM_UNASSIGNED;
+		LastThinkTick = (int)gpGlobals.TickCount;
+		SimulationTick = -1;
+
+		// SetIdentityMatrix(m_rgflCoordinateFrame);
+
 		SetSolid(SolidType.None);
 		ClearSolidFlags();
 
 		SetMoveType(Source.MoveType.None);
+		SetOwnerEntity(null);
+		// SetCheckUntouch(false);
 		SetModelIndex(0);
+		SetModelName(null);
 
+		SetCollisionBounds(vec3_origin, vec3_origin);
 		ClearFlags();
+
+		// SetFriction(1.0f);
 
 		if (serverOnly)
 			AddEFlags(EFL.ServerOnly);
+
+		// NetworkProp().MarkPVSInformationDirty();
 
 		AddEFlags(EFL.UsePartitionWhenNotSolid);
 	}
@@ -655,7 +672,7 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public void TransformStepData_ParentToWorld(BaseEntity parent) {
+	public void TransformStepData_ParentToWorld(BaseEntity? parent) {
 		// Fix up our step simulation points to be in the proper local space
 		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
 		if (!Unsafe.IsNullRef(ref step)) {
@@ -665,7 +682,7 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public void TransformStepData_ParentToParent(BaseEntity oldParent, BaseEntity newParent) {
+	public void TransformStepData_ParentToParent(BaseEntity? oldParent, BaseEntity newParent) {
 		// Fix up our step simulation points to be in the proper local space
 		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
 		if (!Unsafe.IsNullRef(ref step)) {
@@ -688,8 +705,16 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public void SetParent(string newParent, BaseEntity activator, int attachment = -1) {
+	public void SetParent(string? newParent, BaseEntity activator, int attachment = -1) {
+		BaseEntity? parent = gEntList.FindEntityByName(null, newParent, null, activator);
 
+		if (newParent != null && parent == null)
+			Msg($"Entity {Classname}({GetDebugName()}) has bad parent {newParent}\n");
+		else {
+			if (gEntList.FindEntityByName(parent, newParent, null, activator) != null)
+				Msg($"Entity {Classname}({GetDebugName()}) has amigious parent {newParent}\n");
+			SetParent(parent, attachment);
+		}
 	}
 
 	public void SetParent(BaseEntity? parentEntity, int attachment = -1) {
@@ -880,7 +905,19 @@ public partial class BaseEntity : IServerEntity
 	}
 	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
 
-	public bool IsFloating() => false; // TODO
+	public bool IsFloating() {
+		if (!IsEFlagSet(EFL.TouchingFluid))
+			return false;
+
+		IPhysicsObject? phys = VPhysicsGetObject();
+		if (phys == null)
+			return false;
+
+		int materialIndex = phys.GetMaterialIndex();
+		physprops.GetPhysicsProperties(materialIndex, out float density, out float thickness, out float friction, out float elasticity);
+
+		return density < 1000.0f;
+	}
 
 	public static BaseEntity? Instance(Edict? ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
@@ -1710,7 +1747,7 @@ public partial class BaseEntity : IServerEntity
 		if (ParentAttachment != 0)
 			ParentAttachment = 0;
 
-		SetParent(inputdata.Value.StringID()!, inputdata.Activator!);
+		SetParent(inputdata.Value.StringID(), inputdata.Activator!);
 	}
 
 	public void InputClearParent(InputData inputdata) => SetParent(null);
@@ -2121,10 +2158,7 @@ public partial class BaseEntity : IServerEntity
 		enginetrace.EnumerateEntities(ray, true, ref triggerTraceEnum);
 	}
 
-	public virtual void Think() {
-		if (FnThink != null)
-			FnThink(this);
-	}
+	public virtual void Think() => FnThink?.Invoke(this);
 
 	public virtual EntityCapabilities ObjectCaps() {
 		Model? model = GetModel();
@@ -2227,7 +2261,7 @@ public partial class BaseEntity : IServerEntity
 	public virtual EdictFlags UpdateTransmitState() {
 		Assert(g_InsideDispatchUpdateTransmitState > 0);
 
-		if (IsEffectActive(EntityEffects.NoDraw) /*&& !MoveChild.Get()*/)
+		if (IsEffectActive(EntityEffects.NoDraw) && MoveChild.Get() == null)
 			return SetTransmitState(EdictFlags.DontSend);
 
 		if (!IsEFlagSet(EFL.ForceCheckTransmit)) {
@@ -2285,8 +2319,7 @@ public class PointEntity : BaseEntity
 		SetSolid(Source.SolidType.None);
 	}
 
-	// todo
-	// public override EntityCapabilities ObjectCaps() => base.ObjectCaps() & ~EntityCapabilities.AcrossTransition;
+	public override EntityCapabilities ObjectCaps() => base.ObjectCaps() & ~EntityCapabilities.AcrossTransition;
 }
 
 public class ServerOnlyEntity : BaseEntity
