@@ -699,7 +699,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public bool IsConnected() => SignOnState >= SignOnState.Connected;
-	public void Disconnect(ReadOnlySpan<char> str) {
+	public virtual void Disconnect(ReadOnlySpan<char> str) {
 		if (SignOnState == SignOnState.None)
 			return;
 

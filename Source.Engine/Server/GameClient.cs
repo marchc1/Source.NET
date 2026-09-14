@@ -235,7 +235,32 @@ public class GameClient : BaseClient
 		base.Reconnect();
 	}
 
-	// void Disconnect(ReadOnlySpan<char> fmt) { }
+	public override void ConnectionClosing(ReadOnlySpan<char> reason) {
+		// SV_RedirectEnd();
+		// Check for printf format tokens in this reason string. Crash exploit.
+		Disconnect(!reason.IsEmpty && reason.IndexOf('%') < 0 ? reason : "Connection closing");
+	}
+
+	public override void Disconnect(ReadOnlySpan<char> reason) {
+		if (SignOnState == SignOnState.None)
+			return; // no recursion
+
+		// notify other clients of player leaving the game
+		// send the username and network id so we don't depend on the BasePlayer pointer
+		IGameEvent? evnt = gameEventManager.CreateEvent("player_disconnect");
+		if (evnt != null) {
+			evnt.SetInt("userid", GetUserID());
+			evnt.SetString("reason", reason);
+			evnt.SetString("name", GetClientName());
+			evnt.SetString("networkid", GetNetworkIDString());
+			evnt.SetInt("bot", IsFakeClient() ? 1 : 0);
+			gameEventManager.FireEvent(evnt);
+		}
+
+		Server.RemoveClientFromGame(this);
+
+		base.Disconnect(reason);
+	}
 
 	protected override bool SetSignOnState(SignOnState state, int spawncount) {
 		if (state == SignOnState.Connected) {
