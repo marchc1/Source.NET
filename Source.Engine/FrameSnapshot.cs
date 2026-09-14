@@ -325,7 +325,7 @@ public class FrameSnapshotManager
 	}
 
 	readonly LinkedList<FrameSnapshot> FrameSnapshots = [];
-	readonly ClassMemoryPool<PackedEntity> PackedEntitiesPool = new();
+	readonly ObjectPool<PackedEntity> PackedEntitiesPool = new();
 
 	int PackedEntityCacheCounter;
 	readonly List<UnpackedDataCache> PackedEntityCache = [];
