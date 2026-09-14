@@ -380,39 +380,6 @@ public class ObjectPool<T> where T : IPoolableObject, new()
 	}
 }
 
-public class ClassMemoryPool<T> where T : class, new()
-{
-	public static readonly ClassMemoryPool<T> Shared = new();
-
-	readonly ConcurrentDictionary<T, bool> valueStates = [];
-
-	public T Alloc() {
-		foreach (var kvp in valueStates) {
-			if (kvp.Value == false) { // We found something free
-				valueStates[kvp.Key] = true;
-				return kvp.Key;
-			}
-		}
-
-		// Make an new instance of the class
-		var instance = new T();
-		valueStates[instance] = true;
-		return instance;
-	}
-
-	public bool IsMemoryPoolAllocated(T value) => valueStates.TryGetValue(value, out _);
-	public void Free(T value) {
-		if (!valueStates.TryGetValue(value, out bool state))
-			AssertMsg(false, $"Passed an instance of {typeof(T).Name} to {nameof(Free)}(T value) that was not allocated by {nameof(Alloc)}()");
-		else if (state == false)
-			AssertMsg(false, $"Attempted to free {typeof(T).Name} instance twice in ClassPool<T>, please verify\n");
-		else {
-			value.ClearInstantiatedReference();
-			valueStates[value] = false;
-		}
-	}
-}
-
 public sealed class PooledLinkedList<T> where T : struct
 {
 	struct Node
