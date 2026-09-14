@@ -1328,7 +1328,7 @@ public partial class Host
 		}
 #endif
 
-		// modelloader.UnloadUnreferencedModels();
+		modelloader.UnloadUnreferencedModels();
 
 		// TimeLastMemTest = 0;
 	}

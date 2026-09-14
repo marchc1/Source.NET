@@ -1963,6 +1963,51 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 	}
 
+	public void UnloadUnreferencedModels() {
+		// unload all unreferenced models
+		UnloadAllModels(true);
+	}
+
+	void UnloadAllModels(bool checkReference) {
+		foreach (Model model in Models.Values) {
+			if (checkReference) {
+				if ((model.LoadFlags & ModelLoaderFlags.ReferenceMask) != 0)
+					continue;
+			}
+			else
+				model.LoadFlags &= ~ModelLoaderFlags.ReferenceMask;
+
+			if ((model.LoadFlags & (ModelLoaderFlags.Loaded | ModelLoaderFlags.LoadedByPreload)) != 0)
+				UnloadModel(model);
+		}
+	}
+
+	void UnloadModel(Model model) {
+		switch (model.Type) {
+			case ModelType.Brush:
+				// Let it free data or call destructors..
+				Map_UnloadModel(model);
+
+				// Remove from file system
+				fileSystem.RemoveSearchPath(model.StrName, "GAME");
+
+				ActiveMapName[0] = '\0';
+				break;
+			case ModelType.Studio:
+				// todo
+				break;
+
+			case ModelType.Sprite:
+				// todo
+				break;
+		}
+	}
+
+	void Map_UnloadModel(Model mod) {
+		Assert((mod.LoadFlags & ModelLoaderFlags.ReferenceMask) == 0);
+		mod.LoadFlags &= ~ModelLoaderFlags.Loaded;
+	}
+
 	public Model? ReferenceModel(ReadOnlySpan<char> name, ModelLoaderFlags referenceType) {
 		AssertMsg(0 == (referenceType & ModelLoaderFlags.Dynamic), "ReferenceModel: do not use for dynamic models");
 

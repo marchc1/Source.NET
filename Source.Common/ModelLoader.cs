@@ -31,6 +31,7 @@ public interface IModelLoader {
 	void UnreferenceAllModels(ModelLoaderFlags referenceType);
 	void ResetModelServerCounts();
 	void PurgeUnusedModels();
+	void UnloadUnreferencedModels();
 	void Shutdown();
 	bool Map_IsValid(ReadOnlySpan<char> mapFile, bool quiet = false);
 }
