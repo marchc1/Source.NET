@@ -135,14 +135,14 @@ public class HostState : IHostState
 
 	void IHostState.ChangeLevelSP(ReadOnlySpan<char> newLevel, ReadOnlySpan<char> landmarkName) {
 		strcpy(LevelName, newLevel);
-		strcpy(LevelName, landmarkName);
+		strcpy(LandmarkName, landmarkName);
 		SetNextState(HostStates.ChangeLevelSP);
 	}
 
 	void IHostState.ChangeLevelMP(ReadOnlySpan<char> newLevel, ReadOnlySpan<char> landmarkName) {
 		// Steam3Server().NotifyOfLevelChange();
 		strcpy(LevelName, newLevel);
-		strcpy(LevelName, landmarkName);
+		strcpy(LandmarkName, landmarkName);
 		SetNextState(HostStates.ChangeLevelMP);
 	}
 
