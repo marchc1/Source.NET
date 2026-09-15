@@ -57,6 +57,7 @@ public struct VertexFormatList
 	public ushort NumBatches;
 	public ushort FirstBatch;
 	public IMesh? Mesh;
+	public int MeshOrder;
 }
 
 public struct BatchList
@@ -455,19 +456,32 @@ public static class GLRSurf
 	public static void Shader_SetChainTextureState(IMatRenderContext renderContext, SurfaceHandle_t surfID, IClientEntity? baseEntity, bool shadowDepth) => throw new NotImplementedException();
 	public static void Shader_DrawDynamicChain(in MSurfaceSortList sortList, in SurfaceSortGroup group, bool shadowDepth) => throw new NotImplementedException();
 	public static void Shader_DrawChainsDynamic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) => throw new NotImplementedException();
+
+	static InlineArray256<VertexFormatList> s_meshList;
+	static InlineArray256<int> s_meshMap;
+	static readonly List<BatchList> s_batchList = new(512);
+	static readonly List<SurfaceSortGroup> s_dynamicGroups = new(8);
+
 	public static void Shader_DrawChainsStatic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) {
-		List<VertexFormatList> meshList = [];
-		InlineArray256<int> meshMap = new();
-		List<BatchList> batchList = [];
-		List<SurfaceSortGroup> dynamicGroups = [];
+		int meshListCount = 0;
+		ref InlineArray256<VertexFormatList> meshList = ref s_meshList;
+
+		ref InlineArray256<int> meshMap = ref s_meshMap;
+
+		List<BatchList> batchList = s_batchList;
+		List<SurfaceSortGroup> dynamicGroups = s_dynamicGroups;
+
+		batchList.Clear();
+		dynamicGroups.Clear();
+
 		bool bWarn = true;
 
 		bool skipBind = false;
 		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1)
 			skipBind = true;
 
-		List<SurfaceSortGroup> groupList = sortList.GetSortList(sortGroup);
-		int count = groupList.Count;
+		Span<SurfaceSortGroup> groupList = sortList.GetSortList(sortGroup).AsSpan();
+		int count = groupList.Length;
 
 		int listIndex = 0;
 
@@ -475,7 +489,7 @@ public static class GLRSurf
 
 		int nMaxIndices = renderContext.GetMaxIndicesToRender();
 		while (listIndex < count) {
-			SurfaceSortGroup groupBase = groupList[listIndex];
+			ref SurfaceSortGroup groupBase = ref groupList[listIndex];
 			ref BSPMSurface2 surfIDBase = ref sortList.GetSurfaceAtHead(in groupBase);
 			int sortIDBase = ModelLoader.MSurf_MaterialSortID(ref surfIDBase);
 			IMesh pBuildMesh = renderContext.GetDynamicMesh(false, MatSys.WorldStaticMeshes[sortIDBase]);
@@ -486,7 +500,7 @@ public static class GLRSurf
 			int meshIndex = -1;
 
 			for (; listIndex < count; listIndex++) {
-				SurfaceSortGroup group = groupList[listIndex];
+				ref SurfaceSortGroup group = ref groupList[listIndex];
 				ref BSPMSurface2 surfID = ref sortList.GetSurfaceAtHead(in group);
 				if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.Dynamic) != 0) {
 					dynamicGroups.Add(group);
@@ -508,11 +522,11 @@ public static class GLRSurf
 				int sortID = ModelLoader.MSurf_MaterialSortID(ref surfID);
 
 				if (!ReferenceEquals(MatSys.WorldStaticMeshes[sortID], lastMesh)) {
-					if (meshList.Count < MAX_VERTEX_FORMAT_CHANGES - 1) {
+					if (meshListCount < MAX_VERTEX_FORMAT_CHANGES - 1) {
 						lastMesh = MatSys.WorldStaticMeshes[sortID];
 						Assert(lastMesh != null);
-						meshList.Add(new VertexFormatList { NumBatches = 0, FirstBatch = (ushort)batchList.Count, Mesh = lastMesh });
-						meshIndex = meshList.Count - 1;
+						meshList[meshListCount++] = new VertexFormatList { NumBatches = 0, FirstBatch = (ushort)batchList.Count, Mesh = lastMesh, MeshOrder = RuntimeHelpers.GetHashCode(lastMesh) };
+						meshIndex = meshListCount - 1;
 					}
 					else {
 						if (bWarn) {
@@ -527,7 +541,7 @@ public static class GLRSurf
 				Assert(indexCount + numIndex < nMaxIndices);
 				indexCount += numIndex;
 
-				meshList.AsSpan()[meshIndex].NumBatches++;
+				meshList[meshIndex].NumBatches++;
 
 				for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = sortList.GetSurfaceBlock(blockIndex).NextBlock) {
 					ref MaterialList matList = ref sortList.GetSurfaceBlock(blockIndex);
@@ -540,7 +554,7 @@ public static class GLRSurf
 
 			meshBuilder.End(false, false);
 
-			int meshTotal = meshList.Count;
+			int meshTotal = meshListCount;
 
 			for (int i = 0; i < meshTotal; i++) {
 				meshMap[i] = i;
@@ -550,7 +564,7 @@ public static class GLRSurf
 			while (swapped) {
 				swapped = false;
 				for (int i = 1; i < meshTotal; i++) {
-					if (RuntimeHelpers.GetHashCode(meshList[meshMap[i]].Mesh) < RuntimeHelpers.GetHashCode(meshList[meshMap[i - 1]].Mesh)) {
+					if (meshList[meshMap[i]].MeshOrder < meshList[meshMap[i - 1]].MeshOrder) {
 						(meshMap[i - 1], meshMap[i]) = (meshMap[i], meshMap[i - 1]);
 						swapped = true;
 					}
@@ -558,14 +572,15 @@ public static class GLRSurf
 			}
 
 			renderContext.BeginBatch(pBuildMesh);
+			Span<BatchList> batchL = batchList.AsSpan();
 			for (int m = 0; m < meshTotal; m++) {
-				VertexFormatList mesh = meshList[meshMap[m]];
-				IMaterial? pBindMaterial = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batchList[mesh.FirstBatch].SurfID))].Material;
+				ref VertexFormatList mesh = ref meshList[meshMap[m]];
+				IMaterial? pBindMaterial = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batchL[mesh.FirstBatch].SurfID))].Material;
 				Assert(mesh.Mesh != null);
 				renderContext.BindBatch(mesh.Mesh!, pBindMaterial);
 
 				for (int b = 0; b < mesh.NumBatches; b++) {
-					BatchList batch = batchList[b + mesh.FirstBatch];
+					ref BatchList batch = ref batchL[b + mesh.FirstBatch];
 					IMaterial pDrawMaterial = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batch.SurfID))].Material!;
 
 					if (shadowDepth) {
@@ -592,12 +607,12 @@ public static class GLRSurf
 			if (lastMesh != null || meshTotal == 0)
 				break;
 
-			meshList.Clear();
+			meshListCount = 0;
 			batchList.Clear();
 		}
-		for (int i = 0; i < dynamicGroups.Count; i++) {
+
+		for (int i = 0; i < dynamicGroups.Count; i++)
 			Shader_DrawDynamicChain(sortList, dynamicGroups[i], shadowDepth);
-		}
 	}
 
 	public static void DrawSurfaceID(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
@@ -774,7 +789,7 @@ public static class GLRSurf
 		for (int sortGroup = 0; sortGroup < (int)MatSortGroup.Max; ++sortGroup) {
 			for (int i = renderList.DlightSurfaces[sortGroup].Count - 1; i >= 0; --i) {
 				Render.LightmapUpdateInfo tmp = default;
-				tmp.SurfaceData = host_state.WorldBrush!.Surfaces2.AsMemory();
+				tmp.SurfaceData = host_state.WorldBrush!.Surfaces2;
 				tmp.SurfaceIndex = renderList.DlightSurfaces[sortGroup][i];
 				tmp.TransformIndex = 0;
 				Render.g_LightmapUpdateList.Add(tmp);
