@@ -464,9 +464,8 @@ public static class GLRSurf
 
 	public static void Shader_DrawChainsStatic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) {
 		int meshListCount = 0;
-		ref InlineArray256<VertexFormatList> meshList = ref s_meshList;
-
-		ref InlineArray256<int> meshMap = ref s_meshMap;
+		Span<VertexFormatList> meshList = s_meshList;
+		Span<int> meshMap = s_meshMap;
 
 		List<BatchList> batchList = s_batchList;
 		List<SurfaceSortGroup> dynamicGroups = s_dynamicGroups;

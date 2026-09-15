@@ -1690,19 +1690,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	readonly int[] LastBoundTextures = new int[(int)Sampler.MaxSamplers];
-	int lastActiveTexture = -1;
 	public void BindTexture(Sampler sampler, ShaderAPITextureHandle_t textureHandle) {
-		CombobulateShadersIfChanged();
 		if (textureHandle == INVALID_SHADERAPI_TEXTURE_HANDLE)
 			return; // TODO: can we UNSET the sampler???
 
 		if (LastBoundTextures[(int)sampler] != textureHandle) {
-			int tex = GL_TEXTURE0 + (int)sampler;
-			if (tex != lastActiveTexture) {
-				glActiveTexture(tex);
-				lastActiveTexture = tex;
-			}
-			glBindTexture(GetTexture(textureHandle).DetermineGLObjectType(), GetGL46Texture(textureHandle));
+			glBindTextureUnit((uint)sampler, GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
 		}
 
