@@ -340,8 +340,6 @@ public unsafe class MeshGl46 : IMesh
 		Assert(Type != MaterialPrimitiveType.Heterogenous);
 
 		MeshGl46? colorMesh = (MeshGl46?)ColorMesh;
-		if (colorMesh != null)
-			VertexBuffer!.BindColorMesh(colorMesh.VertexBuffer!, ColorMeshVertOffsetInBytes);
 
 		bool bound = false;
 		for (int iPrim = 0; iPrim < s_PrimsCount; iPrim++) {
@@ -358,18 +356,17 @@ public unsafe class MeshGl46 : IMesh
 
 				CheckIndices(pPrim, numPrimitives);
 				if (!bound) {
-					uint vao = VertexBuffer!.VAO();
-					uint ibo = IndexBuffer!.IBO();
-					glVertexArrayElementBuffer(vao, ibo);
-					glBindVertexArray(vao);
+					uint vao = ((ShaderAPIGl46)ShaderAPI).CurrentVertexDecl;
+					glVertexArrayVertexBuffer(vao, 0, VertexBuffer!.VBO(), 0, VertexBuffer.VertexSize);
+					if (colorMesh != null)
+						glVertexArrayVertexBuffer(vao, 1, colorMesh.VertexBuffer!.VBO(), ColorMeshVertOffsetInBytes, colorMesh.VertexBuffer.VertexSize);
+
+					glVertexArrayElementBuffer(vao, IndexBuffer!.IBO());
 					bound = true;
 				}
 				glDrawElements(Mode, pPrim->NumIndices, GL_UNSIGNED_SHORT, (void*)(pPrim->FirstIndex * 2));
 			}
 		}
-
-		if (colorMesh != null)
-			VertexBuffer!.UnbindColorMesh();
 	}
 
 	public static int ComputeMode(MaterialPrimitiveType type) {

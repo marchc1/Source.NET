@@ -25,6 +25,8 @@ using System.Threading;
 
 namespace Source.ShaderAPI.Gl46;
 
+using OpenGL_ShaderInputAttribute = VertexBufferGl46.OpenGL_ShaderInputAttribute;
+
 /// <summary>
 /// Standardized OpenGL UBO binding locations. All uniform buffers are loaded with layout std140
 /// </summary>
@@ -43,7 +45,21 @@ public enum UniformBufferBindingLocation
 	/// <summary><b>source_vs_constants</b>: Vertex shader float constants.</summary>
 	VertexShaderConstants = 5,
 	/// <summary><b>source_ps_constants</b>: Pixel shader float constants.</summary>
-	PixelShaderConstants = 6
+	PixelShaderConstants = 6,
+	Count = 7
+}
+
+public static class UniformBufferBindings
+{
+	static readonly uint[] LastBound = new uint[(int)UniformBufferBindingLocation.Count];
+
+	public static void Bind(UniformBufferBindingLocation location, uint buffer) {
+		if (LastBound[(int)location] == buffer)
+			return;
+
+		LastBound[(int)location] = buffer;
+		glBindBufferBase(GL_UNIFORM_BUFFER, (uint)location, buffer);
+	}
 }
 
 public struct GfxViewport
@@ -202,7 +218,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		uboMatrices = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboMatrices, "ShaderAPI Shared Matrix UBO");
 		glNamedBufferData(uboMatrices, sizeof(Matrix4x4) * 3, null, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedMatrices, uboMatrices);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.SharedMatrices, uboMatrices);
 
 		uboBones = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboBones, "ShaderAPI Shared Bone UBO");
@@ -212,17 +228,17 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			identityMatrices[i] = Matrix4x4.Identity;
 
 		glNamedBufferData(uboBones, sizeof(Matrix4x4) * Studio.MAXSTUDIOBONES, identityMatrices, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
 
 		uboVertexConstants = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboVertexConstants, "ShaderAPI Vertex Shader Constants UBO");
 		glNamedBufferData(uboVertexConstants, sizeof(float) * NUM_VERTEX_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.VertexShaderConstants, uboVertexConstants);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.VertexShaderConstants, uboVertexConstants);
 
 		uboPixelConstants = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboPixelConstants, "ShaderAPI Pixel Shader Constants UBO");
 		glNamedBufferData(uboPixelConstants, sizeof(float) * NUM_PIXEL_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.PixelShaderConstants, uboPixelConstants);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.PixelShaderConstants, uboPixelConstants);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -454,25 +470,39 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) {
+		if (StencilCompareFunction == cmpfn)
+			return;
+
 		FlushBufferedPrimitives();
 		StencilCompareFunction = cmpfn;
 		ApplyStencilFunc();
 	}
 
 	public void SetStencilReferenceValue(int reference) {
+		if (StencilReferenceValue == reference)
+			return;
+
 		FlushBufferedPrimitives();
 		StencilReferenceValue = reference;
 		ApplyStencilFunc();
 	}
 
 	public void SetStencilTestMask(uint msk) {
+		if (StencilTestMask == msk)
+			return;
+
 		FlushBufferedPrimitives();
 		StencilTestMask = msk;
 		ApplyStencilFunc();
 	}
 
+	uint StencilWriteMask = 0xFFFFFFFF;
 	public void SetStencilWriteMask(uint msk) {
+		if (StencilWriteMask == msk)
+			return;
+
 		FlushBufferedPrimitives();
+		StencilWriteMask = msk;
 		glStencilMask(msk);
 	}
 
@@ -888,8 +918,148 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	}
 
-	private void SetVertexDecl(VertexFormat vertexFormat, bool hasColorMesh, bool hasFleshMesh, bool usingMorph) {
-		// Gl46.glVertexAttribPointer() i think we need here
+	[Flags]
+	enum VertexDeclLookupFlags
+	{
+		StaticLit = 0x1,
+		UsingMorph = 0x2,
+		UsingFlex = 0x4
+	}
+
+	readonly record struct VertexDeclLookup(VertexFormat VertexFormat, VertexDeclLookupFlags Flags);
+
+	readonly Dictionary<VertexDeclLookup, int> VertexDeclDict = [];
+	int currentVertexDecl = -1;
+
+	internal uint CurrentVertexDecl => currentVertexDecl > 0 ? (uint)currentVertexDecl : throw new NullReferenceException("Vertex Array Object was null");
+
+	int FindOrCreateVertexDecl(VertexFormat fmt, bool staticLit, bool usingFlex, bool usingMorph) {
+		VertexDeclLookupFlags flags = 0;
+		if (staticLit)
+			flags |= VertexDeclLookupFlags.StaticLit;
+		if (usingMorph)
+			flags |= VertexDeclLookupFlags.UsingMorph;
+		if (usingFlex)
+			flags |= VertexDeclLookupFlags.UsingFlex;
+
+		VertexDeclLookup lookup = new(fmt, flags);
+		if (VertexDeclDict.TryGetValue(lookup, out int found))
+			return found;
+
+		int vao = (int)glCreateVertexArray();
+		glObjectLabel(GL_VERTEX_ARRAY, (uint)vao, "MaterialSystem VertexDecl");
+		ConfigureVertexDecl((uint)vao, fmt, staticLit);
+		VertexDeclDict[lookup] = vao;
+		return vao;
+	}
+
+	private void SetVertexDecl(VertexFormat vertexFormat, bool hasColorMesh, bool hasFlexMesh, bool usingMorph) {
+		int decl = FindOrCreateVertexDecl(vertexFormat, hasColorMesh, hasFlexMesh, usingMorph);
+
+		if (decl != currentVertexDecl) {
+			glBindVertexArray((uint)decl);
+			currentVertexDecl = decl;
+		}
+	}
+
+	static void ConfigureVertexDecl(uint vao, VertexFormat format, bool staticLit) {
+		int offset = 0;
+
+		Span<uint> bindings = stackalloc uint[64];
+		int bindingsPtr = 0;
+
+		void ConfigureAttribute(Span<uint> bindings, OpenGL_ShaderInputAttribute attr, VertexElement element, int size) {
+			element.GetInformation(out int count, out VertexAttributeType type);
+			int elementSize = count * (int)type.SizeOf();
+
+			glEnableVertexArrayAttrib(vao, (uint)attr);
+			// These specific checks are annoying...
+			bool normalize = attr == OpenGL_ShaderInputAttribute.Color;
+			if (attr == OpenGL_ShaderInputAttribute.BoneIndex)
+				glVertexArrayAttribIFormat(vao, (uint)attr, count, (int)type, (uint)offset);
+			else
+				glVertexArrayAttribFormat(vao, (uint)attr, count, (int)type, normalize, (uint)offset);
+			bindings[bindingsPtr++] = (uint)attr;
+			offset += elementSize;
+		}
+
+		if ((format & VertexFormat.Position) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Position, VertexElement.Position, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Position);
+
+		if ((format & VertexFormat.BoneIndex) != 0) {
+			int numBoneWeights = format.GetBoneWeightsSize();
+			if (numBoneWeights > 0) {
+				VertexElement boneWeightElement = VertexElement.BoneWeights1 + (numBoneWeights - 1);
+				ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneWeights, boneWeightElement, numBoneWeights);
+			}
+			else
+				glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
+
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneIndex, VertexElement.BoneIndex, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneIndex);
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
+		}
+
+		if ((format & VertexFormat.Normal) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Normal, VertexElement.Normal, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Normal);
+
+		if ((format & VertexFormat.Color) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Color, VertexElement.Color, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Color);
+
+		if (staticLit) {
+			VertexElement.Specular.GetInformation(out int specularCount, out VertexAttributeType specularType);
+			glEnableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+			glVertexArrayAttribFormat(vao, (uint)OpenGL_ShaderInputAttribute.Specular, specularCount, (int)specularType, true, 0);
+			glVertexArrayAttribBinding(vao, (uint)OpenGL_ShaderInputAttribute.Specular, 1);
+		}
+		else if ((format & VertexFormat.Specular) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Specular, VertexElement.Specular, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+
+		Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
+		for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
+			int texCoordSize = format.GetTexCoordDimensionSize(i);
+			if (texCoordSize > 0) {
+				VertexElement element = (VertexElement)((int)texCoordElements[texCoordSize - 1] + i);
+				ConfigureAttribute(bindings, (OpenGL_ShaderInputAttribute)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i), element, texCoordSize);
+			}
+			else
+				glDisableVertexArrayAttrib(vao, (uint)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i));
+		}
+
+		if ((format & VertexFormat.TangentS) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentS, VertexElement.TangentS, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentS);
+
+		if ((format & VertexFormat.TangentT) != 0)
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentT, VertexElement.TangentT, 1);
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentT);
+
+		int userDataSize = format.GetUserDataSize();
+		if (userDataSize > 0) {
+			VertexElement element = VertexElement.UserData1 + (userDataSize - 1);
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.UserData, element, userDataSize);
+		}
+		else
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.UserData);
+
+		// todo
+		glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Wrinkle);
+
+		Assert(bindingsPtr < bindings.Length);
+		for (int i = 0; i < bindingsPtr; i++)
+			glVertexArrayAttribBinding(vao, bindings[i], 0);
 	}
 
 	public IMesh GetDynamicMesh(IMaterial material, int hwSkinBoneCount, bool buffered, IMesh? vertexOverride, IMesh? indexOverride) {
@@ -1376,6 +1546,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public unsafe void LoadMatrix(in Matrix4x4 m4x4) {
+		if (Matrices[(int)currentMode] == m4x4)
+			return;
+
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)currentMode * szm4x4;
 		Matrices[(int)currentMode] = m4x4;
@@ -1441,11 +1614,30 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public nint GetCurrentProgram() => (nint)CombobulateShadersIfChanged();
 	uint GetCurrentProgramInternal() => CombobulateShadersIfChanged();
 
+	readonly Dictionary<uint, Dictionary<int, float[]>> uniformValues = [];
+	bool UniformChanged(int uniform, ReadOnlySpan<float> values, out uint program) {
+		program = GetCurrentProgramInternal();
+
+		if (!uniformValues.TryGetValue(program, out var cache))
+			cache = uniformValues[program] = [];
+
+		if (cache.TryGetValue(uniform, out float[]? last) && values.SequenceEqual(last))
+			return false;
+
+		if (last == null || last.Length != values.Length)
+			cache[uniform] = last = new float[values.Length];
+
+		values.CopyTo(last);
+		return true;
+	}
+
 	public void SetShaderUniform(int uniform, int integer) {
+		if (!UniformChanged(uniform, [BitConverter.Int32BitsToSingle(integer)], out uint program))
+			return;
 #if GL_DEBUG
 		int i = glGetError();
 #endif
-		glProgramUniform1i(GetCurrentProgramInternal(), uniform, integer);
+		glProgramUniform1i(program, uniform, integer);
 #if GL_DEBUG
 		if ((i = glGetError()) != 0)
 			AssertMsg(false, $"GL error {i}");
@@ -1453,15 +1645,24 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void SetShaderUniform(int uniform, uint integer) {
-		glProgramUniform1ui(GetCurrentProgramInternal(), uniform, integer);
+		if (!UniformChanged(uniform, [BitConverter.UInt32BitsToSingle(integer)], out uint program))
+			return;
+
+		glProgramUniform1ui(program, uniform, integer);
 	}
 
 	public void SetShaderUniform(int uniform, float fl) {
-		glProgramUniform1f(GetCurrentProgramInternal(), uniform, fl);
+		if (!UniformChanged(uniform, [fl], out uint program))
+			return;
+
+		glProgramUniform1f(program, uniform, fl);
 	}
 
 	public void SetShaderUniform(int uniform, ReadOnlySpan<float> flConsts) {
-		glProgramUniform1fv(GetCurrentProgramInternal(), uniform, flConsts);
+		if (!UniformChanged(uniform, flConsts, out uint program))
+			return;
+
+		glProgramUniform1fv(program, uniform, flConsts);
 	}
 
 	const int GL_TEXTURE_SRGB_DECODE_EXT = 0x8A48;
@@ -1509,7 +1710,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		// texture is shared by shaders that disagree, so skip the decode when the shadow state wants linear.
 		if (SupportsSRGBDecode()) {
 			bool srgbRead = currentShadow != null && currentShadow.State.SamplerState[(int)sampler].SRGBReadEnable;
-			glTextureParameteri(GetGL46Texture(textureHandle), GL_TEXTURE_SRGB_DECODE_EXT, srgbRead ? GL_DECODE_EXT : GL_SKIP_DECODE_EXT);
+			int decode = srgbRead ? GL_DECODE_EXT : GL_SKIP_DECODE_EXT;
+			InternalTextureInfo info = GetTexture(textureHandle);
+			if (info.LastSRGBDecode != decode) {
+				glTextureParameteri(GetGL46Texture(textureHandle), GL_TEXTURE_SRGB_DECODE_EXT, decode);
+				info.LastSRGBDecode = decode;
+			}
 		}
 	}
 
@@ -1788,6 +1994,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		public nuint SizeBytes;
 		public int SizeTexels;
+		internal int LastSRGBDecode = -1;
 		internal ulong LastBoundFrame;
 		internal int TimesBoundMax;
 		internal int TimesBoundThisFrame;
@@ -2122,37 +2329,65 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	ulong lastBoardUploadHash;
+	GraphicsBoardState lastBoardState;
+	bool boardStateValid;
 	public bool SetBoardState(in GraphicsBoardState state) {
 		ulong currHash = state.Hash();
 		if (currHash != lastBoardUploadHash) {
-			glToggle(GL_BLEND, state.Blending);
+			ref GraphicsBoardState last = ref lastBoardState;
+			bool force = !boardStateValid;
+
+			if (force || state.Blending != last.Blending)
+				glToggle(GL_BLEND, state.Blending);
 
 			if (state.AlphaSeparateBlend) {
-				glBlendFuncSeparate(state.SourceBlend.GLEnum(), state.DestinationBlend.GLEnum(), state.AlphaSourceBlend.GLEnum(), state.AlphaDestinationBlend.GLEnum());
-				glBlendEquationSeparate(state.BlendOperation.GLEnum(), state.AlphaBlendOperation.GLEnum());
+				if (force || state.SourceBlend != last.SourceBlend || state.DestinationBlend != last.DestinationBlend || state.AlphaSourceBlend != last.AlphaSourceBlend || state.AlphaDestinationBlend != last.AlphaDestinationBlend || !last.AlphaSeparateBlend)
+					glBlendFuncSeparate(state.SourceBlend.GLEnum(), state.DestinationBlend.GLEnum(), state.AlphaSourceBlend.GLEnum(), state.AlphaDestinationBlend.GLEnum());
+
+				if (force || state.BlendOperation != last.BlendOperation || state.AlphaBlendOperation != last.AlphaBlendOperation || !last.AlphaSeparateBlend)
+					glBlendEquationSeparate(state.BlendOperation.GLEnum(), state.AlphaBlendOperation.GLEnum());
 			}
 			else {
-				glBlendFunc(state.SourceBlend.GLEnum(), state.DestinationBlend.GLEnum());
-				glBlendEquation(state.BlendOperation.GLEnum());
+				if (force || state.SourceBlend != last.SourceBlend || state.DestinationBlend != last.DestinationBlend || last.AlphaSeparateBlend)
+					glBlendFunc(state.SourceBlend.GLEnum(), state.DestinationBlend.GLEnum());
+
+				if (force || state.BlendOperation != last.BlendOperation || last.AlphaSeparateBlend)
+					glBlendEquation(state.BlendOperation.GLEnum());
 			}
 
-			glColorMask(state.ColorWrite, state.ColorWrite, state.ColorWrite, state.AlphaWrite);
+			if (force || state.ColorWrite != last.ColorWrite || state.AlphaWrite != last.AlphaWrite)
+				glColorMask(state.ColorWrite, state.ColorWrite, state.ColorWrite, state.AlphaWrite);
 
-			glToggle(GL_DEPTH_TEST, state.DepthTest);
-			glDepthMask(state.DepthWrite);
-			glDepthFunc(state.DepthFunc.GLEnum());
+			if (force || state.DepthTest != last.DepthTest)
+				glToggle(GL_DEPTH_TEST, state.DepthTest);
 
-			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
-			glToggle(GL_CULL_FACE, state.CullEnable);
-			glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
-			glToggle(GL_FRAMEBUFFER_SRGB, state.SRGBWriteEnable);
+			if (force || state.DepthWrite != last.DepthWrite)
+				glDepthMask(state.DepthWrite);
+
+			if (force || state.DepthFunc != last.DepthFunc)
+				glDepthFunc(state.DepthFunc.GLEnum());
+
+			if (force || state.FillMode != last.FillMode)
+				glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
+
+			if (force || state.CullEnable != last.CullEnable)
+				glToggle(GL_CULL_FACE, state.CullEnable);
+
+			if (force || state.AlphaToCoverage != last.AlphaToCoverage)
+				glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
+
+			if (force || state.SRGBWriteEnable != last.SRGBWriteEnable)
+				glToggle(GL_FRAMEBUFFER_SRGB, state.SRGBWriteEnable);
 
 			bool polyOffsetEnabled = state.ZBias != PolygonOffsetMode.Disable;
-			glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
-			glToggle(GL_POLYGON_OFFSET_LINE, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Line);
-			glToggle(GL_POLYGON_OFFSET_POINT, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Point);
+			bool lastPolyOffsetEnabled = last.ZBias != PolygonOffsetMode.Disable;
+			if (force || polyOffsetEnabled != lastPolyOffsetEnabled || state.FillMode != last.FillMode) {
+				glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
+				glToggle(GL_POLYGON_OFFSET_LINE, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Line);
+				glToggle(GL_POLYGON_OFFSET_POINT, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Point);
+			}
 
-			if (polyOffsetEnabled) {
+			if (polyOffsetEnabled && (force || state.ZBias != last.ZBias)) {
 				float factor = 0.0f;
 				float units = 0.0f;
 
@@ -2168,6 +2403,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_LOW, "A board state write occured.");
 #endif
 			lastBoardUploadHash = currHash;
+			lastBoardState = state;
+			boardStateValid = true;
 			return true;
 		}
 		return false;

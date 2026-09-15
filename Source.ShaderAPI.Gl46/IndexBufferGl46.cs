@@ -78,14 +78,14 @@ public unsafe class IndexBufferGl46 : IDisposable
 			glNamedBufferData((uint)ibo, BufferSize, null, GL_DYNAMIC_DRAW);
 		}
 		Locked = true;
-		return (short*)SysmemBuffer + position;
+		return (short*)glMapNamedBufferRange((uint)ibo, position * 2, Math.Max(1, indexCount * 2), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
 	}
 
 	public void Unlock(int indexCount) {
 		if (!Locked)
 			return;
 
-		glNamedBufferSubData((uint)ibo, Position * 2, indexCount * 2, (void*)((nint)SysmemBuffer + Position * 2));
+		glUnmapNamedBuffer((uint)ibo);
 		Position += indexCount;
 		Locked = false;
 	}
@@ -98,14 +98,14 @@ public unsafe class IndexBufferGl46 : IDisposable
 
 		startIndex = firstIndex;
 		Locked = true;
-		return (short*)SysmemBuffer + firstIndex;
+		return (short*)glMapNamedBufferRange((uint)ibo, firstIndex * 2, Math.Max(1, indexCount * 2), GL_MAP_WRITE_BIT);
 	}
 
 	public void ModifyUnlock(int firstIndex, int indexCount) {
 		if (!Locked)
 			return;
 
-		glNamedBufferSubData((uint)ibo, firstIndex * 2, indexCount * 2, (void*)((nint)SysmemBuffer + firstIndex * 2));
+		glUnmapNamedBuffer((uint)ibo);
 		Locked = false;
 	}
 
