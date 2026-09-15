@@ -244,8 +244,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public void GameFrame(bool simulating) {
 		if (BaseEntity.IsSimulatingOnAlternateTicks()) {
 			if ((gpGlobals.TickCount & 1) != 0) {
-				// UpdateAllClientData();
-				// return;
+				PlayerLocalData.UpdateAllClientData();
+				return;
 			}
 
 			gpGlobals.FrameTime *= 2.0f;
@@ -271,7 +271,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		ServiceEventQueue();
 
-		// UpdateAllClientData();
+		PlayerLocalData.UpdateAllClientData();
 
 		// g_pGameRules?.EndGameFrame();
 
