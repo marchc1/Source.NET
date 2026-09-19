@@ -570,9 +570,9 @@ public partial class Render(
 
 	public struct LightmapUpdateInfo
 	{
-		public Memory<BSPMSurface2> SurfaceData;
+		public BSPMSurface2[]? SurfaceData;
 		public int SurfaceIndex;
-		public ref BSPMSurface2 SurfHandle => ref SurfaceData.Span[SurfaceIndex];
+		public ref BSPMSurface2 SurfHandle => ref SurfaceData![SurfaceIndex];
 		public int TransformIndex;
 	}
 
@@ -582,10 +582,12 @@ public partial class Render(
 		public Matrix3x4 XForm;
 	}
 
-	bool LightmapPageCompareFunc(LightmapUpdateInfo surf0, LightmapUpdateInfo surf1) {
+	Comparison<LightmapUpdateInfo>? LightmapPageComparison;
+
+	int LightmapPageCompareFunc(LightmapUpdateInfo surf0, LightmapUpdateInfo surf1) {
 		int page0 = MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf0.SurfHandle)].LightmapPageID;
 		int page1 = MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf1.SurfHandle)].LightmapPageID;
-		return page0 - page1 < 0;
+		return page0 - page1;
 	}
 
 	public bool InLightmapUpdate() => LightmapUpdateDepth != 0;
@@ -614,7 +616,7 @@ public partial class Render(
 			if (g_LightmapUpdateList.Count != 0 && r_dynamiclighting.GetBool() && !ModelLoader.r_unloadlightmaps.GetBool()) {
 				DLight[] lights = CL.DLights;
 
-				g_LightmapUpdateList.Sort((a, b) => LightmapPageCompareFunc(a, b) ? -1 : 1);
+				g_LightmapUpdateList.Sort(LightmapPageComparison ??= LightmapPageCompareFunc);
 				for (int i = g_LightmapUpdateList.Count - 1; i >= 0; --i) {
 					LightmapUpdateInfo lightmapUpdateInfo = g_LightmapUpdateList[i];
 					if (ModelLoader.SurfaceLighting(ref lightmapUpdateInfo.SurfHandle, host_state.WorldBrush!).LastComputedFrame != r_framecount)

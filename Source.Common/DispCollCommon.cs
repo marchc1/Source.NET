@@ -27,6 +27,7 @@ public static class DispCollCommon
 
 [InlineArray(MAX_DISP_AABB_NODES)] public struct InlineArrayMaxDispAABBNodes<T> { public T? first; }
 [InlineArray(MAX_AABB_LIST)] public struct InlineArrayMaxAABBList<T> { public T? first; }
+[InlineArray(BSPFileCommon.MAX_MAP_DISPINFO)] public struct InlineArrayMaxMapDispInfo<T> { public T? first; }
 
 public class DispCollTri
 {

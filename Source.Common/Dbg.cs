@@ -378,7 +378,7 @@ public static class Dbg
 			return;
 
 		const string ASSERTION_FAILED = "Assertion Failed: ";
-		Span<char> finalMsg = stackalloc char[ASSERTION_FAILED.Length + (____expI?.Length) ?? 0];
+		Span<char> finalMsg = stackalloc char[ASSERTION_FAILED.Length + (____expI?.Length ?? 0)];
 		ASSERTION_FAILED.CopyTo(finalMsg);
 		____expI?.CopyTo(finalMsg[ASSERTION_FAILED.Length..]);
 		_AssertMsg(exp, finalMsg, ____fileP ?? "<nofile>", ____lineNum, false);
@@ -393,7 +393,12 @@ public static class Dbg
 		[CallerArgumentExpression(nameof(exp))] string? ____expI = null,
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1
-	) => _AssertMsg(exp != null, $"Assertion Failed: {____expI ?? "<NULL>"}", ____fileP ?? "<nofile>", ____lineNum, false);
+	) {
+		if (exp != null)
+			return;
+
+		_AssertMsg(false, $"Assertion Failed: {____expI ?? "<NULL>"}", ____fileP ?? "<nofile>", ____lineNum, false);
+	}
 
 	[Conditional("DBGFLAG_ASSERT")]
 #if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
@@ -405,7 +410,12 @@ public static class Dbg
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1,
 		params object?[] args
-	) => _AssertMsg(exp, $"Assertion Failed: {new(msg)}", ____fileP ?? "<nofile>", ____lineNum, false);
+	) {
+		if (exp)
+			return;
+
+		_AssertMsg(false, $"Assertion Failed: {new(msg)}", ____fileP ?? "<nofile>", ____lineNum, false);
+	}
 
 	[Conditional("DBGFLAG_ASSERT")]
 #if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
@@ -416,7 +426,12 @@ public static class Dbg
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1,
 		params object?[] args
-	) => _AssertMsg(i1 == null ? i2 == null : i1.Equals(i2), "Expected {0} but got {1}!", args, ____fileP ?? "<nofile>", ____lineNum, false);
+	) {
+		if (i1 == null ? i2 == null : i1.Equals(i2))
+			return;
+
+		_AssertMsg(false, "Expected {0} but got {1}!", args, ____fileP ?? "<nofile>", ____lineNum, false);
+	}
 
 	[Conditional("DBGFLAG_ASSERT")]
 #if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
@@ -426,7 +441,12 @@ public static class Dbg
 	public static void AssertFloatEquals(float exp, float expectedValue, float tol,
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1
-	) => _AssertMsg(MathF.Abs(exp - expectedValue) <= tol, $"Expected {expectedValue} but got {exp}!", ____fileP ?? "<nofile>", ____lineNum, false);
+	) {
+		if (MathF.Abs(exp - expectedValue) <= tol)
+			return;
+
+		_AssertMsg(false, $"Expected {expectedValue} but got {exp}!", ____fileP ?? "<nofile>", ____lineNum, false);
+	}
 
 	public static void SpewActivate(string groupName, int level) {
 		Assert(groupName != null);

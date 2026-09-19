@@ -592,6 +592,14 @@ public class SkyboxView : Rendering3dView
 	private void DrawInternal(ViewID skyBoxViewID, bool invokePreAndPostRender, ITexture? rtColor, ITexture? rtDepth) {
 		ref Sky3DParams sky3dParams = ref Sky3dParams.Get();
 
+		Span<byte> areaBits = render.GetAreaBits();
+		Span<byte> saveBits = stackalloc byte[Constants.MAX_AREA_STATE_BYTES];
+		areaBits.CopyTo(saveBits);
+		areaBits.Clear();
+
+		// set the sky area bit
+		areaBits[sky3dParams.Area >> 3] |= (byte)(1 << (sky3dParams.Area & 7));
+
 		setup.ZNear = 2;
 		setup.ZFar = WorldSize.MAX_TRACE_LENGTH;
 		if (sky3dParams.Scale > 0)
@@ -621,6 +629,9 @@ public class SkyboxView : Rendering3dView
 		// Iterate over all leaves and render objects in those leaves
 		DrawTranslucentRenderables(RenderDepthMode.Normal);
 		// todo: DrawNoZBufferTranslucentRenderables()
+
+		// restore old area bits
+		saveBits.CopyTo(areaBits);
 
 		if (invokePreAndPostRender) {
 			IGameSystem.PostRenderAllSystems();

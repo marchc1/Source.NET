@@ -8,9 +8,19 @@ namespace Source.MaterialSystem;
 
 public interface ITextureInternal : ITexture
 {
-	public static string NormalizeTextureName(ReadOnlySpan<char> name) {
+	public static ReadOnlySpan<char> NormalizeTextureName(ReadOnlySpan<char> name, Span<char> outName) {
+		name = name.SliceNullTerminatedString();
 
-		return Path.ChangeExtension(new(name.SliceNullTerminatedString()), null); // todo.
+		int len = name.Length + 1;
+		if (len <= 5 || 0 != stricmp(name[(len - 5)..], ".hdr"))
+			StrTools.StripExtension(name, outName);
+		else
+			name.ClampedCopyTo(outName);
+
+		strlower(outName);
+		StrTools.FixSlashes(outName, '/');
+
+		return outName.SliceNullTerminatedString();
 	}
 
 	void Bind(Sampler sampler);

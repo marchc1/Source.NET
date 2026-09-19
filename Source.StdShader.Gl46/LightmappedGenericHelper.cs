@@ -565,7 +565,7 @@ public partial class BaseVSShader
 			}
 		}
 		if (shaderAPI != null) {
-			CommandBufferBuilder<FixedCommandStorageBuffer> DynamicCmdsOut = new() { Storage = new FixedCommandStorageBuffer(5000) };
+			DynamicCmdsOut.Reset();
 			DynamicCmdsOut.Call(contextData.StaticCmds.Storage);
 			DynamicCmdsOut.Call(contextData.SemiStaticCmdsOut.Storage);
 
@@ -645,6 +645,8 @@ public partial class BaseVSShader
 
 		DrawLightmappedGeneric_Internal(pShader, parms, hasFlashlight, pShaderAPI, pShaderShadow, ref info, ref pContextDataPtr);
 	}
+
+	readonly static CommandBufferBuilder<FixedCommandStorageBuffer> DynamicCmdsOut = new() { Storage = new FixedCommandStorageBuffer(5000) };
 }
 
 class LightmappedGenericContext : BasePerMaterialContextData

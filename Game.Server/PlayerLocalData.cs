@@ -107,15 +107,36 @@ public class PlayerLocalData
 	public FogPlayerParams PlayerFog = new();
 	public AudioParams Audio = new();
 
-	public PlayerLocalData(){
+	public static void ClientData_Update(BasePlayer pl) {
+		// TODO!
+		// SkyCamera skyCamera = GetCurrentSkyCamera();
+		// if (skyCamera != pl.Local.OldSkyCamera) {
+		// 	pl.Local.OldSkyCamera = skyCamera;
+		// 	pl.Local.Skybox3D.CopyFrom(skyCamera.SkyboxData);
+		// }
+		// else if (skyCamera == null)
+		pl.Local.Skybox3D.Area = 255;
+	}
+
+	public static void UpdateAllClientData() {
+		for (int i = 1; i <= gpGlobals.MaxClients; i++) {
+			BasePlayer? pl = Util.PlayerByIndex(i);
+			if (pl == null)
+				continue;
+
+			ClientData_Update(pl);
+		}
+	}
+
+	public PlayerLocalData() {
 		Ducked = false;
 		Ducking = false;
-		DuckSpeed = 0.1f;         
-		UnDuckSpeed = 0.1f;       
-		SprintSpeed = 400.0f;     
-		WalkSpeed = 200.0f;       
-		SlowWalkSpeed = 100.0f;   
+		DuckSpeed = 0.1f;
+		UnDuckSpeed = 0.1f;
+		SprintSpeed = 400.0f;
+		WalkSpeed = 200.0f;
+		SlowWalkSpeed = 100.0f;
 		LadderSpeed = 150.0f;
-		CrouchedWalkSpeed = 0.3f; 
+		CrouchedWalkSpeed = 0.3f;
 	}
 }
