@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -40,9 +40,9 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 			for (int i = 0; i < sv.NumEdicts; i++)
 				sv.Edicts![i].SetChangeInfoSerialNumber(0);
 		}
-		else 
+		else
 			g_SharedEdictChangeInfo.SerialNumber++;
-		
+
 		g_SharedEdictChangeInfo.NumChangeInfos = 0;
 	}
 
@@ -108,7 +108,20 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void ClientCommand(Edict edict, ReadOnlySpan<char> cmd) {
-		throw new NotImplementedException();
+		if (cmd.IsEmpty) {
+			Warning("ClientCommand, 0 length string supplied.\n");
+			return;
+		}
+
+		int entnum = NUM_FOR_EDICT(edict);
+
+		if (entnum < 1 || entnum > sv.GetClientCount()) {
+			ConMsg($"\n!!!\n\nStuffCmd:  Some entity tried to stuff '{cmd}' to console buffer of entity {entnum} when maxclients was set to {sv.GetMaxClients()}, ignoring\n\n");
+			return;
+		}
+
+		NET_StringCmd stringCmd = new(new(cmd));
+		sv.GetClient(entnum - 1)!.SendNetMsg(stringCmd);
 	}
 
 	public void ClientCommandKeyValues(Edict edict, KeyValues command) {
@@ -543,7 +556,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	void PR_CheckEmptyString(ReadOnlySpan<char> s){
+	void PR_CheckEmptyString(ReadOnlySpan<char> s) {
 		if (s.Length == 0)
 			Host.Error($"Bad string: {s}");
 	}
@@ -553,7 +566,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 			PR_CheckEmptyString(s);
 
 		int i = SV.FindOrAddModel(s, preload);
-		if (i >= 0) 
+		if (i >= 0)
 			return i;
 
 		Host.Error($"EngineServer.PrecacheModel: '{s}' overflow, too many models");

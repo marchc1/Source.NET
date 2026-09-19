@@ -109,6 +109,30 @@ public class BaseAnimating : BaseEntity
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
 
+	public override void SetModel(ReadOnlySpan<char> modelName) {
+		UnlockStudioHdr();
+		StudioHdr = null;
+
+		if (!modelName.IsStringEmpty) {
+			int modelIndex = modelinfo.GetModelIndex(modelName);
+			Model? model = modelinfo.GetModel(modelIndex);
+			if (model != null && modelinfo.GetModelType(model) != ModelType.Studio)
+				Msg($"Setting CBaseAnimating to non-studio model {modelName}  (type:{modelinfo.GetModelType(model)})\n");
+		}
+
+		if (BoneCacheHandle != 0) {
+			Studio.DestroyBoneCache(BoneCacheHandle);
+			BoneCacheHandle = 0;
+		}
+
+		Util.SetModel(this, modelName);
+
+		// InitBoneControllers();
+		SetSequence(0);
+
+		// PopulatePoseParameters();
+	}
+
 	public void ResetSequence(int sequence) {
 		SetSequence(sequence);
 		ResetSequenceInfo();

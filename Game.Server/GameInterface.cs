@@ -216,7 +216,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		// TODO: NetworkVarNames::Create
 
 		StringTableBits.SV_SetupNetworkStringTableBits();
-		#endif
+#endif
 	}
 
 	public bool DLLInit(IServiceProvider services) {
@@ -546,7 +546,10 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public bool ClientConnect(Edict entity, ReadOnlySpan<char> name, ReadOnlySpan<char> address, Span<char> reject) {
-		throw new NotImplementedException();
+		if (g_pGameRules == null)
+			return false;
+
+		return g_pGameRules.ClientConnected(entity, name, address, reject);
 	}
 
 	public void ClientDisconnect(Edict entity) {
@@ -554,7 +557,13 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientEarPosition(Edict entity, out Vector3 earOrigin) {
-		throw new NotImplementedException();
+		BasePlayer? player = (BasePlayer?)BaseEntity.Instance(entity);
+		if (player != null)
+			earOrigin = player.EarPosition();
+		else {
+			Assert(false);
+			earOrigin = vec3_origin;
+		}
 	}
 
 	public void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName) {

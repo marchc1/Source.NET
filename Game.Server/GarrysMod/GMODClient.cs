@@ -34,8 +34,8 @@ public static class GMODClient
 		// notify other clients of player joining the game
 		Util.ClientPrintAll(HudPrint.Notify, "#Game_connected", sName[0] != 0 ? sName : "<unconnected>");
 
-		// if (HL2MPRules().IsTeamplay() == true)
-		// 	ClientPrint(player, HudPrint.Talk, $"You are on team {player.GetTeam().GetName()}\n");
+		if (HL2MPRules().IsTeamplay() == true)
+			Util.ClientPrint(player, HudPrint.Talk, $"You are on team {player.GetTeam().GetName()}\n");
 	}
 
 	public static void ClientPutInServer(Edict? edict, ReadOnlySpan<char> playername) {

@@ -110,6 +110,10 @@ public sealed class MaterialVar : IMaterialVar
 			if (retVal == null)
 				Warning("Invalid texture value in CMaterialVar::GetTextureValue\n");
 		}
+		else
+			Warning($"Requesting texture value from var \"{GetName()}\" of type \"{Type}\" which is not a texture value (material: {(owningMaterial != null ? owningMaterial.GetName() : "NULL material")})\n");
+
+		retVal ??= ((Material)owningMaterial!).materials.GetErrorTexture();
 
 		return retVal;
 	}

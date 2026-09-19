@@ -1304,6 +1304,36 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool IsDisconnecting() => Connected == PlayerConnectedState.Disconnecting;
 	public bool IsSuitEquipped() => Local.WearingSuit;
 
+	public virtual void ChangeTeam(int teamNum, bool autoTeam = false, bool silent = false, bool autoBalance = false) {
+		if (GetGlobalTeam(teamNum) == null) {
+			Warning($"CBasePlayer::ChangeTeam( {teamNum} ) - invalid team index.\n");
+			return;
+		}
+
+		if (teamNum == GetTeamNumber())
+			return;
+
+		IGameEvent? ev = gameeventmanager.CreateEvent("player_team");
+		if (ev != null) {
+			ev.SetInt("userid", GetUserID());
+			ev.SetInt("team", teamNum);
+			ev.SetInt("oldteam", GetTeamNumber());
+			ev.SetInt("disconnect", IsDisconnecting() ? 1 : 0);
+			ev.SetInt("autoteam", autoTeam ? 1 : 0);
+			ev.SetInt("silent", silent ? 1 : 0);
+			ev.SetString("name", GetPlayerName());
+
+			gameeventmanager.FireEvent(ev);
+		}
+
+		GetTeam()?.RemovePlayer(this);
+
+		if (teamNum != 0)
+			GetGlobalTeam(teamNum)!.AddPlayer(this);
+
+		base.ChangeTeam(teamNum);
+	}
+
 	const float SMOOTHING_FACTOR = 0.9f;
 	public virtual void PostThink() {
 		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);

@@ -1,4 +1,4 @@
-﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 #if CLIENT_DLL
 global using GMODGameRules = Game.Client.GarrysMod.C_GMODGameRules;
 global using GMODGameRulesProxy = Game.Client.GarrysMod.C_GMODGameRulesProxy;
@@ -72,7 +72,7 @@ public class
 #else
 	GMODGameRules
 #endif
-	: MultiplayRules
+	: HL2MPGameRules
 // TODO: AutoGameSystemPerFrame
 {
 	public override ReadOnlySpan<char> Name() => "GMODGameRules";
