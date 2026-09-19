@@ -1374,7 +1374,7 @@ public partial class BasePlayer : BaseCombatCharacter
 			if (GetSequence() == -1)
 				SetSequence(0);
 
-			// StudioFrameAdvance();
+			StudioFrameAdvance();
 			// DispatchAnimEvents(this);
 			SetSimulationTime(gpGlobals.CurTime);
 			// Weapon_FrameUpdate();

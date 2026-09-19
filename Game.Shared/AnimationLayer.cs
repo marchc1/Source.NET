@@ -3,6 +3,9 @@
 #if CLIENT_DLL
 using Game.Client;
 #endif
+#if GAME_DLL
+using Game.Server;
+#endif
 
 using Source.Common;
 
@@ -47,6 +50,19 @@ public record struct AnimationLayer
 	public double BlendIn;
 	public double BlendOut;
 	public bool ClientBlend;
+#if GAME_DLL
+	public float KillRate;
+	public float KillDelay;
+
+	// For checking for duplicates
+	public Activity Activity;
+
+	// order of layering on client
+	public int Priority;
+
+	public TimeUnit_t LastEventCheck;
+	public TimeUnit_t LastAccess;
+#endif
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsActive() => ((Flags & AnimLayerFlags.Active) != 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutokill() => ((Flags & AnimLayerFlags.AutoKill) != 0);
@@ -146,6 +162,81 @@ public record struct AnimationLayer
 		ClientBlend = false;
 	}
 
+#if GAME_DLL
+	public BaseAnimatingOverlay? OwnerEntity;
+
+	public void Init(BaseAnimatingOverlay? overlay) {
+		OwnerEntity = overlay;
+		Flags = 0;
+		Weight = 0;
+		Cycle = 0;
+		PrevCycle = 0;
+		SequenceFinished = false;
+		Activity = Activity.ACT_INVALID;
+		Sequence = 0;
+		Priority = 0;
+		Order = BaseAnimatingOverlay.MAX_OVERLAYS;
+
+		BlendIn = 0.0;
+		BlendOut = 0.0;
+
+		KillRate = 100.0f;
+		KillDelay = 0.0f;
+		PlaybackRate = 1.0;
+		LastEventCheck = 0.0;
+		LastAccess = gpGlobals.CurTime;
+		LayerAnimtime = 0;
+		LayerFadeOuttime = 0;
+	}
+
+	public void StudioFrameAdvance(TimeUnit_t interval, BaseAnimating owner) {
+		float cycleRate = owner.GetSequenceCycleRate(Sequence);
+
+		PrevCycle = (float)Cycle;
+		Cycle += interval * cycleRate * PlaybackRate;
+
+		if (Cycle < 0.0) {
+			if (Looping)
+				Cycle -= (int)Cycle;
+			else
+				Cycle = 0;
+		}
+		else if (Cycle >= 1.0) {
+			SequenceFinished = true;
+
+			if (Looping)
+				Cycle -= (int)Cycle;
+			else
+				Cycle = 1.0;
+		}
+
+		if (IsAutoramp()) {
+			Weight = 1;
+
+			if (BlendIn != 0.0f)
+				if (Cycle < BlendIn)
+					Weight = (float)(Cycle / BlendIn);
+
+			if (BlendOut != 0.0f)
+				if (Cycle > 1.0 - BlendOut)
+					Weight = (float)((1.0 - Cycle) / BlendOut);
+
+			Weight = 3.0f * Weight * Weight - 2.0f * Weight * Weight * Weight;
+			if (Sequence == 0)
+				Weight = 0;
+		}
+	}
+
+	public bool IsAbandoned() {
+		if (IsActive() && !IsAutokill() && !IsKillMe() && LastAccess > 0.0 && (gpGlobals.CurTime - LastAccess > 0.2))
+			return true;
+		else
+			return false;
+	}
+
+	public void MarkActive() => LastAccess = gpGlobals.CurTime;
+#endif
+
 	public void BlendWeight() {
 		if (!ClientBlend)
 			return;
@@ -190,6 +281,14 @@ public class AnimationLayerRef
 	public ref double BlendIn { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.BlendIn; }
 	public ref double BlendOut { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.BlendOut; }
 	public ref bool ClientBlend { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.ClientBlend; }
+#if GAME_DLL
+	public ref float KillRate { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.KillRate; }
+	public ref float KillDelay { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.KillDelay; }
+	public ref Activity Activity { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Activity; }
+	public ref int Priority { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Priority; }
+	public ref TimeUnit_t LastEventCheck { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.LastEventCheck; }
+	public ref TimeUnit_t LastAccess { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.LastAccess; }
+#endif
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsActive() => Struct.IsActive();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutokill() => Struct.IsAutokill();
@@ -203,6 +302,12 @@ public class AnimationLayerRef
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public double GetFadeout(double curtime) => Struct.GetFadeout(curtime);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Reset() => Struct.Reset();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void BlendWeight() => Struct.BlendWeight();
+#if GAME_DLL
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Init(BaseAnimatingOverlay? overlay) => Struct.Init(overlay);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void StudioFrameAdvance(TimeUnit_t interval, BaseAnimating owner) => Struct.StudioFrameAdvance(interval, owner);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAbandoned() => Struct.IsAbandoned();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void MarkActive() => Struct.MarkActive();
+#endif
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetOrder(int order) => Struct.SetOrder(order);
 
 	public const int ORDER_BITS = 4;

@@ -252,9 +252,9 @@ public class PlayerAnimState
 
 		QAngle angles = GetOuter().GetLocalAngles();
 		float ang = angles[YAW];
-		if (ang > 180.0f) 
+		if (ang > 180.0f)
 			ang -= 360.0f;
-		else if (ang < -180.0f) 
+		else if (ang < -180.0f)
 			ang += 360.0f;
 
 		// calc side to side turning
@@ -263,23 +263,23 @@ public class PlayerAnimState
 		flYaw = -flYaw;
 		flYaw = flYaw - (int)(flYaw / 360) * 360;
 
-		if (flYaw < -180) 
+		if (flYaw < -180)
 			flYaw = flYaw + 360;
-		else if (flYaw > 180) 
+		else if (flYaw > 180)
 			flYaw = flYaw - 360;
 
 		GetOuter().SetPoseParameter(iYaw, flYaw);
 
 #if !CLIENT_DLL
-		// todo: GetOuter().SetLocalAngles(QAngle(GetOuter().GetAnimEyeAngles().X, m_flCurrentFeetYaw, 0));
+		GetOuter().SetLocalAngles(new QAngle(GetOuter().GetAnimEyeAngles().X, CurrentFeetYaw, 0));
 #endif
 	}
 	void ComputePoseParam_BodyPitch(StudioHdr? studioHdr) {
 		float flPitch = GetOuter().GetLocalAngles()[PITCH];
 
-		if (flPitch > 180.0f) 
+		if (flPitch > 180.0f)
 			flPitch -= 360.0f;
-		
+
 		flPitch = Math.Clamp(flPitch, -90, 90);
 
 		QAngle absangles = GetOuter().GetAbsAngles();
@@ -298,9 +298,9 @@ public class PlayerAnimState
 
 		// See if we even have a blender for pitch
 		int upper_body_yaw = GetOuter().LookupPoseParameter("aim_yaw");
-		if (upper_body_yaw < 0) 
+		if (upper_body_yaw < 0)
 			return;
-		
+
 		// Assume upper and lower bodies are aligned and that we're not turning
 		float flGoalTorsoYaw = 0.0f;
 		TurnMode turning = TurnMode.None;
@@ -327,9 +327,9 @@ public class PlayerAnimState
 				m_flLastYaw = GetOuter().GetAnimEyeAngles().Y;
 			}
 
-			if (GoalFeetYaw != CurrentFeetYaw) 
+			if (GoalFeetYaw != CurrentFeetYaw)
 				LastTurnTime = gpGlobals.CurTime;
-			
+
 
 			turning = ConvergeAngles(GoalFeetYaw, turnrate, (float)gpGlobals.FrameTime, ref CurrentFeetYaw);
 
@@ -345,14 +345,14 @@ public class PlayerAnimState
 			float yawmagnitude = MathF.Abs(yawdelta);
 
 			// If too far, then need to turn in place
-			if (yawmagnitude > 45) 
+			if (yawmagnitude > 45)
 				rotated_too_far = true;
-		
+
 			// Standing still for a while, rotate feet around to face forward
 			// Or rotated too far
 			// FIXME:  Play an in place turning animation
 			if (rotated_too_far ||
-				(gpGlobals.CurTime> LastTurnTime + mp_facefronttime.GetFloat())) {
+				(gpGlobals.CurTime > LastTurnTime + mp_facefronttime.GetFloat())) {
 				GoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
 				LastTurnTime = gpGlobals.CurTime;
 
@@ -371,13 +371,13 @@ public class PlayerAnimState
 		}
 
 
-		if (turning == TurnMode.None) 
+		if (turning == TurnMode.None)
 			TurningInPlace = turning;
-		
 
-		if (TurningInPlace != TurnMode.None) 
+
+		if (TurningInPlace != TurnMode.None)
 			// If we're close to finishing the turn, then turn off the turning animation
-			if (MathF.Abs(CurrentFeetYaw - GoalFeetYaw) < MIN_TURN_ANGLE_REQUIRING_TURN_ANIMATION) 
+			if (MathF.Abs(CurrentFeetYaw - GoalFeetYaw) < MIN_TURN_ANGLE_REQUIRING_TURN_ANIMATION)
 				TurningInPlace = TurnMode.None;
 
 		// Rotate entire body into position
@@ -401,7 +401,7 @@ public class PlayerAnimState
 			float flFactor = 1.0f;
 			GetOuter().SetPlaybackRate((speed * flFactor) / maxspeed);
 		}
-		else 
+		else
 			GetOuter().SetPlaybackRate(1.0f);
 	}
 

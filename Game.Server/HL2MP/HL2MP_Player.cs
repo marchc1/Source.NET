@@ -1,4 +1,4 @@
-using Game.Server.HL2;
+﻿using Game.Server.HL2;
 using Game.Shared;
 
 using Source;
@@ -98,14 +98,14 @@ public partial class HL2MP_Player : HL2_Player
 	public int PlayerSoundType;
 	public bool IsWalking;
 
-	public readonly PlayerAnimState PlayerAnimState;
+	public readonly HL2MPPlayerAnimState PlayerAnimState;
 
 	TimeUnit_t NextModelChangeTime;
 	TimeUnit_t NextTeamChangeTime;
 	TimeUnit_t SlamProtectTime;
 
 	public HL2MP_Player() {
-		PlayerAnimState = new(this);
+		PlayerAnimState = HL2MPPlayerAnimState.CreateHL2MPPlayerAnimState(this);
 		AngEyeAngles.Init();
 
 		base.ChangeTeam(0);
@@ -359,7 +359,7 @@ public partial class HL2MP_Player : HL2_Player
 			// collision bounds todo
 		}
 
-		PlayerAnimState.Update();
+		PlayerAnimState.Update(AngEyeAngles[YAW], AngEyeAngles[PITCH]);
 
 		AngEyeAngles = EyeAngles();
 

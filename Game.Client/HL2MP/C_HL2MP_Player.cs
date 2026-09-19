@@ -1,4 +1,4 @@
-using Game.Client.HL2;
+﻿using Game.Client.HL2;
 using Game.Shared;
 using Game.Shared.GarrysMod;
 
@@ -51,7 +51,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
 
-	public readonly PlayerAnimState PlayerAnimState;
+	public readonly HL2MPPlayerAnimState PlayerAnimState;
 	public QAngle AngEyeAngles;
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
 	public new EHANDLE Ragdoll = new();
@@ -61,7 +61,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public bool IsWalking;
 
 	public C_HL2MP_Player() : base() {
-		PlayerAnimState = new(this);
+		PlayerAnimState = HL2MPPlayerAnimState.CreateHL2MPPlayerAnimState(this);
 		AddVar(this, FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
 	}
 
@@ -101,7 +101,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 
 	public override void ClientThink() {
 		base.ClientThink();
-		PlayerAnimState.Update();
+		PlayerAnimState.Update(AngEyeAngles[YAW], AngEyeAngles[PITCH]);
 	}
 
 	public override ShadowType ShadowCastType() {

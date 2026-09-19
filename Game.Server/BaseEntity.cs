@@ -1355,6 +1355,7 @@ public partial class BaseEntity : IServerEntity
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
 
 	public TimeUnit_t AnimTime;
+	public TimeUnit_t PrevAnimTime;
 	public TimeUnit_t SimulationTime;
 	public Vector3 ViewOffset;
 	public Vector3 NetworkAngles;
@@ -1920,7 +1921,7 @@ public partial class BaseEntity : IServerEntity
 		DEFINE.KEYFIELD(nameof(Speed), FieldType.Float, "speed"),
 		DEFINE.KEYFIELD(nameof(RenderFX), FieldType.Character, "renderfx"),
 		DEFINE.KEYFIELD(nameof(RenderMode), FieldType.Character, "rendermode"),
-		// DEFINE.FIELD(nameof(PrevAnimTime), FieldType.Time),
+		DEFINE.FIELD(nameof(PrevAnimTime), FieldType.Time),
 		DEFINE.FIELD(nameof(AnimTime), FieldType.Time),
 		DEFINE.FIELD(nameof(SimulationTime), FieldType.Time),
 		DEFINE.FIELD(nameof(LastThinkTick), FieldType.Tick),

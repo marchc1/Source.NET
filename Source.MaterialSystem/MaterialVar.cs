@@ -96,6 +96,7 @@ public sealed class MaterialVar : IMaterialVar
 		return StringVal;
 	}
 
+	static int reallyAnnoyingLogCount = 0;
 	public override ITexture? GetTextureValue() {
 		ITexture? retVal = null;
 
@@ -110,7 +111,7 @@ public sealed class MaterialVar : IMaterialVar
 			if (retVal == null)
 				Warning("Invalid texture value in CMaterialVar::GetTextureValue\n");
 		}
-		else
+		else if (reallyAnnoyingLogCount++ < 20)
 			Warning($"Requesting texture value from var \"{GetName()}\" of type \"{Type}\" which is not a texture value (material: {(owningMaterial != null ? owningMaterial.GetName() : "NULL material")})\n");
 
 		retVal ??= ((Material)owningMaterial!).materials.GetErrorTexture();

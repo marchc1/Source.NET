@@ -349,9 +349,9 @@ public abstract partial class BasePlayerAnimState : IPlayerAnimState
 #if CLIENT_DLL
 				layer.Order = MAX_OVERLAYS;
 #else
-			// FIXME: NEED TO DO pLayer.Order.Set( MAX_OVERLAYS );
-			layer.Flags = 0;
-			throw new NotImplementedException();
+				// FIXME: NEED TO DO pLayer.Order.Set( MAX_OVERLAYS );
+				layer.Order = MAX_OVERLAYS;
+				layer.Flags = 0;
 #endif
 			}
 		}
@@ -686,7 +686,7 @@ public abstract partial class BasePlayerAnimState : IPlayerAnimState
 
 	public float SetOuterBodyYaw(float value) {
 		int body_yaw = GetOuter()!.LookupPoseParameter("body_yaw");
-		if (body_yaw < 0) 
+		if (body_yaw < 0)
 			return 0;
 
 		SetOuterPoseParameter(body_yaw, value);
@@ -712,7 +712,7 @@ public abstract partial class BasePlayerAnimState : IPlayerAnimState
 
 	public void GetOuterAbsVelocity(out Vector3 vel) {
 #if CLIENT_DLL
-	GetOuter()!.EstimateAbsVelocity(out  vel );
+		GetOuter()!.EstimateAbsVelocity(out vel);
 #else
 		vel = GetOuter()!.GetAbsVelocity();
 #endif
