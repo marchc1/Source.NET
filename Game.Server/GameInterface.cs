@@ -534,11 +534,15 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientCommand(Edict entity, in TokenizedCommand args) {
-		// throw new NotImplementedException();
+		BasePlayer? player = ToBasePlayer(BaseEntity.GetContainingEntity(entity));
+		GameServerClientGlobals.ClientCommand(player, args);
 	}
 
 	public void ClientCommandKeyValues(Edict entity, KeyValues keyValues) {
-		throw new NotImplementedException();
+		if (keyValues == null)
+			return;
+
+		g_pGameRules?.ClientCommandKeyValues(entity, keyValues);
 	}
 
 	public bool ClientConnect(Edict entity, ReadOnlySpan<char> name, ReadOnlySpan<char> address, Span<char> reject) {
