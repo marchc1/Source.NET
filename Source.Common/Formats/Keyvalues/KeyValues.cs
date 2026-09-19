@@ -555,10 +555,19 @@ public class KeyValues : IEnumerable<KeyValues>
 		return ok;
 	}
 
+	KeyValues? Chain;
+	public void ChainKeyValue(KeyValues? chain) => Chain = chain;
+
 	public KeyValues? FindKey(ReadOnlySpan<char> searchStr, bool create = false) {
 		foreach (var child in this.children) {
 			if (stricmp(child.Name, searchStr) == 0)
 				return child;
+		}
+
+		if (Chain != null) {
+			KeyValues? chained = Chain.FindKey(searchStr, false);
+			if (chained != null)
+				return chained;
 		}
 
 		if (create) {

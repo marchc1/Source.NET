@@ -23,7 +23,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public int GetDXSupportLevel() {
-		return 0;
+		return 90;
 	}
 
 	public int GetFrameBufferColorDepth() {
