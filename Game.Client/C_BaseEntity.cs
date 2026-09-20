@@ -568,8 +568,8 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropQAngles (FIELD.OF(nameof(Rotation))),
 		RecvPropInt( FIELD.OF(nameof( TextureFrameIndex) )),
 		RecvPropDataTable( "predictable_id", DT_PredictableId ),
-		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick))),
-		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick))),
+		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
+		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
 		RecvPropBool( FIELD.OF(nameof( AlternateSorting ))),
 
 		RecvPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(Collision)))),
@@ -2714,7 +2714,7 @@ public partial class C_BaseEntity : IClientEntity
 			InvalidatePhysicsRecursive(changeFlags);
 	}
 
-	private void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
+	public void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
 		if (Unsafe.IsNullRef(ref map))
 			return;
 
