@@ -1,3 +1,5 @@
+﻿using CommunityToolkit.HighPerformance;
+
 using Source;
 using Source.Common;
 using Source.Common.Mathematics;
@@ -16,7 +18,7 @@ public class BoneMergeCache
 
 	int FollowBoneSetupMask;
 
-	class MergedBone
+	struct MergedBone
 	{
 		public int MyBone;
 		public int ParentBone;
@@ -116,6 +118,8 @@ public class BoneMergeCache
 		if (OwnerHdr == null || MergedBones.Count == 0)
 			return;
 
+		ReadOnlySpan<MergedBone> mergedBones = MergedBones.AsSpan();
+
 		// Have the entity we're following setup its bones.
 		bool worked = Follow!.SetupBones(null, -1, FollowBoneSetupMask, gpGlobals.CurTime);
 		// We suspect there's some cases where SetupBones couldn't do its thing, and then this causes Captain Canteen.
@@ -129,7 +133,7 @@ public class BoneMergeCache
 			MathLib.MatrixScaleByZero(ref newBone);
 			MathLib.MatrixSetTranslation(new Vector3(0.0f, 0.0f, 0.0f), ref newBone);
 
-			foreach (MergedBone bone in MergedBones) {
+			foreach (MergedBone bone in mergedBones) {
 				int ownerBone = bone.MyBone;
 
 				// Only update bones reference by the bone mask.
@@ -141,7 +145,7 @@ public class BoneMergeCache
 		}
 		else {
 			// Now copy the bone matrices.
-			foreach (MergedBone bone in MergedBones) {
+			foreach (MergedBone bone in mergedBones) {
 				int ownerBone = bone.MyBone;
 				int parentBone = bone.ParentBone;
 
@@ -162,8 +166,10 @@ public class BoneMergeCache
 		if (OwnerHdr == null || MergedBones.Count == 0)
 			return;
 
+		ReadOnlySpan<MergedBone> mergedBones = MergedBones.AsSpan();
+
 		// Now copy the bone matrices.
-		foreach (MergedBone bone in MergedBones) {
+		foreach (MergedBone bone in mergedBones) {
 			int ownerBone = bone.MyBone;
 			int parentBone = bone.ParentBone;
 
@@ -186,8 +192,10 @@ public class BoneMergeCache
 		if (OwnerHdr == null || MergedBones.Count == 0)
 			return;
 
+		ReadOnlySpan<MergedBone> mergedBones = MergedBones.AsSpan();
+
 		// Now copy the bone matrices.
-		foreach (MergedBone bone in MergedBones) {
+		foreach (MergedBone bone in mergedBones) {
 			int ownerBone = bone.MyBone;
 			int parentBone = bone.ParentBone;
 
