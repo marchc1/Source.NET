@@ -839,6 +839,15 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixSetTranslation(in Vector3 inVec, ref Matrix3x4 outMatrix) => MatrixSetColumn(in inVec, 3, ref outMatrix);
+
+	public static void MatrixScaleByZero(ref Matrix3x4 outMatrix) {
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 4; j++)
+				outMatrix[i, j] = 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector3 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 3);

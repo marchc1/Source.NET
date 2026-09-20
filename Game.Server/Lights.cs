@@ -3,7 +3,7 @@ using Game.Shared;
 namespace Game.Server;
 
 [LinkEntityToClass("light")]
-public class Light : PointEntity
+public class Light : PointEntity // TODO, server only
 {
 
 }

@@ -241,6 +241,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public ref readonly Matrix3x4 GetBone(int bone) => ref BoneAccessor.GetBone(bone);
 	public ref Matrix3x4 GetBoneForWrite(int bone) => ref BoneAccessor.GetBoneForWrite(bone);
 
+	BoneMergeCache? BoneMergeCache;
 
 	static long ModelBoneCounter;
 	long MostRecentModelBoneCounter;
@@ -284,10 +285,24 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		// For EF_BONEMERGE entities, copy the bone matrices for any bones that have matching names.
 		bool boneMerge = IsEffectActive(EntityEffects.BoneMerge);
+		if (boneMerge || BoneMergeCache != null) {
+			if (boneMerge) {
+				if (BoneMergeCache == null) {
+					BoneMergeCache = new BoneMergeCache();
+					BoneMergeCache.Init(this);
+				}
+				BoneMergeCache.MergeMatchingBones(boneMask);
+			}
+			else
+				BoneMergeCache = null;
+		}
 
 		for (int i = 0; i < hdr.NumBones(); i++) {
 			// Only update bones reference by the bone mask.
 			if ((hdr.BoneFlags(i) & boneMask) == 0)
+				continue;
+
+			if (BoneMergeCache != null && BoneMergeCache.IsBoneMerged(i) != 0)
 				continue;
 
 			// animate all non-simulated bones
@@ -842,6 +857,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return null;
 
 		InvalidateBoneCache();
+		BoneMergeCache = null;
 
 		if (CachedBoneData.Count != hdr.NumBones()) {
 			CachedBoneData.SetSize(hdr.NumBones());
@@ -1669,8 +1685,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			angles = moveParent.GetRenderAngles();
 		}
 		else {
-			// TODO: Bone merge cache
-			base.GetAimEntOrigin(attachedTo, out origin, out angles);
+			origin = default;
+			angles = default;
+			if (BoneMergeCache == null || !BoneMergeCache.GetAimEntOrigin(ref origin, ref angles))
+				base.GetAimEntOrigin(attachedTo, out origin, out angles);
 		}
 	}
 
