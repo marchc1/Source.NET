@@ -1906,6 +1906,11 @@ public static class MathLib
 		double cVal = (val - A) / (B - A);
 		return C + (D - C) * SimpleSpline(cVal);
 	}
+	public static QAngle RandomAngle(float minVal, float maxVal) {
+		QAngle ret = new();
+		ret.Random(minVal, maxVal);
+		return ret;
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void AngleVectors(in QAngle angles, out Vector3 forward) {
 		SinCos(DEG2RAD(angles.X), out float sp, out float cp);

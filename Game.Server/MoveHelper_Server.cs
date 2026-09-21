@@ -103,7 +103,7 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public void PlayerSetAnimation(PlayerAnim playerAnim) {
-
+		HostPlayer!.SetAnimation(playerAnim);
 	}
 
 	public void ProcessImpacts() {

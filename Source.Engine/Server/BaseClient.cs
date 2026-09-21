@@ -989,7 +989,15 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public void SetUserCVar(ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
-		throw new NotImplementedException();
+		if (cvar.IsEmpty || value.IsEmpty)
+			return;
+
+		if (stricmp(cvar, "name") == 0) {
+			ClientRequestNameChange(value);
+			return;
+		}
+
+		ConVars!.SetString(cvar, value);
 	}
 
 	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);

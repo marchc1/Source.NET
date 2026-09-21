@@ -2,6 +2,7 @@
 
 using Game.Shared;
 
+using Source;
 using Source.Common.Engine;
 using Source.Engine;
 
@@ -41,11 +42,14 @@ public class GameRulesRegister
 #if CLIENT_DLL
 	static INetworkStringTable? g_StringTableGameRules = null;
 
-	void OnGameRulesCreationStringChanged(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {
+	static void OnGameRulesCreationStringChanged(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {
 		// The server has created a new CGameRules object.
 		g_pGameRules = null!;
 
-		ReadOnlySpan<char> className = newData.Cast<byte, char>();
+		Span<char> classNameChars = stackalloc char[Encoding.ASCII.GetCharCount(newData)];
+		Encoding.ASCII.GetChars(newData, classNameChars);
+
+		ReadOnlySpan<char> className = classNameChars.SliceNullTerminatedString();
 		GameRulesRegister? reg = FindByName(className);
 		if (reg == null)
 			Error($"OnGameRulesCreationStringChanged: missing gamerules class '{className}' on the client");
@@ -58,7 +62,7 @@ public class GameRulesRegister
 	}
 
 	// On the client, we respond to string table changes on the server.
-	void InstallStringTableCallback_GameRules() {
+	public static void InstallStringTableCallback_GameRules() {
 		if (g_StringTableGameRules == null) {
 			g_StringTableGameRules = networkstringtable.FindTable(GAMERULES_STRINGTABLE_NAME);
 			g_StringTableGameRules?.SetStringChangedCallback(null, OnGameRulesCreationStringChanged);

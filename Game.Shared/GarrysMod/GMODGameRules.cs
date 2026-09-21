@@ -1,5 +1,10 @@
 #if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 #if CLIENT_DLL
+global using static Game.Client.GarrysMod.GMOD_GameRules_Globals;
+#else
+global using static Game.Server.GarrysMod.GMOD_GameRules_Globals;
+#endif
+#if CLIENT_DLL
 global using GMODGameRules = Game.Client.GarrysMod.C_GMODGameRules;
 global using GMODGameRulesProxy = Game.Client.GarrysMod.C_GMODGameRulesProxy;
 namespace Game.Client.GarrysMod;
@@ -10,12 +15,20 @@ namespace Game.Server.GarrysMod;
 #endif
 
 using Source.Common;
+using Source.Common.Engine;
 using Source;
 
 using FIELD = Source.FIELD<GMODGameRulesProxy>;
 
 using Game.Shared;
 using Source.GUI.Controls;
+
+public static class GMOD_GameRules_Globals
+{
+	static readonly GameRulesRegister s_GMODRulesRegister = new("CGMODRules", () => new GMODGameRules());
+
+	public static GMODGameRules GMODRules() => (GMODGameRules)g_pGameRules;
+}
 
 #if GAME_DLL
 [LinkEntityToClass("gmod_gamerules")]
@@ -28,8 +41,7 @@ public class
 #endif
 	: GameRulesProxy
 {
-	public override GameRules GameRules => gmod_gamerules_data;
-	public GMODGameRules gmod_gamerules_data = new();
+	public override GameRules GameRules => GMODRules();
 	public static readonly
 #if CLIENT_DLL
 		RecvTable
@@ -46,19 +58,27 @@ public class
 #endif
 	]);
 
-	public static readonly
 #if CLIENT_DLL
-		RecvTable
+	public static void RecvProxy_GMODRules(RecvProp prop, out object? outInstance, object? instance, IFieldAccessor fieldInfo, int objectID) {
+		GMODGameRules rules = GMODRules();
+		Assert(rules != null);
+		outInstance = rules;
+	}
+
+	public static readonly RecvTable DT_GMODGameRulesProxy = new(DT_GameRulesProxy, [
+		RecvPropDataTable("gmod_gamerules_data", DT_GMODRules, 0, RecvProxy_GMODRules)
+	]);
 #else
-		SendTable
+	public static object SendProxy_GMODRules(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
+		GMODGameRules rules = GMODRules();
+		Assert(rules != null);
+		return rules;
+	}
+
+	public static readonly SendTable DT_GMODGameRulesProxy = new(DT_GameRulesProxy, [
+		SendPropDataTable("gmod_gamerules_data", DT_GMODRules, SendProxy_GMODRules)
+	]);
 #endif
-		DT_GMODGameRulesProxy = new(DT_GameRulesProxy, [
-#if CLIENT_DLL
-			RecvPropDataTable(nameof(gmod_gamerules_data), FIELD.OF(nameof(gmod_gamerules_data)), DT_GMODRules, 0, DataTableRecvProxy_PointerDataTable)
-#else
-			SendPropDataTable(nameof(gmod_gamerules_data), FIELD.OF(nameof(gmod_gamerules_data)), DT_GMODRules)
-#endif
-		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("GMODGameRulesProxy", null, null, DT_GMODGameRulesProxy).WithManualClassID(StaticClassIndices.CGMODGameRulesProxy);
 #else

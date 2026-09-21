@@ -523,7 +523,7 @@ public partial class HL2MP_Player : HL2_Player
 		throw new NotImplementedException();
 	}
 
-	bool ClientCommand(in TokenizedCommand args) {
+	public bool ClientCommand(in TokenizedCommand args) {
 		throw new NotImplementedException();
 	}
 

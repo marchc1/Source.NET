@@ -191,6 +191,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
 				break;
 		}
+
+		GameRulesRegister.InstallStringTableCallback_GameRules();
 	}
 
 	private void OnReceiveLuaFileString(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {

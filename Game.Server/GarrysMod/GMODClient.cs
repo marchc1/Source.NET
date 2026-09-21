@@ -117,8 +117,6 @@ public static class GMODClient
 	//=========================================================
 	// instantiate the proper game rules object
 	//=========================================================
-	static readonly GameRulesRegister s_GMODRulesRegister = new("CGMODRules", () => CreateEntityByName("gmod_gamerules"));
-
 	public static void InstallGameRules() {
 		// vanilla deathmatch
 		GameRulesRegister.CreateGameRulesObject("CGMODRules");
