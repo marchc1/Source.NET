@@ -1226,7 +1226,7 @@ public class GameMovement : IGameMovement
 		// In the air now.
 		SetGroundEntity(ref Trace.NULL);
 
-		// Player.PlayStepSound(mv.GetAbsOrigin(), player.SurfaceData, 1.0f, true);
+		Player.PlayStepSound(mv.GetAbsOrigin(), Player.SurfaceData, 1.0f, true);
 
 		MoveHelper().PlayerSetAnimation(PlayerAnim.Jump);
 

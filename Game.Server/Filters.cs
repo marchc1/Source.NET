@@ -8,7 +8,7 @@ namespace Game.Server;
 
 public class BaseFilter : LogicalEntity
 {
-	public bool PassesFilter(BaseEntity? caller, BaseEntity? entity){
+	public bool PassesFilter(BaseEntity? caller, BaseEntity? entity) {
 		bool baseResult = PassesFilter(caller, entity);
 		return Negated ? !baseResult : baseResult;
 	}
@@ -19,22 +19,21 @@ public class BaseFilter : LogicalEntity
 
 	public bool Negated;
 
-	public void InputTestActivator(ref InputData inputdata ){
-		// if (PassesFilter(inputdata.Caller, inputdata.Activator)) 
-			// OnPass.FireOutput(inputdata.Activator, this);
-		// else 
-			// OnFail.FireOutput(inputdata.Activator, this);
+	public void InputTestActivator(ref InputData inputdata) {
+		if (PassesFilter(inputdata.Caller, inputdata.Activator))
+			OnPass.FireOutput(inputdata.Activator, this);
+		else
+			OnFail.FireOutput(inputdata.Activator, this);
 	}
 
-	// Outputs
-	// TODO: public OutputEvent OnPass;      // Fired when filter is passed
-	// TODO: public OutputEvent OnFail;      // Fired when filter is failed
+	public OutputEvent OnPass = new();      // Fired when filter is passed
+	public OutputEvent OnFail = new();      // Fired when filter is failed
 
 
-	protected virtual bool PassesFilterImpl(BaseEntity? caller, BaseEntity? entity){
+	protected virtual bool PassesFilterImpl(BaseEntity? caller, BaseEntity? entity) {
 		return true;
 	}
-	protected virtual bool PassesDamageFilterImpl(in TakeDamageInfo info){
+	protected virtual bool PassesDamageFilterImpl(in TakeDamageInfo info) {
 		return PassesFilterImpl(null, info.GetAttacker());
 	}
 }

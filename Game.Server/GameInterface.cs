@@ -452,7 +452,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.LevelShutdownPreEntityAllSystems();
 
-		// SoundEnt.ShutdownSoundEnt()
+		SoundEnt.ShutdownSoundEnt();
 
 		gEntList.Clear();
 
@@ -495,7 +495,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		}
 
 		IGameSystem.LevelInitPostEntityAllSystems();
-		// BaseEntity.SetAllowPrecache(false);
+		BaseEntity.SetAllowPrecache(false);
 
 		NavMesh.NavMesh.Instance.Load();
 		NavMesh.NavMesh.Instance.OnServerActivate();

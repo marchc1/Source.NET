@@ -795,16 +795,16 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// InitFogController();
 
-		// DmgTake = 0;
-		// DmgSave = 0;
-		// HUDDamage = -1;
+		DmgTake = 0;
+		DmgSave = 0;
+		HUDDamage = -1;
 		// DamageType = 0;
-		// PhysicsFlags = 0;
-		// DrownRestored = DrownDmg;
+		PhysicsFlags = 0;
+		DrownRestored = DrownDmg;
 
-		// SetFOV(this, 0);
+		SetFOV(this, 0);
 
-		// NextDecalTime = 0;
+		NextDecalTime = 0;
 
 		// GeigerDelay = gpGlobals.CurTime + 2.0f;
 
@@ -828,7 +828,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// HackedGunPos = new Vector3(0, 32, 0);
 		// BonusChallenge;
 
-		// SetThink(null);
+		SetThink(null);
 
 		InitHUD = true;
 
@@ -1370,7 +1370,7 @@ public partial class BasePlayer : BaseCombatCharacter
 				else
 					SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
 
-				// if (UseEntity != null) {
+				// if (UseEntity.Get() != null) {
 				// 	if (UseEntity.OnControls(this) && (!GetActiveWeapon() || GetActiveWeapon()->IsEffectActive(EF_NODRAW) || (GetActiveWeapon()->GetActivity() == ACT_VM_HOLSTER)))
 				// 		UseEntity.Use(this, this, USE_SET, 2);
 				// 	else

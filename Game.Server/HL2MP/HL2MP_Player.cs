@@ -514,9 +514,8 @@ public partial class HL2MP_Player : HL2_Player
 			// State_Transition(HL2MPPlayerState.ObserverMode);
 		}
 
-		if (kill == true) {
-			// CommitSuicide();
-		}
+		if (kill == true)
+			CommitSuicide();
 	}
 
 	bool HandleCommand_JoinTeam(int team) {

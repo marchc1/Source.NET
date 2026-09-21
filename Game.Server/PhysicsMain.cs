@@ -192,7 +192,7 @@ public static class Physics
 				list[i].NetworkStateChanged();
 			}
 
-			// Util.EnableRemoveImmediate();
+			Util.EnableRemoveImmediate();
 		}
 
 		gpGlobals.CurTime = startTime;
@@ -206,8 +206,8 @@ public partial class BaseEntity
 		// The underlying values don't actually change, but we need the network sendproxy on origin/angles
 		//  to get triggered, and that only happens if NetworkStateChanged() appears to have occured.
 		// Getting them for modify marks them as changed automagically.
-		// Origin.GetForModify(); // TODO!
-		// Rotation.GetForModify(); // TODO!
+		OriginForModify();
+		RotationForModify();
 
 		SetSimulationTime(gpGlobals.CurTime);
 
@@ -221,7 +221,7 @@ public partial class BaseEntity
 		if (thinkTime <= 0 || deltaThink > 0.5) {
 			PhysicsStepRunTimestep(gpGlobals.FrameTime);
 			// PhysicsCheckWaterTransition();
-			// SetLastThink(-1, gpGlobals.CurTime);
+			SetLastThink(-1, gpGlobals.CurTime);
 			// UpdatePhysicsShadowToCurrentPosition(gpGlobals.FrameTime);
 			// PhysicsRelinkChildren(gpGlobals.FrameTime);
 			return;
