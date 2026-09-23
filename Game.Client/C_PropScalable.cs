@@ -1,4 +1,4 @@
-using Source.Common;
+﻿using Source.Common;
 using Source;
 using Game.Shared;
 using System.Numerics;
@@ -7,8 +7,11 @@ using FIELD = FIELD<C_PropScalable>;
 public class C_PropScalable : C_BaseAnimating
 {
 	public static readonly RecvTable DT_PropScalable = new(DT_BaseAnimating, [
+		// todo: RecvProxy_ScaleX
 		RecvPropFloat(FIELD.OF(nameof(ScaleX))),
+		// todo: RecvProxy_ScaleY
 		RecvPropFloat(FIELD.OF(nameof(ScaleY))),
+		// todo: RecvProxy_ScaleZ
 		RecvPropFloat(FIELD.OF(nameof(ScaleZ))),
 		RecvPropFloat(FIELD.OF(nameof(LerpTimeX))),
 		RecvPropFloat(FIELD.OF(nameof(LerpTimeY))),

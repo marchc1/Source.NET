@@ -568,8 +568,8 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropQAngles (FIELD.OF(nameof(Rotation))),
 		RecvPropInt( FIELD.OF(nameof( TextureFrameIndex) )),
 		RecvPropDataTable( "predictable_id", DT_PredictableId ),
-		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick))),
-		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick))),
+		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
+		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
 		RecvPropBool( FIELD.OF(nameof( AlternateSorting ))),
 
 		RecvPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(Collision)))),
@@ -1761,8 +1761,31 @@ public partial class C_BaseEntity : IClientEntity
 		if (RenderMode == (int)Source.RenderMode.None)
 			return RenderGroup.OpaqueEntity;
 
-		// The rest of this can be implemented later
-		return RenderGroup.OpaqueEntity;
+		// todo
+		// int tempComputeFrame = FXComputeFrame;
+		// FXComputeFrame = gpGlobals.FrameCount;
+
+		int fxBlend = GetFxBlend();
+
+		// todo
+		// FXComputeFrame = tempComputeFrame;
+
+		if (fxBlend == 0)
+			return RenderGroup.OpaqueEntity;
+
+		ModelType modelType = modelinfo.GetModelType(Model);
+		RenderGroup renderGroup = (modelType == ModelType.Brush) ? RenderGroup.OpaqueBrush : RenderGroup.OpaqueEntity;
+		if ((fxBlend != 255) || IsTransparent()) {
+			if (RenderMode != (int)Source.RenderMode.Environmental)
+				renderGroup = RenderGroup.TranslucentEntity;
+			else
+				renderGroup = RenderGroup.Other;
+		}
+
+		if ((renderGroup == RenderGroup.TranslucentEntity) && modelinfo.IsTranslucentTwoPass(Model))
+			renderGroup = RenderGroup.TwoPass;
+
+		return renderGroup;
 	}
 
 	public void AddToLeafSystem() => AddToLeafSystem(GetRenderGroup());
@@ -1788,7 +1811,7 @@ public partial class C_BaseEntity : IClientEntity
 	public ref readonly QAngle GetLocalAngularVelocity() => ref AngVelocity;
 
 	public void SetLocalAngularVelocity(in QAngle vecAngVelocity) {
-		if (AngVelocity != vecAngVelocity) 
+		if (AngVelocity != vecAngVelocity)
 			AngVelocity = vecAngVelocity;
 	}
 
@@ -1947,7 +1970,7 @@ public partial class C_BaseEntity : IClientEntity
 		C_BaseEntity? moveParent = GetMoveParent();
 		if (moveParent == null)
 			absPosition = localPosition;
-		else 
+		else
 			MathLib.VectorTransform(localPosition, moveParent.EntityToWorldTransform(), out absPosition);
 	}
 
@@ -2691,7 +2714,7 @@ public partial class C_BaseEntity : IClientEntity
 			InvalidatePhysicsRecursive(changeFlags);
 	}
 
-	private void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
+	public void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
 		if (Unsafe.IsNullRef(ref map))
 			return;
 

@@ -53,7 +53,7 @@ public partial class
 			RecvPropFloat(FIELD.OF(nameof(PlaybackRate))),
 			RecvPropInt(FIELD.OF(nameof(Effects))),
 			RecvPropInt(FIELD.OF(nameof(AnimationParity))),
-			RecvPropEHandle(FIELD.OF(nameof(Weapon))),
+			RecvPropEHandle(FIELD.OF(nameof(Weapon)), RecvProxy_Weapon),
 			RecvPropEHandle(FIELD.OF(nameof(Owner))),
 
 			RecvPropInt(FIELD.OF(nameof(NewSequenceParity))),
@@ -86,6 +86,19 @@ public partial class
 	TimeUnit_t TimeWeaponIdle;
 	Activity Activity;
 #if CLIENT_DLL
+
+	private static void RecvProxy_Weapon(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		BaseViewModel viewModel = (BaseViewModel)instance;
+		BaseCombatWeapon? oldWeapon = viewModel.GetOwningWeapon();
+
+		RecvProxy_IntToEHandle(in data, instance, field);
+
+		BaseCombatWeapon? newWeapon = viewModel.GetOwningWeapon();
+		if (newWeapon != oldWeapon) {
+			viewModel.SetCycle(0);
+			viewModel.AnimTime = gpGlobals.CurTime;
+		}
+	}
 
 	private static void RecvProxy_SequenceNum(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		BaseViewModel model = (BaseViewModel)instance;

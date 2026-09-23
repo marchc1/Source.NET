@@ -1,4 +1,4 @@
-﻿global using static Game.Server.GameServerClientGlobals;
+global using static Game.Server.GameServerClientGlobals;
 
 using Source;
 using Source.Common;
@@ -35,6 +35,45 @@ public static class GameServerClientGlobals
 				return ent;
 
 		return null;
+	}
+
+	public static void ClientCommand(BasePlayer? player, in TokenizedCommand args) {
+		ReadOnlySpan<char> cmd = args[0];
+
+		if (player == null)
+			return;
+
+		if (FStrEq(cmd, "killtarget")) {
+			// if (g_pDeveloper.GetBool() && sv_cheats.GetBool() && Util.IsCommandIssuedByServerAdmin())
+			// 	ConsoleKillTarget(player, args[1]);
+		}
+		else if (FStrEq(cmd, "demorestart")) {
+			// player.ForceClientDllUpdate();
+		}
+		else if (FStrEq(cmd, "fade"))
+			Util.ScreenFade(player, new(32, 63, 100, 200), 3, 3, FadeFlags.Out);
+		else if (FStrEq(cmd, "te")) {
+			if (sv_cheats.GetBool() && Util.IsCommandIssuedByServerAdmin()) {
+				if (FStrEq(args[1], "stop")) {
+					BaseEntity? ent = gEntList.FindEntityByClassname(null, "te_tester");
+					while (ent != null) {
+						BaseEntity? next = gEntList.FindEntityByClassname(ent, "te_tester");
+						Util.Remove(ent);
+						ent = next;
+					}
+				}
+				// else
+				// 	TempEntTester.Create(player.WorldSpaceCenter(), player.EyeAngles(), args[1], args[2]);
+			}
+		}
+		else {
+			if (!g_pGameRules.ClientCommand(player, args)) {
+				if (strlen(cmd) > 128)
+					Util.ClientPrint(player, Shared.HudPrint.Console, "Console command too long.\n");
+				else
+					Util.ClientPrint(player, Shared.HudPrint.Console, $"Unknown command: {cmd}\n");
+			}
+		}
 	}
 
 	public static void SetDebugBits(BasePlayer? player, ReadOnlySpan<char> name, DebugOverlayBits bit) {

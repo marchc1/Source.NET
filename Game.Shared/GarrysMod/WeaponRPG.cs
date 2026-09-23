@@ -1,8 +1,9 @@
-#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 using Source.Common;
 
 using System.Numerics;
 namespace Game.Shared.GarrysMod;
+
 using FIELD = Source.FIELD<WeaponRPG>;
 
 [LinkEntityToClass("weapon_rpg")]
@@ -20,6 +21,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(InitialStateUpdate))),
 			RecvPropBool(FIELD.OF(nameof(Guiding))),
 			RecvPropBool(FIELD.OF(nameof(HideGuiding))),
+			// todo: RecvProxy_MissileDied
 			RecvPropEHandle(FIELD.OF(nameof(Missile))),
 			RecvPropVector(FIELD.OF(nameof(LaserDot))),
 #else

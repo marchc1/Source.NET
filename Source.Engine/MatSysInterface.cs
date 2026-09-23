@@ -1157,7 +1157,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		config.AAQuality = commandLine.ParmValue("-mat_aaquality", config.AAQuality);
 
 		// Clamp the requested dimensions to the display resolution
-		// TODO GetDisplayMode
+		// TODO GetDisplayMode, is this needed anymore?
 		// MaterialVideoMode videoMode = default;
 		// materials.GetDisplayMode(videoMode);
 		// config.VideoMode.Width = Math.Min(videoMode.Width, config.VideoMode.Width);

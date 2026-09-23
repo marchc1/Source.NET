@@ -49,6 +49,14 @@ public class ActivityList
 		return kActivityLookup_Missing;
 	}
 
+	public static string? NameForIndex(Activity activityIndex) {
+		ActivityList? list = ListFromActivity(activityIndex);
+		if (list != null)
+			return ActivityStrings.String(list.StringKey);
+
+		return null;
+	}
+
 	public static ActivityList? ListFromActivity(Activity activityIndex){
 		foreach(var a in g_ActivityList)
 			if (a.ActivityIndex == activityIndex) 

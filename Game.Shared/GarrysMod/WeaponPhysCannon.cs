@@ -1,3 +1,4 @@
+using Source;
 #if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 
 #if CLIENT_DLL
@@ -637,8 +638,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		owner.ViewPunch(new QAngle(-6, SharedRandomInt("physcannonfire", -2, 2), 0));
 
 #if !CLIENT_DLL
-		// Color white = new(245, 245, 255, 32);
-		// Util.ScreenFade(owner, white, 0.1f, 0.0f, FFADE_IN);
+		Color white = new(245, 245, 255, 32);
+		Util.ScreenFade(owner, white, 0.1f, 0.0f, FadeFlags.In);
 #endif
 
 		WeaponSound(Shared.WeaponSound.Single);
@@ -690,9 +691,9 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 
 	public override void SecondaryAttack() {
-		#if !CLIENT_DLL
+#if !CLIENT_DLL
 			// todo
-		#endif
+#endif
 	}
 
 

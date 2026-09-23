@@ -104,8 +104,8 @@ public interface INetworkStringDict
 	public void Purge();
 	public string String(int index);
 	public bool IsValidIndex(int index);
-	public int Insert(string pString);
-	public int Find(string pString);
+	public int Insert(ReadOnlySpan<char> pString);
+	public int Find(ReadOnlySpan<char> pString);
 	public NetworkStringTableItem Element(int index);
 };
 
@@ -119,11 +119,11 @@ public class NetworkStringFilenameDict : INetworkStringDict
 		throw new NotImplementedException();
 	}
 
-	public int Find(string pString) {
+	public int Find(ReadOnlySpan<char> pString) {
 		throw new NotImplementedException();
 	}
 
-	public int Insert(string pString) {
+	public int Insert(ReadOnlySpan<char> pString) {
 		throw new NotImplementedException();
 	}
 
@@ -141,14 +141,20 @@ public class NetworkStringFilenameDict : INetworkStringDict
 }
 public class NetworkStringDict : INetworkStringDict
 {
-	private readonly Dictionary<string, NetworkStringTableItem> Lookup = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, int> Indices = new(StringComparer.OrdinalIgnoreCase);
 	private readonly List<string> Keys = new();
+	private readonly List<NetworkStringTableItem> Items = new();
 
-	public int Count() => Lookup.Count;
+	private readonly Dictionary<string, int>.AlternateLookup<ReadOnlySpan<char>> IndicesBySpan;
+
+	public NetworkStringDict() => IndicesBySpan = Indices.GetAlternateLookup<ReadOnlySpan<char>>();
+
+	public int Count() => Keys.Count;
 
 	public void Purge() {
-		Lookup.Clear();
+		Indices.Clear();
 		Keys.Clear();
+		Items.Clear();
 	}
 
 	public string String(int index) {
@@ -160,28 +166,27 @@ public class NetworkStringDict : INetworkStringDict
 
 	public bool IsValidIndex(int index) => index >= 0 && index < Keys.Count;
 
-	public int Insert(string value) {
-		if (!Lookup.ContainsKey(value)) {
-			Lookup[value] = new NetworkStringTableItem();
-			Keys.Add(value);
-		}
+	public int Insert(ReadOnlySpan<char> value) {
+		if (IndicesBySpan.TryGetValue(value, out int index))
+			return index;
 
-		return Keys.IndexOf(value);
+		string key = new(value);
+
+		index = Keys.Count;
+		Indices[key] = index;
+		Keys.Add(key);
+		Items.Add(new NetworkStringTableItem());
+
+		return index;
 	}
 
-	public int Find(string value) {
-		if (value == null)
-			return -1;
-
-		return Keys.IndexOf(value);
-	}
+	public int Find(ReadOnlySpan<char> value) => IndicesBySpan.TryGetValue(value, out int index) ? index : -1;
 
 	public NetworkStringTableItem Element(int index) {
 		if (!IsValidIndex(index))
 			throw new IndexOutOfRangeException();
 
-		var key = Keys[index];
-		return Lookup[key];
+		return Items[index];
 	}
 }
 
@@ -278,8 +283,7 @@ public class NetworkStringTable : INetworkStringTable
 		if (Locked)
 			DevMsg($"Warning! CNetworkStringTable::AddString: adding '{value}' while locked.\n");
 		value = value.SliceNullTerminatedString();
-		string tempStrValueOhMyGodThisNeedsToUseROS = new(value);
-		int i = Items.Find(tempStrValueOhMyGodThisNeedsToUseROS);
+		int i = Items.Find(value);
 		if (!isServer && Items.IsValidIndex(i) && ItemsClientSide == null) {
 			isServer = true;
 		}
@@ -287,14 +291,14 @@ public class NetworkStringTable : INetworkStringTable
 		bool bHasChanged = false;
 		NetworkStringTableItem? item = null;
 		if (!isServer && ItemsClientSide != null) {
-			i = ItemsClientSide.Find(tempStrValueOhMyGodThisNeedsToUseROS);
+			i = ItemsClientSide.Find(value);
 			if (!ItemsClientSide.IsValidIndex(i)) {
 				if (ItemsClientSide.Count() >= (uint)GetMaxStrings()) {
 					ConMsg($"Warning:  Table {GetTableName()} is full, can't add {value}\n");
 					return INetworkStringTable.INVALID_STRING_INDEX;
 				}
 
-				i = ItemsClientSide.Insert(tempStrValueOhMyGodThisNeedsToUseROS);
+				i = ItemsClientSide.Insert(value);
 				item = ItemsClientSide.Element(i);
 				item.TickChanged = TickCount;
 				item.TickCreated = TickCount;
@@ -321,7 +325,7 @@ public class NetworkStringTable : INetworkStringTable
 			i = -i;
 		}
 		else {
-			i = Items.Find(tempStrValueOhMyGodThisNeedsToUseROS);
+			i = Items.Find(value);
 
 			if (!Items.IsValidIndex(i)) {
 				if (Items.Count() >= (uint)GetMaxStrings()) {
@@ -329,7 +333,7 @@ public class NetworkStringTable : INetworkStringTable
 					return INetworkStringTable.INVALID_STRING_INDEX;
 				}
 
-				i = Items.Insert(tempStrValueOhMyGodThisNeedsToUseROS);
+				i = Items.Insert(value);
 				item = Items.Element(i);
 				item.TickChanged = TickCount;
 				item.TickCreated = TickCount;
@@ -404,7 +408,7 @@ public class NetworkStringTable : INetworkStringTable
 	}
 
 	public int FindStringIndex(ReadOnlySpan<char> value) {
-		int i = Items.Find(new(value));
+		int i = Items.Find(value);
 		if (Items.IsValidIndex(i))
 			return i;
 

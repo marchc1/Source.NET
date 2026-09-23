@@ -1226,7 +1226,7 @@ public class GameMovement : IGameMovement
 		// In the air now.
 		SetGroundEntity(ref Trace.NULL);
 
-		// Player.PlayStepSound(mv.GetAbsOrigin(), player.SurfaceData, 1.0f, true);
+		Player.PlayStepSound(mv.GetAbsOrigin(), Player.SurfaceData, 1.0f, true);
 
 		MoveHelper().PlayerSetAnimation(PlayerAnim.Jump);
 
@@ -2612,7 +2612,7 @@ public class GameMovement : IGameMovement
 			if ((Player.Local.DuckJumpTime == 0.0f) && (MathF.Abs(Player.GetViewOffset().Z - GetPlayerViewOffset(false).Z) > 0.1)) {
 				// we should rarely ever get here, so assert so a coder knows when it happens
 				Assert(false);
-				DevMsg(1, "Restoring player view height\n");
+				// DevMsg(1, "Restoring player view height\n"); // todo, uncomment when it wants to be less annoying
 
 				// set the eye height to the non-ducked height
 				SetDuckedEyeOffset(0.0f);

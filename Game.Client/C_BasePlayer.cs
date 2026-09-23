@@ -1,4 +1,4 @@
-using Game.Shared;
+﻿using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -115,7 +115,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	int Physics;
 	bool FiredWeapon;
 
-	
+
 
 
 	public bool HasFiredWeapon() => FiredWeapon;
@@ -335,7 +335,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
 		RecvPropFloat(FIELD.OF(nameof(Maxspeed))),
 		RecvPropInt(FIELD.OF("flags")),
+		// todo: RecvProxy_ObserverMode
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
+		// todo: RecvProxy_ObserverTarget
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
 		RecvPropFloat(FIELD.OF(nameof(FOV))),
 		RecvPropFloat(FIELD.OF(nameof(FOVStart))),
@@ -476,7 +478,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 		// If we are updated while paused, allow the player origin to be snapped by the
 		//  server if we receive a packet from the server
-		if (engine.IsPaused() || forceEFNoInterp) 
+		if (engine.IsPaused() || forceEFNoInterp)
 			ResetLatched();
 	}
 
@@ -519,20 +521,20 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	FlashlightEffect? PointFlashlight;
 	public virtual BaseEntity? GetObserverTarget() => null; // todo
 
-	static readonly ConVar demo_fov_override = new( "demo_fov_override", "0", FCvar.ClientDLL | FCvar.DontRecord, "If nonzero, this value will be used to override FOV during demo playback." );
+	static readonly ConVar demo_fov_override = new("demo_fov_override", "0", FCvar.ClientDLL | FCvar.DontRecord, "If nonzero, this value will be used to override FOV during demo playback.");
 
-	public virtual float GetFOV(){
+	public virtual float GetFOV() {
 		// Allow users to override the FOV during demo playback
 		bool useDemoOverrideFov = engine.IsPlayingDemo() && demo_fov_override.GetFloat() > 0.0f;
 
-		if (useDemoOverrideFov) 
+		if (useDemoOverrideFov)
 			return Math.Clamp(demo_fov_override.GetFloat(), 10.0f, 90.0f);
 
 		if (GetObserverMode() == Shared.ObserverMode.InEye) {
 			C_BasePlayer? targetPlayer = (C_BasePlayer?)GetObserverTarget();
 
 			// get fov from observer target. Not if target is observer itself
-			if (targetPlayer != null && !targetPlayer.IsObserver()) 
+			if (targetPlayer != null && !targetPlayer.IsObserver())
 				return targetPlayer.GetFOV();
 		}
 
@@ -543,7 +545,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			CacheVehicleView();
 			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : VehicleViewFOV;
 		}
-		else 
+		else
 			defaultFOV = GetDefaultFOV();
 
 		float fFOV = (FOV == 0) ? defaultFOV : FOV;
@@ -559,7 +561,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 				if (GetPredictable()) {
 					// m_flFOVTime was set to a predicted time in the future, because the FOV change was predicted.
 					deltaTime = (float)(GetFinalPredictedTime() - FOVTime);
-					deltaTime += (gpGlobals.InterpolationAmount* TICK_INTERVAL);
+					deltaTime += (gpGlobals.InterpolationAmount * TICK_INTERVAL);
 					deltaTime /= Local.FOVRate;
 				}
 #endif

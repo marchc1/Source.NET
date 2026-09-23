@@ -109,6 +109,30 @@ public class BaseAnimating : BaseEntity
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
 
+	public override void SetModel(ReadOnlySpan<char> modelName) {
+		UnlockStudioHdr();
+		StudioHdr = null;
+
+		if (!modelName.IsStringEmpty) {
+			int modelIndex = modelinfo.GetModelIndex(modelName);
+			Model? model = modelinfo.GetModel(modelIndex);
+			if (model != null && modelinfo.GetModelType(model) != ModelType.Studio)
+				Msg($"Setting CBaseAnimating to non-studio model {modelName}  (type:{modelinfo.GetModelType(model)})\n");
+		}
+
+		if (BoneCacheHandle != 0) {
+			Studio.DestroyBoneCache(BoneCacheHandle);
+			BoneCacheHandle = 0;
+		}
+
+		Util.SetModel(this, modelName);
+
+		// InitBoneControllers();
+		SetSequence(0);
+
+		// PopulatePoseParameters();
+	}
+
 	public void ResetSequence(int sequence) {
 		SetSequence(sequence);
 		ResetSequenceInfo();
@@ -453,7 +477,7 @@ public class BaseAnimating : BaseEntity
 			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) NULL pstudiohdr on {GetClassname()}!\n");
 			return 0.1;
 		}
-		if (studioHdr.SequencesAvailable()) {
+		if (!studioHdr.SequencesAvailable()) {
 			return 0.1;
 		}
 		if (sequence >= studioHdr.GetNumSeq() || sequence < 0) {
@@ -465,6 +489,91 @@ public class BaseAnimating : BaseEntity
 	}
 	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
 	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
+
+	public float GetSequenceCycleRate(StudioHdr? studioHdr, int sequence) {
+		float t = (float)SequenceDuration(studioHdr, sequence);
+
+		if (t != 0.0f)
+			return 1.0f / t;
+
+		return t;
+	}
+
+	public float GetSequenceCycleRate(int sequence) => GetSequenceCycleRate(GetModelPtr(), sequence);
+
+	public float GetLastVisibleCycle(StudioHdr? studioHdr, int sequence) {
+		if (studioHdr == null) {
+			DevWarning(2, $"BaseAnimating.LastVisibleCycle( {sequence} ) NULL pstudiohdr on {GetClassname()}!\n");
+			return 1.0f;
+		}
+
+		if (0 == (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping))
+			return 1.0f - studioHdr.Seqdesc(sequence).FadeOutTime * GetSequenceCycleRate(sequence) * (float)PlaybackRate;
+		else
+			return 1.0f;
+	}
+
+	public const float MAX_ANIMTIME_INTERVAL = 0.2f;
+
+	public TimeUnit_t GetAnimTimeInterval() {
+		TimeUnit_t interval;
+		if (AnimTime < gpGlobals.CurTime)
+			interval = Math.Clamp(gpGlobals.CurTime - AnimTime, 0, MAX_ANIMTIME_INTERVAL);
+		else
+			interval = Math.Clamp(AnimTime - PrevAnimTime, 0, MAX_ANIMTIME_INTERVAL);
+		return interval;
+	}
+
+	public void InvalidateBoneCache() => Studio.InvalidateBoneCache(BoneCacheHandle);
+
+	public void InvalidateBoneCacheIfOlderThan(TimeUnit_t deltaTime) {
+		BoneCache pcache = Studio.GetBoneCache(BoneCacheHandle);
+		if (pcache.IsNull() || !pcache.IsValid(gpGlobals.CurTime, deltaTime) || pcache.TimeValid > gpGlobals.CurTime)
+			InvalidateBoneCache();
+	}
+
+	public void StudioFrameAdvanceInternal(StudioHdr? studioHdr, TimeUnit_t cycleDelta) {
+		TimeUnit_t newCycle = GetCycle() + cycleDelta;
+		if (newCycle < 0.0 || newCycle >= 1.0) {
+			if (SequenceLoops)
+				newCycle -= (int)newCycle;
+			else
+				newCycle = (newCycle < 0.0) ? 0.0 : 1.0;
+			SequenceFinished = true;
+		}
+		else if (newCycle > GetLastVisibleCycle(studioHdr, GetSequence()))
+			SequenceFinished = true;
+
+		SetCycle(newCycle);
+
+		GroundSpeed = GetSequenceGroundSpeed(studioHdr, GetSequence()) * GetModelScale();
+
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+
+		InvalidateBoneCacheIfOlderThan(0);
+	}
+
+	public virtual void StudioFrameAdvance() {
+		StudioHdr? studioHdr = GetModelPtr();
+
+		if (studioHdr == null || !studioHdr.SequencesAvailable())
+			return;
+
+		if (PrevAnimTime == 0)
+			PrevAnimTime = AnimTime;
+
+		TimeUnit_t interval = gpGlobals.CurTime - AnimTime;
+		interval = Math.Clamp(interval, 0, MAX_ANIMTIME_INTERVAL);
+
+		if (interval <= 0.001)
+			return;
+
+		PrevAnimTime = AnimTime;
+		AnimTime = gpGlobals.CurTime;
+
+		TimeUnit_t cycleRate = GetSequenceCycleRate(studioHdr, GetSequence()) * PlaybackRate;
+		StudioFrameAdvanceInternal(studioHdr, interval * cycleRate);
+	}
 	public virtual void DoMuzzleFlash() => MuzzleFlashParity = unchecked((byte)((MuzzleFlashParity + 1) & ((1 << (int)EntityEffects.MuzzleflashBits) - 1)));
 	public virtual void SetSequence(int sequence) {
 		Sequence = sequence;
