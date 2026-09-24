@@ -681,6 +681,28 @@ public class KeyValues : IEnumerable<KeyValues>
 		}
 	}
 
+	public void SetUint64(ReadOnlySpan<char> keyName, ulong value) {
+		KeyValues? dat = FindKey(keyName, true);
+		if (dat != null) {
+			dat.Value = value;
+			dat.Type = Types.Uint64;
+		}
+	}
+
+	public ulong GetUint64(ReadOnlySpan<char> keyName, ulong defaultValue = default) {
+		KeyValues? dat = FindKey(keyName, false);
+		if (dat == null)
+			return defaultValue;
+
+		return dat.Value is ulong u
+			? u
+			: dat.Value is string str
+				? ulong.TryParse(str, out ulong r)
+					? r
+					: defaultValue
+				: Convert.ToUInt64(dat.Value);
+	}
+
 	public bool LoadFromFile(IFileSystem fileSystem, ReadOnlySpan<char> path, ReadOnlySpan<char> pathID) {
 		return LoadFromStream(fileSystem.Open(path, FileOpenOptions.Read, pathID)?.Stream);
 	}

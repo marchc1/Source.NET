@@ -760,6 +760,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int Speed;
 	public int TeamNum;
+	public int GetTeamNumber() => TeamNum;
 
 	IPhysicsObject? PhysicsObject = null!;
 	public void VPhysicsUpdate(IPhysicsObject physics) { }

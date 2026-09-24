@@ -153,6 +153,13 @@ public ref struct PrintF
 		return this;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF F(double i) => G(i);
+	public PrintF C(char c) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		input.Write([c]);
+		WriteAnyLiterals();
+		return this;
+	}
 	public PrintF S(scoped ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());
