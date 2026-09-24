@@ -82,4 +82,9 @@ public partial class GMOD_Player : HL2MP_Player
 	public override void PlayerRunCommand(UserCmd ucmd, IMoveHelper moveHelper) {
 		base.PlayerRunCommand(ucmd, moveHelper);
 	}
+
+	public override void CheckChatText(ReadOnlySpan<char> text) {
+		if (!stristr(text, "bloxwich").IsEmpty)
+			AwardAchievement((int)GMODAchievementID.GMA_SAY_1, 1);
+	}
 }

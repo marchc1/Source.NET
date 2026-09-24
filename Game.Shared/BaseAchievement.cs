@@ -14,7 +14,13 @@ public delegate BaseAchievement AchievementCreateFunc();
 
 public class BaseAchievement : GameEventListener, IAchievement
 {
-	internal readonly static ConVar cc_achievement_debug =new("achievement_debug", "0", FCvar.Cheat | FCvar.Replicated, "Turn on achievement debug msgs.");
+	internal readonly static ConVar cc_achievement_debug = new("achievement_debug",
+#if DEBUG
+	"1"
+#else
+	"0"
+#endif
+, FCvar.Cheat | FCvar.Replicated, "Turn on achievement debug msgs.");
 
 	public static readonly DataMap DataDesc = new(typeof(BaseAchievement), null, [
 		Source.DEFINE<BaseAchievement>.FIELD(nameof(Count), FieldType.Integer),
@@ -227,6 +233,10 @@ public class BaseAchievement : GameEventListener, IAchievement
 					HandleProgressUpdate();
 			}
 		}
+#if DEBUG
+		else if (cc_achievement_debug.GetInt() != 0)
+			Msg($"Achievement count not increased for {Name}: achieved={IsAchieved()} canEarn={LocalPlayerCanEarn()}\n");
+#endif
 	}
 
 	public void SetShowOnHUD(bool show) {

@@ -394,7 +394,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 
 		// draw the axes
 		if (drawAxes) {
-			Vector3 xaxis = new(10,0,0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
+			Vector3 xaxis = new(10, 0, 0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
 			Vector3 @out;
 
 			MathLib.MatrixGetColumn(transform, 3, out Vector3 center);
@@ -537,13 +537,10 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void ReadConfiguration(bool readDefault = false) => Host.ReadConfiguration();
-	public void SetAchievementMgr(IAchievementMgr? achievementMgr) {
-		throw new NotImplementedException();
-	}
 
-	public IAchievementMgr? GetAchievementMgr() {
-		throw new NotImplementedException();
-	}
+	static IAchievementMgr? AchievementMgr;
+	public void SetAchievementMgr(IAchievementMgr? achievementMgr) => AchievementMgr = achievementMgr;
+	public IAchievementMgr? GetAchievementMgr() => AchievementMgr;
 
 	public bool MapLoadFailed() => serverGlobalVariables.MapLoadFailed;
 	public void SetMapLoadFailed(bool state) => serverGlobalVariables.MapLoadFailed = state;

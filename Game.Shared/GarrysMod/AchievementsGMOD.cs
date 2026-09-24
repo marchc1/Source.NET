@@ -57,8 +57,11 @@ public enum GMODAchievementID
 
 public static class AchievementsGMOD
 {
+	public static readonly AchievementMgr g_AchievementMgrGMOD = new();
+
 	static void DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID achievementID, int goal, bool storeProgressInSteam) => DECLARE_ACHIEVEMENT_(() => new GMODAchievement(goal, storeProgressInSteam), (int)achievementID, achievementID.ToString(), null, 1, false);
 	static AchievementsGMOD() {
+#if CLIENT_DLL
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_NULL_FAKE, 1, false);
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PLAY_SINGLEPLAYER, 1, false);
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PLAY_MULTIPLAYER, 1, false);
@@ -89,6 +92,7 @@ public static class AchievementsGMOD
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MEDIUMTHUMB, 1, false);
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_HUGETHUMB, 1, false);
 		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MEGAUPLOAD, 1, false);
+#endif
 	}
 }
 #endif

@@ -707,6 +707,10 @@ public class AchievementMgr : AutoGameSystemPerFrame, IGameEventListener2, IAchi
 			if (achievement != null) {
 				if (!achievement.IsAchieved())
 					achievement.IncrementCount(count);
+#if DEBUG
+				else if (BaseAchievement.cc_achievement_debug.GetInt() != 0)
+					Msg($"Achievement event ignored for {achievement.GetName()}: already achieved\n");
+#endif
 			}
 		}
 	}
@@ -886,6 +890,15 @@ public class AchievementMgr : AutoGameSystemPerFrame, IGameEventListener2, IAchi
 			return;
 		achievementMgr.OnAchievementEvent(achievementID, count);
 	}
+
+#if DEBUG
+	[ConCommand("achievement_status", "Shows status of all achievement", FCvar.Cheat)]
+	static void achievement_status() {
+		if (engine.GetAchievementMgr() is not AchievementMgr achievementMgr)
+			return;
+		achievementMgr.PrintAchievementStatus();
+	}
+#endif
 #endif
 }
 #endif
