@@ -76,14 +76,14 @@ public class FontAmalgam : IFont
 
 
 	public ReadOnlySpan<char> GetFontName(int i) {
-		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null) 
+		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null)
 			return Fonts[i].Font.GetName();
-		else 
+		else
 			return null;
 	}
 
 	public ReadOnlySpan<char> GetFontFamilyName(int i) {
-		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null) 
+		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null)
 			return Fonts[i].Font.GetFamilyName();
 
 		return "";
@@ -140,9 +140,9 @@ public class FontAmalgam : IFont
 	}
 
 	internal int GetFontHeightRequested() {
-		if (Fonts.Count == 0) 
+		if (Fonts.Count == 0)
 			return MaxHeight;
-		
+
 		return Fonts[0].Font.GetHeightRequested();
 	}
 }
@@ -564,5 +564,9 @@ public unsafe class FontManager
 
 	internal int GetFontTallRequested(IFont? font) {
 		return ((FontAmalgam)font!).GetFontHeightRequested();
+	}
+
+	public void ClearTemporaryFontCache() {
+		// todo?
 	}
 }

@@ -2349,7 +2349,7 @@ public class Panel : IPanel
 		Assert(ClipRectY <= ClipRectH);
 	}
 
-	public void Think() {
+	public virtual void Think() {
 #if GMOD_DLL
 		if (LayoutDirty) {
 			LayoutDirty = false;
@@ -3158,7 +3158,7 @@ public class Panel : IPanel
 		if (state) BuildModeFlags |= BuildModeFlags.Deletable; else BuildModeFlags &= ~BuildModeFlags.Deletable;
 	}
 
-	internal void SetBuildModeEditable(bool state) {
+	public void SetBuildModeEditable(bool state) {
 		if (state) BuildModeFlags |= BuildModeFlags.Editable; else BuildModeFlags &= ~BuildModeFlags.Editable;
 	}
 

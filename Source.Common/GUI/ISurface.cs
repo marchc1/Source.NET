@@ -174,6 +174,7 @@ public interface ISurface
 
 	ReadOnlySpan<char> GetBitmapFontName(ReadOnlySpan<char> name);
 	bool SetFontGlyphSet(IFont font, ReadOnlySpan<char> windowsFontName, int tall, int weight, int blur, int scanlines, SurfaceFontFlags flags, int rangeMin = 0, int rangeMax = 0);
+	void ClearTemporaryFontCache();
 	bool AddCustomFontFile(ReadOnlySpan<char> fontName, ReadOnlySpan<char> fontFileName);
 
 	int GetCharacterWidth(IFont font, int ch);
