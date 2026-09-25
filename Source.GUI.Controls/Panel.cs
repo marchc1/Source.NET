@@ -2145,7 +2145,7 @@ public class Panel : IPanel
 	}
 
 	public bool IsMarkedForDeletion() => (Flags & PanelFlags.MarkedForDeletion) != 0;
-	public void MarkForDeletion() {
+	public virtual void MarkForDeletion() {
 		if ((Flags & PanelFlags.MarkedForDeletion) != 0)
 			return;
 
@@ -2155,6 +2155,10 @@ public class Panel : IPanel
 	}
 
 	public bool HasFocus() => Input.GetFocus() == this;
+
+#if GMOD_DLL
+	public virtual void DoModal() { }
+#endif
 
 	public virtual void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("performlayout", StringComparison.OrdinalIgnoreCase))

@@ -634,9 +634,19 @@ public class BaseHudChat : EditableHudElement
 		int client = msg.ReadByte();
 		str = str[..msg.ReadString(str)];
 		bool wantsToChat = msg.ReadByte() != 0;
+#if GMOD_DLL
+		bool teamChat = msg.ReadByte() != 0;
+		bool isDead = msg.ReadByte() != 0;
+
+		// todo OnPlayerChat hook
+		// until then, no player names in chat :(
 
 		if (wantsToChat)
+			ChatPrintf(client, ChatFilters.PublicChat, str);
+#else
+		if (wantsToChat)
 			ChatPrintf(client, ChatFilters.None, str);
+#endif
 		else
 			Printf(ChatFilters.None, str);
 	}
@@ -672,33 +682,21 @@ public class BaseHudChat : EditableHudElement
 		else
 			engine.GetPlayerInfo(playerIndex, out playerInfo);
 
+#if GMOD_DLL
+		// todo ChatText hook
+#endif
+
 		int nameStart = 0;
 		int nameLength = 0;
 
 		Color clrNameColor = GetClientColor(playerIndex);
 
 		ReadOnlySpan<char> playerName = ((ReadOnlySpan<char>)playerInfo.Name).SliceNullTerminatedString();
-		Span<char> buf = stackalloc char[playerName.Length + 2 + trimmed.Length + 1];
-		int writePtr = 0;
-
-		playerName.CopyTo(buf[writePtr..]);
-		nameStart = writePtr;
-		nameLength = playerName.Length;
-		writePtr += playerName.Length;
-
-		if (!buf.Contains(playerName, StringComparison.Ordinal)) {
-			nameStart = 0;
-			nameLength = 0;
+		ReadOnlySpan<char> nameInString = strstr(trimmed, playerName);
+		if (!playerName.IsEmpty && !nameInString.IsEmpty) {
+			nameStart = trimmed.Length - nameInString.Length;
+			nameLength = playerName.Length;
 		}
-
-		": ".CopyTo(buf[writePtr..]);
-		writePtr += 2;
-
-		trimmed.CopyTo(buf[writePtr..]);
-		writePtr += trimmed.Length;
-
-		"\n".CopyTo(buf[writePtr..]);
-		writePtr += 1;
 
 		line.SetExpireTime();
 
@@ -706,10 +704,13 @@ public class BaseHudChat : EditableHudElement
 		line.SetNameStart(nameStart);
 		line.SetNameLength(nameLength);
 		line.SetNameColor(clrNameColor);
-		// We only need the \n for Msg
-		line.InsertAndColorizeText(buf[..(buf.Length - 1)], playerIndex);
+		line.InsertAndColorizeText(trimmed, playerIndex);
 
-		Msg(buf);
+#if GMOD_DLL
+		// todo ChatHistory
+#endif
+
+		Msg($"{trimmed}\n");
 	}
 
 	public virtual Color GetClientColor(int clientIndex) {
