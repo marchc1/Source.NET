@@ -240,4 +240,5 @@ public interface IMatSystemSurface : ISurface
 	void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget);
 	void GetFullscreenViewport(out int x, out int y, out int w, out int h);
 	void OnScreenSizeChanged(int oldWidth, int oldHeight);
+	void DisableClipping(bool disable);
 }

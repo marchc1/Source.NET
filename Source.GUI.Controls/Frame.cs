@@ -863,6 +863,11 @@ public class Frame : EditablePanel
 
 		SetCloseButtonVisible(resourceData.GetBool("setclosebuttonvisible", true));
 
+#if GMOD_DLL
+		if (resourceData.GetInt("settitlevisible", 1) != 0)
+			DrawTitleBar = true;
+#endif
+
 		if (resourceData.GetInt("settitlebarvisible", 1) == 0)
 			SetTitleBarVisible(false);
 

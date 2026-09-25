@@ -557,6 +557,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMousePressed hook
+#endif
 		if (code == ButtonCode.MouseLeft) {
 			bool keepChecking = SelectCheck(true);
 			if (!keepChecking) {
@@ -593,6 +596,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMouseReleased hook
+#endif
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 		if (GetSelectedRange(out int cx0, out int cx1)) {
@@ -654,6 +660,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnKeyCodePressed hook
+#endif
 		if (code == ButtonCode.KeyEnter) {
 			if (!CatchEnterKey) {
 				base.OnKeyCodePressed(code);
@@ -687,6 +696,19 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
+#if GMOD_DLL
+		if (code >= ButtonCode.KeyF1 && code <= ButtonCode.KeyF12) {
+			ReadOnlySpan<char> binding = gameuifuncs.GetBindingForButtonCode(code);
+			if (binding.IsEmpty || binding[0] == '\0')
+				return;
+
+			Span<char> command = stackalloc char[256];
+			strcpy(command, binding);
+			engine.ClientCmd_Unrestricted(command);
+			return;
+		}
+		// todo: OnKeyCodeTyped hook
+#endif
 		CursorIsAtEnd = PutCursorAtEnd;
 		PutCursorAtEnd = false;
 
@@ -877,6 +899,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyTyped(char ch) {
+#if GMOD_DLL
+		// todo: AllowInput hook
+#endif
 		CursorIsAtEnd = PutCursorAtEnd;
 		PutCursorAtEnd = false;
 
@@ -1137,6 +1162,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKillFocus(Panel? newPanel) {
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 		if (DataChanged) {
 			FireActionSignal();
 			DataChanged = false;
@@ -1749,10 +1777,23 @@ public class TextEntry : Panel
 
 	static readonly KeyValues TextNewLineActionSignal = new("TextNewLine");
 	static readonly KeyValues TextChangedActionSignal = new("TextChanged");
+#if GMOD_DLL
+	static bool FiringActionSignal;
+#endif
 	public void FireActionSignal() {
+#if GMOD_DLL
+		if (FiringActionSignal)
+			return;
+		FiringActionSignal = true;
+#endif
 		PostActionSignal(TextChangedActionSignal);
 		DataChanged = false;   // reset the data changed flag
 		InvalidateLayout();
+#if GMOD_DLL
+		RecalculateLineBreaks();
+		// todo: OnTextChanged hook
+		FiringActionSignal = false;
+#endif
 	}
 
 	private void ResetCursorBlink() {
@@ -1930,6 +1971,9 @@ public class TextEntry : Panel
 		ShouldSelectAllOnFocusAlways = state;
 	}
 	public override void OnSetFocus() {
+#if GMOD_DLL
+		// todo: OnGetFocus hook
+#endif
 		if (ShouldSelectAllOnFirstFocus) {
 			Select[1] = TextStream.Count;
 			Select[0] = Select[1] > 0 ? 0 : -1;
@@ -1963,6 +2007,9 @@ public class TextEntry : Panel
 		SelectAllOnFirstFocus(resourceData.GetInt("selectallonfirstfocus", 0) != 0);
 	}
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 
 		SetFgColor(GetSchemeColor("TextEntry.TextColor", scheme));

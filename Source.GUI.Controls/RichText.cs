@@ -206,6 +206,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMousePressed hook
+#endif
 		if (code == ButtonCode.MouseLeft) {
 			SelectNone();
 
@@ -237,6 +240,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMouseReleased hook
+#endif
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 
@@ -245,6 +251,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMouseWheeled(int delta) {
+#if GMOD_DLL
+		// todo: OnMouseWheeled hook
+#endif
 		MoveScrollBar(delta);
 	}
 
@@ -621,6 +630,9 @@ public class RichText : Panel
 	private bool HasText() => TextStream.Count != 0;
 
 	public override void OnKillFocus(Panel? newPanel) {
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 		bool mouseRightClicked = Input.WasMousePressed(ButtonCode.MouseRight);
 		bool mouseRightUp = Input.WasMouseReleased(ButtonCode.MouseRight);
 		bool mouseRightDown = Input.IsMouseDown(ButtonCode.MouseRight);
@@ -809,6 +821,9 @@ public class RichText : Panel
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 
 		Font = scheme.GetFont("Default", IsProportional());

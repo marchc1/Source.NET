@@ -20,8 +20,22 @@ public class URLLabel : Label
 	void SetURL(ReadOnlySpan<char> url) => URL = url.ToString();
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		if (code != ButtonCode.MouseLeft || URL == null)
+			return;
+
+		ReadOnlySpan<char> url = URL;
+		if (url.Length > 2048 || url.Contains('\n') || url.Contains('\r'))
+			return;
+
+		if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+			return;
+
+		// TODO lua RequestOpenURL(url)
+#else
 		if (code == ButtonCode.MouseLeft && URL != null)
 			system.ShellExecute("open", URL);
+#endif
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {
