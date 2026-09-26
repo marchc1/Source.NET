@@ -63,7 +63,7 @@ public class TextEntry : Panel
 		LangInset = 0;
 
 		int langlen = 0;
-		if (AllowNonAsciiCharacters) {
+		if (AllowNonAsciiCharacters && DrawLanguageID) {
 			// TODO: IME related things
 		}
 
@@ -211,7 +211,7 @@ public class TextEntry : Panel
 
 		CursorPos = oldCursorPos;
 
-		if (HasFocus() && AllowNonAsciiCharacters && langlen > 0) {
+		if (HasFocus() && AllowNonAsciiCharacters && DrawLanguageID && langlen > 0) {
 			wide += LangInset;
 
 			if (DrawLanguageIDAtLeft)
@@ -311,7 +311,7 @@ public class TextEntry : Panel
 			x += getCharWidth(Font, ch);
 		}
 
-		if (DrawLanguageIDAtLeft)
+		if (DrawLanguageIDAtLeft && DrawLanguageID)
 			x += LangInset;
 
 	}
@@ -521,6 +521,7 @@ public class TextEntry : Panel
 	bool AllowNumericInputOnly;
 	int LangInset;
 	bool DrawLanguageIDAtLeft;
+	bool DrawLanguageID = true;
 	bool UseFallbackFont;
 	IFont? FallbackFont;
 
@@ -1192,6 +1193,8 @@ public class TextEntry : Panel
 		int wx = GetWide() - 1;
 		CursorToPixelSpace(CursorPos, out int cx, out _);
 		if (wx <= 0) return false;
+		if (DrawLanguageID && !DrawLanguageIDAtLeft)
+			wx -= LangInset;
 
 		return cx >= wx;
 	}
@@ -1624,6 +1627,15 @@ public class TextEntry : Panel
 			FireActionSignal();
 	}
 
+	public virtual void CutSelected() {
+		CopySelected();
+		DeleteSelected();
+		RequestFocus();
+
+		if (DataChanged)
+			FireActionSignal();
+	}
+
 	private void Paste() {
 		if (!IsEditable())
 			return;
@@ -1825,6 +1837,8 @@ public class TextEntry : Panel
 
 	public int PixelToCursorSpace(int cx, int cy) {
 		GetSize(out int w, out int h);
+		if (DrawLanguageIDAtLeft && DrawLanguageID)
+			cx -= LangInset;
 		cx = Math.Clamp(cx, 0, w + 100);
 		cy = Math.Clamp(cy, 0, h);
 
@@ -1963,6 +1977,19 @@ public class TextEntry : Panel
 
 	public bool IsEditable() => Editable;
 	public void SetMaximumCharCount(int chars) => MaxCharCount = chars;
+	public int GetMaximumCharCount() => MaxCharCount;
+	public void SetDrawLanguageIDAtLeft(bool state) => DrawLanguageIDAtLeft = state;
+	public void SetDrawLanguageID(bool state) => DrawLanguageID = state;
+#if GMOD_DLL
+	public override int GetCaretPos() => CursorPos;
+	public override void SetCaretPos(int pos) {
+		pos = Math.Max(pos, 0);
+		if (GetTextLength() < pos)
+			CursorPos = GetTextLength();
+		else
+			CursorPos = pos;
+	}
+#endif
 	public void SetAllowNonAsciiCharacters(bool state) => AllowNonAsciiCharacters = state;
 	public void SetAllowNumericInputOnly(bool state) => AllowNumericInputOnly = state;
 	public void SelectAllOnFirstFocus(bool state) => ShouldSelectAllOnFirstFocus = state;

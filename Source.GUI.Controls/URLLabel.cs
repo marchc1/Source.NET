@@ -17,7 +17,7 @@ public class URLLabel : Label
 			SetURL(url);
 	}
 
-	void SetURL(ReadOnlySpan<char> url) => URL = url.ToString();
+	public void SetURL(ReadOnlySpan<char> url) => URL = url.ToString();
 
 	public override void OnMousePressed(ButtonCode code) {
 #if GMOD_DLL

@@ -19,6 +19,8 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using ILuaObject = Source.Common.GarrysMod.Lua.ILuaObject;
+
 namespace Source.GUI.Controls;
 
 public struct OverrideableColorEntry
@@ -472,6 +474,15 @@ public class Panel : IPanel
 		x1 = ClipRectW;
 		y1 = ClipRectH;
 	}
+
+#if GMOD_DLL
+	public void SetClipRect(int x0, int y0, int x1, int y1) {
+		ClipRectX = (short)x0;
+		ClipRectY = (short)y0;
+		ClipRectW = (short)x1;
+		ClipRectH = (short)y1;
+	}
+#endif
 
 
 	public void GetPaintSize(out int wide, out int tall) {
@@ -1458,6 +1469,77 @@ public class Panel : IPanel
 			DrawOnTopPanels.Remove(this);
 
 		DrawOnTop = state;
+	}
+
+	public virtual int GetCaretPos() => 0;
+	public virtual void SetCaretPos(int pos) { }
+
+	public virtual void PaintManual(bool repaint, bool allowForce = true) => PaintTraverse(repaint, allowForce);
+
+	ILuaObject? LuaTable;
+	ILuaObject? LuaObject;
+
+	public virtual ILuaObject? GetLuaTable() {
+		if (LuaTable != null)
+			return LuaTable;
+		// todo
+		return LuaTable;
+	}
+
+	public virtual void PushToLua() {
+		// todo
+	}
+
+	public virtual void PaintAt(int x, int y) {
+		SetPaintingManually(true);
+
+		GetPos(out int oldX, out int oldY);
+		bool wasVisible = IsVisible();
+		int zpos = GetZPos();
+		Panel? parent = GetParent();
+
+		if (parent != null) {
+			int i = parent.GetChildCount();
+			while (true) {
+				i--;
+				if (i < 1)
+					goto done;
+				if (parent.GetChild(i).GetZPos() == 0)
+					break;
+			}
+
+			for (i = parent.GetChildCount() - 1; i > 0; i--) {
+				Panel child = parent.GetChild(i);
+				if (child.GetZPos() != i)
+					child.SetZPos(i);
+				if (child == this)
+					zpos = i;
+			}
+		}
+	done:
+		SetParent(Surface.GetEmbeddedPanel());
+		SetVisible(true);
+
+		GetPos(out int curX, out int curY);
+		if (curX != x || curY != y)
+			SetPos(x, y);
+
+		MakeReadyForUse();
+		SetPos(x, y);
+		PaintTraverse(true);
+		SetParent(parent);
+
+		if (GetZPos() != zpos)
+			SetZPos(zpos);
+
+		GetPos(out curX, out curY);
+		if (curX != oldX || curY != oldY)
+			SetPos(oldX, oldY);
+
+		SetVisible(wasVisible);
+		MakeReadyForUse();
+
+		SetPaintingManually(false);
 	}
 
 	public static void PaintDrawOnTopPanels() {
