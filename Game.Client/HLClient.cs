@@ -221,6 +221,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public bool ShouldAllowConsole() => true;
+	public bool ShouldDrawDropdownConsole() => true;
 
 	public ClientFrameStage CurFrameStage;
 

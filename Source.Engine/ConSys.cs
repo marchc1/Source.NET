@@ -53,9 +53,33 @@ public class ConPanel : BasePanel
 		DefaultColor[2] = 1.0f;
 		SetName("ConPanel");
 		drawDebugAreas = false;
+#if GMOD_DLL
+		Instance = this;
+		NotifyOverlayPanel = new NotifyOverlayPanel();
+		NotifyOverlayPanel.SetParent(Surface.GetEmbeddedPanel());
+		NotifyOverlayPanel.MakePopup(true, false);
+		NotifyOverlayPanel.SetKeyboardInputEnabled(false);
+		NotifyOverlayPanel.SetMouseInputEnabled(false);
+#endif
 	}
 
+#if GMOD_DLL
+	internal static ConPanel? Instance;
+	Panel? NotifyOverlayPanel;
+
+	public override void Dispose() {
+		if (NotifyOverlayPanel != null) {
+			NotifyOverlayPanel.SetParent(null);
+			NotifyOverlayPanel.MarkForDeletion();
+			NotifyOverlayPanel = null;
+		}
+		Instance = null;
+		base.Dispose();
+	}
+#endif
+
 	public Host Host = Singleton<Host>();
+	public IBaseClientDLL ClientDLL = Singleton<IBaseClientDLL>();
 	public Con Con = Singleton<Con>();
 	public VideoMode_Common videomode = (VideoMode_Common)Singleton<IVideoMode>();
 
@@ -67,51 +91,18 @@ public class ConPanel : BasePanel
 	}
 
 	public override void Paint() {
+#if GMOD_DLL
+		if (ClientDLL.ShouldDrawDropdownConsole())
+			DrawDebugAreas();
+#else
 		// Client DLL shoulddrawdropdownconsole?
 
 		DrawDebugAreas();
 		DrawNotify();
-	}
-
-	protected int GetConLinesSize(out int width, out int height) {
-		width = 0;
-		height = 0;
-
-		int fontTall = Surface.GetFontTall(FontFixed) + 1;
-		Span<NotifyText> textToDraw = TextToDraw.AsSpan();
-		int c = textToDraw.Length;
-		for (int i = 0; i < c; i++) {
-			ref NotifyText notify = ref textToDraw[i];
-			TimeUnit_t timeleft = notify.LifeRemaining;
-
-			if (timeleft < .5f) {
-				TimeUnit_t f = Math.Clamp(timeleft, 0.0, .5) / .5;
-				if (i == 0 && f < 0.2f)
-					height -= (int)(float)(fontTall * (1.0 - f / 0.2));
-			}
-
-			height += fontTall;
-			Surface.GetTextSize(FontFixed, notify.Text, out int wide, out _);
-			width = Math.Max(width, wide);
-		}
-
-		return c;
+#endif
 	}
 
 	public override void PaintBackground() {
-#if GMOD_DLL
-		if (ConsoleCVars.con_bgalpha.GetInt() != 0) {
-			int _x = 8;
-			int _y = 5;
-			if (GetConLinesSize(out int width, out int height) != 0) {
-				int b = ConsoleCVars.con_border.GetInt();
-
-				Surface.DrawSetColor(0, 0, 0, ConsoleCVars.con_bgalpha.GetInt());
-				Surface.DrawFilledRect(Math.Max(0, _x - b), Math.Max(0, _y - b), width + (b * 2), height);
-			}
-		}
-#endif
-
 		if (!Con.IsVisible())
 			return;
 
@@ -122,7 +113,11 @@ public class ConPanel : BasePanel
 
 		Surface.DrawSetTextColor(new Color(255, 255, 255, 255));
 		int x = wide - DrawTextLen(Font, text) - 2;
+#if GMOD_DLL
+		DrawText(Font, x, 30, text);
+#else
 		DrawText(Font, x, 0, text);
+#endif
 
 		if (cl.IsActive()) {
 			if (cl.NetChannel!.IsLoopback())
@@ -133,7 +128,11 @@ public class ConPanel : BasePanel
 			int tall = Surface.GetFontTall(Font);
 
 			x = wide - DrawTextLen(Font, text) - 2;
+#if GMOD_DLL
+			DrawText(Font, x, tall + 31, text);
+#else
 			DrawText(Font, x, tall + 1, text);
+#endif
 		}
 	}
 
@@ -149,6 +148,10 @@ public class ConPanel : BasePanel
 		if (!Host.developer.GetBool())
 			return;
 
+#if GMOD_DLL
+		// todo: return if cl_movieinfo.IsRecording()
+#endif
+
 		Surface.DrawSetTextFont(FontFixed);
 
 		int fontTall = Surface.GetFontTall(FontFixed) + 1;
@@ -161,6 +164,37 @@ public class ConPanel : BasePanel
 
 		Span<NotifyText> textToDraw = TextToDraw.AsSpan();
 		int c = textToDraw.Length;
+#if GMOD_DLL
+		int border = ConsoleCVars.con_border.GetInt();
+		int bgAlpha = ConsoleCVars.con_bgalpha.GetInt();
+		int width = 0;
+		int height = 0;
+		for (int i = 0; i < c; i++) {
+			ref NotifyText notify = ref textToDraw[i];
+			float timeleft = (float)notify.LifeRemaining;
+
+			if (timeleft < .5f) {
+				float f = Math.Clamp(timeleft, 0.0f, .5f) / .5f;
+				if (i == 0 && f < 0.2f)
+					height = (int)(height - (1.0f - f * 5.0f) * fontTall);
+			}
+
+			height += fontTall;
+			ReadOnlySpan<char> text = ((ReadOnlySpan<char>)notify.Text).SliceNullTerminatedString();
+			int len = DrawTextLen(FontFixed, text);
+			if (width < len)
+				width = DrawTextLen(FontFixed, text);
+		}
+
+		int charWide = DrawTextLen(FontFixed, "c");
+		if (border >= 5) {
+			x = border + 4;
+			y = border + 1;
+		}
+
+		Surface.DrawSetColor(0, 0, 0, bgAlpha);
+		Surface.DrawFilledRect(x - border, y - border, border + (width - charWide) + x, border + (height - fontTall) + y);
+#endif
 		for (int i = 0; i < c; i++) {
 			ref NotifyText notify = ref textToDraw[i];
 			TimeUnit_t timeleft = notify.LifeRemaining;
@@ -425,6 +459,32 @@ public class ConPanel : BasePanel
 		}
 	}
 }
+
+#if GMOD_DLL
+public class NotifyOverlayPanel : Panel
+{
+	readonly IBaseClientDLL ClientDLL = Singleton<IBaseClientDLL>();
+
+	public NotifyOverlayPanel() : base(null, "GModConsoleOverlayPanel") {
+		Surface.GetScreenSize(out int wide, out int tall);
+		SetSize(wide, tall);
+		SetPos(0, 0);
+	}
+
+	public override void OnThink() => Surface.MovePopupToFront(this);
+
+	public override void Paint() {
+		if (ClientDLL.ShouldDrawDropdownConsole() && ConPanel.Instance != null)
+			ConPanel.Instance.DrawNotify();
+	}
+
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		Surface.GetScreenSize(out int wide, out int tall);
+		SetSize(wide, tall);
+		SetPos(0, 0);
+	}
+}
+#endif
 #endif
 
 
@@ -484,7 +544,9 @@ public class Con(
 	// TODO: ConPanel
 
 	internal void ClearNotify() {
-
+#if !SWDS
+		conPanel?.ClearNotify();
+#endif
 	}
 
 	public void Clear() {
@@ -493,7 +555,7 @@ public class Con(
 	}
 
 	[ConCommand] void clear() => Clear();
-	
+
 	static bool g_fColorPrintf;
 	static bool g_fIsDebugPrint;
 	static bool g_bInColorPrint;
@@ -590,7 +652,7 @@ public class Con(
 #endif
 	}
 
-	public static void DebugLog(ReadOnlySpan<char> text){
+	public static void DebugLog(ReadOnlySpan<char> text) {
 		// TODO
 	}
 
@@ -609,9 +671,9 @@ public class Con(
 		if (con_debuglog)
 			DebugLog(msg);
 
-		if (!con_initialized) 
+		if (!con_initialized)
 			return false;
-		
+
 		return true;
 	}
 

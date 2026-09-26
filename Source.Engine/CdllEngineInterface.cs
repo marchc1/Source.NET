@@ -394,7 +394,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 
 		// draw the axes
 		if (drawAxes) {
-			Vector3 xaxis = new(10,0,0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
+			Vector3 xaxis = new(10, 0, 0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
 			Vector3 @out;
 
 			MathLib.MatrixGetColumn(transform, 3, out Vector3 center);
@@ -476,7 +476,8 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public bool IsTakingScreenshot() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return false;// todo
 	}
 
 	public bool IsHLTV() => false; // not hltv ever, hltv probably will never be implemented
