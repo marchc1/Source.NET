@@ -406,6 +406,8 @@ Game.Assets/hl2/maps
 Game.Assets/platform
 Game.Assets/sourceengine
 Game.Assets/hl2/cfg/autoexec.cfg
+Game.Assets/**/*_bak/
+Game.Assets/hl2/resource
 Source.Launcher/Properties/launchSettings.json
 /.idea
 Source.DataDescGen/

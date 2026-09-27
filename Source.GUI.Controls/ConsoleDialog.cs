@@ -743,7 +743,7 @@ public class ConsoleDialog : Frame
 		if (ExtraItems == null) {
 			ExtraItems = [];
 			KeyValues kv = new();
-			if (kv.LoadFromFile(fileSystem, "resource/ConsoleExtraItems.res", "GAME")) {
+			if (kv.LoadFromFile(fileSystem, "sdn_resource/ConsoleExtraItems.res", "GAME")) {
 				for (KeyValues? itemKv = kv.GetFirstSubKey(); itemKv != null; itemKv = itemKv.GetNextKey()) {
 					ExtraItem item = new();
 					ReadOnlySpan<char> type = itemKv.GetString("type");
