@@ -18,7 +18,11 @@ public class HudBattery : HudNumericDisplay, IHudElement
 
 	public HudBattery(string? panelName) : base(null, "HudSuit") {
 		ElementName = panelName;
+#if GMOD_DLL
+		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit);
+#else
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.NeedSuit);
+#endif
 	}
 
 	public void Init() {
@@ -29,6 +33,10 @@ public class HudBattery : HudNumericDisplay, IHudElement
 	}
 
 	public bool ShouldDraw() {
+#if GMOD_DLL
+		if (NewBat == 0)
+			return false;
+#endif
 		bool needsDraw = Bat != NewBat || (GetAlpha() > 0);
 		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
@@ -67,6 +75,13 @@ public class HudBattery : HudNumericDisplay, IHudElement
 			else
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitPowerIncreasedBelow20");
 		}
+
+#if GMOD_DLL
+		if (NewBat < 1000)
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitPowerBelow999");
+		else
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitPowerOver999");
+#endif
 
 		Bat = NewBat;
 

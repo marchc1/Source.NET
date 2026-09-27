@@ -71,12 +71,21 @@ public class HudNumericDisplay : Panel
 	bool IsTime;
 
 	[PanelAnimationVar(nameof(Blur), "0")] protected float Blur;
+#if GMOD_DLL
+	[PanelAnimationVar(nameof(TextColor), "FgColorHud")] protected Color TextColor;
+	[PanelAnimationVar(nameof(Ammo2Color), "FgColorHud")] protected Color Ammo2Color;
+#else
 	[PanelAnimationVar(nameof(TextColor), "FgColor")] protected Color TextColor;
 	[PanelAnimationVar(nameof(Ammo2Color), "FgColor")] protected Color Ammo2Color;
+#endif
 	[PanelAnimationVar(nameof(NumberFont), "HudNumbers")] protected IFont NumberFont;
 	[PanelAnimationVar(nameof(NumberGlowFont), "HudNumbersGlow")] protected IFont NumberGlowFont;
 	[PanelAnimationVar(nameof(SmallNumberFont), "HudNumbersSmall")] protected IFont SmallNumberFont;
+#if GMOD_DLL
+	[PanelAnimationVar(nameof(TextFont), "HudDefault")] protected IFont TextFont;
+#else
 	[PanelAnimationVar(nameof(TextFont), "Default")] protected IFont TextFont;
+#endif
 	[PanelAnimationVarAliasType("text_xpos", "8", "proportional_float")] protected float text_xpos;
 	[PanelAnimationVarAliasType("text_ypos", "20", "proportional_float")] protected float text_ypos;
 	[PanelAnimationVarAliasType("digit_xpos", "50", "proportional_float")] protected float digit_xpos;
@@ -119,7 +128,11 @@ public class HudNumericDisplay : Panel
 		}
 
 		if (DisplaySecondaryValue) {
+#if GMOD_DLL
+			Surface.DrawSetTextColor(Ammo2Color);
+#else
 			Surface.DrawSetTextColor(GetFgColor());
+#endif
 			PaintNumbers(SmallNumberFont, digit2_xpos, digit2_ypos, SecondaryValue);
 		}
 

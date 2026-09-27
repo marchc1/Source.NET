@@ -330,9 +330,14 @@ public class Scheme : IScheme
 				}
 
 				// clip the font size so that fonts can't be too big
-				if (tall > 127) {
-					tall = 127;
-				}
+#if GMOD_DLL
+				int clamp = 150;
+#else
+				int clamp = 127;
+#endif
+
+				if (tall > clamp)
+					tall = clamp;
 
 				// check our minimum font height
 				if (tall < minimumFontHeight) {
@@ -484,7 +489,7 @@ public class Scheme : IScheme
 	internal void SpewFonts() {
 		Msg($"Scheme: {GetName()} ({GetFileName()})\n");
 		int i = 0;
-		foreach(var kvp in FontAliases){
+		foreach (var kvp in FontAliases) {
 			IFont font = kvp.Value.Font;
 			ReadOnlySpan<char> fontName = Surface.GetFontName(font);
 			ReadOnlySpan<char> fontFamilyName = Surface.GetFontFamilyName(font);

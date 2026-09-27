@@ -41,4 +41,7 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 
 	public ref LadderMove GetLadderMove() => ref HL2Local.LadderMove;
 	public bool IsSprinting() => m_bIsSprinting;
+	public bool IsSprintingBits() => (HL2Local.BitsActiveDevices & 1) != 0;
+	public bool IsFlashlightActive() => (HL2Local.BitsActiveDevices & 2) != 0;
+	public bool IsBreatherActive() => (HL2Local.BitsActiveDevices & 4) != 0;
 }
