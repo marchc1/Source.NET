@@ -140,7 +140,7 @@ public class PlayerMove
 		if (!player.PhysicsRunThink())
 			return;
 
-		// g_pGameRules.PlayerThink(player);
+		g_pGameRules.PlayerThink(player);
 
 		player.PreThink();
 	}

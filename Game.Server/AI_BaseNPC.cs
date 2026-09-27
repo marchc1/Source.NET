@@ -12,7 +12,8 @@ namespace Game.Server;
 
 using FIELD = FIELD<AI_BaseNPC>;
 
-public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vector3 dir, Mask mask) : IEntityEnumerator {
+public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vector3 dir, Mask mask) : IEntityEnumerator
+{
 	Vector3 VecDir = dir;
 	Mask ContentsMask = mask;
 	ref Ray Ray = ref ray;
@@ -39,6 +40,18 @@ public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vecto
 
 public class AI_BaseNPC : BaseCombatCharacter
 {
+	public static ReadOnlySpan<char> GetActivityName(Activity actID) {
+		if (actID == Activity.ACT_INVALID)
+			return "ACT_INVALID";
+
+		string? name = ActivityList.NameForIndex(actID);
+
+		if (name == null)
+			Assert(false, "AI_BaseNPC.GetActivityName() returning NULL!");
+
+		return name;
+	}
+
 	public static readonly SendTable DT_AI_BaseNPC = new(DT_BaseCombatCharacter, [
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned),
 		SendPropBool(FIELD.OF(nameof(PerformAvoidance))),

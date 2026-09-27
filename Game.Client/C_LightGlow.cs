@@ -9,7 +9,7 @@ using FIELD = FIELD<C_LightGlow>;
 public class C_LightGlow : C_BaseEntity
 {
 	public static readonly RecvTable DT_LightGlow = new([
-		RecvPropInt(FIELD.OF(nameof(RenderColor))),
+		RecvPropInt(FIELD.OF(nameof(RenderColor)), 0, RecvProxy_IntToColor32),
 		RecvPropInt(FIELD.OF(nameof(HorizontalSize))),
 		RecvPropInt(FIELD.OF(nameof(VerticalSize))),
 		RecvPropInt(FIELD.OF(nameof(MinDist))),
@@ -20,6 +20,7 @@ public class C_LightGlow : C_BaseEntity
 		RecvPropVector(FIELD.OF(nameof(Rotation))),
 		RecvPropEHandle(FIELD.OF(nameof(MoveParent))),
 		RecvPropFloat(FIELD.OF(nameof(GlowProxySize))),
+		// todo: RecvProxy_HDRColorScale
 		RecvPropFloat(FIELD.OF(nameof(HDRColorScale))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("LightGlow", DT_LightGlow).WithManualClassID(StaticClassIndices.CLightGlow);

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using SDL;
 
@@ -24,7 +24,7 @@ namespace Source.Engine.Server;
 public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageHandler, IDisposable
 {
 	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
-	public void SetReportThisFakeClient(bool report){
+	public void SetReportThisFakeClient(bool report) {
 		ReportFakeClient = report;
 	}
 	public int GetPlayerSlot() => ClientSlot;
@@ -197,7 +197,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SetName(PendingNameChange);
 	}
 
-	public void UpdateUserSettings(){
+	public void UpdateUserSettings() {
 		int rate = ConVars!.GetInt("rate", Source.Common.Networking.NetChannel.DEFAULT_RATE);
 
 		if (sv.IsActive()) {
@@ -976,11 +976,28 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public ReadOnlySpan<char> GetUserSetting(ReadOnlySpan<char> cvar) {
-		throw new NotImplementedException();
+		if (ConVars == null || cvar.IsEmpty)
+			return "";
+
+		ReadOnlySpan<char> value = ConVars.GetString(cvar, "");
+
+		if (value.IsEmpty)
+			if (ConVars.FindKey(cvar) == null)
+				DevMsg($"GetUserSetting: cvar '{cvar}' unknown.\n");
+
+		return value;
 	}
 
 	public void SetUserCVar(ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
-		throw new NotImplementedException();
+		if (cvar.IsEmpty || value.IsEmpty)
+			return;
+
+		if (stricmp(cvar, "name") == 0) {
+			ClientRequestNameChange(value);
+			return;
+		}
+
+		ConVars!.SetString(cvar, value);
 	}
 
 	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);

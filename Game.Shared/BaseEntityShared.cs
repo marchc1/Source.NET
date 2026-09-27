@@ -146,7 +146,7 @@ public partial class
 				CollisionProp().MarkSurroundingBoundsDirty();
 			else {
 #if CLIENT_DLL
-				// MarkRenderHandleDirty();
+				MarkRenderHandleDirty();
 				g_ClientShadowMgr.AddToDirtyShadowList(this);
 				g_ClientShadowMgr.MarkRenderToTextureShadowDirty(GetShadowHandle());
 #endif
@@ -589,7 +589,7 @@ public partial class
 		if (Effects != (int)effects) {
 			Effects = (int)effects;
 #if !CLIENT_DLL
-			// DispatchUpdateTransmitState();
+			DispatchUpdateTransmitState();
 #else
 			UpdateVisibility();
 #endif

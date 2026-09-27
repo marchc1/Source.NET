@@ -1,4 +1,4 @@
-using Source.Common;
+﻿using Source.Common;
 using Source;
 using Game.Shared;
 using System.Numerics;
@@ -8,7 +8,9 @@ public class C_FireSmoke : C_BaseEntity
 {
 	public static readonly RecvTable DT_FireSmoke = new(DT_BaseEntity, [
 		RecvPropFloat(FIELD.OF(nameof(StartScale))),
+		// todo: RecvProxy_Scale
 		RecvPropFloat(FIELD.OF(nameof(Scale))),
+		// todo: RecvProxy_ScaleTime
 		RecvPropFloat(FIELD.OF(nameof(ScaleTime))),
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 		RecvPropInt(FIELD.OF(nameof(FlameModelIndex))),

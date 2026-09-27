@@ -33,6 +33,12 @@ public struct QAngle : IEquatable<QAngle>
 		Z = z;
 	}
 
+	public void Random(float minVal, float maxVal) {
+		X = RandomFloat(minVal, maxVal);
+		Y = RandomFloat(minVal, maxVal);
+		Z = RandomFloat(minVal, maxVal);
+	}
+
 	public unsafe vec_t LengthSqr() {
 		fixed (QAngle* qptr = &this) {
 			return ((Vector3*)qptr)->LengthSquared();

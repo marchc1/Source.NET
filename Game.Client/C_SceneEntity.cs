@@ -1,4 +1,4 @@
-using Source.Common;
+﻿using Source.Common;
 using Source;
 
 namespace Game.Client;
@@ -21,6 +21,7 @@ public class C_SceneEntity : C_BaseEntity
 		RecvPropBool(FIELD.OF(nameof(IsPlayingBack))),
 		RecvPropBool(FIELD.OF(nameof(Paused))),
 		RecvPropBool(FIELD.OF(nameof(Multiplayer))),
+		// todo: RecvProxy_ForcedClientTime
 		RecvPropFloat(FIELD.OF(nameof(ForceClientTime))),
 		RecvPropList<EHANDLE>(FIELD.OF_LIST(nameof(ActorList), MAX_ACTORS_IN_SCENE), ResizeActorList, RecvPropEHandle()),
 	]);

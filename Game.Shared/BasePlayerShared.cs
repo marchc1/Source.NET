@@ -732,9 +732,9 @@ public partial class
 
 	public void EyeVectors(out Vector3 forward, out Vector3 right, out Vector3 up) {
 		if (GetVehicle() != null) {
-			// TODO: Cache or retrieve our calculated position in the vehicle
-			// CacheVehicleView();
-			//AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
+			// Cache or retrieve our calculated position in the vehicle
+			CacheVehicleView();
+			// TODO MathLib.AngleVectors(VehicleViewAngles, out forward, out right, out up);
 			forward = right = up = default;
 		}
 		else

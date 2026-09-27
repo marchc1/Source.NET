@@ -221,13 +221,44 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 	public void Update(double frametime) { }
 	public void PostRender() { }
 
+	public static void CalcRenderableWorldSpaceAABB(IClientRenderable renderable, out Vector3 absMins, out Vector3 absMaxs) => renderable.GetRenderBoundsWorldspace(out absMins, out absMaxs);
+
+	public static void CalcRenderableWorldSpaceAABB_Fast(IClientRenderable renderable, out Vector3 absMin, out Vector3 absMax) {
+		C_BaseEntity? ent = renderable.GetIClientUnknown().GetBaseEntity();
+		if (ent != null && ent.IsFollowingEntity()) {
+			C_BaseEntity? parent = ent.GetMoveParent();
+			Assert(parent != null);
+
+			CalcRenderableWorldSpaceAABB_Fast(parent, out absMin, out absMax);
+
+			ent.GetRenderBounds(out Vector3 addMins, out Vector3 addMaxs);
+
+			float radius = ent.GetLocalOrigin().Length();
+			float bloatSize = MathF.Max(addMins.Length(), addMaxs.Length());
+			bloatSize = MathF.Max(bloatSize, radius);
+			absMin -= new Vector3(bloatSize, bloatSize, bloatSize);
+			absMax += new Vector3(bloatSize, bloatSize, bloatSize);
+		}
+		else
+			CalcRenderableWorldSpaceAABB(renderable, out absMin, out absMax);
+	}
+
 	public static void DefaultRenderBoundsWorldspace(IClientRenderable renderable, out Vector3 absMins, out Vector3 absMaxs) {
 		IClientUnknown unk = renderable.GetIClientUnknown();
 		C_BaseEntity? ent = unk.GetBaseEntity();
 		if (ent != null && ent.IsFollowingEntity()) {
 			C_BaseEntity? parent = ent.GetFollowedEntity();
 			if (parent != null) {
-				// todo: CalcRenderableWorldSpaceAABB_Fast
+				CalcRenderableWorldSpaceAABB_Fast(parent, out absMins, out absMaxs);
+
+				ent.GetRenderBounds(out Vector3 addMins, out Vector3 addMaxs);
+
+				float radius = ent.GetLocalOrigin().Length();
+				float bloatSize = MathF.Max(addMins.Length(), addMaxs.Length());
+				bloatSize = MathF.Max(bloatSize, radius);
+				absMins -= new Vector3(bloatSize, bloatSize, bloatSize);
+				absMaxs += new Vector3(bloatSize, bloatSize, bloatSize);
+				return;
 			}
 		}
 

@@ -1,4 +1,4 @@
-﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
 global using static Game.Client.GarrysMod.HL2MP_GameRules_Globals;
 #else
@@ -89,6 +89,9 @@ public class
 
 public static class HL2MP_GameRules_Globals
 {
+	public const int TEAM_COMBINE = 2;
+	public const int TEAM_REBELS = 3;
+
 	static readonly AmmoDef def = new();
 	static bool initted = false;
 

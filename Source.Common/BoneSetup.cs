@@ -1404,6 +1404,58 @@ public ref struct BoneSetup
 		return -1;
 	}
 
+	public static int Studio_BoneIndexByName(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
+		if (studioHdr != null) {
+			int start = 0, end = studioHdr.NumBones() - 1;
+			ReadOnlySpan<byte> boneTable = studioHdr.GetBoneTableSortedByName();
+			while (start <= end) {
+				int mid = (start + end) >> 1;
+				int cmp = stricmp(studioHdr.Bone(boneTable[mid]).Name(), name);
+
+				if (cmp < 0)
+					start = mid + 1;
+				else if (cmp > 0)
+					end = mid - 1;
+				else
+					return boneTable[mid];
+			}
+		}
+
+		return -1;
+	}
+
+	public static void SetupSingleBoneMatrix(StudioHdr ownerHdr, int sequence, int frame, int bone, out Matrix3x4 boneLocal) {
+		MStudioSeqDesc seqdesc = ownerHdr.Seqdesc(sequence);
+		MStudioAnimDesc animdesc = ownerHdr.Animdesc(seqdesc.Anim(0, 0));
+		int localFrame = frame;
+		MStudioAnim? panim = animdesc.Anim(ref localFrame);
+		float s = 0;
+		MStudioBone pbone = ownerHdr.Bone(bone);
+
+		Quaternion boneQuat;
+		Vector3 bonePos;
+
+		while (panim != null && panim.Bone != bone)
+			panim = panim.Next();
+
+		if (panim != null && seqdesc.Weight(bone) > 0) {
+			boneQuat = default;
+			bonePos = default;
+			CalcBoneQuaternion(localFrame, s, pbone, null, panim, ref boneQuat);
+			CalcBonePosition(localFrame, s, pbone, null, panim, ref bonePos);
+		}
+		else if ((animdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
+			boneQuat = new(0.0f, 0.0f, 0.0f, 1.0f);
+			bonePos = new(0.0f, 0.0f, 0.0f);
+		}
+		else {
+			boneQuat = pbone.Quat;
+			bonePos = pbone.Position;
+		}
+
+		MathLib.QuaternionMatrix(in boneQuat, in bonePos, out boneLocal);
+	}
+
 	public static bool Studio_SeqMovement(StudioHdr studioHdr, int sequence, float cycleFrom, float cycleTo, ReadOnlySpan<float> poseParameter, out Vector3 deltaPos, out QAngle deltaAngles) {
 		MStudioAnimDesc[] panim = ArrayPool<MStudioAnimDesc>.Shared.Rent(4);
 		Span<float> weight = stackalloc float[4];

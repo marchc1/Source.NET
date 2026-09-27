@@ -48,6 +48,18 @@ public class Team : BaseEntity
 
 	public static readonly new ServerClass ServerClass = new ServerClass("Team", DT_Team).WithManualClassID(StaticClassIndices.CTeam);
 
+	public void AddPlayer(BasePlayer player) {
+		Players.Add(player);
+		NetworkStateChanged();
+	}
+
+	public void RemovePlayer(BasePlayer player) {
+		Players.Remove(player);
+		NetworkStateChanged();
+	}
+
+	public int GetNumPlayers() => Players.Count;
+
 	public readonly List<BasePlayer> Players = [];
 	public InlineArray32<char> Teamname;
 	public int Score;

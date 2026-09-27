@@ -334,7 +334,7 @@ public static class BaseEntity_ConCommands
 			return;
 
 		if (args.ArgC() < 2) {
-			// ClientPrint(player, HUD_PRINTCONSOLE, "Usage:\n   ent_fire <target> [action] [value] [delay]\n");
+			Util.ClientPrint(player, HudPrint.Console, "Usage:\n   ent_fire <target> [action] [value] [delay]\n");
 		}
 		else {
 			ReadOnlySpan<char> target, action = "Use";
@@ -1155,7 +1155,11 @@ public partial class BaseEntity : IServerEntity
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 
+	public virtual void ChangeTeam(int teamNum) => TeamNum = teamNum;
+
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
+
+	public int GetTeamNumber() => TeamNum;
 
 	IPhysicsObject? PhysicsObject = null!;
 	public void VPhysicsUpdate(IPhysicsObject physics) {
@@ -1351,6 +1355,7 @@ public partial class BaseEntity : IServerEntity
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
 
 	public TimeUnit_t AnimTime;
+	public TimeUnit_t PrevAnimTime;
 	public TimeUnit_t SimulationTime;
 	public Vector3 ViewOffset;
 	public Vector3 NetworkAngles;
@@ -1717,7 +1722,7 @@ public partial class BaseEntity : IServerEntity
 	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
 	public CollisionProperty CollisionProp() => Collision;
 
-	public void SetModel(ReadOnlySpan<char> modelName) {
+	public virtual void SetModel(ReadOnlySpan<char> modelName) {
 		modelName = modelName.SliceNullTerminatedString();
 
 		int modelIndex = modelinfo.GetModelIndex(modelName);
@@ -1916,7 +1921,7 @@ public partial class BaseEntity : IServerEntity
 		DEFINE.KEYFIELD(nameof(Speed), FieldType.Float, "speed"),
 		DEFINE.KEYFIELD(nameof(RenderFX), FieldType.Character, "renderfx"),
 		DEFINE.KEYFIELD(nameof(RenderMode), FieldType.Character, "rendermode"),
-		// DEFINE.FIELD(nameof(PrevAnimTime), FieldType.Time),
+		DEFINE.FIELD(nameof(PrevAnimTime), FieldType.Time),
 		DEFINE.FIELD(nameof(AnimTime), FieldType.Time),
 		DEFINE.FIELD(nameof(SimulationTime), FieldType.Time),
 		DEFINE.FIELD(nameof(LastThinkTick), FieldType.Tick),
@@ -2330,7 +2335,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 
-	BaseHandle RefEHandle;
+	BaseHandle RefEHandle = new();
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
 
 	protected int flags;
