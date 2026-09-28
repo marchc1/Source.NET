@@ -1,4 +1,4 @@
-﻿using Source.Common.Filesystem;
+using Source.Common.Filesystem;
 using Source.Common.MaterialSystem;
 using Source.Common.Steam;
 
@@ -10,41 +10,36 @@ public interface IMotionSensor; // todo
 
 public interface IGet
 {
-	void OnLoadFailed( ReadOnlySpan<char> reason );
+	void OnLoadFailed(ReadOnlySpan<char> module);
 	ReadOnlySpan<char> GameDir();
 	bool IsDedicatedServer();
 	int GetClientCount();
-	IFileSystem FileSystem();
-	Lua.ILuaShared LuaShared();
-	Lua.ILuaConVars LuaConVars();
-	IMenuSystem MenuSystem();
-	IResources Resources();
-	IIntroScreen IntroScreen();
-	IMaterialSystem Materials();
-	IGMHTML HTML();
-	IServerAddons ServerAddons();
-	ISteamHTTP SteamHTTP();
-	ISteamRemoteStorage SteamRemoteStorage();
-	ISteamUtils SteamUtils();
-	ISteamApps SteamApps();
-	ISteamScreenshots SteamScreenshots();
-	ISteamUser SteamUser();
-	ISteamFriends SteamFriends();
-	ISteamUGC SteamUGC();
-	ISteamGameServer SteamGameServer();
-	ISteamNetworking SteamNetworking();
+	IFileSystem? FileSystem();
+	Lua.ILuaShared? LuaShared();
+	Lua.ILuaConVars? LuaConVars();
+	IMenuSystem? MenuSystem();
+	IResources? Resources();
+	IIntroScreen? IntroScreen();
+	IMaterialSystem? Materials();
+	IServerAddons? ServerAddons();
+	IGMHTML? HTML();
+	ISteamHTTP? SteamHTTP();
+	ISteamUtils? SteamUtils();
+	ISteamUGC? SteamUGC();
+	ISteamNetworking? SteamNetworking();
 	void Initialize(IFileSystem fileSystem);
 	void ShutDown();
 	void RunSteamCallbacks();
-	void ResetSteamAPIs();
-	void SetMotionSensor(IMotionSensor? unk1);
+	void SetMotionSensor(IMotionSensor? sensor);
 	IMotionSensor? MotionSensor();
 	int Version();
 	ReadOnlySpan<char> VersionStr();
-	IGMod_Audio Audio();
+	ReadOnlySpan<char> Branch();
+	IGMod_Audio? Audio();
 	ReadOnlySpan<char> VersionTimeStr();
 	// IAnalytics Analytics();
-	void UpdateRichPresense( ReadOnlySpan<char> status );
+	void UpdateRichPresense(ReadOnlySpan<char> status);
 	void ResetRichPresense();
-	void FilterText(ReadOnlySpan<char> unk1, Span<char> unk2, /*There was an int here: I am guessing it is unk2's size.*/ ETextFilteringContext unk3, CSteamID unk4);
+	ReadOnlySpan<char> GameDirParent(); // todo: real name unknown
+	void FilterText(ReadOnlySpan<char> input, Span<char> output, ETextFilteringContext context, CSteamID sourceSteamID);
 }

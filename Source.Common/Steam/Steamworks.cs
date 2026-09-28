@@ -69,8 +69,12 @@ public interface ISteamUtils
 {
 #if SWDS
 	public EUniverse GetConnectedUniverse() => SteamGameServerUtils.GetConnectedUniverse();
+	public bool InitFilterText(uint filterOptions = 0) => SteamGameServerUtils.InitFilterText(filterOptions);
+	public int FilterText(ETextFilteringContext context, CSteamID sourceSteamID, ReadOnlySpan<char> inputMessage, out string outFilteredText, uint byteSizeOutFilteredText) => SteamGameServerUtils.FilterText(context, sourceSteamID, new(inputMessage), out outFilteredText, byteSizeOutFilteredText);
 #else
 	public EUniverse GetConnectedUniverse() => SteamUtils.GetConnectedUniverse();
+	public bool InitFilterText(uint filterOptions = 0) => SteamUtils.InitFilterText(filterOptions);
+	public int FilterText(ETextFilteringContext context, CSteamID sourceSteamID, ReadOnlySpan<char> inputMessage, out string outFilteredText, uint byteSizeOutFilteredText) => SteamUtils.FilterText(context, sourceSteamID, new(inputMessage), out outFilteredText, byteSizeOutFilteredText);
 #endif
 }
 public interface ISteamMatchmaking;

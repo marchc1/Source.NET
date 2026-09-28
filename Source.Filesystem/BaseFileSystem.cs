@@ -810,6 +810,28 @@ public class BaseFileSystem : IFileSystem
 		return ret;
 	}
 
+	public ReadOnlySpan<char> ReadLine(Span<char> output, IFileHandle file) {
+		if (output.IsEmpty)
+			return default;
+
+		Stream stream = file.Stream;
+		int count = 0;
+		while (count < output.Length - 1) {
+			int c = stream.ReadByte();
+			if (c == -1)
+				break;
+			output[count++] = (char)c;
+			if (c == '\n')
+				break;
+		}
+
+		if (count == 0)
+			return default;
+
+		output[count] = '\0';
+		return output[..count];
+	}
+
 	public void RemoveSearchPathsByGroup(int unk1) {
 		throw new NotImplementedException();
 	}

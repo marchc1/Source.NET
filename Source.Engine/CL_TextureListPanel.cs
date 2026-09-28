@@ -181,6 +181,10 @@ class TileViewPanelEx : Panel
 	public override void Paint() {
 		base.Paint();
 
+		GetSize(out int w, out int h);
+		surface.DrawSetColor(0, 0, 0, 255);
+		surface.DrawFilledRect(1, 1, w - 2, h - 2);
+
 		if (!ComputeLayoutInfo())
 			return;
 

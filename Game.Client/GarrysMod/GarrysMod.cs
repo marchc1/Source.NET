@@ -5,6 +5,7 @@ using Game.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
 using Source;
+using Source.Common.GarrysMod;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
 
@@ -24,10 +25,19 @@ public static class GarrysModSingletons
 public class GarrysMod
 {
 	public void DLLInit(IServiceCollection services) {
-
+		services.AddSingleton<IIntroScreen, IntroScreen>();
 	}
 
   	public void InitializeMod(IServiceProvider services){
+		get.IntroScreen()!.Update("Adding Custom Fonts", true);
+		// todo: AddCustomFonts
+		get.IntroScreen()!.Update("Adding Language Files", true);
+		// todo: AddLanguageFiles
+		get.IntroScreen()!.Update("Setup Menu System", true);
+		// todo: menu system init
+		get.IntroScreen()!.Update("Setting Convar Defaults", true);
+		// todo: convar defaults
+
 		string absPath = $"{engine.GetGameDirectory()}/cache";
 		Directory.CreateDirectory(absPath);
 		Directory.CreateDirectory(Path.Combine(absPath, "lua"));

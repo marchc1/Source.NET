@@ -71,6 +71,9 @@ public static class SourceDllMain
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static IEngineTrace g_pEngineTraceServer { get; private set; } = null!;
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
+#if GMOD_DLL
+	[Dependency] public static Source.Common.GarrysMod.IGet get { get; private set; } = null!;
+#endif
 
 
 #if !SWDS

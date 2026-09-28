@@ -535,6 +535,9 @@ public partial class Host
 		GameEventManager = engineAPI.InitSubsystem<IGameEventManager2>()!;
 		sv.Init(dedicated);
 		SV = services.GetRequiredService<SV>();
+#if GMOD_DLL
+		get.Initialize(g_pFileSystem);
+#endif
 		SV.InitGameDLL();
 #if !SWDS
 		if (!dedicated) {

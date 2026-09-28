@@ -247,6 +247,8 @@ public interface IFileSystem : IBaseFileSystem
 	KeyValues? LoadKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
 	bool LoadKeyValues(KeyValues head, KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
 
+	ReadOnlySpan<char> ReadLine(Span<char> output, IFileHandle file);
+
 #if GMOD_DLL
 	void RemoveSearchPathsByGroup(int unk1);
 	void SetGet(IGet get);

@@ -399,6 +399,14 @@ public class MatSystemSurface : IMatSystemSurface
 		}
 	}
 
+#if GMOD_DLL
+	public void SetInDrawing(bool inDrawing) => InDrawing = inDrawing;
+#endif
+
+	public void DestroyTextureID(in TextureID id) {
+		TextureDictionary.DestroyTexture(id);
+	}
+
 	public bool DeleteTextureByID(in TextureID id) {
 		TextureDictionary.DestroyTexture(id);
 		return false;
@@ -1802,7 +1810,7 @@ public class MatSystemSurface : IMatSystemSurface
 		TextureDictionary.SetSubTextureRGBA(in id, drawX, drawY, rgba, subTextureWide, subTextureTall, ImageFormat.RGBA8888);
 	}
 
-	internal void DrawSetTextureMaterial(TextureID textureID, IMaterial material) {
+	public void DrawSetTextureMaterial(TextureID textureID, IMaterial material) {
 		TextureDictionary.BindTextureToMaterial(in textureID, material);
 		DrawSetTexture(in textureID);
 	}
