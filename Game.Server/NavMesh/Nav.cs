@@ -209,10 +209,10 @@ public static class Nav
 			// }
 		}
 
-		if (entity.ClassMatches("func_breakable") && entity.Health > 0 && entity.TakeDamage == 2) // DAMAGE_YES
+		if (entity.ClassMatches("func_breakable") && entity.Health > 0 && (Shared.Damage)entity.m_takedamage == Shared.Damage.Yes)
 			return flags.HasFlag(WalkThruFlags.Breakables);
 
-		if (entity.ClassMatches("func_breakable_surf") && entity.TakeDamage == 2) // DAMAGE_YES
+		if (entity.ClassMatches("func_breakable_surf") && (Shared.Damage)entity.m_takedamage == Shared.Damage.Yes)
 			return flags.HasFlag(WalkThruFlags.Breakables);
 
 		if (entity.ClassMatches("func_playerinfected_clip"))

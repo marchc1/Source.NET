@@ -25,8 +25,8 @@ namespace Source.Engine;
 
 #if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
-							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
-							MatSysInterface MatSys, ModelLoader modelloader, CL CL) : IEngineClient
+							MaterialSystem_Config MaterialSystemConfig,
+							MatSysInterface MatSys, ModelLoader modelloader, CL CL, Cmd Cmd) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) => Key.NameForBinding(binding);
 	public void GetMainMenuBackgroundName(Span<char> dest) {
@@ -148,6 +148,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		int flags = GetCollisionBSPData()!.MapLeafs[leaf].Flags;
 		if ((flags & BSPFileCommon.LEAF_FLAGS_SKY) != 0)
 			return SkyboxVisibility.Skybox3D;
+
 		return ((flags & BSPFileCommon.LEAF_FLAGS_SKY2D) != 0) ? SkyboxVisibility.Skybox2D : SkyboxVisibility.NotVisible;
 	}
 
@@ -205,7 +206,12 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void ServerCmd(ReadOnlySpan<char> szCmdString, bool bReliable = true) {
-		throw new NotImplementedException();
+		// info handling
+		string buf = $"cmd {szCmdString}";
+
+		TokenizedCommand args = new();
+		args.Tokenize(buf);
+		Cmd.ForwardToServer(args);
 	}
 
 	public ref ClientTextMessage TextMessageGet(ReadOnlySpan<char> name) {
@@ -241,7 +247,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void Sound_ExtraUpdate() {
-		throw new NotImplementedException();
+		Host.Sound.ExtraUpdate();
 	}
 
 	public ReadOnlySpan<char> GetGameDirectory() {
@@ -303,7 +309,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public ref IVoiceTweak GetVoiceTweakAPI() {
-		throw new NotImplementedException();
+		return ref Voice.g_VoiceTweakAPI;
 	}
 
 	public void EngineStats_BeginFrame() {
@@ -327,31 +333,36 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public int SentenceGroupPick(int groupIndex, Span<char> name, int nameBufLen) {
-		throw new NotImplementedException();
+		int pick = g_AudioSystem.SentenceGroupPick(groupIndex, out string found);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceGroupPickSequential(int groupIndex, Span<char> name, int nameBufLen, int sentenceIndex, int reset) {
-		throw new NotImplementedException();
+		int pick = g_AudioSystem.SentenceGroupPickSequential(groupIndex, out string found, sentenceIndex, reset != 0);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceIndexFromName(ReadOnlySpan<char> sentenceName) {
-		throw new NotImplementedException();
+		g_AudioSystem.LookupSentence(sentenceName, out int sentenceIndex);
+		return sentenceIndex;
 	}
 
 	public ReadOnlySpan<char> SentenceNameFromIndex(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceNameFromIndex(sentenceIndex);
 	}
 
 	public int SentenceGroupIndexFromName(ReadOnlySpan<char> grouname) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupIndexFromName(grouname);
 	}
 
 	public ReadOnlySpan<char> SentenceGrounameFromIndex(int groupIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupNameFromIndex(groupIndex);
 	}
 
 	public float SentenceLength(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceLength(sentenceIndex);
 	}
 
 	public void ComputeLighting(in Vector3 pt, in Vector3 normal, bool clamp, out Vector3 color, Span<Vector3> boxColors = default) {
@@ -366,8 +377,80 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public void DebugDrawPhysCollide(PhysCollide collide, IMaterial material, in Matrix3x4 transform, in Color color) {
-		throw new NotImplementedException();
+	public static void DebugDrawPhysCollide(PhysCollide collide, IMaterial? material, in Matrix3x4 transform, in Color color, bool drawAxes) {
+		material ??= materials.FindMaterial("shadertest/wireframevertexcolor", MaterialDefines.TEXTURE_GROUP_OTHER);
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		Span<Vector3> outVerts;
+		int vertCount = physcollision.CreateDebugMesh(collide, out outVerts);
+		if (vertCount != 0) {
+			IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, vertCount / 3);
+
+			for (int j = 0; j < vertCount; j++) {
+				MathLib.VectorTransform(outVerts[j], transform, out Vector3 @out);
+				meshBuilder.Position3fv(@out.Base());
+				meshBuilder.Color4ub(color.R, color.G, color.B, color.A);
+				meshBuilder.TexCoord2f(0, 0, 0);
+				meshBuilder.AdvanceVertex();
+			}
+			meshBuilder.End();
+			mesh.Draw();
+		}
+		physcollision.DestroyDebugMesh(vertCount, outVerts);
+
+		// draw the axes
+		if (drawAxes) {
+			Vector3 xaxis = new(10, 0, 0), yaxis = new(0, 10, 0), zaxis = new(0, 0, 10);
+			Vector3 @out;
+
+			MathLib.MatrixGetColumn(transform, 3, out Vector3 center);
+			IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Lines, 3);
+
+			// X
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(255, 0, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(xaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(255, 0, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+
+			// Y
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(0, 255, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(yaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(0, 255, 0, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+
+			// Z
+			meshBuilder.Position3fv(center.Base());
+			meshBuilder.Color4ub(0, 0, 255, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			MathLib.VectorTransform(zaxis, transform, out @out);
+			meshBuilder.Position3fv(@out.Base());
+			meshBuilder.Color4ub(0, 0, 255, 255);
+			meshBuilder.TexCoord2f(0, 0, 0);
+			meshBuilder.AdvanceVertex();
+			meshBuilder.End();
+
+			mesh.Draw();
+		}
+	}
+	public void DebugDrawPhysCollide(PhysCollide collide, IMaterial? material, in Matrix3x4 transform, in Color color) {
+		DebugDrawPhysCollide(collide, material, transform, color, false);
 	}
 
 	public void CheckPoint(ReadOnlySpan<char> name) {
@@ -403,7 +486,8 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public bool IsTakingScreenshot() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return false;// todo
 	}
 
 	public bool IsHLTV() => false; // not hltv ever, hltv probably will never be implemented
@@ -464,13 +548,10 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void ReadConfiguration(bool readDefault = false) => Host.ReadConfiguration();
-	public void SetAchievementMgr(IAchievementMgr? achievementMgr) {
-		throw new NotImplementedException();
-	}
 
-	public IAchievementMgr? GetAchievementMgr() {
-		throw new NotImplementedException();
-	}
+	static IAchievementMgr? AchievementMgr;
+	public void SetAchievementMgr(IAchievementMgr? achievementMgr) => AchievementMgr = achievementMgr;
+	public IAchievementMgr? GetAchievementMgr() => AchievementMgr;
 
 	public bool MapLoadFailed() => serverGlobalVariables.MapLoadFailed;
 	public void SetMapLoadFailed(bool state) => serverGlobalVariables.MapLoadFailed = state;
@@ -566,7 +647,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public uint GMOD_LoadModel(ReadOnlySpan<char> path) {
+	public MDLHandle_t GMOD_LoadModel(ReadOnlySpan<char> path) {
 		throw new NotImplementedException();
 	}
 

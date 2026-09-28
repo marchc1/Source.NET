@@ -20,6 +20,12 @@ public static class MathLibConsts
 
 	public static readonly Vector3 vec3_origin = new(0, 0, 0);
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
+
+	public static Vector3 RandomAngularImpulse(float minVal, float maxVal) {
+		Vector3 angImp = default;
+		angImp.Random(minVal, maxVal);
+		return angImp;
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 2, Size = 6)]
@@ -343,6 +349,24 @@ public static class MathLib
 		if (MathlibInitialized) return;
 		MathlibInitialized = true;
 		BuildGammaTable(gamma, texGamma, brightness, overbright);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float SimpleSplineRemapValClamped(float val, float A, float B, float C, float D) {
+		if (A == B)
+			return val >= B ? D : C;
+		float cval = (val - A) / (B - A);
+		cval = Math.Clamp(cval, 0.0f, 1.0f);
+		return C + (D - C) * SimpleSpline(cval);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static double SimpleSplineRemapValClamped(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		double cval = (val - A) / (B - A);
+		cval = Math.Clamp(cval, 0.0f, 1.0f);
+		return C + (D - C) * SimpleSpline(cval);
 	}
 
 	private static void BuildGammaTable(float gamma, float texGamma, float brightness, int overbright) {
@@ -812,6 +836,15 @@ public static class MathLib
 		outMatrix[0, column] = inVec.X;
 		outMatrix[1, column] = inVec.Y;
 		outMatrix[2, column] = inVec.Z;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixSetTranslation(in Vector3 inVec, ref Matrix3x4 outMatrix) => MatrixSetColumn(in inVec, 3, ref outMatrix);
+
+	public static void MatrixScaleByZero(ref Matrix3x4 outMatrix) {
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 4; j++)
+				outMatrix[i, j] = 0;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1292,6 +1325,24 @@ public static class MathLib
 		Vector3DMultiplyPositionProjective(in volumeToWorld, in volumeSpacePos, out Vector3 worldPos);
 		AddPointToBounds(in worldPos, ref mins, ref maxs);
 	}
+	public static void CalcClosestPointOnLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vClosest, out float outT) {
+		Assert(MathlibInitialized);
+		float t = CalcClosestPointToLineT(P, vLineA, vLineB, out Vector3 vDir);
+		outT = t;
+		VectorMA(vLineA, t, vDir, out vClosest);
+	}
+	public static float CalcDistanceToLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out float outT) {
+		Assert(MathlibInitialized);
+		CalcClosestPointOnLine(P, vLineA, vLineB, out Vector3 vClosest, out outT);
+		return P.DistTo(vClosest);
+	}
+
+	public static float CalcDistanceSqrToLine(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out float outT) {
+		Assert(MathlibInitialized);
+		CalcClosestPointOnLine(P, vLineA, vLineB, out Vector3 vClosest, out outT);
+		return P.DistToSqr(vClosest);
+	}
+
 
 	public static void CalculateAABBFromProjectionMatrixInverse(in Matrix4x4 volumeToWorld, out Vector3 mins, out Vector3 maxs) {
 		ClearBounds(out mins, out maxs);
@@ -1605,6 +1656,12 @@ public static class MathLib
 		AngleQuaternion(in angles, out q);
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles, out Vector3 position) {
+		MatrixAngles(matrix, out angles);
+		MatrixPosition(matrix, out position);
+	}
+
 	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles) {
 		angles = default;
 		Span<float> forward = stackalloc float[3];
@@ -1787,6 +1844,13 @@ public static class MathLib
 		QuaternionNormalize2(ref output);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float RemapVal(float val, float A, float B, float C, float D) {
+		if (A == B)
+			return val >= B ? D : C;
+		return C + (D - C) * (val - A) / (B - A);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double RemapVal(double val, double A, double B, double C, double D) {
 		if (A == B)
 			return val >= B ? D : C;
@@ -1801,6 +1865,19 @@ public static class MathLib
 
 	public static float Approach(float target, float value, float speed) {
 		float delta = target - value;
+
+		if (delta > speed)
+			value += speed;
+		else if (delta < -speed)
+			value -= speed;
+		else
+			value = target;
+
+		return value;
+	}
+
+	public static double Approach(double target, double value, double speed) {
+		double delta = target - value;
 
 		if (delta > speed)
 			value += speed;
@@ -1828,6 +1905,11 @@ public static class MathLib
 			return val >= B ? D : C;
 		double cVal = (val - A) / (B - A);
 		return C + (D - C) * SimpleSpline(cVal);
+	}
+	public static QAngle RandomAngle(float minVal, float maxVal) {
+		QAngle ret = new();
+		ret.Random(minVal, maxVal);
+		return ret;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void AngleVectors(in QAngle angles, out Vector3 forward) {
@@ -2461,6 +2543,60 @@ public static class MathLib
 		}
 	}
 
+	public const float VALVE_RAND_MAX = 0x7fff;
+	public static vec_t rand(vec_t minVal, vec_t maxVal) {
+		return vec_t.Lerp(System.Random.Shared.Next(), minVal, maxVal);
+	}
+	public static vec_t rand() {
+		return System.Random.Shared.Next();
+	}
+	public static void Random(ref this Vector3 v, vec_t minVal, vec_t maxVal) {
+		fltx4 rn = Vector128.Create(rand() / VALVE_RAND_MAX, rand() / VALVE_RAND_MAX, rand() / VALVE_RAND_MAX, 0);
+		fltx4 mn = Vector128.Create(minVal);
+
+		StoreFloat3(ref v, Vector128.FusedMultiplyAdd(rn, Vector128.Subtract(Vector128.Create(maxVal), mn), mn));
+	}
+
+	public static void StoreFloat3(ref Vector3 v, fltx4 x4) {
+		v = x4.AsVector3();
+	}
+
+	static void SetupMatrixAnglesInternal(ref this Matrix4x4 m, in QAngle angles) {
+		fltx4 sine, cosine;
+		fltx4 radians = Vector128.Multiply(LoadFloat3(MemoryMarshal.Cast<QAngle, float>(new(in angles))), Vector128.Create(MathF.PI / 180f));
+		(sine, cosine) = Vector128.SinCos(radians);
+
+		float sp = sine[0], sy = sine[1], sr = sine[2];
+		float cp = cosine[0], cy = cosine[1], cr = cosine[2];
+
+		// matrix = (YAW * PITCH) * ROLL
+		m[0, 0] = cp * cy;
+		m[1, 0] = cp * sy;
+		m[2, 0] = -sp;
+		m[0, 1] = sr * sp * cy + cr * -sy;
+		m[1, 1] = sr * sp * sy + cr * cy;
+		m[2, 1] = sr * cp;
+		m[0, 2] = (cr * sp * cy + -sr * -sy);
+		m[1, 2] = (cr * sp * sy + -sr * cy);
+		m[2, 2] = cr * cp;
+		m[0, 3] = 0f;
+		m[1, 3] = 0f;
+		m[2, 3] = 0f;
+	}
+
+	public static void SetupMatrixOrgAngles(ref this Matrix4x4 m, in Vector3 origin, in QAngle angles) {
+		SetupMatrixAnglesInternal(ref m, angles);
+
+		// Add translation
+		m[0, 3] = origin.X;
+		m[1, 3] = origin.Y;
+		m[2, 3] = origin.Z;
+		m[3, 0] = 0.0f;
+		m[3, 1] = 0.0f;
+		m[3, 2] = 0.0f;
+		m[3, 3] = 1.0f;
+	}
+
 	public const uint PERMUTE_0X = 0;
 	public const uint PERMUTE_0Y = 1;
 	public const uint PERMUTE_0Z = 2;
@@ -2660,6 +2796,62 @@ public static class MathLib
 		src[2, col] = column.Z;
 	}
 
+	public static Vector3 VMul4x3(ref this Matrix4x4 m, in Vector3 vec) {
+		Vector3DMultiplyPosition(ref m, vec, out Vector3 result);
+		return result;
+	}
+
+	public static Matrix4x4 Transpose3x3(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Matrix4x4(
+			m[0][0], m[1][0], m[2][0], m[0][3],
+			m[0][1], m[1][1], m[2][1], m[1][3],
+			m[0][2], m[1][2], m[2][2], m[2][3],
+			m[3][0], m[3][1], m[3][2], m[3][3]
+		);
+	}
+
+	public static Matrix4x4 Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Matrix4x4(
+			m[0][0], m[1][0], m[2][0], m[3][0],
+			m[0][1], m[1][1], m[2][1], m[3][1],
+			m[0][2], m[1][2], m[2][2], m[3][2],
+			m[0][3], m[1][3], m[2][3], m[3][3]
+		);
+	}
+
+	public static Vector3 VMul4x3Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		Vector3 tmp = vec;
+		tmp.X -= m[0][3];
+		tmp.Y -= m[1][3];
+		tmp.Z -= m[2][3];
+
+		return new Vector3(
+			m[0][0] * tmp.X + m[1][0] * tmp.Y + m[2][0] * tmp.Z,
+			m[0][1] * tmp.X + m[1][1] * tmp.Y + m[2][1] * tmp.Z,
+			m[0][2] * tmp.X + m[1][2] * tmp.Y + m[2][2] * tmp.Z
+		);
+	}
+
+	public static Vector3 VMul3x3(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Vector3(
+			m[0][0] * vec.X + m[0][1] * vec.Y + m[0][2] * vec.Z,
+			m[1][0] * vec.X + m[1][1] * vec.Y + m[1][2] * vec.Z,
+			m[2][0] * vec.X + m[2][1] * vec.Y + m[2][2] * vec.Z
+		);
+	}
+
+	public static Vector3 VMul3x3Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Vector3(
+			m[0][0] * vec.X + m[1][0] * vec.Y + m[2][0] * vec.Z,
+			m[0][1] * vec.X + m[1][1] * vec.Y + m[2][1] * vec.Z,
+			m[0][2] * vec.X + m[1][2] * vec.Y + m[2][2] * vec.Z
+		);
+	}
+
+	public static void MatrixMul(ref this Matrix4x4 m, in Matrix4x4 vm, out Matrix4x4 @out) {
+		MatrixMultiply(in m, in vm, out @out);
+	}
+
 	public static void SetForward(ref this Matrix4x4 m, in Vector3 forward) {
 		m[0, 0] = forward.X;
 		m[1, 0] = forward.Y;
@@ -2746,6 +2938,83 @@ public static class MathLib
 		}
 
 		return lineartovertex[i];
+	}
+
+	public static void MatrixToAngles(in Matrix4x4 src, out QAngle angles) {
+		Span<float> forward = stackalloc float[3];
+		Span<float> left = stackalloc float[3];
+		Span<float> up = stackalloc float[3];
+
+		// Extract the basis vectors from the matrix. Since we only need the Z
+		// component of the up vector, we don't get X and Y.
+		forward[0] = src[0][0];
+		forward[1] = src[1][0];
+		forward[2] = src[2][0];
+		left[0] = src[0][1];
+		left[1] = src[1][1];
+		left[2] = src[2][1];
+		up[2] = src[2][2];
+
+		float xyDist = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+
+		// enough here to get angles?
+		if (xyDist > 0.001f) {
+			// (yaw)	y = ATAN( forward.y, forward.x );		-- in our space, forward is the X axis
+			angles.Y = RAD2DEG(MathF.Atan2(forward[1], forward[0]));
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles.X = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			// (roll)	z = ATAN( left.z, up.z );
+			angles.Z = RAD2DEG(MathF.Atan2(left[2], up[2]));
+		}
+		else    // forward is mostly Z, gimbal lock-
+		{
+			// (yaw)	y = ATAN( -left.x, left.y );			-- forward is mostly z, so use right for yaw
+			angles.Y = RAD2DEG(MathF.Atan2(-left[0], left[1]));
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles.X = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			// Assume no roll in this case as one degree of freedom has been lost (i.e. yaw == roll)
+			angles.Z = 0;
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixCopy(Matrix3x4 @in, out Matrix3x4 @out) {
+		@out = @in;
+	}
+
+	public static void AngularImpulseToQAngle(in Vector3 angImpulse, out QAngle vecResult) {
+		vecResult.X = angImpulse.X;
+		vecResult.Y = angImpulse.Y;
+		vecResult.Z = angImpulse.Z;
+	}
+
+	public static float CalcClosestPointToLineT(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vDir) {
+		Assert(MathlibInitialized);
+		VectorSubtract(vLineB, vLineA, out vDir);
+
+		// D dot [P - (A + D*t)] = 0
+		// t = ( DP - DA) / DD
+		float div = vDir.Dot(vDir);
+		if (div < 0.00001f)
+			return 0;
+		else {
+			return (vDir.Dot(P) - vDir.Dot(vLineA)) / div;
+		}
+	}
+
+	public static void CalcClosestPointOnLineSegment(in Vector3 P, in Vector3 vLineA, in Vector3 vLineB, out Vector3 vClosest, out float outT) {
+		float t = CalcClosestPointToLineT(P, vLineA, vLineB, out Vector3 vDir);
+		t = Math.Clamp(t, 0, 1);
+		outT = t;
+		VectorMA(vLineA, t, vDir, out vClosest);
 	}
 
 	const int NUMVERTEXNORMALS = 162;
@@ -2913,6 +3182,48 @@ public static class MathLib
 		new(-0.587785f, -0.425325f, -0.688191f),
 		new(-0.688191f, -0.587785f, -0.425325f)
 	];
+
+	public static void Catmull_Rom_Spline(in Vector3 p1, in Vector3 p2, in Vector3 p3, in Vector3 p4, float t, out Vector3 output) {
+		float tSqr = t * t * 0.5f;
+		float tSqrSqr = t * tSqr;
+		t *= 0.5f;
+
+		output = default;
+
+		Vector3 a, b, c, d;
+
+		// matrix row 1
+		VectorScale(p1, -tSqrSqr, out a);       // 0.5 t^3 * [ (-1*p1) + ( 3*p2) + (-3*p3) + p4 ]
+		VectorScale(p2, tSqrSqr * 3, out b);
+		VectorScale(p3, tSqrSqr * -3, out c);
+		VectorScale(p4, tSqrSqr, out d);
+
+		output += a;
+		output += b;
+		output += c;
+		output += d;
+
+		// matrix row 2
+		VectorScale(p1, tSqr * 2, out a);       // 0.5 t^2 * [ ( 2*p1) + (-5*p2) + ( 4*p3) - p4 ]
+		VectorScale(p2, tSqr * -5, out b);
+		VectorScale(p3, tSqr * 4, out c);
+		VectorScale(p4, -tSqr, out d);
+
+		output += a;
+		output += b;
+		output += c;
+		output += d;
+
+		// matrix row 3
+		VectorScale(p1, -t, out a);             // 0.5 t * [ (-1*p1) + p3 ]
+		VectorScale(p3, t, out b);
+
+		output += a;
+		output += b;
+
+		// matrix row 4
+		output += p2;    // p2
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]
@@ -3004,4 +3315,15 @@ public struct FourVectors
 
 		return maskX & maskY & maskZ;
 	}
+}
+
+public static class VectorFieldExts
+{
+	// Writable float[3] view over a vector's components (unlike the read-only Vector3 indexer).
+	public static Span<float> Base(this ref Vector3 v) => MemoryMarshal.CreateSpan(ref Unsafe.As<Vector3, float>(ref v), 3);
+	public static Span<float> Base(this ref QAngle a) => MemoryMarshal.CreateSpan(ref Unsafe.As<QAngle, float>(ref a), 3);
+
+
+	public static unsafe ReadOnlySpan<float> ReadOnlyBase(this in Vector3 v) => MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<Vector3, float>(ref Unsafe.AsRef<Vector3>(in v)), 3);
+	public static unsafe ReadOnlySpan<float> ReadOnlyBase(this in QAngle a) => MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<QAngle, float>(ref Unsafe.AsRef<QAngle>(in a)), 3);
 }

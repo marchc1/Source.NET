@@ -12,6 +12,9 @@ namespace Game.Client;
 public interface IHasLocalToGlobalFlexSettings;
 public partial class C_BaseFlex : C_BaseAnimatingOverlay, IHasLocalToGlobalFlexSettings
 {
+	readonly Source.Common.Audio.MouthInfo mouth = new();
+	public override Source.Common.Audio.MouthInfo? GetMouth() => mouth;
+
 	public static readonly RecvTable DT_BaseFlex = new(DT_BaseAnimatingOverlay, [
 		RecvPropArray3  (FIELD.OF_ARRAY(nameof(FlexWeight)), RecvPropFloat(FIELD.OF_ARRAY(nameof(FlexWeight)))),
 		RecvPropInt     (FIELD.OF(nameof(BlinkToggle))),

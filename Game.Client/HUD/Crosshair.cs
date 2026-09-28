@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -23,7 +23,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 	QAngle CrosshairOffsetAngle;
 	[PanelAnimationVar("never_draw", "false", "bool")] protected bool HideCrosshair;
 
-	public HudCrosshair(string? panelName) : base(null, "CHudCrosshair") {
+	public HudCrosshair(string? panelName) : base("HudCrosshair", panelName) {
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 		Crosshair = null;

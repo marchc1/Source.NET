@@ -245,6 +245,11 @@ public static class PixelWriterImpl
 	public static void Seek(ref PixelWriterState State, Span<byte> Base, int x, int y) {
 		State.Bits = y * State.BytesPerRow + x * State.Size;
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void SkipBytes(ref PixelWriterState State, int n) {
+		State.Bits += n;
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void WritePixel(ref PixelWriterState State, Span<byte> Base, int r, int g, int b, int a = 255) {
 		WritePixelNoAdvance(ref State, Base, r, g, b, a);
@@ -378,7 +383,9 @@ public ref struct PixelWriter
 		State = default;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly int GetPixelSize() => State.Size;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base, x, y);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SkipBytes(int n) => PixelWriterImpl.SkipBytes(ref State, n);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base, r, g, b, a);
@@ -418,7 +425,9 @@ public struct PixelWriterMem
 		State = default;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly int GetPixelSize() => State.Size;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base.Span, x, y);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SkipBytes(int n) => PixelWriterImpl.SkipBytes(ref State, n);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base.Span, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base.Span, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base.Span, r, g, b, a);

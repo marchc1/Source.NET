@@ -1,6 +1,11 @@
 ﻿global using static Game.Client.CDLL_Util;
+global using static Game.Util_Globals;
+
+using CommunityToolkit.HighPerformance;
 
 using Game.Client;
+
+using System.Runtime.CompilerServices;
 
 namespace Game.Client
 {
@@ -40,5 +45,11 @@ namespace Game
 			// Bye bye
 			entity.Release();
 		}
+
+	}
+	public static partial class Util_Globals
+	{
+		public static bool FStrEq(ReadOnlySpan<char> sz1, ReadOnlySpan<char> sz2)
+			=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 	}
 }

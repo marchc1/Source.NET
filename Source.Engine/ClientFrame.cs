@@ -1,7 +1,7 @@
 ﻿global using static Source.Engine.ClientFrame;
 namespace Source.Engine;
 
-public class ClientFrame
+public class ClientFrame : IPoolableObject
 {
 #if GMOD_DLL
 	public const int MAX_CLIENT_FRAMES = 256;
@@ -38,6 +38,20 @@ public class ClientFrame
 
 		Snapshot = snapshot;
 	}
+
+	public void Init() {
+
+	}
+	public void Reset() {
+		SetSnapshot(null);  // release our reference to the snapshot (destructor behavior)
+
+		LastEntity = 0;
+		TickCount = 0;
+		Next = null;
+		TransmitEntity.ClearAll();
+		FromBaseline.ClearAll();
+		TransmitAlways.ClearAll();
+	}
 }
 
 public class ClientFrameManager
@@ -45,7 +59,7 @@ public class ClientFrameManager
 	ClientFrame? Frames;
 	ClientFrame? LastFrame;
 	int FrameCount;
-	readonly ClassMemoryPool<ClientFrame> ClientFramePool;
+	readonly ObjectPool<ClientFrame> ClientFramePool;
 
 	public ClientFrameManager() {
 		ClientFramePool = new();

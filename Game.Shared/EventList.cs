@@ -3,6 +3,18 @@
 
 namespace Game.Shared;
 
+[Flags]
+public enum AnimEventType
+{
+	Server = 1 << 0,
+	Scripted = 1 << 1,
+	Shared = 1 << 2,
+	Weapon = 1 << 3,
+	Client = 1 << 4,
+	FacePoser = 1 << 5,
+	NewEventSystem = 1 << 10
+}
+
 public struct EventListEntry
 {
 	public int EventIndex;
@@ -30,7 +42,7 @@ public static class EventList
 		++g_EventListVersion;
 	}
 
-	public static void RegisterSharedEvents(){
+	public static void RegisterSharedEvents() {
 
 	}
 

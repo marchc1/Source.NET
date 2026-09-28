@@ -834,6 +834,34 @@ public static class StrTools
 				strcpy(output, input);
 		}
 	}
+	public static bool StripLastDir(Span<char> dirName) {
+		if (dirName[0] == '\0' || stricmp(dirName, "./") == 0 || stricmp(dirName, ".\\") == 0)
+			return false;
+
+		int len = (int)strlen(dirName);
+
+		Assert(len < dirName.Length);
+
+		if (IsPathSeparator(dirName[len - 1]))
+			len--;
+
+		while (len > 0) {
+			if (IsPathSeparator(dirName[len - 1])) {
+				dirName[len] = '\0';
+				FixSlashes(dirName);
+				return true;
+			}
+			len--;
+		}
+
+		if (len == 0) {
+			sprintf(dirName, ".%c").C(CORRECT_PATH_SEPARATOR);
+			return true;
+		}
+
+		return true;
+	}
+
 	public static void SetExtension(Span<char> path, ReadOnlySpan<char> extension) {
 		StripExtension(path, path);
 
@@ -901,6 +929,25 @@ public static class StrTools
 		}
 
 		return isMean;
+	}
+
+	public static void DefaultExtension(Span<char> path, ReadOnlySpan<char> extension) {
+		Assert(extension.Length > 0 && extension[0] == '.');
+
+		int len = (int)strlen(path);
+		if (len < 0) len = path.Length;
+
+		// Scan backwards from the last char looking for a '.' before any path separator
+		for (int i = len - 1; i > 0; i--) {
+			char c = path[i];
+			if (c == '/' || c == '\\')
+				break;
+			if (c == '.')
+				return; 
+		}
+
+		for (int i = 0; i < extension.Length && len + i < path.Length; i++)
+			path[len + i] = extension[i];
 	}
 }
 
@@ -1679,16 +1726,16 @@ public static class UnmanagedUtils
 
 		int wordLen = 0;
 		while (true) {
-			if (!buffer.IsValid())
-				break;
-
 			tokenBuf[wordLen] = c;
 			if (++wordLen == tokenBuf.Length) {
 				return tokenBuf.Length;
 			}
 
-			c = buffer.GetChar();
+			int next = buffer.Read();
+			if (next < 0)
+				break;
 
+			c = (char)next;
 
 			if (breaks.Contains(c) || c == '\"' || (c > '\0' && c <= ' ')) {
 				buffer.Seek(-1, SeekOrigin.Current);
@@ -1820,7 +1867,7 @@ public static class ReflectionUtils
 
 	public static bool IsSourceEngineAssembly(Assembly assembly) =>
 		assembly.GetCustomAttribute<SourceDllAttribute>() != null;
-	
+
 	public static IEnumerable<Assembly> GetAssemblies()
 		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsSourceEngineAssembly);
 	public static IEnumerable<Type> GetLoadedTypes()

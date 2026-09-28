@@ -2,6 +2,7 @@
 
 using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Networking;
 
@@ -41,5 +42,19 @@ public static class RecvProxy
 	public static void RecvProxy_IntToMoveParent(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		EHANDLE handle = field.GetValue<EHANDLE>(instance);
 		RecvProxy_IntToEHandle(in data, instance, field);
+	}
+
+	public static void RecvProxy_InterpolationAmountChanged(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		if (field.GetValue<bool>(instance) != (data.Value.Int != 0)) {
+			field.SetValue(instance, data.Value.Int != 0);
+
+			C_BaseEntity entity = (C_BaseEntity)instance;
+			entity.Interp_UpdateInterpolationAmounts(ref entity.GetVarMapping());
+		}
+	}
+
+	public static void RecvProxy_IntToColor32(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		uint inColor = (uint)data.Value.Int;
+		field.SetValue(instance, new Color((byte)(inColor >> 24), (byte)((inColor >> 16) & 0xFF), (byte)((inColor >> 8) & 0xFF), (byte)(inColor & 0xFF)));
 	}
 }

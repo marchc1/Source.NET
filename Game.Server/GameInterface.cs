@@ -209,6 +209,14 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		// throw new NotImplementedException();
 
 		GameRulesRegister.CreateNetworkStringTables_GameRules();
+
+#if GMOD_DLL
+		// TODO: GarrysMod::StringTable::Create
+		// TODO: NetworkString::Create
+		// TODO: NetworkVarNames::Create
+
+		StringTableBits.SV_SetupNetworkStringTableBits();
+#endif
 	}
 
 	public bool DLLInit(IServiceProvider services) {
@@ -220,6 +228,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(PhysicsGameSystem());
+		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(SoundscapeSystemGlobals).TypeHandle);
+		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CheckClient).TypeHandle);
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -261,7 +271,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.FrameUpdatePostEntityThinkAllSystems();
 
-		// ServiceEventQueue();
+		ServiceEventQueue();
 
 		// UpdateAllClientData();
 
@@ -356,7 +366,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		throw new NotImplementedException();
 	}
 
-	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
+	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
 		// ResetWindspeed();
 		// UpdateChapterRestrictions(pMapName);
 
@@ -374,7 +384,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			// BeginRestoreEntities();
 			if (!engine.LoadGameState(pMapName, true)) {
 				if (!pOldLevel.IsEmpty)
-					ParseAllEntities(pMapEntities);
+					MapEntity_ParseAllEntities(pMapEntities);
 				else
 					// Regular save load case
 					return false;
@@ -406,7 +416,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			// Clear out entity references, and parse the entities into it.
 			// g_MapEntityRefs.Purge();
 			MapLoadEntityFilter filter = new();
-			ParseAllEntities(pMapEntities, filter);
+			MapEntity_ParseAllEntities(pMapEntities, filter);
 
 			// g_pServerBenchmark.StartBenchmark();
 
@@ -444,7 +454,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.LevelShutdownPreEntityAllSystems();
 
-		// SoundEnt.ShutdownSoundEnt()
+		SoundEnt.ShutdownSoundEnt();
 
 		gEntList.Clear();
 
@@ -456,7 +466,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void PostInit() {
-
+		IGameSystem.PostInitAllSystems();
 	}
 
 	public void PreClientUpdate(bool simulating) {
@@ -467,7 +477,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void PrepareLevelResources(Span<char> mapName, Span<char> mapFile) {
-		throw new NotImplementedException();
+
 	}
 
 	public void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame) {
@@ -487,7 +497,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		}
 
 		IGameSystem.LevelInitPostEntityAllSystems();
-		// BaseEntity.SetAllowPrecache(false);
+		BaseEntity.SetAllowPrecache(false);
 
 		NavMesh.NavMesh.Instance.Load();
 		NavMesh.NavMesh.Instance.OnServerActivate();
@@ -516,8 +526,10 @@ public class ServerGameClients : IServerGameClients
 	public void ClientActive(Edict entity, bool loadGame) {
 		GMODClient.ClientActive(entity, loadGame);
 
-		if (gpGlobals.LoadType == MapLoadType.LoadGame) {
-			// todo
+		if (gpGlobals.LoadType != MapLoadType.LoadGame) {
+			// notify all entities that the player is now in the game
+			for (BaseEntity? ent = gEntList.FirstEnt(); ent != null; ent = gEntList.NextEnt(ent))
+				ent.PostClientActive();
 		}
 
 		BasePlayer player = (BasePlayer)BaseEntity.Instance(entity)!;
@@ -526,15 +538,22 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientCommand(Edict entity, in TokenizedCommand args) {
-		// throw new NotImplementedException();
+		BasePlayer? player = ToBasePlayer(BaseEntity.GetContainingEntity(entity));
+		GameServerClientGlobals.ClientCommand(player, args);
 	}
 
 	public void ClientCommandKeyValues(Edict entity, KeyValues keyValues) {
-		throw new NotImplementedException();
+		if (keyValues == null)
+			return;
+
+		g_pGameRules?.ClientCommandKeyValues(entity, keyValues);
 	}
 
 	public bool ClientConnect(Edict entity, ReadOnlySpan<char> name, ReadOnlySpan<char> address, Span<char> reject) {
-		throw new NotImplementedException();
+		if (g_pGameRules == null)
+			return false;
+
+		return g_pGameRules.ClientConnected(entity, name, address, reject);
 	}
 
 	public void ClientDisconnect(Edict entity) {
@@ -542,7 +561,13 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientEarPosition(Edict entity, out Vector3 earOrigin) {
-		throw new NotImplementedException();
+		BasePlayer? player = (BasePlayer?)BaseEntity.Instance(entity);
+		if (player != null)
+			earOrigin = player.EarPosition();
+		else {
+			Assert(false);
+			earOrigin = vec3_origin;
+		}
 	}
 
 	public void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName) {
@@ -650,7 +675,15 @@ public class ServerGameEnts : IServerGameEnts
 	}
 
 	public void MarkEntitiesAsTouching(Edict e1, Edict e2) {
-		throw new NotImplementedException();
+		BaseEntity? entity = BaseEntity.GetContainingEntity(e1);
+		BaseEntity? entityTouched = BaseEntity.GetContainingEntity(e2);
+		if (entity != null && entityTouched != null) {
+			// HACKHACK: UNDONE: Pass in the trace here??!?!?
+			Trace tr = default;
+			Util.ClearTrace(ref tr);
+			tr.EndPos = (entity.GetAbsOrigin() + entityTouched.GetAbsOrigin()) * 0.5f;
+			entity.PhysicsMarkEntitiesAsTouching(entityTouched, tr);
+		}
 	}
 
 	public void SetDebugEdictBase(Edict[] edict) {

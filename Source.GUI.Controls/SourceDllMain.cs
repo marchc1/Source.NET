@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
@@ -28,6 +29,9 @@ public static class SourceDllMain
 	[Dependency] public static IMaterialSystem Materials { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static IFileSystem fileSystem { get; private set; } = null!;
+	[Dependency] public static IEngineClient engine { get; private set; } = null!;
+	[Dependency] public static IGameUIFuncs gameuifuncs { get; private set; } = null!;
+	[Dependency] public static IMatSystemSurface matSys { get; private set; } = null!;
 
 	public static void Link(IServiceCollection services) {
 		services.AddSingleton<AnimationController>();

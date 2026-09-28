@@ -43,7 +43,10 @@ public struct TraceFilterHitAll : ITraceFilter
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => true;
 }
 
-public interface IEntityEnumerator; // todo
+public interface IEntityEnumerator {
+	bool EnumEntity(IHandleEntity? handleEntity); 
+}
+
 public interface IEngineTrace
 {
 	public void TraceRay(in Ray ray, Mask mask, object? nulled, out Trace trace) => TraceRay(in ray, mask, new TraceFilterHitAll(), out trace);
@@ -57,8 +60,8 @@ public interface IEngineTrace
 	void SetupLeafAndEntityListBox(in Vector3 boxMin, in Vector3 boxMax, TraceListData traceData);
 	void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, scoped ref Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter;
 	void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, Mask mask, scoped ref Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter;
-	void EnumerateEntities(in Ray ray, bool triggers, IEntityEnumerator enumerator);
-	void EnumerateEntities(in Vector3 absMins, in Vector3 absMaxs, IEntityEnumerator enumerator);
+	void EnumerateEntities<IEE>(in Ray ray, bool triggers, scoped ref IEE enumerator) where IEE : IEntityEnumerator, allows ref struct;
+	void EnumerateEntities<IEE>(in Vector3 absMins, in Vector3 absMaxs, scoped ref IEE enumerator) where IEE : IEntityEnumerator, allows ref struct;
 	ICollideable? GetCollideable(IHandleEntity? entity);
 	int GetStatByIndex(int index, bool clear);
 	void GetBrushesInAABB(in Vector3 mins, in Vector3 maxs, List<int> output, Contents contentsMask = unchecked((Contents)0xFFFFFFFF));

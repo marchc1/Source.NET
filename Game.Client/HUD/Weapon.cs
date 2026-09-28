@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source.Common.GUI;
@@ -11,7 +11,7 @@ public class HudWeapon : EditableHudElement, IHudElement
 {
 	HudCrosshair? Crosshair;
 
-	public HudWeapon(string? panelName) : base(null, "HudWeapon") {
+	public HudWeapon(string? panelName) : base("HudWeapon", panelName) {
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 

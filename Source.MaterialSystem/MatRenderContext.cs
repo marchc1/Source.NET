@@ -330,22 +330,23 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	public void ForceSyncMatrix(MaterialMatrixMode mode) {
 		ref MatrixStackItem top = ref MatrixStacks[(int)mode].Top();
-		if (MatrixStacksDirtyStates[(int)matrixMode]) {
+		if (MatrixStacksDirtyStates[(int)mode]) {
 			bool setMode = matrixMode != mode;
 			if (setMode)
 				shaderAPI.MatrixMode(mode);
 
 			if (!top.Matrix.IsIdentity) {
-				shaderAPI.LoadMatrix(in top.Matrix);
+				Matrix4x4 transposeTop = Matrix4x4.Transpose(top.Matrix);
+				shaderAPI.LoadMatrix(in transposeTop);
 			}
 			else {
 				shaderAPI.LoadIdentity();
 			}
 
 			if (setMode)
-				shaderAPI.MatrixMode(mode);
+				shaderAPI.MatrixMode(matrixMode);
 
-			MatrixStacksDirtyStates[(int)matrixMode] = false;
+			MatrixStacksDirtyStates[(int)mode] = false;
 		}
 	}
 
@@ -356,7 +357,8 @@ public class MatRenderContext : IMatRenderContextInternal
 				if (MatrixStacksDirtyStates[i]) {
 					shaderAPI.MatrixMode((MaterialMatrixMode)i);
 					if (!top.Matrix.IsIdentity) {
-						shaderAPI.LoadMatrix(in top.Matrix);
+						Matrix4x4 transposeTop = Matrix4x4.Transpose(top.Matrix);
+						shaderAPI.LoadMatrix(in transposeTop);
 					}
 					else {
 						shaderAPI.LoadIdentity();

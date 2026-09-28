@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -29,6 +29,7 @@ public class HudZoom : HudNumericDisplay, IHudElement
 	}
 
 	public HudZoom(string? panelName) : base(null, "HudZoom") {
+		ElementName = panelName;
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 

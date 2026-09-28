@@ -54,7 +54,7 @@ public struct SoundInfo
 	public Vector3 ListenerOrigin;
 	public SoundFlags Flags;
 	public int SoundNum;
-	public float Delay;
+	public TimeUnit_t Delay;
 	public bool IsSentence;
 	public bool IsAmbient;
 	public int SpeakerEntity;
@@ -165,7 +165,7 @@ public struct SoundInfo
 		}
 	}
 
-	public void WriteDelta(ref SoundInfo delta, bf_write buffer, int nProtoVersion) {
+	public void WriteDelta(ref SoundInfo delta, bf_write buffer, int nProtoVersion = Protocol.VERSION) {
 		if (EntityIndex == delta.EntityIndex)
 			buffer.WriteOneBit(0);
 		else {
@@ -270,8 +270,8 @@ public struct SoundInfo
 				buffer.WriteOneBit(0);
 			else {
 				buffer.WriteOneBit(1);
-				float d = Delay + SOUND_DELAY_OFFSET;
-				int iDelay = (int)(d * 1000.0f);
+				TimeUnit_t d = Delay + SOUND_DELAY_OFFSET;
+				int iDelay = (int)(float)(d * 1000.0);
 				iDelay = Math.Clamp(iDelay, -10 * MAX_SOUND_DELAY_MSEC, MAX_SOUND_DELAY_MSEC);
 				if (iDelay < 0) iDelay /= 10;
 				buffer.WriteSBitLong(iDelay, MAX_SOUND_DELAY_MSEC_ENCODE_BITS);
@@ -302,6 +302,21 @@ public struct SoundInfo
 
 		Origin.Init();
 		SpeakerEntity = -1;
+	}
+
+	public void Set(int newEntity, SoundEntityChannel newChannel, FileNameHandle_t newName, in Vector3 newOrigin, in Vector3 newDirection,
+			float newVolume, SoundLevel newSoundLevel, bool newLooping, int newPitch, in Vector3 vecListenerOrigin, int speakerentity) {
+		EntityIndex = newEntity;
+		Channel = newChannel;
+		Name = newName;
+		Origin = newOrigin;
+		Direction = newDirection;
+		Volume = newVolume;
+		Soundlevel = newSoundLevel;
+		Looping = newLooping;
+		Pitch = newPitch;
+		ListenerOrigin = vecListenerOrigin;
+		SpeakerEntity = speakerentity;
 	}
 
 	public void SetDefault() {

@@ -555,7 +555,8 @@ public class ModelRender : IModelRender
 		bool bStaticLighting = (state.DrawFlags & StudioRenderFlags.DrawStaticLighting) != 0 &&
 									(state.StudioHdr!.Flags & StudioHdrFlags.StaticProp) != 0 &&
 									(!bUsesBumpmapping) &&
-									(pInfo.Instance != MODEL_INSTANCE_INVALID);
+									(pInfo.Instance != MODEL_INSTANCE_INVALID) &&
+									HardwareConfig.SupportsColorOnSecondStream();
 
 		bool bVertexLit = (pInfo.Model.Flags & ModelFlag.VertexLit) != 0;
 

@@ -313,7 +313,7 @@ public interface IEngineClient
 
 	// Debugging functionality:
 	// Very slow routine to draw a physics model
-	void DebugDrawPhysCollide(PhysCollide collide, IMaterial material, in Matrix3x4 transform, in Color color);
+	void DebugDrawPhysCollide(PhysCollide collide, IMaterial? material, in Matrix3x4 transform, in Color color);
 	// This can be used to notify test scripts that we're at a particular spot in the code.
 	void CheckPoint(ReadOnlySpan<char> name);
 	// Draw portals if r_DrawPortals is set (Debugging only)

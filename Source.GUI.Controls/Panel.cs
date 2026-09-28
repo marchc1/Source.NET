@@ -19,6 +19,8 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using ILuaObject = Source.Common.GarrysMod.Lua.ILuaObject;
+
 namespace Source.GUI.Controls;
 
 public struct OverrideableColorEntry
@@ -472,6 +474,15 @@ public class Panel : IPanel
 		x1 = ClipRectW;
 		y1 = ClipRectH;
 	}
+
+#if GMOD_DLL
+	public void SetClipRect(int x0, int y0, int x1, int y1) {
+		ClipRectX = (short)x0;
+		ClipRectY = (short)y0;
+		ClipRectW = (short)x1;
+		ClipRectH = (short)y1;
+	}
+#endif
 
 
 	public void GetPaintSize(out int wide, out int tall) {
@@ -1405,14 +1416,225 @@ public class Panel : IPanel
 		}
 
 		if (layoutNow) {
+#if GMOD_DLL
+			if (LayoutCount > 20) {
+				Msg("Warning: Tried to InvalidateLayout( true ) from PANEL:PerformLayout over 20 times in a row. Breaking the loop.\n");
+				return;
+			}
+#endif
 			InternalPerformLayout();
 			Repaint();
 		}
 	}
 
+#if GMOD_DLL
+	public enum DockType : byte
+	{
+		NoDock = 0,
+		Fill,
+		Left,
+		Right,
+		Top,
+		Bottom
+	}
+
+	static readonly ConVar vgui_luapaint = new("vgui_luapaint", "1", FCvar.None);
+
+	static readonly List<Panel> DrawOnTopPanels = [];
+	static bool PaintingDrawOnTop;
+	static bool PaintingManually;
+
+	bool PaintedManually;
+	bool RenderInScreenshots = true;
+	bool DrawOnTop;
+	bool NoClipping;
+	public DockType Dock;
+	bool LayoutDirty;
+	bool WorldClicker;
+	public bool LuaPanel;
+
+	public virtual void SetPaintedManually(bool state) => PaintedManually = state;
+	public virtual bool IsPaintedManually() => PaintedManually;
+	public static void SetPaintingManually(bool state) => PaintingManually = state;
+	public void SetRenderInScreenshots(bool state) => RenderInScreenshots = state;
+	public void SetNoClipping(bool state) => NoClipping = state;
+
+	public virtual void SetDrawOnTop(bool state) {
+		if (state == DrawOnTop)
+			return;
+
+		if (state)
+			DrawOnTopPanels.Add(this);
+		else
+			DrawOnTopPanels.Remove(this);
+
+		DrawOnTop = state;
+	}
+
+	public virtual int GetCaretPos() => 0;
+	public virtual void SetCaretPos(int pos) { }
+
+	public virtual void PaintManual(bool repaint, bool allowForce = true) => PaintTraverse(repaint, allowForce);
+
+	ILuaObject? LuaTable;
+	ILuaObject? LuaObject;
+
+	public virtual ILuaObject? GetLuaTable() {
+		if (LuaTable != null)
+			return LuaTable;
+		// todo
+		return LuaTable;
+	}
+
+	public virtual void PushToLua() {
+		// todo
+	}
+
+	public virtual void PaintAt(int x, int y) {
+		SetPaintingManually(true);
+
+		GetPos(out int oldX, out int oldY);
+		bool wasVisible = IsVisible();
+		int zpos = GetZPos();
+		Panel? parent = GetParent();
+
+		if (parent != null) {
+			int i = parent.GetChildCount();
+			while (true) {
+				i--;
+				if (i < 1)
+					goto done;
+				if (parent.GetChild(i).GetZPos() == 0)
+					break;
+			}
+
+			for (i = parent.GetChildCount() - 1; i > 0; i--) {
+				Panel child = parent.GetChild(i);
+				if (child.GetZPos() != i)
+					child.SetZPos(i);
+				if (child == this)
+					zpos = i;
+			}
+		}
+	done:
+		SetParent(Surface.GetEmbeddedPanel());
+		SetVisible(true);
+
+		GetPos(out int curX, out int curY);
+		if (curX != x || curY != y)
+			SetPos(x, y);
+
+		MakeReadyForUse();
+		SetPos(x, y);
+		PaintTraverse(true);
+		SetParent(parent);
+
+		if (GetZPos() != zpos)
+			SetZPos(zpos);
+
+		GetPos(out curX, out curY);
+		if (curX != oldX || curY != oldY)
+			SetPos(oldX, oldY);
+
+		SetVisible(wasVisible);
+		MakeReadyForUse();
+
+		SetPaintingManually(false);
+	}
+
+	public static void PaintDrawOnTopPanels() {
+		PaintingDrawOnTop = true;
+		for (int i = 0; i < DrawOnTopPanels.Count; i++) {
+			if (!DrawOnTopPanels[i].IsVisible())
+				continue;
+
+			using MatRenderContextPtr renderContext = new(Materials);
+			renderContext.ClearBuffers(false, true);
+			Surface.PaintTraverseEx(DrawOnTopPanels[i], false);
+		}
+		PaintingDrawOnTop = false;
+	}
+	short LayoutCount;
+	public int DockPaddingLeft;
+	public int DockPaddingTop;
+	public int DockPaddingRight;
+	public int DockPaddingBottom;
+	public int DockMarginLeft;
+	public int DockMarginTop;
+	public int DockMarginRight;
+	public int DockMarginBottom;
+
+	void PerformDockLayout() {
+		int left = DockPaddingLeft;
+		GetSize(out int wide, out _);
+		int right = wide - DockPaddingRight;
+		int top = DockPaddingTop;
+		GetSize(out _, out int tall);
+		int bottom = tall - DockPaddingBottom;
+
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			if (child.IsVisible() && !child.IsMarkedForDeletion() && child.Dock > DockType.Fill)
+				DockChild(child, ref left, ref top, ref right, ref bottom);
+		}
+
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			if (child.IsVisible() && !child.IsMarkedForDeletion() && child.Dock == DockType.Fill) {
+				child.SetPos(left + child.DockMarginLeft, top + child.DockMarginTop);
+				child.SetSize(right - child.DockMarginRight - child.DockMarginLeft - left, bottom - child.DockMarginBottom - child.DockMarginTop - top);
+			}
+		}
+	}
+
+	void DockChild(Panel child, ref int left, ref int top, ref int right, ref int bottom) {
+		if (child.Dock == DockType.Left) {
+			child.SetPos(left + child.DockMarginLeft, top + child.DockMarginTop);
+			child.SetTall(bottom - child.DockMarginBottom - top - child.DockMarginTop);
+			child.GetSize(out int wide, out _);
+			left += child.DockMarginRight + wide + child.DockMarginLeft;
+		}
+
+		if (child.Dock == DockType.Right) {
+			child.GetSize(out int wide, out _);
+			child.SetPos(right - wide - child.DockMarginRight, top + child.DockMarginTop);
+			child.SetTall(bottom - child.DockMarginBottom - top - child.DockMarginTop);
+			child.GetSize(out wide, out _);
+			right -= child.DockMarginLeft + wide + child.DockMarginRight;
+		}
+
+		if (child.Dock == DockType.Top) {
+			child.SetPos(left + child.DockMarginLeft, top + child.DockMarginTop);
+			child.SetWide(right - child.DockMarginRight - left - child.DockMarginLeft);
+			child.GetSize(out _, out int tall);
+			top += child.DockMarginBottom + child.DockMarginTop + tall;
+		}
+
+		if (child.Dock == DockType.Bottom) {
+			child.GetSize(out _, out int tall);
+			child.SetPos(left + child.DockMarginLeft, bottom - child.DockMarginBottom - tall);
+			child.SetWide(right - child.DockMarginRight - left - child.DockMarginLeft);
+			child.GetSize(out _, out tall);
+			bottom -= child.DockMarginTop + child.DockMarginBottom + tall;
+		}
+	}
+
+	public virtual void SetWorldClicker(bool state) => WorldClicker = state;
+	public virtual bool IsWorldClicker() => WorldClicker;
+
+	public virtual void InvalidateParentDock() => Parent?.OnChildDockChanged();
+
+	public virtual void OnChildDockChanged() {
+		PerformDockLayout();
+		InvalidateLayout();
+	}
+#endif
+
 	private void InternalPerformLayout() {
+#if !GMOD_DLL
 		if (0 != (Flags & PanelFlags.NeedsSchemeUpdate))
 			return;
+#endif
 
 #if DEBUG
 		if (sdn_vgui_visualizelayout.GetBool())
@@ -1420,8 +1642,22 @@ public class Panel : IPanel
 #endif
 
 		Flags |= PanelFlags.InPerformLayout;
-		Flags &= ~PanelFlags.NeedsLayout;
-		PerformLayout();
+#if GMOD_DLL
+		if ((Flags & PanelFlags.NeedsSchemeUpdate) == 0)
+#endif
+			Flags &= ~PanelFlags.NeedsLayout;
+
+#if GMOD_DLL
+		// todo VisualizeLayout hook
+		PerformDockLayout();
+
+		LayoutCount++;
+		// todo PerformLayout hook
+		LayoutCount--;
+
+		if ((Flags & PanelFlags.NeedsSchemeUpdate) == 0)
+#endif
+			PerformLayout();
 		Flags &= ~PanelFlags.InPerformLayout;
 	}
 
@@ -1433,6 +1669,17 @@ public class Panel : IPanel
 	public void PaintTraverse(bool repaint, bool allowForce = true) {
 		if (!IsVisible())
 			return;
+
+#if GMOD_DLL
+		if (DrawOnTop && !PaintingDrawOnTop)
+			return;
+
+		if (engine.IsTakingScreenshot() && !RenderInScreenshots)
+			return;
+
+		if (IsPaintedManually() && !PaintingManually)
+			return;
+#endif
 
 		float oldAlphaMultiplier = Surface.DrawGetAlphaMultiplier();
 		float newAlphaMultiplier = oldAlphaMultiplier * Alpha * 1.0f / 255.0f;
@@ -1469,6 +1716,26 @@ public class Panel : IPanel
 		DebugVisualize();
 
 		if (repaint) {
+#if GMOD_DLL
+			Surface.PushMakeCurrent(this, false);
+			bool luaPainted = false;
+			if (vgui_luapaint.GetInt() != 0) {
+				if (NoClipping)
+					matSys.DisableClipping(true);
+				// todo: Paint hook, luaPainted = result
+				if (NoClipping)
+					matSys.DisableClipping(false);
+			}
+
+			if (!luaPainted) {
+				if (0 != (Flags & PanelFlags.PaintBackgroundEnabled))
+					PaintBackground();
+
+				if (0 != (Flags & PanelFlags.PaintEnabled))
+					Paint();
+			}
+			Surface.PopMakeCurrent(this);
+#else
 			if (0 != (Flags & PanelFlags.PaintBackgroundEnabled)) {
 				Surface.PushMakeCurrent(this, false);
 				PaintBackground();
@@ -1480,6 +1747,7 @@ public class Panel : IPanel
 				Paint();
 				Surface.PopMakeCurrent(this);
 			}
+#endif
 		}
 
 		for (int i = 0, childCount = Children.Count; i < childCount; i++) {
@@ -1505,6 +1773,18 @@ public class Panel : IPanel
 				PaintBorder();
 				Surface.PopMakeCurrent(this);
 			}
+
+#if GMOD_DLL
+			if (vgui_luapaint.GetInt() != 0) {
+				Surface.PushMakeCurrent(this, false);
+				if (NoClipping)
+					matSys.DisableClipping(true);
+				// todo: PaintOver hook
+				if (NoClipping)
+					matSys.DisableClipping(false);
+				Surface.PopMakeCurrent(this);
+			}
+#endif
 
 			if (0 != (Flags & PanelFlags.PostChildPaintEnabled)) {
 				Surface.PushMakeCurrent(this, false);
@@ -1819,6 +2099,9 @@ public class Panel : IPanel
 	public static ReadOnlySpan<char> GetDescription() => "string fieldName, int xpos, int ypos, int wide, int tall, bool visible, bool enabled, int tabPosition, corner pinCorner, autoresize autoResize, string tooltiptext".AsSpan();
 
 	public virtual void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		SetFgColor(GetSchemeColor("Panel.FgColor", scheme));
 		SetBgColor(GetSchemeColor("Panel.BgColor", scheme));
 
@@ -1854,6 +2137,9 @@ public class Panel : IPanel
 		=> CallParentFunction(new KeyValues("OnRequestFocus").AddSubKey(new("subFocus", subFocus)).AddSubKey(new("defaultPanel", defaultPanel)));
 
 	public virtual bool RequestFocusNext(IPanel? existingPanel = null) {
+#if GMOD_DLL
+		// todo m_bDisableTabbing return
+#endif
 		if (GetParent() != null)
 			return GetParent()!.RequestFocusNext(this);
 
@@ -1861,6 +2147,9 @@ public class Panel : IPanel
 	}
 
 	public virtual bool RequestFocusPrev(IPanel? existingPanel = null) {
+#if GMOD_DLL
+		// todo m_bDisableTabbing return
+#endif
 		if (GetParent() != null)
 			return GetParent()!.RequestFocusPrev(this);
 
@@ -1899,6 +2188,9 @@ public class Panel : IPanel
 	public void SetMinimumSize(int wide, int tall) {
 		MinW = (short)wide;
 		MinH = (short)tall;
+#if GMOD_DLL
+		LayoutDirty = true;
+#endif
 
 		int currentWidth = W;
 		if (currentWidth < wide)
@@ -1928,6 +2220,12 @@ public class Panel : IPanel
 	}
 
 	public virtual void SetParent(IPanel? newParent) {
+#if GMOD_DLL
+		if (newParent != null && IsMarkedForDeletion())
+			newParent = null;
+		if (newParent != null)
+			LayoutDirty = true;
+#endif
 		if (this == newParent)
 			return;
 
@@ -1960,6 +2258,9 @@ public class Panel : IPanel
 			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled())
 				SetMouseInputEnabled(parent.IsMouseInputEnabled());
 		}
+#if GMOD_DLL
+		// todo: oldParent OnChildRemoved hook
+#endif
 	}
 
 	public void SetPopup(bool enabled) {
@@ -1970,11 +2271,19 @@ public class Panel : IPanel
 	}
 
 	public void SetPos(int x, int y) {
+#if GMOD_DLL
+		if (X != x || Y != y)
+			LayoutDirty = true;
+#endif
 		X = (short)x;
 		Y = (short)y;
 	}
 
 	public void SetSize(int wide, int tall) {
+#if GMOD_DLL
+		if (W != wide || H != tall)
+			LayoutDirty = true;
+#endif
 		if (wide < MinW)
 			wide = MinW;
 		if (tall < MinH)
@@ -2000,12 +2309,19 @@ public class Panel : IPanel
 		Surface.SetPanelVisible(this, state);
 
 		Visible = state;
+#if GMOD_DLL
+		LayoutDirty = true;
+#endif
 
 		if (IsPopup())
 			Surface.CalculateMouseVisible();
 	}
 
 	public void SetZPos(int z) {
+#if GMOD_DLL
+		if (ZPos != z)
+			LayoutDirty = true;
+#endif
 		ZPos = (short)z;
 		if (Parent != null) {
 			int childCount = Parent.GetChildCount();
@@ -2115,9 +2431,21 @@ public class Panel : IPanel
 		Assert(ClipRectY <= ClipRectH);
 	}
 
-	public void Think() {
+	public virtual void Think() {
+#if GMOD_DLL
+		if (LayoutDirty) {
+			LayoutDirty = false;
+			InvalidateParentDock();
+		}
+
+		// todo: Think hook
+#endif
 		if (IsVisible()) {
+#if GMOD_DLL
+			// todo: AnimationThink hook
+#else
 			Tooltips?.PerformLayout();
+#endif
 
 			if ((Flags & PanelFlags.NeedsLayout) != 0)
 				InternalPerformLayout();
@@ -2145,7 +2473,7 @@ public class Panel : IPanel
 	}
 
 	public bool IsMarkedForDeletion() => (Flags & PanelFlags.MarkedForDeletion) != 0;
-	public void MarkForDeletion() {
+	public virtual void MarkForDeletion() {
 		if ((Flags & PanelFlags.MarkedForDeletion) != 0)
 			return;
 
@@ -2155,6 +2483,10 @@ public class Panel : IPanel
 	}
 
 	public bool HasFocus() => Input.GetFocus() == this;
+
+#if GMOD_DLL
+	public virtual void DoModal() { }
+#endif
 
 	public virtual void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("performlayout", StringComparison.OrdinalIgnoreCase))
@@ -2167,24 +2499,68 @@ public class Panel : IPanel
 	public virtual void OnMouseCaptureLost() => Tooltips?.ResetDelay();
 	public virtual void OnSetFocus() {
 		Repaint();
+#if GMOD_DLL
+		// todo: OnGetFocus hook
+#endif
 	}
 	public virtual void OnKillFocus(Panel? newPanel) {
 		Repaint();
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 	}
 	public virtual void OnThink() { }
 	public virtual void OnParentChanged(IPanel? oldParent, IPanel? newParent) { }
-	public virtual void OnChildAdded(IPanel child) { }
+	public virtual void OnChildAdded(IPanel child) {
+#if GMOD_DLL
+		if ((Flags & PanelFlags.InPerformLayout) != 0)
+			Warning("vgui: Adding child in layout!\n");
+		// todo OnChildAdded hook
+#endif
+	}
 	public virtual void OnSizeChanged(int newWide, int newTall) {
+#if GMOD_DLL
+		// todo: OnSizeChanged hook
+#endif
 		InvalidateLayout();
 	}
 	public virtual void OnCursorMoved(int x, int y) { }
-	public virtual void OnCursorEntered() { }
-	public virtual void OnCursorExited() { }
-	public virtual void OnMousePressed(ButtonCode code) { }
+	public virtual void OnCursorEntered() {
+#if GMOD_DLL
+		// lua todo ChangeTooltip OnCursorEntered
+#endif
+	}
+	public virtual void OnCursorExited() {
+#if GMOD_DLL
+		// todo OnCursorExited EndTooltip
+#endif
+	}
+	public virtual void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		if (IsWorldClicker())
+			Input.SetMouseCapture(this);
+		else {
+			// todo: OnMousePressed hook
+		}
+#endif
+	}
 	public virtual void OnMouseDoublePressed(ButtonCode code) { }
-	public virtual void OnMouseReleased(ButtonCode code) { }
+	public virtual void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		if (IsWorldClicker())
+			Input.SetMouseCapture(null);
+		else {
+			// todo: OnMouseReleased hook
+		}
+#endif
+	}
 	public virtual void OnMouseMismatchedRelease(ButtonCode code, IPanel? pressedPanel) { }
-	public virtual void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
+	public virtual void OnMouseWheeled(int delta) {
+#if GMOD_DLL
+		// todo: OnMouseWheeled hook
+#endif
+		CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
+	}
 	public virtual void OnDialogVariablesChanged(KeyValues variables) { }
 	bool TriplePressAllowed;
 	public virtual void SetTriplePressAllowed(bool state) => TriplePressAllowed = state;
@@ -2241,9 +2617,13 @@ public class Panel : IPanel
 	}
 
 	public virtual void OnKeyCodePressed(ButtonCode code) {
+		// todo vgui_nav_lock
 		bool handled = false;
 		if (!handled && !PassUnhandledInput)
 			return;
+#if GMOD_DLL
+		// todo: OnKeyCodePressed hook
+#endif
 		CallParentFunction(new KeyValues("KeyCodePressed").AddSubKey("code", (int)code));
 	}
 	public virtual void OnKeyCodeTyped(ButtonCode code) {
@@ -2281,7 +2661,12 @@ public class Panel : IPanel
 
 
 	public virtual void OnKeyTyped(char unichar) { }
-	public virtual void OnKeyCodeReleased(ButtonCode code) { }
+	public virtual void OnKeyCodeReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnKeyCodeReleased hook
+#endif
+		CallParentFunction(new KeyValues("KeyCodeReleased", "code", (int)code));
+	}
 	public virtual void OnUnhandledMouseClick(ButtonCode code) { }
 	public void InternalKeyFocusTicked() {
 		OnKeyFocusTicked();
@@ -2443,13 +2828,18 @@ public class Panel : IPanel
 			// 	return;
 		}
 
+#if !GMOD_DLL
 		if (Tooltips != null) {
 			if (TooltipText != null)
 				Tooltips.SetText(TooltipText);
 			Tooltips.ShowTooltip(this);
 		}
+#endif
 
 		ScreenToLocal(ref x, ref y);
+#if GMOD_DLL
+		// todo OnCursorMoved
+#endif
 		OnCursorMoved(x, y);
 	}
 
@@ -2469,17 +2859,25 @@ public class Panel : IPanel
 			Tooltips.ShowTooltip(this);
 		}
 
+#if GMOD_DLL
+		// todo Hovered = true
+#endif
 		OnCursorEntered();
 	}
 
 	private void InternalCursorExited() {
+#if GMOD_DLL
+		// todo Hovered = false
+#endif
 		if (IsCursorNone() || !IsMouseInputEnabled())
 			return;
 
 		if (IsBuildGroupEnabled())
 			return;
 
+#if !GMOD_DLL
 		Tooltips?.HideTooltip();
+#endif
 
 		OnCursorExited();
 	}
@@ -2701,11 +3099,11 @@ public class Panel : IPanel
 
 	public static void InitializeControls() {
 		List<Type> list = [];
-		
-		foreach (Type type in ReflectionUtils.GetLoadedTypes()) 
-			if (typeof(Panel).IsAssignableFrom(type)) 
+
+		foreach (Type type in ReflectionUtils.GetLoadedTypes())
+			if (typeof(Panel).IsAssignableFrom(type))
 				list.Add(type);
-		
+
 		int count = 0;
 		Parallel.ForEach(list, type => {
 			ChainToAnimationMap(type);
@@ -2728,7 +3126,7 @@ public class Panel : IPanel
 
 			Interlocked.Increment(ref count);
 		});
-		
+
 		Msg($"Initialized {count} VGUI controls in all currently loaded assemblies\n");
 	}
 
@@ -2842,7 +3240,7 @@ public class Panel : IPanel
 		if (state) BuildModeFlags |= BuildModeFlags.Deletable; else BuildModeFlags &= ~BuildModeFlags.Deletable;
 	}
 
-	internal void SetBuildModeEditable(bool state) {
+	public void SetBuildModeEditable(bool state) {
 		if (state) BuildModeFlags |= BuildModeFlags.Editable; else BuildModeFlags &= ~BuildModeFlags.Editable;
 	}
 

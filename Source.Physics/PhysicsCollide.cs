@@ -1,6 +1,4 @@
-﻿using BepuUtilities;
-
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Formats.BSP;
@@ -9,18 +7,33 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.Physics;
 
+public struct BBoxCache
+{
+	public Vector3 Mins;
+	public Vector3 Maxs;
+	public PhysCollideCompactSurface? Collide;
+}
+
 public class PhysicsCollide : IPhysicsCollision
 {
 	public PhysCollide BBoxToCollide(in Vector3 mins, in Vector3 maxs) {
-		throw new NotImplementedException();
+		Vector3 mn = mins * IVPConvert.HL2IVP_FACTOR;
+		Vector3 mx = maxs * IVPConvert.HL2IVP_FACTOR;
+		Vector3[] hull = [
+			new(mn.X, mn.Y, mn.Z), new(mx.X, mn.Y, mn.Z), new(mn.X, mx.Y, mn.Z), new(mx.X, mx.Y, mn.Z),
+			new(mn.X, mn.Y, mx.Z), new(mx.X, mn.Y, mx.Z), new(mn.X, mx.Y, mx.Z), new(mx.X, mx.Y, mx.Z),
+		];
+		return new PhysCollideCompactSurface(hull);
 	}
 
 	public PhysConvex BBoxToConvex(in Vector3 mins, in Vector3 maxs) {
@@ -28,7 +41,7 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void CollideGetAABB(out Vector3 mins, out Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles) {
-		throw new NotImplementedException();
+		TraceAPI.GetAABB(out mins, out maxs, collide, in collideOrigin, in collideAngles);
 	}
 
 	public Vector3 CollideGetExtent(PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, in Vector3 direction) {
@@ -111,8 +124,27 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public int CreateDebugMesh(PhysCollide collisionModel, Span<Vector3> outVerts) {
-		throw new NotImplementedException();
+	private readonly List<Vector3[]> DebugMeshRentals = [];
+
+	public int CreateDebugMesh(PhysCollide collisionModel, out Span<Vector3> outVerts) {
+		if (collisionModel is not PhysCollideCompactSurface surface) {
+			outVerts = default;
+			return 0;
+		}
+
+		int vertCount = surface.Triangles.Count;
+		if (vertCount == 0) {
+			outVerts = default;
+			return 0;
+		}
+
+		Vector3[] verts = ArrayPool<Vector3>.Shared.Rent(vertCount);
+		for (int i = 0; i < vertCount; i++)
+			verts[i] = IVPConvert.PositionToHL(surface.Triangles[i]);
+
+		DebugMeshRentals.Add(verts);
+		outVerts = verts.AsSpan(0, vertCount);
+		return vertCount;
 	}
 
 	public ICollisionQuery CreateQueryModel(PhysCollide collide) {
@@ -128,7 +160,17 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void DestroyDebugMesh(int vertCount, Span<Vector3> outVerts) {
-		throw new NotImplementedException();
+		if (outVerts.IsEmpty)
+			return;
+
+		ref Vector3 first = ref MemoryMarshal.GetReference(outVerts);
+		for (int i = 0; i < DebugMeshRentals.Count; i++) {
+			if (Unsafe.AreSame(ref DebugMeshRentals[i][0], ref first)) {
+				ArrayPool<Vector3>.Shared.Return(DebugMeshRentals[i]);
+				DebugMeshRentals.RemoveAt(i);
+				return;
+			}
+		}
 	}
 
 	public void DestroyQueryModel(ICollisionQuery query) {
@@ -188,15 +230,15 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void TraceBox(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceAPI.SweepBox(start, end, mins, maxs, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceBox(in Ray ray, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceBox(ray, unchecked((Contents)Mask.All), null, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceBox(in Ray ray, Contents contentsMask, IConvexInfo? convexInfo, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceAPI.SweepBox(ray, contentsMask, convexInfo, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceCollide(in Vector3 start, in Vector3 end, PhysCollide pSweepCollide, in QAngle sweepAngles, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
@@ -232,22 +274,44 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public IVPhysicsKeyParser VPhysicsKeyParserCreate(ReadOnlySpan<byte> keyData) {
-		throw new NotImplementedException();
+		return new VPhysicsKeyParser(keyData);
 	}
 
 	public void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser) {
-		throw new NotImplementedException();
+		// Managed parser; nothing to free.
 	}
+
+	private readonly PhysicsTrace TraceAPI = new();
+	private readonly List<BBoxCache> BBoxCache = [];
+	private readonly byte[] BBoxVertMap = new byte[8];
 }
 
 public class PhysCollideCompactSurface : PhysCollide
 {
 	public readonly List<Vector3[]> ConvexHulls = [];
+	public readonly List<Vector3> Triangles = [];
+	public readonly List<int> ConvexGameData = [];
 	private unsafe void Init(PhyParser parser, int index, bool swap) {
-		parser.ParseSurfaces(ConvexHulls);
+		parser.ParseSurfaces(ConvexHulls, Triangles, ConvexGameData);
 	}
 
 	public PhysCollideCompactSurface(PhyParser parser, int index, bool swap = false) {
 		Init(parser, index, swap);
+	}
+
+	public PhysCollideCompactSurface(Vector3[] hull) {
+		ConvexHulls.Add(hull);
+		ConvexGameData.Add(0);
+	}
+
+	TraceHull[]? traceHulls;
+	public TraceHull[] GetTraceHulls() {
+		if (traceHulls != null)
+			return traceHulls;
+
+		TraceHull[] hulls = new TraceHull[ConvexHulls.Count];
+		for (int i = 0; i < hulls.Length; i++)
+			hulls[i] = new TraceHull(ConvexHulls[i], i < ConvexGameData.Count ? ConvexGameData[i] : 0);
+		return traceHulls = hulls;
 	}
 }

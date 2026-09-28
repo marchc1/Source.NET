@@ -10,6 +10,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Server;
 using Source.Common.SoundEmitterSystem;
+using Source.Common.ToolFramework;
 
 namespace Game.Server;
 
@@ -28,11 +29,14 @@ public static class SourceDllMain
 	[Dependency] public static ISoundEmitterSystemBase soundemitterbase { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
+	[Dependency] public static IVoiceServer g_pVoiceServer { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
-	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
+	[KeyedDependency(Key = Realm.Server)] public static IVModelInfo modelinfo { get; private set; } = null!;
 	[Dependency] public static GlobalEntityList gEntList { get; private set; } = null!;
 	[Dependency] public static BaseEntityList g_pEntityList { get; private set; } = null!;
+	[Dependency] public static IServerPluginHelpers serverpluginhelpers { get; private set; } = null!;
+	[Dependency(Required = false)] public static IServerEngineTools? serverenginetools { get; private set; } = null!;
 
 
 	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;

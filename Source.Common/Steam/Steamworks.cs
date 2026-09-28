@@ -75,11 +75,36 @@ public interface ISteamUtils
 }
 public interface ISteamMatchmaking;
 public interface ISteamGameSearch;
-public interface ISteamUserStats;
+public interface ISteamUserStats
+{
+	public bool RequestCurrentStats() => SteamUserStats.RequestCurrentStats();
+	public bool GetStat(ReadOnlySpan<char> pchName, out int pData) => SteamUserStats.GetStat(new(pchName), out pData);
+	public bool GetStat(ReadOnlySpan<char> pchName, out float pData) => SteamUserStats.GetStat(new(pchName), out pData);
+	public bool SetStat(ReadOnlySpan<char> pchName, int nData) => SteamUserStats.SetStat(new(pchName), nData);
+	public bool SetStat(ReadOnlySpan<char> pchName, float fData) => SteamUserStats.SetStat(new(pchName), fData);
+	public bool GetAchievement(ReadOnlySpan<char> pchName, out bool pbAchieved) => SteamUserStats.GetAchievement(new(pchName), out pbAchieved);
+	public bool SetAchievement(ReadOnlySpan<char> pchName) => SteamUserStats.SetAchievement(new(pchName));
+	public bool ClearAchievement(ReadOnlySpan<char> pchName) => SteamUserStats.ClearAchievement(new(pchName));
+	public bool GetAchievementAndUnlockTime(ReadOnlySpan<char> pchName, out bool pbAchieved, out uint punUnlockTime) => SteamUserStats.GetAchievementAndUnlockTime(new(pchName), out pbAchieved, out punUnlockTime);
+	public bool StoreStats() => SteamUserStats.StoreStats();
+	public bool IndicateAchievementProgress(ReadOnlySpan<char> pchName, uint nCurProgress, uint nMaxProgress) => SteamUserStats.IndicateAchievementProgress(new(pchName), nCurProgress, nMaxProgress);
+	public bool ResetAllStats(bool bAchievementsToo) => SteamUserStats.ResetAllStats(bAchievementsToo);
+	public int GetNumAchievements() => (int)SteamUserStats.GetNumAchievements();
+	public ReadOnlySpan<char> GetAchievementName(int iAchievement) => SteamUserStats.GetAchievementName((uint)iAchievement);
+	public ReadOnlySpan<char> GetAchievementDisplayAttribute(ReadOnlySpan<char> pchName, ReadOnlySpan<char> pchKey) => SteamUserStats.GetAchievementDisplayAttribute(new(pchName), new(pchKey));
+	public int GetAchievementIcon(ReadOnlySpan<char> pchName) => SteamUserStats.GetAchievementIcon(new(pchName));
+}
 public interface ISteamApps;
 public interface ISteamMatchmakingServers;
 public interface ISteamNetworking;
-public interface ISteamRemoteStorage;
+public interface ISteamRemoteStorage
+{
+	public bool FileWrite(ReadOnlySpan<char> pchFile, byte[] pvData, int cubData) => SteamRemoteStorage.FileWrite(new(pchFile), pvData, cubData);
+	public int FileRead(ReadOnlySpan<char> pchFile, byte[] pvData, int cubDataToRead) => SteamRemoteStorage.FileRead(new(pchFile), pvData, cubDataToRead);
+	public bool FileExists(ReadOnlySpan<char> pchFile) => SteamRemoteStorage.FileExists(new(pchFile));
+	public int GetFileSize(ReadOnlySpan<char> pchFile) => SteamRemoteStorage.GetFileSize(new(pchFile));
+	public bool GetQuota(out ulong pnTotalBytes, out ulong puAvailableBytes) => SteamRemoteStorage.GetQuota(out pnTotalBytes, out puAvailableBytes);
+}
 public interface ISteamScreenshots;
 public interface ISteamHTTP;
 public interface ISteamController;

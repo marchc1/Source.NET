@@ -1,4 +1,4 @@
-using Game.Server.HL2;
+﻿using Game.Server.HL2;
 using Game.Shared;
 
 using Source;
@@ -18,14 +18,14 @@ using FIELD_RD = FIELD<HL2MPRagdoll>;
 public partial class HL2MP_Player : HL2_Player
 {
 	public static readonly SendTable DT_HL2MPLocalPlayerExclusive = new([
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.NoScale|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.NoScale|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
 
 		SendPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f ),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f ),
 	]); public static readonly ServerClass SC_HL2MPLocalPlayerExclusive = new ServerClass("HL2MPLocalPlayerExclusive", DT_HL2MPLocalPlayerExclusive);
 
 	public static readonly SendTable DT_HL2MPNonLocalPlayerExclusive = new([
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.CoordMPLowPrecision|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.CoordMPLowPrecision|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
 
 		SendPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f),
@@ -39,7 +39,7 @@ public partial class HL2MP_Player : HL2_Player
 		SendPropExclude(nameof(DT_BaseEntity), nameof(Rotation)),
 		SendPropExclude(nameof(DT_BaseAnimatingOverlay), "overlay_vars"),
 
-		SendPropExclude(nameof(DT_BaseEntity), nameof(Origin)),
+		SendPropExclude(nameof(DT_BaseEntity), NetworkVarFields.Origin.Name),
 		SendPropExclude(nameof(DT_ServerAnimationData), nameof(Cycle)),
 		SendPropExclude(nameof(DT_AnimTimeMustBeFirst), nameof(AnimTime)),
 		SendPropExclude(nameof(DT_BaseFlex), nameof(FlexWeight)),
@@ -52,12 +52,45 @@ public partial class HL2MP_Player : HL2_Player
 		SendPropEHandle(FIELD.OF(nameof(Ragdoll))),
 		SendPropInt(FIELD.OF(nameof(SpawnInterpCounter)), 4),
 		SendPropBool(FIELD.OF(nameof(IsWalking))),
-
-		SendPropExclude(nameof(DT_BaseAnimating), nameof(PoseParameter)),
-		SendPropExclude(nameof(DT_BaseFlex), nameof(ViewTarget)),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass("HL2MP_Player", DT_HL2MP_Player)
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
+
+	public const TimeUnit_t MODEL_CHANGE_INTERVAL = 5.0;
+	public const TimeUnit_t TEAM_CHANGE_INTERVAL = 5.0;
+
+	static readonly string[] RandomCitizenModels = [
+		"models/humans/group03/male_01.mdl",
+		"models/humans/group03/male_02.mdl",
+		"models/humans/group03/female_01.mdl",
+		"models/humans/group03/male_03.mdl",
+		"models/humans/group03/female_02.mdl",
+		"models/humans/group03/male_04.mdl",
+		"models/humans/group03/female_03.mdl",
+		"models/humans/group03/male_05.mdl",
+		"models/humans/group03/female_04.mdl",
+		"models/humans/group03/male_06.mdl",
+		"models/humans/group03/female_06.mdl",
+		"models/humans/group03/male_07.mdl",
+		"models/humans/group03/female_07.mdl",
+		"models/humans/group03/male_08.mdl",
+		"models/humans/group03/male_09.mdl",
+	];
+
+	static readonly string[] RandomCombineModels = [
+		"models/combine_soldier.mdl",
+		"models/combine_soldier_prisonguard.mdl",
+		"models/combine_super_soldier.mdl",
+		"models/police.mdl",
+	];
+
+	static int LastCitizenModel = 0;
+	static int LastCombineModel = 0;
+
+	static BaseEntity? g_LastCombineSpawn = null;
+	static BaseEntity? g_LastRebelSpawn = null;
+
+	public int ModelType;
 
 	public QAngle AngEyeAngles;
 	public EHANDLE Ragdoll = new();
@@ -65,17 +98,17 @@ public partial class HL2MP_Player : HL2_Player
 	public int PlayerSoundType;
 	public bool IsWalking;
 
-	public readonly PlayerAnimState PlayerAnimState;
+	public readonly HL2MPPlayerAnimState PlayerAnimState;
 
 	TimeUnit_t NextModelChangeTime;
 	TimeUnit_t NextTeamChangeTime;
 	TimeUnit_t SlamProtectTime;
 
 	public HL2MP_Player() {
-		PlayerAnimState = new(this);
+		PlayerAnimState = HL2MPPlayerAnimState.CreateHL2MPPlayerAnimState(this);
 		AngEyeAngles.Init();
 
-		// base.ChangeTeam(0);
+		base.ChangeTeam(0);
 	}
 
 	public override void UpdateOnRemove() {
@@ -90,14 +123,54 @@ public partial class HL2MP_Player : HL2_Player
 	public override void Precache() {
 		base.Precache();
 
-		// todo
+		PrecacheModel("sprites/glow01.vmt");
+
+		for (int i = 0; i < RandomCitizenModels.Length; ++i)
+			PrecacheModel(RandomCitizenModels[i]);
+
+		for (int i = 0; i < RandomCombineModels.Length; ++i)
+			PrecacheModel(RandomCombineModels[i]);
+
+		// PrecacheFootStepSounds();
+
+		PrecacheScriptSound("NPC_MetroPolice.Die");
+		PrecacheScriptSound("NPC_CombineS.Die");
+		PrecacheScriptSound("NPC_Citizen.die");
 	}
 
 	void GiveAllItems() { }
 
 	void GiveDefaultItems() { }
 
-	void PickDefaultSpawnTeam() { }
+	void PickDefaultSpawnTeam() {
+		if (GetTeamNumber() == 0) {
+			if (HL2MPRules().IsTeamplay() == false) {
+				if (GetModelPtr() == null) {
+					ReadOnlySpan<char> modelName = engine.GetClientConVarValue(engine.IndexOfEdict(Edict()), "cl_playermodel");
+
+					if (ValidatePlayerModel(modelName) == false)
+						engine.ClientCommand(Edict(), "cl_playermodel models/combine_soldier.mdl\n");
+
+					ChangeTeam(Constants.TEAM_UNASSIGNED);
+				}
+			}
+			else {
+				Team? combine = GetGlobalTeam(TEAM_COMBINE);
+				Team? rebels = GetGlobalTeam(TEAM_REBELS);
+
+				if (combine == null || rebels == null)
+					ChangeTeam(random.RandomInt(TEAM_COMBINE, TEAM_REBELS));
+				else {
+					if (combine.GetNumPlayers() > rebels.GetNumPlayers())
+						ChangeTeam(TEAM_REBELS);
+					else if (combine.GetNumPlayers() < rebels.GetNumPlayers())
+						ChangeTeam(TEAM_COMBINE);
+					else
+						ChangeTeam(random.RandomInt(TEAM_COMBINE, TEAM_REBELS));
+				}
+			}
+		}
+	}
 
 	public override void Spawn() {
 		NextModelChangeTime = 0;
@@ -142,14 +215,103 @@ public partial class HL2MP_Player : HL2_Player
 	}
 
 	bool ValidatePlayerModel(ReadOnlySpan<char> model) {
-		throw new NotImplementedException();
+		for (int i = 0; i < RandomCitizenModels.Length; ++i)
+			if (stricmp(RandomCitizenModels[i], model) == 0)
+				return true;
+
+		for (int i = 0; i < RandomCombineModels.Length; ++i)
+			if (stricmp(RandomCombineModels[i], model) == 0)
+				return true;
+
+		return false;
 	}
 
-	void SetPlayerTeamModel() { }
+	void SetPlayerTeamModel() {
+		ReadOnlySpan<char> modelName = engine.GetClientConVarValue(engine.IndexOfEdict(Edict()), "cl_playermodel");
 
-	void SetPlayerModel() { }
+		int modelIndex = modelinfo.GetModelIndex(modelName);
 
-	void SetupPlayerSoundsByModel(char modelName) { }
+		if (modelIndex == -1 || ValidatePlayerModel(modelName) == false) {
+			modelName = "models/Combine_Soldier.mdl";
+			ModelType = TEAM_COMBINE;
+
+			engine.ClientCommand(Edict(), $"cl_playermodel {modelName}\n");
+		}
+
+		if (GetTeamNumber() == TEAM_COMBINE) {
+			if (!stristr(modelName, "models/human").IsEmpty) {
+				LastCombineModel = (LastCombineModel + 1) % RandomCombineModels.Length;
+				modelName = RandomCombineModels[LastCombineModel];
+			}
+
+			ModelType = TEAM_COMBINE;
+		}
+		else if (GetTeamNumber() == TEAM_REBELS) {
+			if (stristr(modelName, "models/human").IsEmpty) {
+				LastCitizenModel = (LastCitizenModel + 1) % RandomCitizenModels.Length;
+				modelName = RandomCitizenModels[LastCitizenModel];
+			}
+
+			ModelType = TEAM_REBELS;
+		}
+
+		SetModel(modelName);
+		SetupPlayerSoundsByModel(modelName);
+
+		NextModelChangeTime = gpGlobals.CurTime + MODEL_CHANGE_INTERVAL;
+	}
+
+	void SetPlayerModel() {
+		ReadOnlySpan<char> currentModelName = modelinfo.GetModelName(GetModel());
+		ReadOnlySpan<char> modelName = engine.GetClientConVarValue(engine.IndexOfEdict(Edict()), "cl_playermodel");
+
+		if (ValidatePlayerModel(modelName) == false) {
+			if (ValidatePlayerModel(currentModelName) == false)
+				currentModelName = "models/Combine_Soldier.mdl";
+
+			engine.ClientCommand(Edict(), $"cl_playermodel {currentModelName}\n");
+
+			modelName = currentModelName;
+		}
+
+		if (GetTeamNumber() == TEAM_COMBINE) {
+			LastCombineModel = (LastCombineModel + 1) % RandomCombineModels.Length;
+			modelName = RandomCombineModels[LastCombineModel];
+
+			ModelType = TEAM_COMBINE;
+		}
+		else if (GetTeamNumber() == TEAM_REBELS) {
+			LastCitizenModel = (LastCitizenModel + 1) % RandomCitizenModels.Length;
+			modelName = RandomCitizenModels[LastCitizenModel];
+
+			ModelType = TEAM_REBELS;
+		}
+		else {
+			if (strlen(modelName) == 0)
+				modelName = RandomCitizenModels[0];
+
+			if (!stristr(modelName, "models/human").IsEmpty)
+				ModelType = TEAM_REBELS;
+			else
+				ModelType = TEAM_COMBINE;
+		}
+
+		int modelIndex = modelinfo.GetModelIndex(modelName);
+
+		if (modelIndex == -1) {
+			modelName = "models/Combine_Soldier.mdl";
+			ModelType = TEAM_COMBINE;
+
+			engine.ClientCommand(Edict(), $"cl_playermodel {modelName}\n");
+		}
+
+		SetModel(modelName);
+		SetupPlayerSoundsByModel(modelName);
+
+		NextModelChangeTime = gpGlobals.CurTime + MODEL_CHANGE_INTERVAL;
+	}
+
+	void SetupPlayerSoundsByModel(ReadOnlySpan<char> modelName) { }
 
 	void ResetAnimation() {
 		if (IsAlive()) {
@@ -166,7 +328,12 @@ public partial class HL2MP_Player : HL2_Player
 	}
 
 	public override bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0) {
-		throw new NotImplementedException();
+		bool ret = base.Weapon_Switch(weapon, viewmodelindex);
+
+		if (ret == true)
+			ResetAnimation();
+
+		return ret;
 	}
 
 	public override void PreThink() {
@@ -192,7 +359,7 @@ public partial class HL2MP_Player : HL2_Player
 			// collision bounds todo
 		}
 
-		PlayerAnimState.Update();
+		PlayerAnimState.Update(AngEyeAngles[YAW], AngEyeAngles[PITCH]);
 
 		AngEyeAngles = EyeAngles();
 
@@ -322,13 +489,40 @@ public partial class HL2MP_Player : HL2_Player
 		throw new NotImplementedException();
 	}
 
-	void ChangeTeam(int team) { }
+	public override void ChangeTeam(int team, bool autoTeam = false, bool silent = false, bool autoBalance = false) {
+		bool kill = false;
+
+		if (HL2MPRules().IsTeamplay() != true && team != Constants.TEAM_SPECTATOR)
+			team = Constants.TEAM_UNASSIGNED;
+
+		if (HL2MPRules().IsTeamplay() == true)
+			if (team != GetTeamNumber() && GetTeamNumber() != Constants.TEAM_UNASSIGNED)
+				kill = true;
+
+		base.ChangeTeam(team, autoTeam, silent, autoBalance);
+
+		NextTeamChangeTime = gpGlobals.CurTime + TEAM_CHANGE_INTERVAL;
+
+		if (HL2MPRules().IsTeamplay() == true)
+			SetPlayerTeamModel();
+		else
+			SetPlayerModel();
+
+		if (team == Constants.TEAM_SPECTATOR) {
+			// RemoveAllItems(true);
+
+			// State_Transition(HL2MPPlayerState.ObserverMode);
+		}
+
+		if (kill == true)
+			CommitSuicide();
+	}
 
 	bool HandleCommand_JoinTeam(int team) {
 		throw new NotImplementedException();
 	}
 
-	bool ClientCommand(in TokenizedCommand args) {
+	public bool ClientCommand(in TokenizedCommand args) {
 		throw new NotImplementedException();
 	}
 
@@ -391,15 +585,15 @@ public partial class HL2MP_Player : HL2_Player
 		Edict player = Edict();
 		ReadOnlySpan<char> spawnpointName = "info_player_deathmatch";
 
-		if (false /*HL2MPRules().IsTeamplay() == true*/) {
-			// if (GetTeamNumber() == TEAM_COMBINE) {
-			// 	spawnpointName = "info_player_combine";
-			// 	lastSpawnPoint = LastCombineSpawn;
-			// }
-			// else if (GetTeamNumber() == TEAM_REBELS) {
-			// 	spawnpointName = "info_player_rebel";
-			// 	lastSpawnPoint = LastRebelSpawn;
-			// }
+		if (HL2MPRules().IsTeamplay() == true) {
+			if (GetTeamNumber() == TEAM_COMBINE) {
+				spawnpointName = "info_player_combine";
+				lastSpawnPoint = g_LastCombineSpawn;
+			}
+			else if (GetTeamNumber() == TEAM_REBELS) {
+				spawnpointName = "info_player_rebel";
+				lastSpawnPoint = g_LastRebelSpawn;
+			}
 
 			if (gEntList.FindEntityByClassname(null, spawnpointName) == null) {
 				spawnpointName = "info_player_deathmatch";
@@ -448,12 +642,12 @@ public partial class HL2MP_Player : HL2_Player
 
 	ReturnSpot:
 
-		// if (HL2MPRules().IsTeamplay() == true) {
-		// 	if (GetTeamNumber() == TEAM_COMBINE)
-		// 		LastCombineSpawn = spot;
-		// 	else if (GetTeamNumber() == TEAM_REBELS)
-		// 		LastRebelSpawn = spot;
-		// }
+		if (HL2MPRules().IsTeamplay() == true) {
+			if (GetTeamNumber() == TEAM_COMBINE)
+				g_LastCombineSpawn = spot;
+			else if (GetTeamNumber() == TEAM_REBELS)
+				g_LastRebelSpawn = spot;
+		}
 
 		g_LastSpawn = spot;
 

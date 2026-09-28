@@ -1,4 +1,4 @@
-#if CLIENT_DLL || GAME_DLL
+﻿#if CLIENT_DLL || GAME_DLL
 using Source.Common;
 
 using System.Numerics;
@@ -17,6 +17,7 @@ public class Sprite : BaseEntity
 		RecvPropEHandle(FIELD.OF(nameof(AttachedToEntity))),
 		RecvPropInt(FIELD.OF(nameof(Attachment))),
 		RecvPropFloat(FIELD.OF(nameof(ScaleTime))),
+		// todo: RecvProxy_SpriteScale
 		RecvPropFloat(FIELD.OF(nameof(SpriteScale))),
 		RecvPropFloat(FIELD.OF(nameof(GlowProxySize))),
 		RecvPropFloat(FIELD.OF(nameof(HDRColorScale))),

@@ -9,15 +9,23 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
 using Source.Engine.Server;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Net.Mail;
 using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
+
+using static Source.Common.Engine.IEngine;
+using Color = Source.Color;
 
 namespace Game;
 
@@ -136,24 +144,134 @@ public static partial class Util_Globals
 	public static bool FStrEq(ReadOnlySpan<char> sz1, ReadOnlySpan<char> sz2)
 		=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 }
+
+public struct EntitySphereQuery
+{
+	public const int MAX_SPHERE_QUERY = 512;
+
+	public EntitySphereQuery(in Vector3 center, float radius, EntityFlags flagMask = 0) {
+		ListIndex = 0;
+		ListCount = Util.EntitiesInSphere(List, center, radius, flagMask);
+	}
+	public BaseEntity? GetCurrentEntity() {
+		if (ListIndex < ListCount)
+			return List[ListIndex];
+		return null;
+	}
+	public void NextEntity() => ListIndex++;
+
+	[InlineArray(MAX_SPHERE_QUERY)] struct InlineArrayMaxSphereQuery<T> { public T first; }
+	int ListIndex;
+	int ListCount;
+	InlineArrayMaxSphereQuery<BaseEntity?> List;
+}
+
+public ref struct FlaggedEntitiesEnum : IPartitionEnumerator
+{
+	public FlaggedEntitiesEnum(Span<BaseEntity> list, EntityFlags flagMask) {
+		List = list;
+		FlagMask = flagMask;
+		Count = 0;
+	}
+
+	public IterationRetval EnumElement(IHandleEntity? handleEntity) {
+		BaseEntity? entity = gEntList.GetBaseEntity(handleEntity.GetRefEHandle());
+		if (entity != null) {
+			if (FlagMask != 0 && 0 == (entity.GetFlags() & FlagMask))  // Does it meet the criteria?
+				return IterationRetval.Continue;
+
+			if (!AddToList(entity))
+				return IterationRetval.Stop;
+		}
+
+		return IterationRetval.Continue;
+	}
+	public int GetCount() => Count;
+	public bool AddToList(BaseEntity? entity) {
+		if (Count >= List.Length) {
+			AssertMsg(false, "reached enumerated list limit.  Increase limit, decrease radius, or make it so entity flags will work for you");
+			return false;
+		}
+		List[Count++] = entity;
+		return true;
+	}
+
+	Span<BaseEntity> List;
+	EntityFlags FlagMask;
+	int Count;
+}
+
 public static partial class Util
 {
+	public static void ClearTrace(ref Trace trace) {
+		trace = default;
+		trace.Fraction = 1.0f;
+		trace.FractionLeftSolid = 0;
+	}
+
+	public static void EmitAmbientSound(int entindex, in Vector3 vecOrigin, ReadOnlySpan<char> samp, float vol, Source.Common.Audio.SoundLevel soundlevel, int fFlags, int pitch, TimeUnit_t soundtime = 0.0f) => EmitAmbientSound(entindex, vecOrigin, samp, vol, soundlevel, fFlags, pitch, soundtime, out _);
+
+	public static void EmitAmbientSound(int entindex, in Vector3 vecOrigin, ReadOnlySpan<char> samp, float vol, Source.Common.Audio.SoundLevel soundlevel, int fFlags, int pitch, TimeUnit_t soundtime, out TimeUnit_t duration) {
+		duration = 0;
+		if (!samp.IsEmpty && samp[0] == '!') {
+			int sentenceIndex = SENTENCEG_Lookup(samp);
+			if (sentenceIndex >= 0) {
+				string name = $"!{sentenceIndex}";
+				engine.EmitAmbientSound(entindex, vecOrigin, name, vol, soundlevel, fFlags, pitch, (float)soundtime);
+				duration = enginesound.GetSoundDuration(name);
+
+				// g_SoundEmitterSystem.TraceEmitSound( "UTIL_EmitAmbientSound:  Sentence emitted '%s' (ent %i)\n", name, entindex );
+			}
+		}
+		else
+			g_SoundEmitterSystem.EmitAmbientSound(entindex, vecOrigin, samp, vol, soundlevel, fFlags, pitch, soundtime, out duration);
+	}
+
 	public static bool g_bDisableEhandleAccess = false;
 	public static bool g_bReceivedChainedUpdateOnRemove = false;
 	public static void LogPrintf(ReadOnlySpan<char> text) {
 		engine.LogPrint(text);
 	}
 	public static void SetMinMaxSize(BaseEntity ent, in Vector3 mins, in Vector3 maxs) {
-		for (int i = 0; i < 3; i++) 
-			if (mins[i] > maxs[i]) 
+		for (int i = 0; i < 3; i++)
+			if (mins[i] > maxs[i])
 				Error($"{((ent != null) ? ent.GetDebugName() : "<NULL>")}: backwards mins/maxs");
-			
+
 		Assert(ent != null);
 
 		ent.SetCollisionBounds(mins, maxs);
 	}
-	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max){
+
+	public static BasePlayer? GetLocalPlayer() {
+		if (gpGlobals.MaxClients > 1) {
+			if (developer.GetBool()) {
+				AssertMsg(false, "Util.GetLocalPlayer");
+#if DEBUG
+				Warning("Util.GetLocalPlayer() called in multiplayer game.\n");
+#endif
+			}
+
+			if (!engine.IsDedicatedServer()) // Raphael: I don't want broken stuff :/ (I should probably go thru all functions that use this and edit them to support multiplayer properly. Also look into AI_GetSinglePlayer)
+				return Util.PlayerByIndex(1);
+
+			return null;
+		}
+
+		return Util.PlayerByIndex(1);
+	}
+
+	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max) {
 		SetMinMaxSize(ent, min, max);
+	}
+
+	public static int EntitiesInSphere(Span<BaseEntity> list, in Vector3 center, float radius, EntityFlags flagMask) {
+		FlaggedEntitiesEnum sphereEnum = new(list, flagMask);
+		return EntitiesInSphere(center, radius, ref sphereEnum);
+	}
+
+	public static int EntitiesInSphere(in Vector3 center, float radius, scoped ref FlaggedEntitiesEnum enumerator) {
+		partition.EnumerateElementsInSphere((int)PartitionListMask.EngineNonStaticEdicts, center, radius, false, ref enumerator);
+		return enumerator.GetCount();
 	}
 
 	public static void SayTextFilter<T>(scoped in T filter, ReadOnlySpan<char> pText, BasePlayer? player, bool chat) where T : IRecipientFilter {
@@ -180,6 +298,55 @@ public static partial class Util
 		MessageEnd();
 	}
 
+
+	public static void ScreenFade(BaseEntity? entity, in Color color, TimeUnit_t fadeTime, TimeUnit_t fadeHold, FadeFlags flags) {
+		ScreenFade fade = default;
+
+		Util.ScreenFadeBuild(ref fade, color, fadeTime, fadeHold, flags);
+		Util.ScreenFadeWrite(in fade, entity);
+	}
+
+	public static ushort FixedUnsigned16(TimeUnit_t value, float scale) {
+		int output;
+
+		output = (int)(value * scale);
+		if (output < 0)
+			output = 0;
+		if (output > 0xFFFF)
+			output = 0xFFFF;
+
+		return (ushort)output;
+	}
+
+
+	public static void ScreenFadeWrite(in ScreenFade fade, BaseEntity? entity) {
+		if (entity == null || !entity.IsNetClient())
+			return;
+
+		SingleUserRecipientFilter user = new((BasePlayer)entity);
+		user.MakeReliable();
+
+		UserMessageBegin(user, "Fade");     // use the magic #1 for "one client"
+		WRITE_SHORT((short)fade.Duration);     // fade lasts this long
+		WRITE_SHORT((short)fade.HoldTime);     // fade lasts this long
+		WRITE_SHORT((short)fade.FadeFlags);        // fade type (in / out)
+		WRITE_BYTE(fade.R);             // fade red
+		WRITE_BYTE(fade.G);             // fade green
+		WRITE_BYTE(fade.B);             // fade blue
+		WRITE_BYTE(fade.A);             // fade blue
+		MessageEnd();
+	}
+
+	public static void ScreenFadeBuild(ref ScreenFade fade, Source.Color color, double fadeTime, double fadeHold, FadeFlags flags) {
+		fade.Duration = FixedUnsigned16(fadeTime, 1 << Source.Common.ScreenFade.SCREENFADE_FRACBITS);        // 7.9 fixed
+		fade.HoldTime = FixedUnsigned16(fadeHold, 1 << Source.Common.ScreenFade.SCREENFADE_FRACBITS);        // 7.9 fixed
+		fade.R = color.R;
+		fade.G = color.G;
+		fade.B = color.B;
+		fade.A = color.A;
+		fade.FadeFlags = flags;
+	}
+
 	public static void TransmitShakeEvent(BasePlayer player, float localAmplitude, float frequency, TimeUnit_t duration, ShakeCommand command) {
 		if ((localAmplitude > 0) || (command == ShakeCommand.Stop)) {
 			if (command == ShakeCommand.Stop)
@@ -199,7 +366,7 @@ public static partial class Util
 	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) {
 		BaseEntity? entity = CreateEntityByName(className);
 		if (entity == null) {
-			Warning("NULL Ent in UTIL_PrecacheOther\n");
+			Warning("NULL Ent in Util.PrecacheOther\n");
 			return;
 		}
 
@@ -238,6 +405,16 @@ public static partial class Util
 
 		MessageEnd();
 	}
+	public static void ClientPrint(BasePlayer? player, HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
+		if (player == null)
+			return;
+
+		SingleUserRecipientFilter user = new(player);
+		user.MakeReliable();
+
+		ClientPrintFilter(user, dest, msgName, param1, param2, param3, param4);
+	}
+
 	public static Edict? INDEXENT(int edictNum) => engine.PEntityOfEntIndex(edictNum);
 
 	public static BasePlayer? PlayerByIndex(int playerIndex) {
@@ -266,8 +443,8 @@ public static partial class Util
 
 	public static BasePlayer? GetListenServerHost() {
 		if (engine.IsDedicatedServer()) {
-			Assert("UTIL_GetListenServerHost");
-			Warning("UTIL_GetListenServerHost() called from a dedicated server or single-player game.\n");
+			Assert("Util.GetListenServerHost");
+			Warning("Util.GetListenServerHost() called from a dedicated server or single-player game.\n");
 			return null;
 		}
 
@@ -280,7 +457,7 @@ public static partial class Util
 		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
 			return false;
 
-		return issuingPlayerIndex < 1;
+		return issuingPlayerIndex <= 1;
 	}
 
 	public static void ClientPrintAll(HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
@@ -309,12 +486,14 @@ public static partial class Util
 					if (GlobalEntity.GetState(globalIndex) == GlobalEState.Dead) {
 						entity.Remove();
 						return -1;
-					} else if (!FStrEq(gpGlobals.MapName, GlobalEntity.GetMap(globalIndex))) {
+					}
+					else if (!FStrEq(gpGlobals.MapName, GlobalEntity.GetMap(globalIndex))) {
 						entity.MakeDormant();
 					}
-				} else 
+				}
+				else
 					GlobalEntity.Add(entity.GlobalName, gpGlobals.MapName, GlobalEState.On);
-				
+
 			}
 
 			gEntList.NotifySpawn(entity);
@@ -380,7 +559,7 @@ public static partial class Util
 		}
 
 
-		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or UTIL_Remove.
+		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or Util.Remove.
 
 		g_bReceivedChainedUpdateOnRemove = false;
 		oldObj.UpdateOnRemove();
@@ -403,14 +582,14 @@ public static partial class Util
 		return null;
 	}
 
-	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
-		throw new NotImplementedException();
+	internal static void SetOrigin(BaseEntity entity, in Vector3 origin, bool fireTriggers = false) {
+		entity.SetLocalOrigin(origin);
 	}
 
 	internal static void SetModel(BaseEntity baseEntity, ReadOnlySpan<char> modelName) {
 		int i = modelinfo.GetModelIndex(modelName);
 		if (i == -1)
-			Error($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  UTIL_SetModel:  not precached: {modelName}\n");
+			Error($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  Util.SetModel:  not precached: {modelName}\n");
 
 		BaseAnimating? animating = baseEntity.GetBaseAnimating();
 		animating?.ForceBone = 0;
@@ -419,5 +598,134 @@ public static partial class Util
 		baseEntity.SetModelIndex(i);
 		SetMinMaxSize(baseEntity, vec3_origin, vec3_origin);
 		baseEntity.SetCollisionBoundsFromModel();
+	}
+
+	public static void ParentToWorldSpace(BaseEntity? entity, ref Vector3 position, ref QAngle angles) {
+		if (entity == null)
+			return;
+
+		// Construct the entity-to-world matrix
+		// Start with making an entity-to-parent matrix
+		Matrix3x4 matEntityToParent;
+		MathLib.AngleMatrix(angles, out matEntityToParent);
+		MathLib.MatrixSetColumn(position, 3, ref matEntityToParent);
+
+		// concatenate with our parent's transform
+		Matrix3x4 matScratch = default, matResult;
+		Matrix3x4 matParentToWorld;
+
+		if (entity.GetParent() != null)
+			matParentToWorld = entity.GetParentToWorldTransform(ref matScratch);
+		else
+			matParentToWorld = entity.EntityToWorldTransform();
+
+
+		MathLib.ConcatTransforms(matParentToWorld, matEntityToParent, out matResult);
+
+		// pull our absolute position out of the matrix
+		MathLib.MatrixGetColumn(matResult, 3, out position);
+		MathLib.MatrixAngles(matResult, out angles);
+	}
+
+	public static void ParentToWorldSpace(BaseEntity? entity, ref Vector3 position, ref Quaternion quat) {
+		if (entity == null)
+			return;
+
+		QAngle angles;
+		MathLib.QuaternionAngles(quat, out angles);
+		ParentToWorldSpace(entity, ref position, ref angles);
+		MathLib.AngleQuaternion(angles, out quat);
+	}
+
+	public static void WorldToParentSpace(BaseEntity? entity, ref Vector3 position, ref QAngle angles) {
+		if (entity == null)
+			return;
+
+		// Construct the entity-to-world matrix
+		// Start with making an entity-to-parent matrix
+		Matrix3x4 matEntityToParent;
+		MathLib.AngleMatrix(angles, out matEntityToParent);
+		MathLib.MatrixSetColumn(position, 3, ref matEntityToParent);
+
+		// concatenate with our parent's transform
+		Matrix3x4 matScratch = default, matResult;
+		Matrix3x4 matWorldToParent;
+
+		if (entity.GetParent() != null)
+			matScratch = entity.GetParentToWorldTransform(ref matScratch);
+		else
+			matScratch = entity.EntityToWorldTransform();
+
+
+		MathLib.MatrixInvert(matScratch, out matWorldToParent);
+		MathLib.ConcatTransforms(matWorldToParent, matEntityToParent, out matResult);
+
+		// pull our absolute position out of the matrix
+		MathLib.MatrixGetColumn(matResult, 3, out position);
+		MathLib.MatrixAngles(matResult, out angles);
+	}
+
+	public static void WorldToParentSpace(BaseEntity? entity, ref Vector3 position, ref Quaternion quat) {
+		if (entity == null)
+			return;
+
+		QAngle angles;
+		MathLib.QuaternionAngles(quat, out angles);
+		WorldToParentSpace(entity, ref position, ref angles);
+		MathLib.AngleQuaternion(angles, out quat);
+	}
+}
+
+public struct EntityMatrix
+{
+	public Matrix4x4 Underlying;
+	public Matrix4x4 Transpose() => Matrix4x4.Transpose(Underlying);
+
+	public static implicit operator Matrix4x4(EntityMatrix matrix) => matrix.Underlying;
+	public static implicit operator EntityMatrix(Matrix4x4 matrix) => new EntityMatrix { Underlying = matrix };
+
+	public void InitFromEntity(BaseEntity? entity, int attachment = 0) {
+		if (entity == null) {
+			Underlying = Matrix4x4.Identity;
+			return;
+		}
+
+		// Get an attachment's matrix?
+		if (attachment != 0) {
+			BaseAnimating? animating = entity.GetBaseAnimating();
+			if (animating != null && animating.GetModelPtr() != null) {
+				Vector3 origin;
+				QAngle angles;
+				if (animating.GetAttachment(attachment, out origin, out angles)) {
+					Underlying.SetupMatrixOrgAngles(origin, angles);
+					return;
+				}
+			}
+		}
+
+		Underlying.SetupMatrixOrgAngles(entity.GetAbsOrigin(), entity.GetAbsAngles());
+	}
+	public void InitFromEntityLocal(BaseEntity? entity, int attachment = 0) {
+		if (entity == null || entity.Edict() == null) {
+			Underlying = Matrix4x4.Identity;
+			return;
+		}
+		Underlying.SetupMatrixOrgAngles(entity.GetLocalOrigin(), entity.GetLocalAngles());
+	}
+
+	public Vector3 LocalToWorld(in Vector3 vVec) {
+		return MathLib.VMul4x3(ref Underlying, vVec);
+	}
+
+	public Vector3 WorldToLocal(in Vector3 vVec) {
+		return MathLib.VMul4x3Transpose(ref Underlying, vVec);
+	}
+
+	public Vector3 LocalToWorldRotation(in Vector3 vVec) {
+		return MathLib.VMul3x3(ref Underlying, vVec);
+	}
+
+	public Vector3 WorldToLocalRotation(in Vector3 vVec) {
+		return MathLib.VMul3x3Transpose(ref Underlying, vVec);
 	}
 }

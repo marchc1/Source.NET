@@ -124,7 +124,7 @@ public class
 			SendPropVector(FIELD.OF(nameof(EndPos)), -1, PropFlags.Coord),
 
 			SendPropModelIndex(FIELD.OF(nameof(ModelIndex))),
-			SendPropVector(FIELD.OF(nameof(Origin)), 19, PropFlags.ChangesOften, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+			SendPropVector(NetworkVarFields.Origin, 19, PropFlags.ChangesOften, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
 			SendPropEHandle(FIELD.OF(nameof(MoveParent))),
 			SendPropInt(FIELD.OF(nameof(MinDXLevel)), 8, PropFlags.Unsigned),
 

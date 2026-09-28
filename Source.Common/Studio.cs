@@ -190,6 +190,68 @@ public static class Studio
 		// track the set desired configuration
 		studioHdr.RootLOD = rootLOD;
 	}
+	public sealed class BoneCacheManager
+	{
+		readonly object _lock = new();
+		BoneCache[] _slots = new BoneCache[64];
+		ushort[] _serials = new ushort[64];
+		readonly Stack<int> _free = new();
+		int _count;
+
+		public memhandle_t Create(in BoneCacheParams p) {
+			lock (_lock) {
+				int idx = _free.Count > 0 ? _free.Pop() : _count++;
+				if (idx >= _slots.Length) { Array.Resize(ref _slots, _slots.Length * 2); Array.Resize(ref _serials, _slots.Length); }
+				if (_serials[idx] == 0) _serials[idx] = 1;
+				_slots[idx] = BoneCache.CreateResource(p);
+				return (memhandle_t)(((uint)_serials[idx] << 16) | (uint)(idx + 1));
+			}
+		}
+
+		public BoneCache Get(memhandle_t h)
+		{
+			if (h == 0) return default;
+			int idx = (int)(h & 0xFFFF) - 1;
+			ushort serial = (ushort)(h >> 16);
+			lock (_lock) {
+				if ((uint)idx >= (uint)_count || _serials[idx] != serial) return default;
+				return _slots[idx];
+			}
+		}
+
+		public void Destroy(memhandle_t h) {
+			if (h == 0) return;
+			int idx = (int)(h & 0xFFFF) - 1;
+			ushort serial = (ushort)(h >> 16);
+			lock (_lock) {
+				if ((uint)idx >= (uint)_count || _serials[idx] != serial) return;
+				_slots[idx] = default;
+				_serials[idx]++;            // bump serial → outstanding handles go stale
+				if (_serials[idx] == 0) _serials[idx] = 1;
+				_free.Push(idx);
+			}
+		}
+	}
+
+	static readonly BoneCacheManager g_StudioBoneCache = new();
+
+	public static BoneCache GetBoneCache(memhandle_t cacheHandle) {
+		return g_StudioBoneCache.Get(cacheHandle);
+	}
+
+	public static memhandle_t CreateBoneCache(in BoneCacheParams parms) {
+		return g_StudioBoneCache.Create(parms);
+	}
+
+	public static void DestroyBoneCache(memhandle_t cacheHandle) {
+		g_StudioBoneCache.Destroy(cacheHandle);
+	}
+
+	public static void InvalidateBoneCache(memhandle_t cacheHandle) {
+		BoneCache cache = g_StudioBoneCache.Get(cacheHandle);
+		if (!cache.IsNull())
+			cache.TimeValid = -1.0;
+	}
 }
 
 [Flags]
@@ -1404,6 +1466,8 @@ public class StudioHdr
 	public int BoneFlags(int i) => boneFlags[i];
 	public int BoneParent(int i) => boneParent[i];
 	public MStudioBone Bone(int i) => studioHdr!.Bone(i);
+	public int NumBoneControllers() => studioHdr!.NumBoneControllers;
+	public ReadOnlySpan<byte> GetBoneTableSortedByName() => studioHdr!.GetBoneTableSortedByName();
 	/// <summary>
 	/// Forces a preload of all bones into class views!
 	/// </summary>
@@ -2167,6 +2231,8 @@ public class StudioHeader
 		=> Studio.ProduceArrayIdx(this, ref poseParamDescCache, NumLocalPoseParameters, LocalPoseParamIndex, i, MStudioPoseParamDesc.SIZEOF, Data, MStudioPoseParamDesc.FACTORY);
 
 	public int SurfacePropIndex;
+	string? surfacePropCache;
+	public string SurfaceProp() => Studio.ProduceASCIIString(ref surfacePropCache, Data.Span[SurfacePropIndex..]);
 	public int KeyValueIndex;
 	public int KeyValueSize;
 
@@ -2202,6 +2268,8 @@ public class StudioHeader
 	}
 
 	public int BoneTableByNameIndex;
+	public ReadOnlySpan<byte> GetBoneTableSortedByName() => Data.Span.Slice(BoneTableByNameIndex, NumBones);
+
 	public int VertexBase;
 	public int IndexBase;
 	public byte ConstDirectionalLightDot;

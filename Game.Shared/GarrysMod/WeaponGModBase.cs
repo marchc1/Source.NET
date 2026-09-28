@@ -126,7 +126,7 @@ namespace Game.Server
 #endif
 		: WeaponHL2MPBase
 	{
-		public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_BaseCombatWeapon, []);
+		public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_WeaponHL2MPBase, []);
 
 		public static readonly new Class
 #if CLIENT_DLL

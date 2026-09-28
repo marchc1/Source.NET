@@ -80,8 +80,8 @@ public class SoundEmitterSystem : BaseGameSystem
 			ep.Flags,
 			parms.Pitch,
 			ep.SpecialDSP,
-			in ep.Origin,
-			Unsafe.NullRef<Vector3>(),
+			Unsafe.IsNullRef(in ep.Origin) ? null : ep.Origin,
+			null,
 			ep.SoundOrigin,
 			true,
 			st,
@@ -117,8 +117,8 @@ public class SoundEmitterSystem : BaseGameSystem
 				ep.Flags,
 				ep.Pitch,
 				ep.SpecialDSP,
-				in ep.Origin,
-				Unsafe.NullRef<Vector3>(),
+				Unsafe.IsNullRef(in ep.Origin) ? null : ep.Origin,
+				null,
 				ep.SoundOrigin,
 				true,
 				ep.SoundTime,
@@ -181,6 +181,100 @@ public class SoundEmitterSystem : BaseGameSystem
 		else
 			StopSound(entindex, sample);
 	}
+
+	internal void InternalPrecacheWaves(int soundIndex) {
+		ref SoundParametersInternal internalParms = ref soundemitterbase.InternalGetParametersForSound(soundIndex);
+		if (Unsafe.IsNullRef(ref internalParms))
+			return;
+
+		int waveCount = internalParms.NumSoundNames();
+		if (waveCount == 0) {
+			DevMsg($"CSoundEmitterSystem:  sounds.txt entry '{soundemitterbase.GetSoundName(soundIndex)}' has no waves listed under 'wave' or 'rndwave' key!!!\n");
+		}
+		else {
+			for (int wave = 0; wave < waveCount; wave++)
+				BaseEntity.PrecacheSound(soundemitterbase.GetWaveName(internalParms.GetSoundNames()[wave].Symbol));
+		}
+	}
+
+	public HSOUNDSCRIPTHANDLE PrecacheScriptSound(ReadOnlySpan<char> soundname) {
+		int soundIndex = soundemitterbase.GetSoundIndex(soundname);
+		if (!soundemitterbase.IsValidIndex(soundIndex)) {
+			if (!stristr(soundname, ".wav").IsEmpty || !stristr(soundname, ".mp3").IsEmpty) {
+				BaseEntity.PrecacheSound(soundname);
+				return SOUNDEMITTER_INVALID_HANDLE;
+			}
+
+#if !CLIENT_DLL
+			if (!soundname.IsEmpty && soundname[0] != '\0') {
+				if (PrecacheScriptSoundFailures.Add(new string(soundname)))
+					DevMsg($"PrecacheScriptSound '{soundname}' failed, no such sound script entry\n");
+			}
+#endif
+			return (HSOUNDSCRIPTHANDLE)soundIndex;
+		}
+
+		InternalPrecacheWaves(soundIndex);
+		return (HSOUNDSCRIPTHANDLE)soundIndex;
+	}
+
+#if !CLIENT_DLL
+	static readonly HashSet<string> PrecacheScriptSoundFailures = new();
+#endif
+
+	public void EmitAmbientSound(int entindex, in Vector3 origin, ReadOnlySpan<char> soundname, float volume, int flags, int pitch, TimeUnit_t soundtime, out TimeUnit_t duration) {
+		duration = 0;
+
+		// Pull data from parameters
+		SoundParameters parms = default;
+
+		if (!soundemitterbase.GetParametersForSound(soundname, ref parms, Gender.None))
+			return;
+
+		if ((flags & (int)SoundFlags.ChangePitch) != 0)
+			parms.Pitch = pitch;
+
+		if ((flags & (int)SoundFlags.ChangeVolume) != 0)
+			parms.Volume = volume;
+
+#if CLIENT_DLL
+		enginesound.EmitAmbientSound(parms.SoundName, parms.Volume, parms.Pitch, flags, soundtime);
+#else
+		engine.EmitAmbientSound(entindex, origin, parms.SoundName, parms.Volume, parms.SoundLevel, flags, parms.Pitch, (float)soundtime);
+#endif
+
+		bool needsCC = (flags & (int)(SoundFlags.Stop | SoundFlags.ChangeVolume | SoundFlags.ChangePitch)) == 0;
+
+		TimeUnit_t soundduration = 0.0f;
+
+		if (needsCC) {
+			soundduration = enginesound.GetSoundDuration(parms.SoundName);
+			duration = soundduration;
+		}
+
+		// TraceEmitSound( "EmitAmbientSound:  '%s' emitted as '%s' (ent %i)\n", soundname, params.soundname, entindex );
+
+		// We only want to trigger the CC on the start of the sound, not on any changes or halting of the sound
+		// if ( needsCC ) EmitCloseCaption( filter, entindex, false, soundname, dummy, soundduration, false );
+	}
+
+	public void EmitAmbientSound(int entindex, in Vector3 origin, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, int flags, int pitch, TimeUnit_t soundtime, out TimeUnit_t duration) {
+		duration = 0;
+
+		if (!sample.IsEmpty && (!stristr(sample, ".wav").IsEmpty || !stristr(sample, ".mp3").IsEmpty)) {
+#if CLIENT_DLL
+			enginesound.EmitAmbientSound(sample, volume, pitch, flags, soundtime);
+#else
+			engine.EmitAmbientSound(entindex, origin, sample, volume, soundlevel, flags, pitch, (float)soundtime);
+#endif
+
+			duration = enginesound.GetSoundDuration(sample);
+
+			// TraceEmitSound( "EmitAmbientSound:  Raw wave emitted '%s' (ent %i)\n", pSample, entindex );
+		}
+		else
+			EmitAmbientSound(entindex, origin, sample, volume, flags, pitch, soundtime, out duration);
+	}
 }
 
 public static class SoundEmitterSystemGlobals
@@ -228,6 +322,12 @@ BaseEntity
 		BaseEntity.EmitSound(filter, EntIndex(), in parms);
 	}
 
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, default, default, out _);
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, out TimeUnit_t duration) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, default, default, out duration);
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, out TimeUnit_t duration) where T : IRecipientFilter
+		=> EmitSound<T>(filter, entIndex, soundname, in origin, default, out duration);
 	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, TimeUnit_t soundtime, out TimeUnit_t duration) where T : IRecipientFilter {
 		duration = default;
 		if (soundname.IsStringEmpty)

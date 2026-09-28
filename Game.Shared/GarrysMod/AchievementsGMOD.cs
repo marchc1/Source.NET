@@ -1,0 +1,98 @@
+#if CLIENT_DLL || GAME_DLL
+using Game.Shared;
+
+using Source.Common;
+
+using static Game.Shared.BaseAchievementHelper;
+
+#if CLIENT_DLL
+namespace Game.Client.GarrysMod;
+#else
+namespace Game.Server.GarrysMod;
+#endif
+
+public class GMODAchievement(int goal, bool storeProgressInSteam) : BaseAchievement
+{
+	public override void Init() {
+		SetFlags(AchievementFlags.SaveGlobal);
+		SetGoal(goal);
+		if (storeProgressInSteam)
+			SetStoreProgressInSteam(true);
+	}
+}
+
+public enum GMODAchievementID
+{
+	GMA_NULL_FAKE = 0,
+	GMA_PLAY_SINGLEPLAYER = 1,
+	GMA_PLAY_MULTIPLAYER = 2,
+	GMA_X_STARTUPS = 3,
+	GMA_SAY_1 = 4,
+	GMA_X_MINUTES = 5,
+	GMA_X_MAPS = 6,
+	GMA_NOT_SANDBOX = 7,
+	GMA_BADDIES = 8,
+	GMA_FRIENDS = 9,
+	GMA_PLAYWITH_GARRY = 10,
+	GMA_MARATHON = 11,
+	GMA_DAY = 12,
+	GMA_WEEK = 13,
+	GMA_MONTH = 14,
+	GMA_HALFMARATHON = 15,
+	GMA_BYSTANDER = 16,
+	GMA_GOODIES = 17,
+	GMA_BALLEATER = 18,
+	GMA_PROPSPAWNER = 19,
+	GMA_BALLOONPOPPER = 20,
+	GMA_REMOVER = 21,
+	GMA_SPAWNMENUER = 22,
+	GMA_BADCODER = 23,
+	GMA_NPCSPAWNER = 24,
+	GMA_RAGDOLLSPAWNER = 25,
+	GMA_SMALLTHUMB = 26,
+	GMA_MEDIUMTHUMB = 27,
+	GMA_HUGETHUMB = 28,
+	GMA_MEGAUPLOAD = 29,
+}
+
+public static class AchievementsGMOD
+{
+	public static readonly AchievementMgr g_AchievementMgrGMOD = new();
+
+	static void DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID achievementID, int goal, bool storeProgressInSteam) => DECLARE_ACHIEVEMENT_(() => new GMODAchievement(goal, storeProgressInSteam), (int)achievementID, achievementID.ToString(), null, 1, false);
+	static AchievementsGMOD() {
+#if CLIENT_DLL
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_NULL_FAKE, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PLAY_SINGLEPLAYER, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PLAY_MULTIPLAYER, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_X_STARTUPS, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_SAY_1, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_X_MINUTES, 525436, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_X_MAPS, 20, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_NOT_SANDBOX, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_BADDIES, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_FRIENDS, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PLAYWITH_GARRY, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MARATHON, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_DAY, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_WEEK, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MONTH, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_HALFMARATHON, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_BYSTANDER, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_GOODIES, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_BALLEATER, 200, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_PROPSPAWNER, 5000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_BALLOONPOPPER, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_REMOVER, 5000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_SPAWNMENUER, 100000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_BADCODER, 500, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_NPCSPAWNER, 1000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_RAGDOLLSPAWNER, 2000, true);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_SMALLTHUMB, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MEDIUMTHUMB, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_HUGETHUMB, 1, false);
+		DECLARE_GMOD_ACHIEVEMENT(GMODAchievementID.GMA_MEGAUPLOAD, 1, false);
+#endif
+	}
+}
+#endif

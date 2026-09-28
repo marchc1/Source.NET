@@ -7,8 +7,8 @@ using FIELD = FIELD<C_PoseController>;
 public class C_PoseController : C_BaseEntity
 {
 	public static readonly RecvTable DT_PoseController = new(DT_BaseEntity, [
-		RecvPropInt(FIELD.OF(nameof(HProps))),
-		RecvPropInt(FIELD.OF(nameof(ChPoseIndex))),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(HProps)), RecvPropEHandle(FIELD.OF_ARRAYINDEX(nameof(HProps), 0))),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(ChPoseIndex)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(ChPoseIndex), 0))),
 		RecvPropBool(FIELD.OF(nameof(PoseValueParity))),
 		RecvPropFloat(FIELD.OF(nameof(PoseValue))),
 		RecvPropFloat(FIELD.OF(nameof(InterpolationTime))),
@@ -21,8 +21,9 @@ public class C_PoseController : C_BaseEntity
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PoseController", DT_PoseController).WithManualClassID(StaticClassIndices.CPoseController);
 
-	public int HProps;
-	public int ChPoseIndex;
+	public const int MAX_POSE_CONTROLLED_PROPS = 4;
+	public InlineArray4<EHANDLE> HProps;
+	public InlineArray4<byte> ChPoseIndex;
 	public bool PoseValueParity;
 	public float PoseValue;
 	public float InterpolationTime;

@@ -31,7 +31,7 @@ public interface IEngineTool
 	void GetServerFactory(out IServiceProvider factory);
 	void GetClientFactory(out IServiceProvider factory);
 
-	float GetSoundDuration(ReadOnlySpan<char> pszName);
+	TimeUnit_t GetSoundDuration(ReadOnlySpan<char> pszName);
 	bool IsSoundStillPlaying(int guid);
 	// Returns the guid of the sound
 	int StartSound(int userData, bool staticsound, int entIndex, SoundEntityChannel channel, ReadOnlySpan<char> sample,
@@ -42,7 +42,7 @@ public interface IEngineTool
 	void StopSoundByGuid(int guid);
 
 	// Returns how long the sound is
-	float GetSoundDuration(int guid);
+	TimeUnit_t GetSoundDuration(int guid);
 
 	// Returns if the sound is looping
 	bool IsLoopingSound(int guid);

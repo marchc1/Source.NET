@@ -25,8 +25,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build Source.Dedicated",
-      "program": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0/Source.Dedicated.dll",
-      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0",
+      "program": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0/Source.Dedicated.dll",
+      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0",
+      "args": ["-maxplayers", "2", "+map", "gm_flatgrass"],
       "stopAtEntry": false
     },
     {
@@ -34,8 +35,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build Source.Dedicated",
-      "program": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0/Source.Dedicated.dll",
-      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0",
+      "program": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0/Source.Dedicated.dll",
+      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0",
+      "args": ["-maxplayers", "2", "+map", "gm_flatgrass"],
       "stopAtEntry": false,
       "console": "externalTerminal"
     }

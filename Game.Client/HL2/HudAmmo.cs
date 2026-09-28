@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 namespace Game.Client.HL2;
@@ -13,12 +13,15 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 	HudTexture? IconPrimaryAmmo;
 
 	public HudAmmo(string? panelName) : base(null, "HudAmmo") {
+		ElementName = panelName;
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit | HideHudBits.WeaponSelection);
 
+#if !GMOD_DLL
 		hudlcd.SetGlobalStat("(ammo_primary)", "0");
 		hudlcd.SetGlobalStat("(ammo_secondary)", "0");
 		hudlcd.SetGlobalStat("(weapon_print_name)", "");
 		hudlcd.SetGlobalStat("(weapon_name)", "");
+#endif
 	}
 
 	public void Init() {
@@ -48,6 +51,73 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 		UpdateAmmoDisplays();
 	}
 
+#if GMOD_DLL
+	public static bool WeaponChangedAnimation(bool usesSecondaryAmmo, bool usesClips, bool usesSecondaryClips) {
+		if (!usesSecondaryAmmo) {
+			if (usesClips) {
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesClips");
+				return true;
+			}
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseClips");
+			return false;
+		}
+		if (usesClips) {
+			if (usesSecondaryClips)
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesClipsAndSecondaryClips");
+			else
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesClipsAndSecondaryAmmo");
+			return true;
+		}
+		if (usesSecondaryClips)
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseClipsAndUsesSecondaryClips");
+		else
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseClipsButUsesSecondaryAmmo");
+		return false;
+	}
+
+	void UpdatePlayerAmmo(BasePlayer? player) {
+		CurrentVehicle = null;
+		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
+		if (weapon != null && !weapon.IsBaseCombatWeapon())
+			weapon = null;
+
+		// todo: lua hook (CustomAmmoDisplay)
+
+		if (weapon == null || player == null || !weapon.UsesPrimaryAmmo()) {
+			SetPaintEnabled(false);
+			SetPaintBackgroundEnabled(false);
+			CurrentActiveWeapon = weapon;
+			return;
+		}
+
+		SetPaintEnabled(true);
+		SetPaintBackgroundEnabled(true);
+
+		int ammo1 = weapon.Clip1();
+		int ammo2;
+
+		if (ammo1 < 0) {
+			ammo1 = player.GetAmmoCount(weapon.GetPrimaryAmmoType());
+			ammo2 = 0;
+		}
+		else
+			ammo2 = player.GetAmmoCount(weapon.GetPrimaryAmmoType());
+
+		if (weapon != CurrentActiveWeapon) {
+			SetShouldDisplaySecondaryValue(WeaponChangedAnimation(weapon.UsesSecondaryAmmo(), weapon.UsesClipsForAmmo1(), weapon.UsesClipsForAmmo2()));
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponChanged");
+			CurrentActiveWeapon = weapon;
+			Ammo = -1;
+			Ammo2 = -1;
+			SetAmmo(ammo1, false);
+			SetAmmo2(ammo2, false);
+		}
+		else {
+			SetAmmo(ammo1, true);
+			SetAmmo2(ammo2, true);
+		}
+	}
+#else
 	void UpdatePlayerAmmo(BasePlayer? player) {
 		CurrentVehicle = null;
 		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
@@ -103,6 +173,7 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 			CurrentActiveWeapon = weapon;
 		}
 	}
+#endif
 
 	// void UpdateVehicleAmmo(BasePlayer player, IClientVehicle vehicle) {
 
@@ -151,12 +222,14 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 
 	public override void Paint() {
 		base.Paint();
+#if !GMOD_DLL
 		if (IconPrimaryAmmo != null) {//todo && vehicle null
 			Surface.GetTextSize(TextFont, LabelText, out int labelWide, out int labelTall);
 			int x = (int)text_xpos + (labelWide - IconPrimaryAmmo.Width()) / 2;
 			int y = (int)text_ypos - (labelTall + (IconPrimaryAmmo.Height() / 2));
 			IconPrimaryAmmo.DrawSelf(x, y, GetFgColor());
 		}
+#endif
 	}
 }
 
@@ -166,10 +239,23 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 {
 	BaseCombatWeapon? CurrentActiveWeapon;
 	int Ammo;
+#if GMOD_DLL
+	int Ammo2;
+	bool UsesSecondaryAmmo;
+	bool UsesSecondaryClips;
+	bool CustomAmmo;
+	bool CustomUsesSecondaryAmmo;
+	bool CustomUsesSecondaryClips;
+#else
 	HudTexture? IconSecondaryAmmo;
+#endif
 
 	public HudAmmoSecondary(string? panelName) : base(null, "HudAmmoSecondary") {
+		ElementName = panelName;
 		Ammo = -1;
+#if GMOD_DLL
+		Ammo2 = -1;
+#endif
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit | HideHudBits.WeaponSelection);
 	}
 
@@ -196,9 +282,27 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 		SetDisplayValue(ammo);
 	}
 
+#if GMOD_DLL
+	void SetAmmo2(int ammo2) {
+		if (ammo2 != Ammo2) {
+			if (ammo2 == 0)
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("Ammo2SecondaryEmpty");
+			else if (ammo2 < Ammo2)
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("Ammo2SecondaryDecreased");
+			else
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("Ammo2SecondaryIncreased");
+			Ammo2 = ammo2;
+		}
+		SetSecondaryValue(ammo2);
+	}
+#endif
+
 	public override void Reset() {
 		base.Reset();
 		Ammo = 0;
+#if GMOD_DLL
+		Ammo2 = 0;
+#endif
 		CurrentActiveWeapon = null;
 		SetAlpha(0);
 		UpdateAmmoState();
@@ -207,16 +311,42 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 	public override void Paint() {
 		base.Paint();
 
+#if !GMOD_DLL
 		if (IconSecondaryAmmo != null) {
 			Surface.GetTextSize(TextFont, LabelText, out int labelWide, out int labelTall);
 			int x = (int)text_xpos + (labelWide - IconSecondaryAmmo.Width()) / 2;
 			int y = (int)text_ypos - (labelTall + (IconSecondaryAmmo.Height() / 2));
 			IconSecondaryAmmo.DrawSelf(x, y, GetFgColor());
 		}
+#endif
 	}
 
 	public override void OnThink() {
 		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
+#if GMOD_DLL
+		CustomUsesSecondaryAmmo = false;
+		CustomUsesSecondaryClips = false;
+		CustomAmmo = false;
+		// todo: lua hook (CustomAmmoDisplay)
+		// CustomAmmo = true;
+		// if (!draw || (secondaryAmmo < 0 && secondaryClip < 0)) {
+		// 	CurrentActiveWeapon = null;
+		// 	SetPaintEnabled(false);
+		// 	SetPaintBackgroundEnabled(false);
+		// 	UpdateAmmoState();
+		// 	return;
+		// }
+		// SetAmmo(secondaryAmmo);
+		// SetPaintEnabled(true);
+		// SetPaintBackgroundEnabled(true);
+		// CustomUsesSecondaryAmmo = true;
+		// if (secondaryClip >= 0) {
+		// 	SetAmmo(secondaryClip);
+		// 	SetAmmo2(secondaryAmmo);
+		// 	CustomUsesSecondaryClips = true;
+		// 	SetShouldDisplaySecondaryValue(true);
+		// }
+#endif
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		// IClientVehicle? vehicle = player != null ? player.GetVehicle() : null;
 
@@ -224,6 +354,9 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 			CurrentActiveWeapon = null;
 			SetPaintEnabled(false);
 			SetPaintBackgroundEnabled(false);
+#if GMOD_DLL
+			UsesSecondaryAmmo = false;
+#endif
 			return;
 		}
 		else {
@@ -235,6 +368,54 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 	}
 
 
+#if GMOD_DLL
+	void UpdateAmmoState() {
+		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+
+		bool usesClips = weapon != null && weapon.UsesClipsForAmmo1();
+		bool usesSecondaryClips = weapon != null && weapon.UsesClipsForAmmo2();
+		bool usesSecondaryAmmo = weapon != null && weapon.UsesSecondaryAmmo();
+
+		if (CustomAmmo) {
+			usesSecondaryAmmo = CustomUsesSecondaryAmmo;
+			usesSecondaryClips = CustomUsesSecondaryClips;
+		}
+
+		if (UsesSecondaryAmmo != usesSecondaryAmmo || CurrentActiveWeapon != weapon || UsesSecondaryClips != usesSecondaryClips) {
+			if (usesSecondaryAmmo)
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesSecondaryAmmo");
+			else
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseSecondaryAmmo");
+
+			if (!CustomAmmo)
+				HudAmmo.WeaponChangedAnimation(usesSecondaryAmmo, usesClips, usesSecondaryClips);
+
+			if (!usesSecondaryClips) {
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseSecondaryClips");
+				SetShouldDisplaySecondaryValue(false);
+			}
+			else {
+				SetShouldDisplaySecondaryValue(true);
+				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesSecondaryClips");
+			}
+
+			UsesSecondaryAmmo = usesSecondaryAmmo;
+			CurrentActiveWeapon = weapon;
+			UsesSecondaryClips = usesSecondaryClips;
+			Ammo = -1;
+		}
+
+		if (player != null && weapon != null && weapon.UsesSecondaryAmmo() && !CustomUsesSecondaryAmmo) {
+			if (usesSecondaryClips) {
+				SetAmmo(weapon.Clip2());
+				SetAmmo2(player.GetAmmoCount(weapon.GetSecondaryAmmoType()));
+				return;
+			}
+			SetAmmo(player.GetAmmoCount(weapon.GetSecondaryAmmoType()));
+		}
+	}
+#else
 	void UpdateAmmoState() {
 		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
@@ -251,4 +432,5 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 			IconSecondaryAmmo = gWR.GetAmmoIconFromWeapon(weapon!.GetSecondaryAmmoType());
 		}
 	}
+#endif
 }

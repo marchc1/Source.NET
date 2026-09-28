@@ -102,6 +102,19 @@ public ref struct PrintF
 		return this;
 	}
 
+	public unsafe PrintF F(float i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[11];
+		if (i.TryFormat(buffer, out int written))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
+
 	public unsafe PrintF U(uint i) {
 		WriteAnyLiterals();
 		reader.ReadVariable(out char t, out int varIdx);
@@ -127,6 +140,26 @@ public ref struct PrintF
 		return this;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF I(int i) => D(i);
+	public PrintF G(double i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[32];
+		if (i.TryFormat(buffer, out int written, t == 'f' ? "F6" : "G6", CultureInfo.InvariantCulture))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF F(double i) => G(i);
+	public PrintF C(char c) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		input.Write([c]);
+		WriteAnyLiterals();
+		return this;
+	}
 	public PrintF S(scoped ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());
@@ -407,18 +440,80 @@ public static class CFormatting
 	/// <param name="str"></param>
 	/// <returns></returns>
 	public static float strtof(ReadOnlySpan<char> input, out ReadOnlySpan<char> output) {
-		Span<char> outputBuffer = stackalloc char[input.Length];
 		int i = 0;
-		while (input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
-			outputBuffer[i] = input[i];
+		while (i < input.Length && input[i] is ' ' or '\t' or '\n' or '\r' or '\f' or '\v')
 			i++;
+
+		int start = i;
+		if (i < input.Length && (input[i] == '+' || input[i] == '-'))
+			i++;
+
+		int mantissaStart = i;
+		while (i < input.Length && (char.IsAsciiDigit(input[i]) || input[i] == '.'))
+			i++;
+
+		if (i > mantissaStart && i < input.Length && (input[i] == 'e' || input[i] == 'E')) {
+			int expStart = i;
+			i++;
+			if (i < input.Length && (input[i] == '+' || input[i] == '-'))
+				i++;
+			if (i < input.Length && char.IsAsciiDigit(input[i])) {
+				while (i < input.Length && char.IsAsciiDigit(input[i]))
+					i++;
+			}
+			else
+				i = expStart;
 		}
-		if (float.TryParse(outputBuffer[..i], NumberStyles.Float, CultureInfo.InvariantCulture, out float ret)) {
+
+		if (float.TryParse(input[start..i], NumberStyles.Float, CultureInfo.InvariantCulture, out float ret)) {
 			output = input[i..];
 			return ret;
 		}
 		output = input;
 		return 0;
+	}
+
+	public static bool nexttoken(out ReadOnlySpan<char> token, ReadOnlySpan<char> str, char sep, out ReadOnlySpan<char> next) {
+		if (str.IsEmpty) {
+			token = default;
+			next = default;
+			return false;
+		}
+
+		int i = str.IndexOf(sep);
+		if (i < 0) {
+			token = str;
+			next = default;
+			return true;
+		}
+
+		token = str[..i];
+		next = str[(i + 1)..];
+		return true;
+	}
+
+	// C atoi: skip leading whitespace, optional sign, parse leading decimal digits, stop at first non-digit.
+	public static int atoi(ReadOnlySpan<char> str) {
+		int i = 0;
+		while (i < str.Length && str[i] is ' ' or '\t' or '\n' or '\r' or '\f' or '\v')
+			i++;
+
+		int sign = 1;
+		if (i < str.Length && (str[i] == '+' || str[i] == '-')) {
+			if (str[i] == '-')
+				sign = -1;
+			i++;
+		}
+
+		long val = 0;
+		while (i < str.Length && str[i] >= '0' && str[i] <= '9') {
+			val = val * 10 + (str[i] - '0');
+			if (val > int.MaxValue)
+				return sign < 0 ? int.MinValue : int.MaxValue;
+			i++;
+		}
+
+		return (int)(sign * val);
 	}
 
 
@@ -437,6 +532,7 @@ public static class CFormatting
 	public static int strnicmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b, int c) => a.SliceNullTerminatedString().SliceSafe(c).CompareTo(b.SliceNullTerminatedString().SliceSafe(c), StringComparison.OrdinalIgnoreCase);
 	public static int stricmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 	public static int strcmpi(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
+
 
 	public static bool streq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
 	public static bool strieq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);

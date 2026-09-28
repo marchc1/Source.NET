@@ -122,7 +122,7 @@ public class GameDepotSystem : GameDepot.System
 		Games.Clear();
 
 		KeyValues manifest = new("mountable_games");
-		if (!manifest.LoadFromFile(g_FullFileSystem, "resource/mountable_game_manifest.txt", "MOD"))
+		if (!manifest.LoadFromFile(g_FullFileSystem, "sdn_resource/mountable_game_manifest.txt", "MOD"))
 			return;
 
 		foreach (KeyValues game in manifest) {

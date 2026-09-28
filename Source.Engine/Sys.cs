@@ -125,10 +125,11 @@ public class Sys(Host host, ICommandLine CommandLine)
 
 	}
 
-	public bool InSpew => inSpew.Value;
+	public static bool InSpew => inSpew.Value;
 
-	ThreadLocal<bool> inSpew = new();
-	ThreadLocal<string> groupWrite = new();
+	static ThreadLocal<bool> inSpew = new();
+	static ThreadLocal<string> groupWrite = new();
+
 	private void Write(string group, ReadOnlySpan<char> str, in Color color, bool routeInGame = false) {
 		if (!groupWrite.IsValueCreated)
 			groupWrite.Value = "";

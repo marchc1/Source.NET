@@ -22,7 +22,9 @@ public class C_RopeKeyframe : C_BaseEntity
 		RecvPropVector(FIELD.OF(nameof(StartOffset))),
 		RecvPropVector(FIELD.OF(nameof(EndOffset))),
 		RecvPropInt(FIELD.OF(nameof(RenderColor))),
+		// todo: RecvProxy_RecomputeSprings
 		RecvPropInt(FIELD.OF(nameof(Slack))),
+		// todo: RecvProxy_RecomputeSprings
 		RecvPropInt(FIELD.OF(nameof(RopeLength))),
 		RecvPropInt(FIELD.OF(nameof(LockedPoints))),
 		RecvPropInt(FIELD.OF(nameof(RopeFlags))),

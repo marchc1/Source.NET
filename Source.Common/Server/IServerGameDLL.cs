@@ -27,7 +27,7 @@ public interface IServerGameDLL
 
 	// Called any time a new level is started (after GameInit() also on level transitions within a game)
 	bool LevelInit(ReadOnlySpan<char> pMapName,
-									ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel,
+									ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel,
 									ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background);
 
 	// The server is about to activate

@@ -10,7 +10,7 @@ public class C_SlideshowDisplay : C_BaseEntity
 		RecvPropBool(FIELD.OF(nameof(Enabled))),
 		RecvPropString(FIELD.OF(nameof(DisplayText))),
 		RecvPropString(FIELD.OF(nameof(SlideshowDirectory))),
-		RecvPropInt(FIELD.OF(nameof(ChCurrentSlideLists))),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(ChCurrentSlideLists)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(ChCurrentSlideLists), 0))),
 		RecvPropFloat(FIELD.OF(nameof(MinSlideTime))),
 		RecvPropFloat(FIELD.OF(nameof(MaxSlideTime))),
 		RecvPropInt(FIELD.OF(nameof(CycleType))),
@@ -21,7 +21,7 @@ public class C_SlideshowDisplay : C_BaseEntity
 	public bool Enabled;
 	public InlineArray128<char> DisplayText;
 	public InlineArray128<char> SlideshowDirectory;
-	public int ChCurrentSlideLists;
+	public InlineArray16<byte> ChCurrentSlideLists;
 	public float MinSlideTime;
 	public float MaxSlideTime;
 	public int CycleType;

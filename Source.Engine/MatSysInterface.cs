@@ -390,6 +390,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			ref BSPMSurface2 surfID = ref ModelLoader.SurfaceHandleFromIndex(surfaceIndex, host_state.WorldBrush);
 			ModelLoader.MSurf_Flags(ref surfID) &= ~SurfDraw.TangentSpace;
 
+			if (false /*TOOLS*/ || (ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetVertexFormat() & VertexFormat.TangentSpace) != 0)
+				ModelLoader.MSurf_Flags(ref surfID) |= SurfDraw.TangentSpace;
+
 			if (ModelLoader.SurfaceHasDispInfo(ref surfID)) {
 				ModelLoader.MSurf_VertBufferIndex(ref surfID) = 0xFFFF;
 				continue;
@@ -1159,7 +1162,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		config.AAQuality = commandLine.ParmValue("-mat_aaquality", config.AAQuality);
 
 		// Clamp the requested dimensions to the display resolution
-		// TODO GetDisplayMode
+		// TODO GetDisplayMode, is this needed anymore?
 		// MaterialVideoMode videoMode = default;
 		// materials.GetDisplayMode(videoMode);
 		// config.VideoMode.Width = Math.Min(videoMode.Width, config.VideoMode.Width);

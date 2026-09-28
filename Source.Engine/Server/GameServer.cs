@@ -29,7 +29,6 @@ public class GameServer : BaseServer
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
 	public readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
-	public readonly ClientFrameManager FrameManager = new();
 
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
@@ -95,6 +94,13 @@ public class GameServer : BaseServer
 	}
 
 	public void CreateEngineStringTables() {
+		StringTableBits.SV_SetupNetworkStringTableBits();
+
+		ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
+		GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
+		DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
+		SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
+
 		StringTables!.SetTick(TickCount);
 
 		int size = Unsafe.SizeOf<PrecacheUserData>();
@@ -107,8 +113,8 @@ public class GameServer : BaseServer
 		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
 		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
 		DynamicModelsTable = StringTables.CreateStringTable(Protocol.DYNAMIC_MODELS_TABLENAME, 2048, 1, 1);
-		ClientLuaFilesTable = StringTables.CreateStringTable(Protocol.CLIENT_LUA_FILES_TABLENAME, 8192, 1, 1);
-		// ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
+		ClientLuaFilesTable = StringTables.CreateStringTable(Protocol.CLIENT_LUA_FILES_TABLENAME, 8192, 0, 0);
+		ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
 
 		SetQueryPortFromSteamServer();
 		// CopyPureServerWhitelistToStringTable();
@@ -122,12 +128,14 @@ public class GameServer : BaseServer
 			InstanceBaselineTable != null &&
 			LightStyleTable != null &&
 			UserInfoTable != null &&
-			DynamicModelsTable != null
+			DynamicModelsTable != null &&
+			ClientLuaFilesTable != null &&
+			ServerStartupDataTable != null
 		);
 
 		int j;
 
-			Span<char> nameBuffer = stackalloc char[8];
+		Span<char> nameBuffer = stackalloc char[8];
 		for (int i = 0; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
 			ReadOnlySpan<char> name = sprintf(nameBuffer, "%i").I(i);
 			j = LightStyleTable.AddString(true, name);
@@ -140,6 +148,9 @@ public class GameServer : BaseServer
 			Assert(j == i);
 		}
 
+		ReadOnlySpan<byte> luaPaths = "lua;gamemodes;addons"u8;
+		ClientLuaFilesTable.AddString(true, "paths", luaPaths.Length, luaPaths);
+
 		g_DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
@@ -149,9 +160,12 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
 
+	public static readonly ConVar sv_forcepreload = new("sv_forcepreload", "0", FCvar.Archive, "Force server side preloading.");
+
 	public int PrecacheModel(ReadOnlySpan<char> name, Res flags, Model? model = null) {
 		if (ModelPrecacheTable == null)
 			return -1;
+
 		int idx = ModelPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
@@ -174,7 +188,26 @@ public class GameServer : BaseServer
 		if (model != null)
 			slot.SetModel(model);
 
-		// todo finish
+		bool loadNow;
+		loadNow = (slot.GetModel() == null && ((flags & Res.Preload) != 0 || IsX360()));
+		if (CommandLine.FindParm("-nopreload") != 0 || CommandLine.FindParm("-nopreloadmodels") != 0)
+			loadNow = false;
+		else if (sv_forcepreload.GetInt() != 0 || CommandLine.FindParm("-preload") != 0)
+			loadNow = true;
+
+		if (idx != 0) {
+			if (loadNow) {
+				slot.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Server));
+#if !SWDS
+				EngineVGui().UpdateProgressBar(LevelLoadingProgress.Precache);
+#endif
+				// todo: MapReslistGenerator().OnModelPrecached(name);
+			}
+			else {
+				modelloader.ReferenceModel(name, ModelLoaderFlags.Server);
+				slot.SetModel(null);
+			}
+		}
 
 		return idx;
 	}
@@ -184,7 +217,20 @@ public class GameServer : BaseServer
 		if (index >= ModelPrecacheTable.GetNumStrings())
 			return null;
 		PrecacheItem slot = ModelPrecache[index];
-		return slot.GetModel();
+		Model? model = slot.GetModel();
+		if (model != null)
+			return model;
+
+		if (index == 1)
+			return null;
+
+		ReadOnlySpan<char> name = ModelPrecacheTable.GetString(index);
+		if (name.IsEmpty)
+			return null;
+
+		model = modelloader.GetModelForName(name, ModelLoaderFlags.Server);
+		slot.SetModel(model);
+		return model;
 	}
 	public int LookupModelIndex(ReadOnlySpan<char> name) {
 		if (ModelPrecacheTable == null)
@@ -299,10 +345,10 @@ public class GameServer : BaseServer
 	}
 
 
-	public PrecacheItem[] ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
-	public PrecacheItem[] GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
-	public PrecacheItem[] SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
-	public PrecacheItem[] DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
+	public PrecacheItem[] ModelPrecache = null!;
+	public PrecacheItem[] GenericPrecache = null!;
+	public PrecacheItem[] SoundPrecache = null!;
+	public PrecacheItem[] DecalPrecache = null!;
 
 	public GameClient Client(int i) => (GameClient)Clients[i];
 
@@ -694,6 +740,7 @@ public class GameServer : BaseServer
 	INetworkStringTable? DynamicModelsTable;
 
 	INetworkStringTable? ClientLuaFilesTable;
+	INetworkStringTable? ServerStartupDataTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
 
@@ -712,8 +759,37 @@ public class GameServer : BaseServer
 				continue;
 			}
 
-			clientTable.SetMirrorTable(serverTable);
+			serverTable.SetMirrorTable(clientTable);
 		}
 #endif
+	}
+
+	internal void BroadcastSound<T>(SoundInfo sound, T filter) where T : IRecipientFilter {
+		int num = filter.GetRecipientCount();
+
+		// don't add sounds while paused, unless we're in developer mode
+		if (IsPaused() && 0 == Host.developer.GetInt())
+			return;
+
+		for (int i = 0; i < num; i++) {
+			int index = filter.GetRecipientIndex(i);
+
+			if (index < 1 || index > GetClientCount()) {
+				Msg("CGameServer::BroadcastSound:  Recipient Filter for sound (reliable: %s, init: %s) with bogus client index (%i) in list of %i clients\n",
+						filter.IsReliable() ? "yes" : "no",
+						filter.IsInitMessage() ? "yes" : "no",
+						index, num);
+
+				continue;
+			}
+
+			GameClient client = Client(index - 1)!;
+
+			// client must be fully connect to hear sounds
+			if (client.IsActive())
+				continue;
+
+			client.SendSound(sound, filter.IsReliable());
+		}
 	}
 }

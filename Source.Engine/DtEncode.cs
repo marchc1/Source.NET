@@ -208,7 +208,7 @@ public struct PropTypeFns
 		new(Vector_Encode, Vector_Decode, Vector_CompareDeltas, Generic_FastCopy, Vector_GetTypeNameString, Vector_IsZero, Vector_DecodeZero, Vector_IsEncodedZero, Vector_SkipProp),
 		new(VectorXY_Encode, VectorXY_Decode, VectorXY_CompareDeltas, Generic_FastCopy, VectorXY_GetTypeNameString, VectorXY_IsZero, VectorXY_DecodeZero, VectorXY_IsEncodedZero, VectorXY_SkipProp),
 		new(String_Encode, String_Decode, String_CompareDeltas, Generic_FastCopy, String_GetTypeNameString, String_IsZero, String_DecodeZero, String_IsEncodedZero, String_SkipProp),
-		new(Array_Encode, Array_Decode, Array_CompareDeltas, Generic_FastCopy, Array_GetTypeNameString, Array_IsZero, Array_DecodeZero, Array_IsEncodedZero, Array_SkipProp),
+		new(Array_Encode, Array_Decode, Array_CompareDeltas, Array_FastCopy, Array_GetTypeNameString, Array_IsZero, Array_DecodeZero, Array_IsEncodedZero, Array_SkipProp),
 		new(DataTable_Encode, DataTable_Decode, DataTable_CompareDeltas, Generic_FastCopy, DataTable_GetTypeNameString, DataTable_IsZero, DataTable_DecodeZero, DataTable_IsEncodedZero, DataTable_SkipProp),
 #if GMOD_DLL
 		new(GModTable_Encode, GModTable_Decode, GModTable_CompareDeltas, Generic_FastCopy, GModTable_GetTypeNameString, GModTable_IsZero, GModTable_DecodeZero, GModTable_IsEncodedZero, GModTable_SkipProp),
@@ -500,7 +500,7 @@ public struct PropTypeFns
 
 		int nLengthBits = prop.GetNumArrayLengthBits();
 		int length1 = (int)p1.ReadUBitLong(nLengthBits);
-		int length2 = (int)p1.ReadUBitLong(nLengthBits);
+		int length2 = (int)p2.ReadUBitLong(nLengthBits);
 
 		int bDifferent = (length1 != length2) ? 1 : 0;
 
@@ -516,7 +516,7 @@ public struct PropTypeFns
 
 			int nExtra = Math.Max(length1, length2) - nSame;
 			for (int iEatUp = 0; iEatUp < nExtra; iEatUp++) {
-				g_PropTypeFns[(int)arrayProp.Type].SkipProp(prop, buffer);
+				g_PropTypeFns[(int)arrayProp.Type].SkipProp(arrayProp, buffer);
 			}
 		}
 
@@ -576,6 +576,53 @@ public struct PropTypeFns
 		throw new NotImplementedException();
 	}
 
+	private static DynamicArrayAccessor? AsBaseArray(IFieldAccessor? field) {
+		if (field is DynamicArrayAccessor a) return a;
+		if (field is DynamicArrayIndexAccessor idx) return idx.BaseArrayAccessor;
+		return null;
+	}
+
+	public static void Array_FastCopy(SendProp sendProp, RecvProp recvProp, object sendData, IFieldAccessor sendFieldInfo, object recvData, IFieldAccessor recvFieldInfo, int objectID) {
+		SendProp? arraySendProp = sendProp.GetArrayProp();
+		RecvProp? arrayRecvProp = recvProp.GetArrayProp();
+		AssertMsg(arraySendProp != null, $"Array_FastCopy: missing array SendProp for '{sendProp.GetName()}'.");
+		AssertMsg(arrayRecvProp != null, $"Array_FastCopy: missing array RecvProp for '{recvProp.GetName()}'.");
+
+		DynamicArrayAccessor? sendArray = AsBaseArray(arraySendProp!.FieldInfo);
+		DynamicArrayAccessor? recvArray = AsBaseArray(arrayRecvProp!.FieldInfo);
+		if (sendArray == null || recvArray == null) {
+			Warning($"Array_FastCopy: non-array field for '{sendProp.GetName()}'.\n");
+			Assert(false);
+			return;
+		}
+
+		int nElements = Array_GetLength(sendData, sendProp, objectID);
+
+		ArrayLengthRecvProxyFn? lengthProxy = recvProp.GetArrayLengthProxy();
+		lengthProxy?.Invoke(recvData, objectID, nElements);
+
+		RecvProxyData recvProxyData = default;
+		recvProxyData.Value = new();
+		recvProxyData.RecvProp = arrayRecvProp;
+		recvProxyData.ObjectID = objectID;
+
+		SendVarProxyFn sendElemProxy = arraySendProp.GetProxyFn();
+		RecvVarProxyFn recvElemProxy = arrayRecvProp.GetProxyFn();
+
+		for (int i = 0; i < nElements; i++) {
+			IFieldAccessor? sendElem = sendArray.AtIndex(i);
+			IFieldAccessor? recvElem = recvArray.AtIndex(i);
+			if (sendElem == null || recvElem == null) {
+				Warning($"Array_FastCopy: invalid element {i} for '{sendProp.GetName()}'.\n");
+				continue;
+			}
+
+			recvProxyData.Element = i;
+			sendElemProxy(arraySendProp, sendData, sendElem, ref recvProxyData.Value, i, objectID);
+			recvElemProxy(ref recvProxyData, recvData, recvElem);
+		}
+	}
+
 	public static void Array_DecodeZero(ref DecodeInfo info) => throw new NotImplementedException();
 	public static void Array_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) {
 		SendProp? arrayProp = prop.GetArrayProp();
@@ -583,12 +630,17 @@ public struct PropTypeFns
 
 		int nElements = Array_GetLength(instance, prop, objectID);
 
+		// Write the number of elements.
 		writeOut.WriteUBitLong((uint)nElements, prop.GetNumArrayLengthBits());
 
+		DynamicArrayAccessor? arrayField = AsBaseArray(arrayProp!.FieldInfo);
 		for (int iElement = 0; iElement < nElements; iElement++) {
-			// TODO	
-			// DVariant arrayVar;
-			// arrayProp.GetProxyFn()(arrayProp, instance, ) ??? how fieldinfo
+			DVariant arrayVar = new();
+
+			// Call the proxy to get the value, then encode.
+			IFieldAccessor? element = arrayField?.AtIndex(iElement) ?? arrayProp.FieldInfo;
+			arrayProp.GetProxyFn()(arrayProp, instance, element, ref arrayVar, iElement, objectID);
+			g_PropTypeFns[(int)arrayProp.GetPropType()].Encode(instance, ref arrayVar, arrayProp, writeOut, objectID);
 		}
 	}
 	public static ReadOnlySpan<char> Array_GetTypeNameString() => "DPT_Array";
@@ -627,7 +679,30 @@ public struct PropTypeFns
 	#endregion
 	#region SendPropType.GModTable
 #if GMOD_DLL
-	public static int GModTable_CompareDeltas(SendProp prop, bf_read p1, bf_read p2) => throw new NotImplementedException();
+	public static int GModTable_CompareDeltas(SendProp prop, bf_read p1, bf_read p2) {
+		int start1 = p1.BitsRead;
+		GModTable_Skip(p1);
+		int bits1 = p1.BitsRead - start1;
+
+		int start2 = p2.BitsRead;
+		GModTable_Skip(p2);
+		int bits2 = p2.BitsRead - start2;
+
+		if (bits1 != bits2)
+			return 1;
+
+		int end1 = p1.BitsRead, end2 = p2.BitsRead;
+		p1.Seek(start1);
+		p2.Seek(start2);
+
+		int different = 0;
+		for (int remaining = bits1; remaining > 0 && different == 0; remaining -= 32)
+			different = p1.CompareBits(p2, Math.Min(32, remaining)) ? 1 : 0;
+
+		p1.Seek(end1);
+		p2.Seek(end2);
+		return different;
+	}
 	public static void GModTable_Decode(ref DecodeInfo decodeInfo) {
 		var gmodtable = decodeInfo.FieldInfo.GetValue<GModTable>(decodeInfo.Object);
 
@@ -663,6 +738,9 @@ public struct PropTypeFns
 	public static void GModTable_DecodeZero(ref DecodeInfo info) { }
 	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) {
 		GModTable? gmodtable = (GModTable?)var.Data;
+
+		writeOut.WriteUBitLong(0, GModTable.ENTRIES_BITS);
+		writeOut.WriteOneBit(0);
 	}
 	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
 	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => GModTable_Skip(p);

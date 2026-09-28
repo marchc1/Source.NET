@@ -102,13 +102,13 @@ public class PlayerLocalData
 		RecvPropBool(FIELD.OF(nameof(DuckToggled))),
 	]); public static readonly ClientClass CC_Local = new ClientClass("Local", null, null, DT_Local);
 
-	public float SprintSpeed;
-	public float WalkSpeed;
-	public float SlowWalkSpeed;
-	public float LadderSpeed;
-	public float CrouchedWalkSpeed;
-	public float DuckSpeed;
-	public float UnDuckSpeed;
+	public float SprintSpeed = 400;
+	public float WalkSpeed = 200;
+	public float SlowWalkSpeed = 100;
+	public float LadderSpeed = 200;
+	public float CrouchedWalkSpeed = 0.3f;
+	public float DuckSpeed = 0.1f;
+	public float UnDuckSpeed = 0.1f;
 	public bool DuckToggled;
 
 	// TODO: NETWORK VARS!!!!!
@@ -151,5 +151,15 @@ public class PlayerLocalData
 		iv_PunchAngle.Setup(this, FIELD_PUNCHANGLE, LatchFlags.LatchSimulationVar);
 		iv_PunchAngleVel.Setup(this, FIELD_PUNCHANGLEVEL, LatchFlags.LatchSimulationVar);
 		FOVRate = 0;
+
+		Ducked = false;
+		Ducking = false;
+		DuckSpeed = 0.1f;
+		UnDuckSpeed = 0.1f;
+		SprintSpeed = 400.0f;
+		WalkSpeed = 200.0f;
+		SlowWalkSpeed = 100.0f;
+		LadderSpeed = 150.0f;
+		CrouchedWalkSpeed = 0.3f;
 	}
 }

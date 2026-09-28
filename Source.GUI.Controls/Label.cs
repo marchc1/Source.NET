@@ -201,6 +201,9 @@ public class Label : Panel
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 
 		if (FontOverrideName != null)

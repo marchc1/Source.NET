@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace Source.Common.Engine;
 
-public ref struct SndInfo
+public struct SndInfo
 {
 	// Sound Guid
 	public int Guid;
@@ -18,8 +18,8 @@ public ref struct SndInfo
 	// Radius of this sound effect (spatialization is different within the radius)
 	public float Radius;
 	public int Pitch;
-	public ref Vector3 Origin;
-	public ref Vector3 Direction;
+	public Vector3 Origin;
+	public Vector3 Direction;
 
 	// if true, assume sound source can move and update according to entity
 	public bool UpdatePositions;

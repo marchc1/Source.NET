@@ -46,7 +46,7 @@ public interface ICollideable
 	IClientUnknown? GetIClientUnknown();
 
 	// We can filter out collisions based on collision group
-	int GetCollisionGroup();
+	CollisionGroup GetCollisionGroup();
 
 	// Returns a world-aligned box guaranteed to surround *everything* in the collision representation
 	// Note that this will surround hitboxes, trigger bounds, physics.

@@ -1,122 +1,92 @@
+using Source.Engine;
+
 namespace Game.Shared;
 
-public class EntityMapData // fixme, why so string heavy
+public class EntityMapData
 {
 	public const int MAPKEY_MAXLENGTH = 2048;
-	string EntData;
+	ReadOnlyMemory<byte> EntData;
 	int EntDataSize;
-	string? CurrentKey;
+	ReadOnlyMemory<byte> CurrentKey;
 
-	public EntityMapData(ReadOnlySpan<char> entBlock, int entBlockSize = -1) {
-		EntData = entBlock.ToString();
+	public EntityMapData(ReadOnlyMemory<byte> entBlock, int entBlockSize = -1) {
+		EntData = entBlock;
 		EntDataSize = entBlockSize;
+		CurrentKey = entBlock;
 	}
 
-	public bool ExtractValue(ReadOnlySpan<char> keyName, Span<char> value) => MapEntity.ExtractValue(EntData, keyName, value);
+	public bool ExtractValue(ReadOnlySpan<byte> keyName, Span<byte> value) => MapEntity.ExtractValue(EntData.Span, keyName, value);
 
-	public bool GetFirstKey(ReadOnlySpan<char> keyName, ReadOnlySpan<char> value) {
-		CurrentKey = EntData;
+	public bool GetFirstKey(Span<byte> keyName, Span<byte> value) {
+		CurrentKey = EntData; // reset the status pointer
 		return GetNextKey(keyName, value);
 	}
 
-	public ReadOnlySpan<char> CurrentBufferPosition() => CurrentKey;
+	public ReadOnlyMemory<byte> CurrentBufferPosition() => CurrentKey;
 
-	public bool GetNextKey(ReadOnlySpan<char> keyName, ReadOnlySpan<char> value) {
-		Span<char> token = stackalloc char[MAPKEY_MAXLENGTH];
+	public bool GetNextKey(Span<byte> keyName, Span<byte> value) {
+		Span<byte> token = stackalloc byte[MAPKEY_MAXLENGTH];
 
-		string prevKey = CurrentKey;
-		CurrentKey = MapEntity.ParseToken(CurrentKey, token);
-		if (token.Length > 0 && token[0] == '}') {
+		// parse key
+		ReadOnlyMemory<byte> prevKey = CurrentKey;
+		ReadOnlySpan<byte> rest = MapEntity.ParseToken(CurrentKey.Span, token);
+		if (token[0] == '}') {
+			// step back
 			CurrentKey = prevKey;
 			return false;
 		}
 
-		if (string.IsNullOrEmpty(CurrentKey)) {
+		if (rest.IsEmpty) {
 			Warning("EntityMapData::GetNextKey: EOF without closing brace\n");
 			Assert(false);
 			return false;
 		}
+		CurrentKey = CurrentKey[(CurrentKey.Length - rest.Length)..];
 
-		keyName.CopyTo(token);
+		MapEntity.CopyToken(token, keyName);
 
-		int n = keyName.Length - 1;
-		while (n >= 0 && keyName[n] == ' ')
+		// fix up keynames with trailing spaces
+		int n = MapEntity.StrLen(keyName);
+		while (n > 0 && keyName[n - 1] == ' ') {
+			keyName[n - 1] = 0;
 			n--;
+		}
 
-		if (n >= 0)
-			keyName = keyName[..(n + 1)];
-
-		CurrentKey = MapEntity.ParseToken(CurrentKey, token);
-		if (string.IsNullOrEmpty(CurrentKey)) {
+		// parse value
+		rest = MapEntity.ParseToken(CurrentKey.Span, token);
+		if (rest.IsEmpty) {
 			Warning("EntityMapData::GetNextKey: EOF without closing brace\n");
 			Assert(false);
 			return false;
 		}
+		CurrentKey = CurrentKey[(CurrentKey.Length - rest.Length)..];
 
-		if (token.Length > 0 && token[0] == '}') {
+		if (token[0] == '}') {
 			Warning("EntityMapData::GetNextKey: closing brace without data\n");
 			Assert(false);
 			return false;
 		}
 
-		value.CopyTo(token);
-
+		// value successfully found
+		MapEntity.CopyToken(token, value);
 		return true;
 	}
 
-	bool SetValue(ReadOnlySpan<char> keyName, ReadOnlySpan<char> NewValue, int nKeyInstance) {
-		if (EntDataSize == -1) {
-			Assert(false);
+	// find the nth keyName in the entdata and change its value to the specified one.
+	// TODO: faithful port of CEntityMapData::SetValue (in-place buffer edit via pointer math).
+	// No callers yet (only used by the not-yet-ported ParseMapData / entity I/O fixup path).
+	public bool SetValue(ReadOnlySpan<byte> keyName, ReadOnlySpan<byte> newValue, int nKeyInstance = 0) {
+		Assert(EntDataSize != -1);
+		if (EntDataSize == -1)
 			return false;
-		}
 
-		Span<char> token = stackalloc char[MAPKEY_MAXLENGTH];
-		string? inputData = EntData;
-		string? prevData;
-
-		char[] newvaluebuf = new char[1024];
-		int nCurrKeyInstance = 0;
-
-		while (!string.IsNullOrEmpty(inputData)) {
-			inputData = MapEntity.ParseToken(inputData, token);
-			if (token.Length > 0 && token[0] == '}')
-				break;
-
-			if (token.SequenceEqual(keyName)) {
-				nCurrKeyInstance++;
-				if (nCurrKeyInstance > nKeyInstance) {
-					int entLen = EntData.Length;
-					char[] postData = new char[entLen];
-					prevData = inputData;
-					inputData = MapEntity.ParseToken(inputData, token);
-					token.CopyTo(postData);
-
-					if (NewValue.Length > 0 && NewValue[0] != '\"')
-						newvaluebuf = $"\"{NewValue}\"".ToCharArray();
-					else
-						NewValue.CopyTo(newvaluebuf);
-
-					int iNewValueLen = newvaluebuf.Length;
-					int iPadding = iNewValueLen - token.Length - 2;
-
-					Array.Copy(newvaluebuf, 0, prevData.ToCharArray(), 1, iNewValueLen + 1);
-					Array.Copy(postData, 0, prevData.ToCharArray(), 1 + iNewValueLen, entLen - ((prevData.Length - inputData.Length) + 1));
-
-					CurrentKey = CurrentKey[(iPadding)..];
-					return true;
-				}
-			}
-
-			inputData = MapEntity.ParseToken(inputData, token);
-		}
-
-		return false;
+		throw new NotImplementedException();
 	}
 }
 
 public static class MapEntity
 {
-	public static ReadOnlySpan<char> SkipToNextEntity(ReadOnlySpan<char> mapData, Span<char> workBuffer) {
+	public static ReadOnlySpan<byte> SkipToNextEntity(ReadOnlySpan<byte> mapData, scoped Span<byte> workBuffer) {
 		if (mapData.IsEmpty)
 			return null;
 
@@ -140,9 +110,9 @@ public static class MapEntity
 	static readonly bool[] s_BraceCharacters = new bool[256];
 	static bool s_BuildReverseMap = true;
 
-	public static string? ParseToken(ReadOnlySpan<char> data, Span<char> newToken) {
+	public static ReadOnlySpan<byte> ParseToken(ReadOnlySpan<byte> data, scoped Span<byte> newToken) {
 		int len = 0;
-		newToken[0] = '\0';
+		newToken[0] = 0;
 
 		if (data == default || data.IsEmpty)
 			return null;
@@ -188,30 +158,30 @@ public static class MapEntity
 				data = data[1..];
 
 				if (ch == '"' || ch == 0) {
-					newToken[len] = '\0';
-					return data.ToString();
+					newToken[len] = 0;
+					return data;
 				}
 
-				newToken[len++] = (char)ch;
+				newToken[len++] = (byte)ch;
 			}
 
 			if (len >= EntityMapData.MAPKEY_MAXLENGTH) {
 				len--;
-				newToken[len] = '\0';
+				newToken[len] = 0;
 			}
 
-			newToken[len] = '\0';
-			return data.ToString();
+			newToken[len] = 0;
+			return data;
 		}
 
 		if (ch < 256 && s_BraceCharacters[ch]) {
-			newToken[len++] = (char)ch;
-			newToken[len] = '\0';
-			return data[1..].ToString();
+			newToken[len++] = (byte)ch;
+			newToken[len] = 0;
+			return data[1..];
 		}
 
 		do {
-			newToken[len++] = (char)ch;
+			newToken[len++] = (byte)ch;
 			data = data[1..];
 
 			if (data.IsEmpty)
@@ -224,36 +194,36 @@ public static class MapEntity
 
 			if (len >= EntityMapData.MAPKEY_MAXLENGTH) {
 				len--;
-				newToken[len] = '\0';
+				newToken[len] = 0;
 			}
 
 		} while (ch > 32);
 
-		newToken[len] = '\0';
-		return data.ToString();
+		newToken[len] = 0;
+		return data;
 	}
 
-	public static bool ExtractValue(ReadOnlySpan<char> entData, ReadOnlySpan<char> keyName, Span<char> value) {
-		Span<char> token = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
-		ReadOnlySpan<char> inputData = entData;
+	public static bool ExtractValue(ReadOnlySpan<byte> entData, ReadOnlySpan<byte> keyName, Span<byte> value) {
+		Span<byte> token = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		ReadOnlySpan<byte> inputData = entData;
 
 		while (!inputData.IsEmpty) {
 			var remainder = ParseToken(inputData, token);
-			if (remainder == null)
+			if (remainder.IsEmpty)
 				break;
 
-			inputData = remainder.AsSpan();
+			inputData = remainder;
 
 			if (token[0] == '}')
 				break;
 
 			if (SequenceEquals(token, keyName)) {
 				remainder = ParseToken(inputData, token);
-				if (remainder == null)
+				if (remainder.IsEmpty)
 					return false;
 
-				inputData = remainder.AsSpan();
-				int tokenLen = token.IndexOf('\0');
+				inputData = remainder;
+				int tokenLen = token.IndexOf((byte)0);
 				if (tokenLen < 0) tokenLen = token.Length;
 				value.Clear();
 				token[..tokenLen].CopyTo(value);
@@ -261,18 +231,58 @@ public static class MapEntity
 			}
 
 			remainder = ParseToken(inputData, token);
-			if (remainder == null)
+			if (remainder.IsEmpty)
 				break;
 
-			inputData = remainder.AsSpan();
+			inputData = remainder;
 		}
 
 		return false;
 	}
 
-	static bool SequenceEquals(Span<char> token, ReadOnlySpan<char> key) {
-		int len = token.IndexOf('\0');
+	static bool SequenceEquals(Span<byte> token, ReadOnlySpan<byte> key) {
+		int len = token.IndexOf((byte)0);
 		if (len < 0) len = token.Length;
 		return token[..len].SequenceEqual(key);
+	}
+
+	public static int GetNumKeysInEntity(ReadOnlySpan<byte> entData) {
+		Span<byte> token = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		ReadOnlySpan<byte> inputData = entData;
+		int numKeys = 0;
+
+		while (!inputData.IsEmpty) {
+			var remainder = ParseToken(inputData, token);	// get keyname
+			if (remainder.IsEmpty)
+				break;
+			inputData = remainder;
+
+			if (token[0] == '}')							// end of entity?
+				break;										// must not have seen the classname
+
+			numKeys++;
+
+			remainder = ParseToken(inputData, token);		// skip over value
+			if (remainder.IsEmpty)
+				break;
+			inputData = remainder;
+		}
+
+		return numKeys;
+	}
+
+	// length of a null-terminated token buffer
+	public static int StrLen(ReadOnlySpan<byte> token) {
+		int len = token.IndexOf((byte)0);
+		return len < 0 ? token.Length : len;
+	}
+
+	// Q_strncpy equivalent: copy a null-terminated token into dest and null-terminate.
+	public static void CopyToken(ReadOnlySpan<byte> token, Span<byte> dest) {
+		int len = StrLen(token);
+		if (len > dest.Length - 1)
+			len = dest.Length - 1;
+		token[..len].CopyTo(dest);
+		dest[len] = 0;
 	}
 }

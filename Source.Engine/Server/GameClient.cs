@@ -6,6 +6,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Networking;
 
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace Source.Engine.Server;
@@ -46,6 +47,7 @@ public class GameClient : BaseClient
 	public readonly List<SoundInfo> Sounds = [];
 	public Edict? ViewEntity;
 	public ClientFrame? CurrentFrame;
+	public readonly ClientFrameManager FrameManager = new();
 	public readonly CheckTransmitInfo PackInfo = new();
 	public bool IsInReplayMode;
 	public readonly CheckTransmitInfo PrevPackInfo = new();
@@ -108,7 +110,14 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	// bool ProcessVoiceData(CLC_VoiceData msg) { }
+	protected override bool ProcessVoiceData(CLC_VoiceData msg) {
+		byte[] voiceDataBuffer = new byte[4096];
+		int bitsRead = (int)msg.DataIn.ReadBitsClamped(voiceDataBuffer, (uint)msg.Length);
+
+		SV.BroadcastVoiceData(this, Protocol.Bits2Bytes(bitsRead), voiceDataBuffer);
+
+		return true;
+	}
 
 	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
 	// 	SV.ServerGameClients.ClientCommandKeyValues(Edict, msg.KeyValues);
@@ -157,12 +166,12 @@ public class GameClient : BaseClient
 
 	public void SetupPackInfo(FrameSnapshot snapshot) {
 
-		CurrentFrame = sv.FrameManager.AllocateFrame();
+		CurrentFrame = FrameManager.AllocateFrame();
 		CurrentFrame.Init(snapshot);
 
 		int maxFrames = MAX_CLIENT_FRAMES;
-		if (maxFrames < sv.FrameManager.AddClientFrame(CurrentFrame))
-			sv.FrameManager.RemoveOldestFrame();
+		if (maxFrames < FrameManager.AddClientFrame(CurrentFrame))
+			FrameManager.RemoveOldestFrame();
 	}
 
 	public void SetupPrevPackInfo() { }
@@ -171,11 +180,33 @@ public class GameClient : BaseClient
 
 	// void SetUpdateRate(int udpaterate, bool force) { }
 
-	void UpdateUserSettings() { }
+	public override void UpdateUserSettings() {
+		// set voice loopback
+		VoiceLoopback = ConVars!.GetInt("voice_loopback", 0) != 0;
 
-	// bool IsHearingClient(int index) { }
+		base.UpdateUserSettings();
 
-	// bool IsProximityHearingClient(int index) { }
+		// Give entity dll a chance to look at the changes.
+		// Do this after BaseClient.UpdateUserSettings() so name changes like prepending a (1)
+		// take effect before the server dll sees the name.
+		serverPluginHandler.ClientSettingsChanged(Edict);
+	}
+
+	public override bool IsHearingClient(int index) {
+		if (IsHLTV())
+			return true;
+
+		if (index == GetPlayerSlot())
+			return VoiceLoopback;
+
+		GameClient client = sv.Client(index);
+		return client.VoiceStreams.Get(GetPlayerSlot()) != 0;
+	}
+
+	public override bool IsProximityHearingClient(int index) {
+		GameClient client = sv.Client(index);
+		return client.VoiceProximity.Get(GetPlayerSlot()) != 0;
+	}
 
 	public override void Inactivate() {
 		if (Edict != null && !Edict.IsFree())
@@ -191,7 +222,7 @@ public class GameClient : BaseClient
 		VoiceStreams.ClearAll();
 		VoiceProximity.ClearAll();
 
-		sv.FrameManager.DeleteClientFrames(-1);
+		FrameManager.DeleteClientFrames(-1);
 	}
 
 	protected override bool UpdateAcknowledgedFramecount(int tick) {
@@ -199,7 +230,7 @@ public class GameClient : BaseClient
 			int removeTick = tick;
 
 			if (removeTick > 0)
-				sv.FrameManager.DeleteClientFrames(removeTick);
+				FrameManager.DeleteClientFrames(removeTick);
 		}
 
 		return base.UpdateAcknowledgedFramecount(tick);
@@ -216,7 +247,7 @@ public class GameClient : BaseClient
 
 		base.Clear();
 
-		sv.FrameManager.DeleteClientFrames(-1);
+		FrameManager.DeleteClientFrames(-1);
 
 		Sounds.Clear();
 		VoiceStreams.ClearAll();
@@ -233,7 +264,32 @@ public class GameClient : BaseClient
 		base.Reconnect();
 	}
 
-	// void Disconnect(ReadOnlySpan<char> fmt) { }
+	public override void ConnectionClosing(ReadOnlySpan<char> reason) {
+		// SV_RedirectEnd();
+		// Check for printf format tokens in this reason string. Crash exploit.
+		Disconnect(!reason.IsEmpty && reason.IndexOf('%') < 0 ? reason : "Connection closing");
+	}
+
+	public override void Disconnect(ReadOnlySpan<char> reason) {
+		if (SignOnState == SignOnState.None)
+			return; // no recursion
+
+		// notify other clients of player leaving the game
+		// send the username and network id so we don't depend on the BasePlayer pointer
+		IGameEvent? evnt = gameEventManager.CreateEvent("player_disconnect");
+		if (evnt != null) {
+			evnt.SetInt("userid", GetUserID());
+			evnt.SetString("reason", reason);
+			evnt.SetString("name", GetClientName());
+			evnt.SetString("networkid", GetNetworkIDString());
+			evnt.SetInt("bot", IsFakeClient() ? 1 : 0);
+			gameEventManager.FireEvent(evnt);
+		}
+
+		Server.RemoveClientFromGame(this);
+
+		base.Disconnect(reason);
+	}
 
 	protected override bool SetSignOnState(SignOnState state, int spawncount) {
 		if (state == SignOnState.Connected) {
@@ -318,7 +374,17 @@ public class GameClient : BaseClient
 	}
 
 	bool CheckConnect() {
-		return true; // todo
+		// Allow the game dll to reject this client.
+		Span<char> rejectReason = stackalloc char[128];
+		"Connection rejected by game\n".CopyTo(rejectReason);
+
+		if (!serverPluginHandler.ClientConnect(Edict, Name, NetChannel!.GetAddress(), rejectReason)) {
+			// Reject the connection and drop the client.
+			Disconnect(rejectReason.SliceNullTerminatedString());
+			return false;
+		}
+
+		return true;
 	}
 
 	public override void ActivatePlayer() {
@@ -413,7 +479,7 @@ public class GameClient : BaseClient
 
 	protected override ClientFrame? GetDeltaFrame(int tick) {
 		Assert(!IsHLTV());
-		return sv.FrameManager.GetClientFrame(tick);
+		return FrameManager.GetClientFrame(tick);
 	}
 
 	void WriteViewAngleUpdate() {
@@ -576,4 +642,37 @@ public class GameClient : BaseClient
 	}
 
 	public override bool IgnoreTempEntity(EventInfo evnt) { return false; } // todo
+
+	internal void SendSound(SoundInfo sound, bool isReliable) {
+		if (IsFakeClient() && !IsHLTV())
+			return;
+
+		if (IsInReplayMode)
+			return;
+
+		if (isReliable) {
+			SVC_Sounds sndmsg = new();
+			byte[] buffer = ArrayPool<byte>.Shared.Rent(32);
+
+			SoundSequence = (SoundSequence + 1) & SOUND_SEQNUMBER_MASK;   // increase own sound sequence counter
+			sound.SequenceNumber = 0; // don't transmit nSequenceNumber for reliable sounds
+
+			sndmsg.DataOut.StartWriting(buffer, buffer.Length);
+			sndmsg.NumSounds = 1;
+			sndmsg.ReliableSound = true;
+
+			SoundInfo defaultSound = default; defaultSound.SetDefault();
+
+			sound.WriteDelta(ref defaultSound, sndmsg.DataOut);
+
+			// send reliable sound as single message
+			SendNetMsg(sndmsg, true);
+			ArrayPool<byte>.Shared.Return(buffer);
+			return;
+		}
+
+		sound.SequenceNumber = SoundSequence;
+
+		Sounds.Add(sound);  // queue sounds until snapshot is send
+	}
 }

@@ -159,6 +159,11 @@ class SortedEntityList
 
 		if (SortedList.Count > 0)
 			Msg($"Total {SortedList.Count} entities ({EmptyCount} empty, {edicts} edicts)\n");
+
+		for (int i = 0; i < SortedList.Count; i++) {
+			BaseEntity ent = SortedList[i];
+			Msg($"  -[{ent.EntIndex()}]: {ent.GetClassname()} at {ent.GetAbsOrigin()}\n");
+		}
 	}
 }
 
@@ -255,6 +260,69 @@ public class GlobalEntityList : BaseEntityList
 		}
 
 		return null;
+	}
+
+	public BaseEntity? FindEntityClassNearestFacing(in Vector3 origin, in Vector3 facing, float threshold, ReadOnlySpan<char> classname) {
+		float bestDot = threshold;
+		BaseEntity? bestEnt = null;
+
+		EntInfo? info = FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.IsPointSized())
+				continue;
+
+			Vector3 toEnt = ent.GetAbsOrigin() - origin;
+
+			MathLib.VectorNormalize(ref toEnt);
+			float dot = MathLib.DotProduct(facing, toEnt);
+			if (dot > bestDot)
+				if (BaseEntity.FClassnameIs(ent, classname))
+					if (!BaseEntity.FClassnameIs(ent, "worldspawn") && !BaseEntity.FClassnameIs(ent, "soundent")) {
+						bestDot = dot;
+						bestEnt = ent;
+					}
+		}
+
+		return bestEnt;
+	}
+
+	public BaseEntity? FindEntityNearestFacing(in Vector3 origin, in Vector3 facing, float threshold) {
+		float bestDot = threshold;
+		BaseEntity? bestEnt = null;
+
+		EntInfo? info = FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.Edict() == null)
+				continue;
+
+			Vector3 toEnt = ent.WorldSpaceCenter() - origin;
+			MathLib.VectorNormalize(ref toEnt);
+
+			float dot = MathLib.DotProduct(facing, toEnt);
+			if (dot <= bestDot)
+				continue;
+
+			if (!FStrEq(ent.Classname, "worldspawn") && !FStrEq(ent.Classname, "soundent")) {
+				bestDot = dot;
+				bestEnt = ent;
+			}
+		}
+
+		return bestEnt;
 	}
 
 	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, IEntityFindFilter filter = null) {
@@ -431,11 +499,15 @@ public class SimThinkManager : IEntityListener
 
 	void RemoveEntinfoIndex(int index) {
 		int listHandle = EntInfoIndex[index];
+		// If this guy is in the active list, remove him
 		if (listHandle != 0xFFFF) {
 			Assert(SimThinkList[listHandle].EntEntry == index);
-			SimThinkList.RemoveAt(listHandle);
+			int last = SimThinkList.Count - 1;
+			SimThinkList[listHandle] = SimThinkList[last];
+			SimThinkList.RemoveAt(last);
 			EntInfoIndex[index] = 0xFFFF;
 
+			// fast remove shifted someone, update that someone
 			if (listHandle < SimThinkList.Count)
 				EntInfoIndex[SimThinkList[listHandle].EntEntry] = (ushort)listHandle;
 		}
@@ -478,6 +550,13 @@ public class SimThinkManager : IEntityListener
 					EntEntry = (ushort)index,
 					NextThinkTick = 0
 				});
+				if (ent.IsEFlagSet(EFL.NoGamePhysicsSimulation)) {
+					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
+						EntEntry = (ushort)index,
+						NextThinkTick = ent.GetFirstThinkTick()
+					};
+					Assert(SimThinkList[EntInfoIndex[index]].NextThinkTick >= 0);
+				}
 			}
 			else {
 				if (ent.IsEFlagSet(EFL.NoGamePhysicsSimulation)) {
@@ -503,6 +582,68 @@ public struct RespawnEntitiesFilter : IMapEntityFilter
 	public bool ShouldCreateEntity(ReadOnlySpan<char> className) => stricmp(className, "worldspawn") != 0;
 }
 
+public class EntityTouchManager : IEntityListener
+{
+	public static readonly EntityTouchManager g_TouchManager = new();
+
+	readonly List<BaseEntity> UpdateList = [];
+
+	public static void EntityTouch_Add(BaseEntity entity) => g_TouchManager.AddEntity(entity);
+
+	// called by EntityListSystem
+	public void LevelInitPreEntity() {
+		gEntList.AddListenerEntity(this);
+		Clear();
+	}
+
+	public void LevelShutdownPostEntity() {
+		gEntList.RemoveListenerEntity(this);
+		Clear();
+	}
+
+	public void Clear() {
+		UpdateList.Clear();
+	}
+
+	// IEntityListener
+	public void OnEntityCreated(BaseEntity entity) { }
+	public void OnEntityDeleted(BaseEntity entity) {
+		if (!entity.GetCheckUntouch())
+			return;
+		int index = UpdateList.IndexOf(entity);
+		if (index >= 0) {
+			int last = UpdateList.Count - 1;
+			UpdateList[index] = UpdateList[last];
+			UpdateList.RemoveAt(last);
+		}
+	}
+
+	public void AddEntity(BaseEntity entity) {
+		if (entity.IsMarkedForDeletion())
+			return;
+		UpdateList.Add(entity);
+	}
+
+	public void FrameUpdatePostEntityThink() {
+		// Loop through all entities again, checking their untouch if flagged to do so
+
+		int count = UpdateList.Count;
+		if (count != 0) {
+			// copy off the list
+			BaseEntity[] ents = UpdateList.ToArray();
+			// clear it
+			UpdateList.Clear();
+
+			// now update those ents
+			for (int i = 0; i < count; i++) {
+				//Assert( ents[i]->GetCheckUntouch() );
+				if (ents[i].GetCheckUntouch())
+					ents[i].PhysicsCheckForEntityUntouch();
+			}
+		}
+	}
+}
+
 public class EntityListSystem : AutoGameSystemPerFrame
 {
 	public static EntityListSystem g_EntityListSystem = new();
@@ -511,13 +652,15 @@ public class EntityListSystem : AutoGameSystemPerFrame
 
 	public override void LevelInitPreEntity() {
 		SimThinkManager.g_SimThinkManager.LevelInitPreEntity();
+		EntityTouchManager.g_TouchManager.LevelInitPreEntity();
 	}
 	public override void LevelShutdownPostEntity() {
 		SimThinkManager.g_SimThinkManager.LevelShutdownPostEntity();
+		EntityTouchManager.g_TouchManager.LevelShutdownPostEntity();
 	}
 
 	public override void FrameUpdatePostEntityThink() {
-		// g_TouchManager.FrameUpdatePostEntityThink();
+		EntityTouchManager.g_TouchManager.FrameUpdatePostEntityThink();
 
 		if (RespawnAllEntities) {
 			RespawnAllEntities = false;
@@ -550,7 +693,7 @@ public class EntityListSystem : AutoGameSystemPerFrame
 			// NodeEnt.m_nNodeCount = 0; todo
 
 			RespawnEntitiesFilter filter = new();
-			MapEntity_ParseAllEntities(engine.GetMapEntitiesString(), ref filter, true);
+			MapEntity_ParseAllEntities(engine.GetMapEntitiesString(), filter, true);
 
 			// Allocate a CBasePlayer for pev, and call spawn
 			if (nPlayerIndex >= 0) {

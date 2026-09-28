@@ -68,6 +68,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void LevelInitPreEntity(ReadOnlySpan<char> mapname) {
+		// HACK: Bogus, but the logic is too complicated in the engine
+		if (g_bLevelInitialized)
+			return;
+		g_bLevelInitialized = true;
 
 		modemanager.LevelInit(mapname);
 		IGameSystem.LevelInitPreEntityAllSystems(mapname);
@@ -87,7 +91,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void PostInit() {
-
+		IGameSystem.PostInitAllSystems();
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {
@@ -147,8 +151,44 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		VGui_CreateGlobalPanels();
 		materials.AddModeChangeCallBack(VGui_VideoMode_AdjustForModeChange);
 
+		ClientVoiceMgr_Init();
+
+		// Embed voice status icons inside chat element
+		{
+			IPanel? parent = enginevgui.GetPanel(VGuiPanelType.ClientDll);
+			GetClientVoiceMgr().Init(g_VoiceStatusHelper, parent);
+		}
+
 		return true;
 	}
+
+	public void Shutdown() {
+		ClientVoiceMgr_Shutdown();
+	}
+
+	public void VoiceStatus(int entindex, bool talking) {
+		GetClientVoiceMgr().UpdateSpeakerStatus(entindex, talking);
+	}
+
+	//-----------------------------------------------------------------------------
+	// Helper interface for voice.
+	//-----------------------------------------------------------------------------
+	class HLVoiceStatusHelper : IVoiceStatusHelper
+	{
+		public void GetPlayerTextColor(int entindex, Span<int> color) {
+			color[0] = color[1] = color[2] = 128;
+		}
+
+		public void UpdateCursorState() {
+		}
+
+		public bool CanShowSpeakerLabels() {
+			return true;
+		}
+	}
+	static readonly HLVoiceStatusHelper g_VoiceStatusHelper = new();
+
+	public static bool g_bLevelInitialized;
 
 	public void EncodeUserCmdToBuffer(bf_write buf, int slot) {
 		input.EncodeUserCmdToBuffer(buf, slot);
@@ -191,6 +231,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
 				break;
 		}
+
+		GameRulesRegister.InstallStringTableCallback_GameRules();
 	}
 
 	private void OnReceiveLuaFileString(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {
@@ -221,6 +263,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public bool ShouldAllowConsole() => true;
+	public bool ShouldDrawDropdownConsole() => true;
 
 	public ClientFrameStage CurFrameStage;
 
@@ -373,7 +416,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public int HudVidInit() {
 		gHUD.VidInit();
-		// todo voicemgr
+
+		GetClientVoiceMgr().VidInit();
+
 		return 1;
 	}
 
@@ -382,7 +427,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void HudUpdate(bool active) {
 		TimeUnit_t frameTime = gpGlobals.FrameTime;
 
-		// GetClientVoiceMgr().Frame(frameTime);
+		GetClientVoiceMgr().Frame(frameTime);
 
 		gHUD.UpdateHud(active);
 
@@ -400,10 +445,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void LevelShutdown() {
-		// if (!LevelInitialized)
-		// 	return;
+		if (!g_bLevelInitialized)
+			return;
 
-		// LevelInitialized = false;
+		g_bLevelInitialized = false;
 
 		C_BaseEntity.EnableAbsRecomputations(false);
 

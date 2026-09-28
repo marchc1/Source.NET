@@ -3,6 +3,7 @@ global using static Game.Util_Globals;
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 
@@ -17,6 +18,7 @@ using Source.Common.Mathematics;
 using Source.Engine;
 
 using System.Drawing.Drawing2D;
+using System.Globalization;
 using System.Numerics;
 
 namespace Game;
@@ -24,6 +26,8 @@ namespace Game;
 
 public static partial class Util_Globals
 {
+	public static readonly ConVar developer = new("developer", "0", 0, "Set developer message level"); // developer mode
+
 	public static int SeedFileLineHash(int seedvalue, ReadOnlySpan<char> sharedname, int additionalSeed) {
 		CRC32_t retval = default;
 
@@ -50,6 +54,74 @@ public static partial class Util_Globals
 		return RandomInt(minVal, maxVal);
 	}
 
+	public static bool PassServerEntityFilter(IHandleEntity? touch, IHandleEntity? pass) {
+		if (pass == null)
+			return true;
+
+		if (touch == pass)
+			return false;
+
+		BaseEntity? entTouch = EntityFromEntityHandle(touch);
+		BaseEntity? entPass = EntityFromEntityHandle(pass);
+		if (entTouch == null || entPass == null)
+			return true;
+
+		// don't clip against own missiles
+		if (entTouch.GetOwnerEntity() == entPass)
+			return false;
+
+		// don't clip against owner
+		if (entPass.GetOwnerEntity() == entTouch)
+			return false;
+
+
+		return true;
+	}
+
+	//-----------------------------------------------------------------------------
+	// A standard filter to be applied to just about everything.
+	//-----------------------------------------------------------------------------
+	public static bool StandardFilterRules(IHandleEntity? handleEntity, Contents contentsMask) {
+		BaseEntity? collide = EntityFromEntityHandle(handleEntity);
+
+		// Static prop case...
+		if (collide == null)
+			return true;
+
+		SolidType solid = collide.GetSolid();
+		Model? model = collide.GetModel();
+
+		if ((modelinfo.GetModelType(model) != ModelType.Brush) || (solid != SolidType.BSP && solid != SolidType.VPhysics)) {
+			if ((contentsMask & Contents.Monster) == 0)
+				return false;
+		}
+
+		// This code is used to cull out tests against see-thru entities
+		if ((contentsMask & Contents.Window) == 0 && collide.IsTransparent())
+			return false;
+
+		// FIXME: this is to skip BSP models that are entities that can be
+		// potentially moved/deleted, similar to a monster but doors don't seem to
+		// be flagged as monsters
+		// FIXME: the FL_WORLDBRUSH looked promising, but it needs to be set on
+		// everything that's actually a worldbrush and it currently isn't
+		if ((contentsMask & Contents.Moveable) == 0 && (collide.GetMoveType() == MoveType.Push))// !(touch->flags & FL_WORLDBRUSH) )
+			return false;
+
+		return true;
+	}
+
+	public static bool EntityHasMatchingRootParent(BaseEntity? rootParent, BaseEntity entity) {
+		if (rootParent != null) {
+			// NOTE: Don't let siblings/parents collide.
+			if (rootParent == entity.GetRootMoveParent())
+				return true;
+			if (entity.GetOwnerEntity() != null && rootParent == entity.GetOwnerEntity()!.GetRootMoveParent())
+				return true;
+		}
+		return false;
+	}
+
 	public static BaseEntity? EntityFromEntityHandle(IHandleEntity? handle) {
 #if CLIENT_DLL
 		IClientUnknown? unk = (IClientUnknown?)handle;
@@ -62,6 +134,45 @@ public static partial class Util_Globals
 		return (BaseEntity?)unk?.GetBaseEntity();
 #endif
 	}
+
+	// Parses up to 'count' whitespace-separated floats out of pString into vec, zero-filling the rest.
+	public static void UTIL_StringToFloatArray(Span<float> vec, int count, ReadOnlySpan<char> pString) {
+		vec[..count].Clear();
+
+		int pos = 0;
+		for (int j = 0; j < count; j++) {
+			while (pos < pString.Length && pString[pos] <= ' ')
+				pos++;
+			if (pos >= pString.Length)
+				break;
+
+			int start = pos;
+			while (pos < pString.Length && pString[pos] > ' ')
+				pos++;
+
+			float.TryParse(pString[start..pos], NumberStyles.Float, CultureInfo.InvariantCulture, out vec[j]);
+		}
+	}
+
+	public static void UTIL_StringToVector(Span<float> vec, ReadOnlySpan<char> pString) => UTIL_StringToFloatArray(vec, 3, pString);
+
+	public static void UTIL_StringToIntArray(Span<int> vec, int count, ReadOnlySpan<char> pString) {
+		vec[..count].Clear();
+
+		int pos = 0;
+		for (int j = 0; j < count; j++) {
+			while (pos < pString.Length && pString[pos] <= ' ')
+				pos++;
+			if (pos >= pString.Length)
+				break;
+
+			int start = pos;
+			while (pos < pString.Length && pString[pos] > ' ')
+				pos++;
+
+			vec[j] = atoi(pString[start..pos]);
+		}
+	}
 }
 
 public static partial class Util
@@ -70,6 +181,17 @@ public static partial class Util
 #if CLIENT_DLL
 	public static BasePlayer PlayerByIndex(int entindex) => ToBasePlayer(cl_entitylist.GetEnt(entindex));
 #endif
+	static readonly ConVar developer = new("developer", "0", 0, "Set developer message level"); // developer mode
+
+	public static Contents PointContents(in Vector3 vec) => enginetrace.GetPointContents(vec, out _);
+
+	// UTIL_StringToColor32: parses "r g b a" into a color.
+	public static void StringToColor32(out Color color, ReadOnlySpan<char> pString) {
+		Span<int> tmp = stackalloc int[4];
+		UTIL_StringToIntArray(tmp, 4, pString);
+		// C++ assigns each channel into a byte (implicit truncation); mask so the ctor's range assert passes.
+		color = new Color(tmp[0] & 0xFF, tmp[1] & 0xFF, tmp[2] & 0xFF, tmp[3] & 0xFF);
+	}
 	public static float VecToYaw(in Vector3 vec) {
 		if (vec.Y == 0 && vec.X == 0)
 			return 0;
@@ -148,6 +270,24 @@ public static partial class Util
 		return ret;
 	}
 
+	public static void TraceEntity(BaseEntity entity, in Vector3 absStart, in Vector3 absEnd, Mask mask, out Trace ptr) {
+		ICollideable collision = entity.GetCollideable()!;
+
+		// Adding this assertion here so game code catches it, but really the assertion belongs in the engine
+		// because one day, rotated collideables will work!
+		Assert(collision.GetCollisionAngles() == vec3_angle);
+
+		TraceFilterEntity traceFilter = new(entity, collision.GetCollisionGroup());
+
+		ptr = default;
+#if PORTAL
+		// TODO:
+		UTIL_Portal_TraceEntity(pEntity, vecAbsStart, vecAbsEnd, mask, &traceFilter, ptr);
+#else
+		enginetrace.SweepCollideable(collision, absStart, absEnd, collision.GetCollisionAngles(), mask, ref traceFilter, ref ptr);
+#endif
+	}
+
 	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
 		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
 
@@ -204,10 +344,62 @@ public static partial class Util
 	}
 }
 
-public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
+public delegate bool ShouldHitFunc(IHandleEntity handleEntity, Contents contentsMask);
+
+public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup, ShouldHitFunc? extraShouldHitCheckFn = null) : ITraceFilter
 {
-	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
-		throw new NotImplementedException();
+	public IHandleEntity? PassEntity = passentity;
+	public CollisionGroup CollisionGroup = collisionGroup;
+	public ShouldHitFunc? ExtraShouldHitCheckFunction = extraShouldHitCheckFn;
+
+	public bool ShouldHitEntity(IHandleEntity handleEntity, Contents contentsMask) {
+		if (!StandardFilterRules(handleEntity, contentsMask))
+			return false;
+
+		if (PassEntity != null) {
+			if (!PassServerEntityFilter(handleEntity, PassEntity))
+				return false;
+		}
+
+		// Don't test if the game code tells us we should ignore this collision...
+		BaseEntity? entity = EntityFromEntityHandle(handleEntity);
+		if (entity == null)
+			return false;
+		if (!entity.ShouldCollide(CollisionGroup, contentsMask))
+			return false;
+		if (entity != null && !g_pGameRules.ShouldCollide(CollisionGroup, entity.GetCollisionGroup()))
+			return false;
+		if (ExtraShouldHitCheckFunction != null &&
+			(!(ExtraShouldHitCheckFunction(handleEntity, contentsMask))))
+			return false;
+
+		return true;
+	}
+}
+
+public struct TraceFilterEntity(BaseEntity entity, CollisionGroup collisionGroup) : ITraceFilter
+{
+	public TraceFilterSimple TraceFilterSimple = new TraceFilterSimple { PassEntity = entity, CollisionGroup = collisionGroup };
+	public BaseEntity? RootParent = entity.GetRootMoveParent();
+	public BaseEntity? Entity = entity;
+	public bool CheckHash = g_EntityCollisionHash.IsObjectInHash(entity);
+
+	public bool ShouldHitEntity(IHandleEntity handleEntity, Contents contentsMask) {
+		BaseEntity? entity = EntityFromEntityHandle(handleEntity);
+		if (entity == null)
+			return false;
+
+		// Check parents against each other
+		// NOTE: Don't let siblings/parents collide.
+		if (EntityHasMatchingRootParent(RootParent, entity))
+			return false;
+
+		if (CheckHash) {
+			if (g_EntityCollisionHash.IsObjectPairInHash(Entity!, entity))
+				return false;
+		}
+
+		return TraceFilterSimple.ShouldHitEntity(handleEntity, contentsMask);
 	}
 }
 

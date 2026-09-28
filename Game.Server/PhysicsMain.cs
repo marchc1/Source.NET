@@ -11,6 +11,7 @@ using Source.Engine;
 using Steamworks;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 public partial class BaseEntity
 {
@@ -22,7 +23,7 @@ public partial class BaseEntity
 
 		if (Physics.g_bTestMoveTypeStepSimulation) {
 			if (!hadObject)
-				CreateDataObject(DataObjectType.StepSimulation);
+				CreateDataObject<StepSimulationData>(DataObjectType.StepSimulation);
 		}
 		else {
 			if (hadObject)
@@ -97,7 +98,7 @@ public partial class BaseEntity
 			if ((GetFlags() & EntityFlags.OnGround) == 0)
 				PhysicsStepRecheckGround();
 
-			// PhysicsTouchTriggers();
+			PhysicsTouchTriggers();
 		}
 
 		if ((GetFlags() & EntityFlags.OnGround) == 0 && !isfalling)
@@ -191,7 +192,7 @@ public static class Physics
 				list[i].NetworkStateChanged();
 			}
 
-			// Util.EnableRemoveImmediate();
+			Util.EnableRemoveImmediate();
 		}
 
 		gpGlobals.CurTime = startTime;
@@ -205,8 +206,8 @@ public partial class BaseEntity
 		// The underlying values don't actually change, but we need the network sendproxy on origin/angles
 		//  to get triggered, and that only happens if NetworkStateChanged() appears to have occured.
 		// Getting them for modify marks them as changed automagically.
-		// Origin.GetForModify(); // TODO!
-		// Rotation.GetForModify(); // TODO!
+		OriginForModify();
+		RotationForModify();
 
 		SetSimulationTime(gpGlobals.CurTime);
 
@@ -220,7 +221,7 @@ public partial class BaseEntity
 		if (thinkTime <= 0 || deltaThink > 0.5) {
 			PhysicsStepRunTimestep(gpGlobals.FrameTime);
 			// PhysicsCheckWaterTransition();
-			// SetLastThink(-1, gpGlobals.CurTime);
+			SetLastThink(-1, gpGlobals.CurTime);
 			// UpdatePhysicsShadowToCurrentPosition(gpGlobals.FrameTime);
 			// PhysicsRelinkChildren(gpGlobals.FrameTime);
 			return;
@@ -243,7 +244,7 @@ public partial class BaseEntity
 
 			if (updateFromVPhysics) {
 				SetAbsOrigin(position);
-				// PhysicsTouchTriggers();
+				PhysicsTouchTriggers();
 			}
 		}
 
@@ -295,51 +296,50 @@ public partial class BaseEntity
 	void StepSimulationThink(TimeUnit_t dt) {
 		CheckStepSimulationChanged();
 
-		StepSimulationData? stepObject = (StepSimulationData?)GetDataObject(DataObjectType.StepSimulation);
-		if (stepObject == null) {
+		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
+		if (Unsafe.IsNullRef(ref step)) {
 			PhysicsStepRunTimestep(dt);
 			PhysicsRunThink(ThinkMethods.FireBaseOnly);
 		}
 		else {
-			// StepSimulationData step = stepObject.Value; // fixme (?)
-			// step.OriginActive = true;
-			// step.AnglesActive = true;
+			step.OriginActive = true;
+			step.AnglesActive = true;
 
-			// step.LastProcessTickCount = -1;
+			step.LastProcessTickCount = -1;
 
-			// step.NetworkOrigin.Init();
-			// step.NetworkAngles.Init();
+			step.NetworkOrigin.Init();
+			step.NetworkAngles.Init();
 
-			// step.Previous2 = step.Previous;
+			step.Previous2 = step.Previous;
 
-			// step.Previous.TickCount = gpGlobals.TickCount;
-			// step.Previous.Origin = GetStepOrigin();
-			// QAngle stepAngles = GetStepAngles();
-			// MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
+			step.Previous.TickCount = gpGlobals.TickCount;
+			step.Previous.Origin = GetStepOrigin();
+			QAngle stepAngles = GetStepAngles();
+			MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
 
-			// PhysicsStepRunTimestep(dt);
+			PhysicsStepRunTimestep(dt);
 
-			// PhysicsRunThink(ThinkMethods.FireBaseOnly);
+			PhysicsRunThink(ThinkMethods.FireBaseOnly);
 
-			// if (GetBaseAnimating() != null)
-			// 	GetBaseAnimating()!.UpdateStepOrigin();
+			if (GetBaseAnimating() != null)
+				GetBaseAnimating()!.UpdateStepOrigin();
 
-			// step.Next.Origin = GetStepOrigin();
-			// stepAngles = GetStepAngles();
-			// MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
+			step.Next.Origin = GetStepOrigin();
+			stepAngles = GetStepAngles();
+			MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
 
-			// step.AngNextRotation = GetStepAngles();
-			// step.Next.TickCount = GetNextThinkTick();
+			step.NextRotation = GetStepAngles();
+			step.Next.TickCount = GetNextThinkTick();
 
-			// if (IsSimulatingOnAlternateTicks())
-			// 	++step.Next.TickCount;
+			if (IsSimulatingOnAlternateTicks())
+				++step.Next.TickCount;
 
-			// if (dt > 0) {
-			// 	Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
-			// 	float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
-			// 	if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
-			// 		step.OriginActive = step.AnglesActive = false;
-			// }
+			if (dt > 0) {
+				Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
+				float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
+				if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
+					step.OriginActive = step.AnglesActive = false;
+			}
 		}
 	}
 }

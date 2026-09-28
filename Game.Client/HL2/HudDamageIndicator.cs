@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
@@ -63,7 +63,7 @@ class HudDamageIndicator : EditableHudElement, IHudElement
 		new(null, 0, 0, 0, 0)
 	];
 
-	public HudDamageIndicator(string? panelName) : base(null, "HudDamageIndicator") {
+	public HudDamageIndicator(string? panelName) : base("HudDamageIndicator", panelName) {
 		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
 

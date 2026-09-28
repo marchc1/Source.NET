@@ -12,6 +12,32 @@ using FIELD = Source.FIELD<BaseCombatCharacter>;
 
 public partial class BaseCombatCharacter : BaseFlex
 {
+	public bool ForceServerRagdoll;
+
+	public virtual Source.Common.Mathematics.QAngle BodyAngles() => GetAbsAngles();
+
+	public virtual Vector3 BodyDirection2D() {
+		Vector3 bodyDir = BodyDirection3D();
+		bodyDir.Z = 0;
+		float len = MathF.Sqrt(bodyDir.X * bodyDir.X + bodyDir.Y * bodyDir.Y);
+		if (len != 0) {
+			bodyDir.X /= len;
+			bodyDir.Y /= len;
+		}
+		return bodyDir;
+	}
+
+	public virtual Vector3 BodyDirection3D() {
+		Source.Common.Mathematics.QAngle angles = BodyAngles();
+
+		// FIXME: cache this
+		Source.Common.Mathematics.MathLib.AngleVectors(angles, out Vector3 bodyDir);
+		return bodyDir;
+	}
+
+	public virtual Vector3 HeadDirection3D() => BodyDirection2D(); // No head motion so just return body dir
+	public virtual Vector3 EyeDirection3D() => HeadDirection3D(); // No eye motion so just return head dir
+
 	public static readonly SendTable DT_BCCLocalPlayerExclusive = new([
 		SendPropTime64(FIELD.OF(nameof(NextAttack))),
 	]);
@@ -52,8 +78,14 @@ public partial class BaseCombatCharacter : BaseFlex
 			}
 		}
 
-		return data;
+		return instance;
 	}
+	public void ClearLastKnownArea() {
+		// TODO
+	}
+
+	public int WeaponCount() => MAX_WEAPONS;
+	public BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
 

@@ -3,6 +3,7 @@ global using static Source.Engine.CollisionBSPDataStatic;
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
@@ -39,6 +40,7 @@ public class CollisionBSPData
 	public readonly List<string?> TextureNames = [];
 	public static readonly CollisionSurface NullSurface = new() { Name = "**empty**", Flags = 0, SurfaceProps = 0 };
 	public string? MapEntityString;
+	public byte[]? MapEntityData; // raw entity lump bytes (server parse pipeline; C++ char*)
 
 	IMaterialSystem? materials;
 
@@ -510,6 +512,7 @@ public class CollisionBSPData
 	internal void LoadEntityString() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Entities);
 		byte[] inData = lh.LoadLumpData<byte>(throwIfNoElements: true, sysErrorIfOOB: true);
+		MapEntityData = inData;
 		MapEntityString = Encoding.ASCII.GetString(inData);
 	}
 	internal void LoadDispInfo() {
@@ -762,6 +765,16 @@ public static partial class CM
 		return;
 	}
 
+	public static void WorldSpaceCenter(ICollideable collideable, out Vector3 center) {
+		MathLib.VectorAdd(collideable.OBBMins(), collideable.OBBMaxs(), out Vector3 vecLocalCenter);
+		vecLocalCenter *= 0.5f;
+
+		if ((collideable.GetCollisionAngles() == vec3_angle) || (vecLocalCenter == vec3_origin))
+			MathLib.VectorAdd(vecLocalCenter, collideable.GetCollisionOrigin(), out center);
+		else
+			MathLib.VectorTransform(vecLocalCenter, collideable.CollisionToWorldTransform(), out center);
+	}
+
 	public static void FreeMap() {
 		CollisionBSPData bspData = GetCollisionBSPData();
 		bspData.Destroy();
@@ -779,6 +792,19 @@ public static partial class CM
 
 	}
 
+	public static VCollide? VCollideForModel(int modelindex, Model? model) {
+		if (model != null) {
+			switch (model.Type) {
+				case ModelType.Brush:
+					return GetVCollide(modelindex - 1);
+				case ModelType.Studio:
+					return mdlcache.GetVCollide(model.Studio);
+			}
+		}
+
+		return null;
+	}
+
 	public static VCollide? GetVCollide(int modelIndex) {
 		CollisionModel? model = InlineModelNumber(modelIndex);
 		if (model == null)
@@ -788,7 +814,7 @@ public static partial class CM
 		return model.VCollisionData;
 	}
 
-	private static CollisionModel? InlineModelNumber(int index) {
+	internal static CollisionModel? InlineModelNumber(int index) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 
 		if ((index < 0) || (index >= bspData.MapCollisionModels.Count))

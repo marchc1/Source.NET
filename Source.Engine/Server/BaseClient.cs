@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using SDL;
 
@@ -24,7 +24,7 @@ namespace Source.Engine.Server;
 public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageHandler, IDisposable
 {
 	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
-	public void SetReportThisFakeClient(bool report){
+	public void SetReportThisFakeClient(bool report) {
 		ReportFakeClient = report;
 	}
 	public int GetPlayerSlot() => ClientSlot;
@@ -46,6 +46,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<CLC_Move>();
 		channel.RegisterMessage<CLC_BaselineAck>();
 		channel.RegisterMessage<CLC_ListenEvents>();
+		channel.RegisterMessage<CLC_VoiceData>();
 		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
 	public virtual bool IgnoreTempEntity(EventInfo evnt) { return false; }
@@ -71,6 +72,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case CLC_Move m: return ProcessMove(m);
 			case CLC_BaselineAck m: return ProcessBaselineAck(m);
 			case CLC_ListenEvents m: return ProcessListenEvents(m);
+			case CLC_VoiceData m: return ProcessVoiceData(m);
 			case CLC_GMod_ClientToServer m: return ProcessGMod_ClientToServer(m);
 		}
 		return false;
@@ -81,6 +83,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool ProcessMove(CLC_Move m) => true;
+	protected virtual bool ProcessVoiceData(CLC_VoiceData m) => true;
 
 	protected virtual bool ProcessTick(NET_Tick m) {
 		NetChannel!.SetRemoteFramerate(m.HostFrameTime, m.HostFrameDeviation);
@@ -197,7 +200,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SetName(PendingNameChange);
 	}
 
-	public void UpdateUserSettings(){
+	public virtual void UpdateUserSettings() {
 		int rate = ConVars!.GetInt("rate", Source.Common.Networking.NetChannel.DEFAULT_RATE);
 
 		if (sv.IsActive()) {
@@ -699,7 +702,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public bool IsConnected() => SignOnState >= SignOnState.Connected;
-	public void Disconnect(ReadOnlySpan<char> str) {
+	public virtual void Disconnect(ReadOnlySpan<char> str) {
 		if (SignOnState == SignOnState.None)
 			return;
 
@@ -750,7 +753,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public uint FriendsID;
 	public string FriendsName;
 
-	KeyValues? ConVars;
+	protected KeyValues? ConVars;
 	bool InitialConVarsSet;
 	public bool ConVarsChanged;
 	public bool NeedSendServerInfo;
@@ -976,11 +979,28 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public ReadOnlySpan<char> GetUserSetting(ReadOnlySpan<char> cvar) {
-		throw new NotImplementedException();
+		if (ConVars == null || cvar.IsEmpty)
+			return "";
+
+		ReadOnlySpan<char> value = ConVars.GetString(cvar, "");
+
+		if (value.IsEmpty)
+			if (ConVars.FindKey(cvar) == null)
+				DevMsg($"GetUserSetting: cvar '{cvar}' unknown.\n");
+
+		return value;
 	}
 
 	public void SetUserCVar(ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
-		throw new NotImplementedException();
+		if (cvar.IsEmpty || value.IsEmpty)
+			return;
+
+		if (stricmp(cvar, "name") == 0) {
+			ClientRequestNameChange(value);
+			return;
+		}
+
+		ConVars!.SetString(cvar, value);
 	}
 
 	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);
@@ -1076,13 +1096,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		NetChannel.SendNetMsg(print);
 	}
 
-	public bool IsHearingClient(int index) {
-		throw new NotImplementedException();
-	}
+	public virtual bool IsHearingClient(int index) => false;
 
-	public bool IsProximityHearingClient(int index) {
-		throw new NotImplementedException();
-	}
+	public virtual bool IsProximityHearingClient(int index) => false;
 
 	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) => NetChannel?.SetMaxRoutablePayloadSize(nMaxRoutablePayloadSize);
 

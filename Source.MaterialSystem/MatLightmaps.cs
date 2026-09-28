@@ -553,7 +553,39 @@ public class MatLightmaps
 	}
 
 	void BumpedLightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage) {
-		throw new NotImplementedException();
+		int lightmapSize0 = lightmapSize[0];
+		int lightmap0WriterSizeBytes = lightmapSize0 * LightmapPixelWriter.GetPixelSize();
+		int rewindToNextPixel = -((lightmap0WriterSizeBytes * 3) - LightmapPixelWriter.GetPixelSize());
+
+		Span<byte> color0 = stackalloc byte[3];
+		Span<byte> color1 = stackalloc byte[3];
+		Span<byte> color2 = stackalloc byte[3];
+		Span<byte> color3 = stackalloc byte[3];
+
+		for (int t = 0; t < lightmapSize[1]; t++) {
+			int srcTexelOffset = 4 * (0 + t * lightmapSize0);
+			LightmapPixelWriter.Seek(offsetIntoLightmapPage[0], offsetIntoLightmapPage[1] + t);
+
+			for (int s = 0; s < lightmapSize0;
+				s++, LightmapPixelWriter.SkipBytes(rewindToNextPixel), srcTexelOffset += 4) {
+				ColorSpace.LinearToBumpedLightmap(floatImage[srcTexelOffset..],
+					floatImageBump1[srcTexelOffset..], floatImageBump2[srcTexelOffset..],
+					floatImageBump3[srcTexelOffset..],
+					color0, color1, color2, color3);
+
+				byte alpha = MathLib.RoundFloatToByte(floatImage[srcTexelOffset + 3] * 255.0f);
+				LightmapPixelWriter.WritePixelNoAdvance(color0[0], color0[1], color0[2], alpha);
+
+				LightmapPixelWriter.SkipBytes(lightmap0WriterSizeBytes);
+				LightmapPixelWriter.WritePixelNoAdvance(color1[0], color1[1], color1[2], alpha);
+
+				LightmapPixelWriter.SkipBytes(lightmap0WriterSizeBytes);
+				LightmapPixelWriter.WritePixelNoAdvance(color2[0], color2[1], color2[2], alpha);
+
+				LightmapPixelWriter.SkipBytes(lightmap0WriterSizeBytes);
+				LightmapPixelWriter.WritePixelNoAdvance(color3[0], color3[1], color3[2], alpha);
+			}
+		}
 	}
 
 	void BumpedLightmapBitsToPixelWriter_HDRF(Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage) {

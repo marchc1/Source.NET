@@ -21,13 +21,13 @@ public sealed class MaterialVar : IMaterialVar
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key) {
 		Init();
 		owningMaterial = (IMaterialInternal)material!;
-		Name = new(key);
+		Name = new(GetSymbol(key));
 		Type = MaterialVarType.Undefined;
 	}
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key, int val) {
 		Init();
 		owningMaterial = (IMaterialInternal)material!;
-		Name = new(key);
+		Name = new(GetSymbol(key));
 		Type = MaterialVarType.Int;
 		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = (float)val;
 		IntVal = val;
@@ -35,7 +35,7 @@ public sealed class MaterialVar : IMaterialVar
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key, float val) {
 		Init();
 		owningMaterial = (IMaterialInternal)material!;
-		Name = new(key);
+		Name = new(GetSymbol(key));
 		Type = MaterialVarType.Float;
 		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = val;
 		IntVal = (int)val;
@@ -43,7 +43,7 @@ public sealed class MaterialVar : IMaterialVar
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key, Span<float> val) {
 		Init();
 		owningMaterial = (IMaterialInternal)material!;
-		Name = new(key);
+		Name = new(GetSymbol(key));
 		Type = MaterialVarType.Vector;
 		NumVectorComps = (byte)Math.Min(val.Length, 4);
 		for (int i = 0; i < NumVectorComps; i++)
@@ -54,7 +54,7 @@ public sealed class MaterialVar : IMaterialVar
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key, ReadOnlySpan<char> val) {
 		Init();
 		owningMaterial = (IMaterialInternal)material!;
-		Name = new(key);
+		Name = new(GetSymbol(key));
 		StringVal = new(val);
 		Type = MaterialVarType.String;
 		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = float.TryParse(val, out float r) ? r : 0;
@@ -74,7 +74,10 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override Matrix4x4 GetMatrixValue() {
-		return MatrixVal;
+		if (Type == MaterialVarType.Matrix)
+			return Matrix.Matrix;
+
+		return Matrix4x4.Identity;
 	}
 
 	public override ReadOnlySpan<char> GetName() {
@@ -94,6 +97,7 @@ public sealed class MaterialVar : IMaterialVar
 		return StringVal;
 	}
 
+	static int reallyAnnoyingLogCount = 0;
 	public override ITexture? GetTextureValue() {
 		ITexture? retVal = null;
 
@@ -108,6 +112,10 @@ public sealed class MaterialVar : IMaterialVar
 			if (retVal == null)
 				Warning("Invalid texture value in CMaterialVar::GetTextureValue\n");
 		}
+		else if (reallyAnnoyingLogCount++ < 20)
+			Warning($"Requesting texture value from var \"{GetName()}\" of type \"{Type}\" which is not a texture value (material: {(owningMaterial != null ? owningMaterial.GetName() : "NULL material")})\n");
+
+		retVal ??= ((Material)owningMaterial!).materials.GetErrorTexture();
 
 		return retVal;
 	}
@@ -122,7 +130,10 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override bool MatrixIsIdentity() {
-		throw new NotImplementedException();
+		if (Type != MaterialVarType.Matrix)
+			return true;
+
+		return Matrix.IsIdent;
 	}
 
 	public override void SetFloatValue(float val) {
@@ -148,8 +159,11 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetMatrixValue(in Matrix4x4 matrix) {
-		MatrixVal = matrix;
+		Matrix.Matrix = matrix;
 		Type = MaterialVarType.Matrix;
+		Matrix.IsIdent = matrix.IsIdentity;
+		VecVal = default;
+		IntVal = (int)VecVal.X;
 		VarChanged();
 	}
 

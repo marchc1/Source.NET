@@ -24,9 +24,13 @@ namespace Game.Server;
 #endif
 
 using CommunityToolkit.HighPerformance;
+
 using Source;
+
 using System.Numerics;
+
 using Source.Common.Mathematics;
+
 using Game.Shared;
 
 
@@ -45,13 +49,18 @@ using Class =
 #endif
 
 using FIELD = Source.FIELD<BaseEntity>;
+
 using System.Runtime.CompilerServices;
+
 using Source.Common.Formats.BSP;
 using Source.Common.Physics;
 
+using System.Text;
+
 public static class BaseEntityConstants
 {
-	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 -> 8
+	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 . 8
+	public const int VPHYSICS_MAX_OBJECT_LIST_COUNT = 1024;
 }
 
 [Flags]
@@ -137,7 +146,7 @@ public partial class
 				CollisionProp().MarkSurroundingBoundsDirty();
 			else {
 #if CLIENT_DLL
-				// MarkRenderHandleDirty();
+				MarkRenderHandleDirty();
 				g_ClientShadowMgr.AddToDirtyShadowList(this);
 				g_ClientShadowMgr.MarkRenderToTextureShadowDirty(GetShadowHandle());
 #endif
@@ -186,6 +195,12 @@ public partial class
 #endif
 	}
 
+	public void DispatchTraceAttack(in TakeDamageInfo info, in Vector3 dir, ref Trace ptr, ref DmgAccumulator accumulator) {
+
+	}
+	public void DispatchTraceAttack(in TakeDamageInfo info, in Vector3 dir, ref Trace ptr)
+		=> DispatchTraceAttack(in info, in dir, ref ptr, ref Unsafe.NullRef<DmgAccumulator>());
+
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
 		// Are we currently in a think function with a context?
 		int index = 0;
@@ -199,7 +214,7 @@ public partial class
 				return TICK_NEVER_THINK;
 
 			// Old system
-			return (long)(TICK_INTERVAL * NextThinkTick);
+			return NextThinkTick;
 		}
 		else
 			// Find the think function in our list
@@ -213,7 +228,30 @@ public partial class
 		if (tf.NextThinkTick == TICK_NEVER_THINK)
 			return TICK_NEVER_THINK;
 
-		return (long)(TICK_INTERVAL * (tf.NextThinkTick));
+		return tf.NextThinkTick;
+	}
+
+	public void SetLastThink(int contextIndex, TimeUnit_t thinkTime) {
+		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
+
+		if (contextIndex < 0)
+			LastThinkTick = thinkTick;
+		else
+			ThinkFunctions.AsSpan()[contextIndex].LastThinkTick = thinkTick;
+	}
+
+	public TimeUnit_t GetNextThink(int contextIndex) {
+		if (contextIndex < 0)
+			return NextThinkTick * TICK_INTERVAL;
+
+		return ThinkFunctions.AsSpan()[contextIndex].NextThinkTick * TICK_INTERVAL;
+	}
+
+	public long GetNextThinkTick(int contextIndex) {
+		if (contextIndex < 0)
+			return NextThinkTick;
+
+		return ThinkFunctions.AsSpan()[contextIndex].NextThinkTick;
 	}
 
 	public TimeUnit_t GetLastThink(ReadOnlySpan<char> context) {
@@ -263,6 +301,36 @@ public partial class
 		return false;
 	}
 
+	public virtual bool ShouldCollide(CollisionGroup collisionGroup, Contents contentsMask) {
+		if (CollisionGroup == (int)Source.CollisionGroup.Debris) {
+			if ((contentsMask & Contents.Debris) == 0)
+				return false;
+		}
+		return true;
+	}
+
+	public virtual bool TestCollision(in Ray ray, Contents mask, ref Trace trace) {
+		return false;
+	}
+
+	public virtual bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) {
+		return false;
+	}
+
+	public BaseEntity GetRootMoveParent() {
+		BaseEntity? entity = this;
+		BaseEntity? parent = this.GetMoveParent();
+		while (parent != null) {
+			entity = parent;
+			parent = entity.GetMoveParent();
+		}
+		return entity;
+	}
+
+	public void VPhysicsInitShadow(bool allowPhysicsMovement, bool allowPhysicsRotation, ref Solid solid) {
+
+	}
+	public void VPhysicsInitShadow(bool allowPhysicsMovement, bool allowPhysicsRotation) => VPhysicsInitShadow(allowPhysicsMovement, allowPhysicsRotation, ref Unsafe.NullRef<Solid>());
 	public void VPhysicsDestroyObject() {
 		if (PhysicsObject != null) {
 #if !CLIENT_DLL
@@ -270,6 +338,82 @@ public partial class
 #endif
 			PhysDestroyObject(PhysicsObject, this);
 			PhysicsObject = null;
+		}
+	}
+
+	public void ApplyAbsVelocityImpulse(in Vector3 impulse) {
+		if (impulse != vec3_origin) {
+			Vector3 vecImpulse = impulse;
+
+			// Safety check against receive a huge impulse, which can explode physics
+			switch (CheckEntityVelocity(ref vecImpulse)) {
+				case -1:
+					Warning($"Discarding ApplyAbsVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					Assert(false);
+					return;
+				case 0:
+					if (CheckEmitReasonablePhysicsSpew()) {
+						Warning($"Clamping ApplyAbsVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					}
+					break;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics)
+				VPhysicsGetObject()!.AddVelocity(in vecImpulse, default);
+			else {
+				// NOTE: Have to use GetAbsVelocity here to ensure it's the correct value
+				MathLib.VectorAdd(GetAbsVelocity(), vecImpulse, out Vector3 vecResult);
+				SetAbsVelocity(vecResult);
+			}
+		}
+	}
+	public void ApplyLocalAngularVelocityImpulse(in Vector3 angImpulse) {
+		if (angImpulse != vec3_origin) {
+			// Safety check against receive a huge impulse, which can explode physics
+			if (!IsEntityAngularVelocityReasonable(angImpulse)) {
+				Warning($"Bad ApplyLocalAngularVelocityImpulse({angImpulse.X},{angImpulse.Y},{angImpulse.Z}) on {GetDebugName()}\n");
+				Assert(false);
+				return;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics)
+				VPhysicsGetObject()!.AddVelocity(default, in angImpulse);
+			else {
+				MathLib.AngularImpulseToQAngle(angImpulse, out QAngle vecResult);
+				MathLib.VectorAdd(GetLocalAngularVelocity(), vecResult, out Vector3 vec3Result);
+				SetLocalAngularVelocity(vec3Result);
+			}
+		}
+	}
+
+	public void ApplyLocalVelocityImpulse(in Vector3 impulse) {
+		// NOTE: Don't have to use GetVelocity here because local values
+		// are always guaranteed to be correct, unlike abs values which may 
+		// require recomputation
+		if (impulse != vec3_origin) {
+			Vector3 vecImpulse = impulse;
+
+			// Safety check against receive a huge impulse, which can explode physics
+			switch (CheckEntityVelocity(ref vecImpulse)) {
+				case -1:
+					Warning($"Discarding ApplyLocalVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					Assert(false);
+					return;
+				case 0:
+					if (CheckEmitReasonablePhysicsSpew()) {
+						Warning($"Clamping ApplyLocalVelocityImpulse({impulse.X},{impulse.Y},{impulse.Z}) on {GetDebugName()}\n");
+					}
+					break;
+			}
+
+			if (GetMoveType() == Source.MoveType.VPhysics) {
+				VPhysicsGetObject()!.LocalToWorld(out Vector3 worldVel, vecImpulse);
+				VPhysicsGetObject()!.AddVelocity(in worldVel, default);
+			}
+			else {
+				InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+				Velocity += vecImpulse;
+			}
 		}
 	}
 
@@ -461,7 +605,7 @@ public partial class
 		if (Effects != (int)effects) {
 			Effects = (int)effects;
 #if !CLIENT_DLL
-			// DispatchUpdateTransmitState();
+			DispatchUpdateTransmitState();
 #else
 			UpdateVisibility();
 #endif
@@ -576,6 +720,14 @@ public partial class
 			q.Y > -r && q.Y < r &&
 			q.Z > -r && q.Z < r;
 	}
+
+	public static bool IsEntityQAngleVelReasonable(in QAngle q) {
+		float r = k_flMaxEntitySpinRate;
+		return
+			q.X > -r && q.X < r &&
+			q.Y > -r && q.Y < r &&
+			q.Z > -r && q.Z < r;
+	}
 	internal static bool IsEntityAngularVelocityReasonable(Vector3 q) {
 		float r = k_flMaxEntitySpinRate;
 		return
@@ -585,9 +737,157 @@ public partial class
 	}
 
 	internal static short PrecacheScriptSound(ReadOnlySpan<char> sound) {
-		// todo
-		return 0;
+		return g_SoundEmitterSystem.PrecacheScriptSound(sound);
 	}
+
+	public static bool PrecacheSound(ReadOnlySpan<char> name) {
+#if GAME_DLL
+		if (!IsPrecacheAllowed())
+			if (!enginesound.IsSoundPrecached(name))
+				Warning($"Late precache of {name}\n");
+#endif
+		return enginesound.PrecacheSound(name, true);
+	}
+
+	public static void PrefetchSound(ReadOnlySpan<char> name) => enginesound.PrefetchSound(name);
+	public virtual void ParseMapData(EntityMapData mapData) {
+		// The map data (and the parser) are byte-based (C++ char*); decode each key/value to ASCII
+		// char spans here so KeyValue can work in ReadOnlySpan<char>.
+		Span<byte> keyNameBytes = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<byte> valueBytes = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<char> keyName = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<char> value = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
+
+#if DEBUG && GAME_DLL
+		// todo later: ValidateDataDescription();
+#endif
+
+		// loop through all keys in the data block and pass the info back into the object
+		if (mapData.GetFirstKey(keyNameBytes, valueBytes)) {
+			do {
+				int kl = Encoding.ASCII.GetChars(keyNameBytes[..MapEntity.StrLen(keyNameBytes)], keyName);
+				int vl = Encoding.ASCII.GetChars(valueBytes[..MapEntity.StrLen(valueBytes)], value);
+				KeyValue(keyName[..kl], value[..vl]);
+			}
+			while (mapData.GetNextKey(keyNameBytes, valueBytes));
+		}
+	}
+	public void SetRenderColor(byte r, byte g, byte b) => ColorRender = new Color(r, g, b, ColorRender.A);
+	public void SetRenderColor(byte r, byte g, byte b, byte a) => ColorRender = new Color(r, g, b, a);
+	public void SetRenderColorA(byte a) => ColorRender = new Color(ColorRender.R, ColorRender.G, ColorRender.B, a);
+
+	public virtual bool KeyValue(ReadOnlySpan<char> szKeyName, ReadOnlySpan<char> szValue) {
+		//!! temp hack, until worldcraft is fixed
+		// strip the # tokens from (duplicate) key names
+		ReadOnlySpan<char> key = szKeyName;
+		int hash = key.IndexOf('#');
+		if (hash >= 0)
+			key = key[..hash];
+
+		if (FStrEq(key, "rendercolor") || FStrEq(key, "rendercolor32")) {
+			Util.StringToColor32(out Color tmp, szValue);
+			SetRenderColor(tmp.R, tmp.G, tmp.B);
+			// don't copy alpha, legacy support uses renderamt
+			return true;
+		}
+
+		if (FStrEq(key, "renderamt")) {
+			SetRenderColorA((byte)atoi(szValue));
+			return true;
+		}
+
+		if (FStrEq(key, "disableshadows")) {
+			if (atoi(szValue) != 0)
+				AddEffects(EntityEffects.NoShadow);
+			return true;
+		}
+
+		if (FStrEq(key, "mins")) {
+			Vector3 mins = default;
+			UTIL_StringToVector(mins.Base(), szValue);
+			CollisionProp().SetCollisionBounds(mins, CollisionProp().OBBMaxs());
+			return true;
+		}
+
+		if (FStrEq(key, "maxs")) {
+			Vector3 maxs = default;
+			UTIL_StringToVector(maxs.Base(), szValue);
+			CollisionProp().SetCollisionBounds(CollisionProp().OBBMins(), maxs);
+			return true;
+		}
+
+		if (FStrEq(key, "disablereceiveshadows")) {
+			if (atoi(szValue) != 0)
+				AddEffects(EntityEffects.NoReceiveShadow);
+			return true;
+		}
+
+		if (FStrEq(key, "nodamageforces")) {
+			if (atoi(szValue) != 0)
+				AddEFlags(EFL.NoDamageForces);
+			return true;
+		}
+
+		// Fix up single angles
+		if (FStrEq(key, "angle")) {
+			ref readonly QAngle localAngles = ref GetLocalAngles();
+
+			float y = strtof(szValue, out _);
+			string szBuf;
+			if (y >= 0)
+				szBuf = $"{localAngles.X} {y} {localAngles.Z}";
+			else if ((int)y == -1)
+				szBuf = "-90 0 0";
+			else
+				szBuf = "90 0 0";
+
+			// Do this so inherited classes looking for 'angles' don't have to bother with 'angle'
+			return KeyValue(key, szBuf);
+		}
+
+		// NOTE: Have to do these separate because they set two values instead of one
+		if (FStrEq(key, "angles")) {
+			QAngle angles = default;
+			UTIL_StringToVector(angles.Base(), szValue);
+
+			// If you're hitting this assert, it's probably because you're
+			// calling SetLocalAngles from within a KeyValues method.. use SetAbsAngles instead!
+			Assert((GetMoveParent() == null) && !IsEFlagSet(EFL.DirtyAbsTransform));
+			SetAbsAngles(angles);
+			return true;
+		}
+
+		if (FStrEq(key, "origin")) {
+			Vector3 vecOrigin = default;
+			UTIL_StringToVector(vecOrigin.Base(), szValue);
+
+			// If you're hitting this assert, it's probably because you're
+			// calling SetLocalOrigin from within a KeyValues method.. use SetAbsOrigin instead!
+			Assert((GetMoveParent() == null) && !IsEFlagSet(EFL.DirtyAbsTransform));
+			SetAbsOrigin(vecOrigin);
+			return true;
+		}
+
+#if GAME_DLL
+		if (FStrEq(key, "targetname")) {
+			Name = new string(szValue); // m_iName = AllocPooledString(szValue)
+			return true;
+		}
+
+		if (FStrEq(key, "model")) {
+			SetModelName(szValue); // DEFINE_KEYFIELD( m_ModelName, "model" )
+			return true;
+		}
+
+		for (DataMap? dmap = GetDataDescMap(); dmap != null; dmap = dmap.BaseMap)
+			if (SaveRestoreGameDLL.ParseKeyvalue(this, dmap.DataDesc, dmap.DataNumFields, key, szValue))
+				return true;
+#endif
+
+		// key hasn't been handled
+		return false;
+	}
+
 
 	public static float k_flMaxEntityPosCoord = MAX_COORD_FLOAT;
 	public static float k_flMaxEntityEulerAngle = 360.0f * 1000.0f; // really should be restricted to +/-180, but some code doesn't adhere to this.  let's just trap NANs, etc

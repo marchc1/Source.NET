@@ -90,7 +90,8 @@ public static class RecvPropHelpers
 
 		field.SetValue(instance, ehandle);
 	}
-	public static RecvProp RecvPropEHandle(IFieldAccessor field, RecvVarProxyFn? proxyFn = null) {
+	// field may be null for UtlVector/list element templates (mirrors C++ RecvPropEHandle(NULL, 0, 0)).
+	public static RecvProp RecvPropEHandle(IFieldAccessor? field = null, RecvVarProxyFn? proxyFn = null) {
 		proxyFn ??= RecvProxy_IntToEHandle;
 		return RecvPropInt(field, 0, proxyFn);
 	}

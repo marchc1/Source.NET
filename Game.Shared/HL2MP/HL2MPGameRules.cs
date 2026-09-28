@@ -1,4 +1,4 @@
-﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
 global using static Game.Client.GarrysMod.HL2MP_GameRules_Globals;
 #else
@@ -18,6 +18,7 @@ using Source.Common;
 using Source;
 
 using FIELD = Source.FIELD<HL2MPGameRulesProxy>;
+
 using Game.Shared;
 
 public class
@@ -36,7 +37,7 @@ public class
 #else
 		SendTable
 #endif
-	DT_HL2MPGameRules = new(nameof(DT_HL2MPGameRules), [
+	DT_HL2MPRules = new(nameof(DT_HL2MPRules), [
 #if CLIENT_DLL
 		RecvPropBool(FIELD<HL2MPGameRules>.OF("TeamPlayEnabled")),
 #else
@@ -52,9 +53,9 @@ public class
 #endif
 		DT_HL2MPGameRulesProxy = new(DT_GameRulesProxy, [
 #if CLIENT_DLL
-			RecvPropDataTable(nameof(hl2mp_gamerules_data), FIELD.OF(nameof(hl2mp_gamerules_data)), DT_HL2MPGameRules, 0, DataTableRecvProxy_PointerDataTable)
+			RecvPropDataTable(nameof(hl2mp_gamerules_data), FIELD.OF(nameof(hl2mp_gamerules_data)), DT_HL2MPRules, 0, DataTableRecvProxy_PointerDataTable)
 #else
-			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPGameRules)
+			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPRules)
 #endif
 		]);
 #if CLIENT_DLL
@@ -70,15 +71,51 @@ public class
 #else
 	HL2MPGameRules
 #endif
-	: GameRules
+	: MultiplayRules
 // TODO: AutoGameSystemPerFrame
 {
+	public
+#if CLIENT_DLL
+		C_HL2MPGameRules
+#else
+		HL2MPGameRules
+#endif
+	() : base() {
+
+	}
 	public override ReadOnlySpan<char> Name() => "HL2MPGameRules";
 	public bool TeamPlayEnabled;
+
+	public override bool ShouldCollide(CollisionGroup collisionGroup0, CollisionGroup collisionGroup1) {
+		if (collisionGroup0 > collisionGroup1) {
+			// swap so that lowest is always first
+			(collisionGroup0, collisionGroup1) = (collisionGroup1, collisionGroup0);
+		}
+
+		if ((collisionGroup0 == CollisionGroup.Player || collisionGroup0 == CollisionGroup.PlayerMovement) &&
+			collisionGroup1 == CollisionGroup.Weapon) {
+			return false;
+		}
+
+		return base.ShouldCollide(collisionGroup0, collisionGroup1);
+
+	}
 }
+
+#if !CLIENT_DLL
+public class VoiceGameMgrHelper : IVoiceGameMgrHelper
+{
+	public bool CanPlayerHearPlayer(BasePlayer listener, BasePlayer talker, ref bool proximity) {
+		return listener.GetTeamNumber() == talker.GetTeamNumber();
+	}
+}
+#endif
 
 public static class HL2MP_GameRules_Globals
 {
+	public const int TEAM_COMBINE = 2;
+	public const int TEAM_REBELS = 3;
+
 	static readonly AmmoDef def = new();
 	static bool initted = false;
 

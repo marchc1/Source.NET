@@ -22,7 +22,8 @@ public static class GMOD_PlayerGlobals
 	}
 }
 
-public class GMOD_Player : HL2MP_Player
+[LinkEntityToClass("player")]
+public partial class GMOD_Player : HL2MP_Player
 {
 	public static GMOD_Player? CreatePlayer(ReadOnlySpan<char> classname, Edict ed) {
 		s_PlayerEdict = ed;
@@ -64,17 +65,26 @@ public class GMOD_Player : HL2MP_Player
 	public EHANDLE Driving = new();
 	public int DrivingMode;
 	public int PlayerClass;
-	public bool CanZoom;
-	public bool CanWalk;
+	public bool CanZoom = true;
+	public bool CanWalk = true;
 	public bool IsTyping;
-	public float StepSize;
-	public float JumpPower;
+	public float StepSize = 18;
+	public float JumpPower = 200;
 	public Vector3 ViewOffsetDucked;
 	public float GestureEndTime;
-	public Vector3 PlayerColor;
-	public Vector3 WeaponColor;
+	public Vector3 PlayerColor = new(255, 255, 255);
+	public Vector3 WeaponColor = new(255, 255, 255);
 	public EHANDLE Hands = new();
 	public int MaxArmor;
 	public float Gravity;
 	public bool SprintEnabled;
+
+	public override void PlayerRunCommand(UserCmd ucmd, IMoveHelper moveHelper) {
+		base.PlayerRunCommand(ucmd, moveHelper);
+	}
+
+	public override void CheckChatText(ReadOnlySpan<char> text) {
+		if (!stristr(text, "bloxwich").IsEmpty)
+			AwardAchievement((int)GMODAchievementID.GMA_SAY_1, 1);
+	}
 }

@@ -116,6 +116,13 @@ public enum HudPrint
 	Center = 4
 }
 
+public enum Damage : byte {
+	No,
+	EventsOnly,
+	Yes,
+	Aim
+}
+
 [Flags]
 public enum DamageType : int
 {
@@ -359,7 +366,7 @@ public static class SharedDefs
 	public static ref Vector3 VEC_OBS_HULL_MAX => ref g_pGameRules.GetViewVectors().ObsHullMax;
 
 	public const float WATERJUMP_HEIGHT = 8;
-
+	public const int MAX_FOV = 90;
 #else
 	public static Vector3 VEC_VIEW_SCALED(object player) => throw new NotImplementedException();
 	public static Vector3 VEC_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
@@ -647,6 +654,7 @@ public enum DataObjectType
 {
 	GroundLink,
 	TouchLink,
+	/// <summary> TYPE: <see cref="StepSimulationData"/> </summary>
 	StepSimulation,
 	ModelScale,
 	PositionWatcher,
@@ -733,7 +741,7 @@ public ref struct EmitSound_t
 	public bool WarnOnMissingCloseCaption;
 	public bool WarnOnDirectWaveReference;
 	public int SpeakerEntity;
-	public Source.InlineArray16<Vector3> SoundOrigin;
+	public List<Vector3>? SoundOrigin;
 	public int NumSoundOrigin;
 	public HSOUNDSCRIPTHANDLE SoundScriptHandle;
 }

@@ -120,6 +120,9 @@ public class Button : Label
 	}
 
 	public virtual void DoClick() {
+#if GMOD_DLL
+		// todo: DoClick hook
+#endif
 		SetSelected(true);
 		FireActionSignal();
 		PlayButtonReleasedSound();
@@ -249,16 +252,25 @@ public class Button : Label
 	}
 
 	public override void OnSetFocus() {
+#if GMOD_DLL
+		// todo: OnGetFocus hook
+#endif
 		InvalidateLayout(false);
 		base.OnSetFocus();
 	}
 
 	public override void OnKillFocus(Panel? newPanel) {
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 		InvalidateLayout(false);
 		base.OnKillFocus(newPanel);
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMousePressed hook
+#endif
 		if (!IsEnabled())
 			return;
 
@@ -291,6 +303,9 @@ public class Button : Label
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMouseReleased hook
+#endif
 		if (IsUseCaptureMouseEnabled())
 			Input.SetMouseCapture(null);
 
@@ -322,6 +337,9 @@ public class Button : Label
 	}
 
 	public virtual void SetSelected(bool state) {
+#if GMOD_DLL
+		// todo: Selected = state
+#endif
 		if (((ButtonFlags & ButtonFlags.Selected) != 0) != state) {
 			if (state)
 				ButtonFlags |= ButtonFlags.Selected;
@@ -374,6 +392,9 @@ public class Button : Label
 	public bool IsArmed() => (ButtonFlags & ButtonFlags.Armed) != 0;
 
 	public void SetArmed(bool state) {
+#if GMOD_DLL
+		// todo: Armed = state
+#endif
 		if (((ButtonFlags & ButtonFlags.Armed) != 0) != state) {
 			ButtonFlags ^= ButtonFlags.Armed;
 			RecalculateDepressedState();
@@ -418,6 +439,9 @@ public class Button : Label
 	IBorder? DefaultBorder, DepressedBorder, KeyFocusBorder;
 
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 		DefaultBorder = scheme.GetBorder("ButtonBorder");
 		DepressedBorder = scheme.GetBorder("ButtonDepressedBorder");

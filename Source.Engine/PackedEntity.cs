@@ -5,7 +5,7 @@ using Source.Common.Networking;
 
 namespace Source.Engine;
 
-public class PackedEntity
+public class PackedEntity : IPoolableObject
 {
 	public const int ENTITY_SENTINEL = 9999;
 	public const int FLAG_IS_COMPRESSED = 1 << 31;
@@ -21,6 +21,18 @@ public class PackedEntity
 	IChangeFrameList? ChangeFrameList;
 	uint SnapshotCreationTick;
 	bool _ShouldCheckCreationTick;
+
+	public void Init() { }
+	public void Reset() {
+		EntityIndex = 0;
+		ReferenceCount = 0;
+		Recipients.Clear();
+		Data = null;
+		Bits = 0;
+		ChangeFrameList = null;
+		SnapshotCreationTick = 0;
+		_ShouldCheckCreationTick = false;
+	}
 
 	public bool AllocAndCopyPadded(Span<byte> data) {
 		FreeData();

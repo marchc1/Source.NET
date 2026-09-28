@@ -147,8 +147,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 			if (entnum > MaxUsedServerIndex)
 				MaxUsedServerIndex = entnum;
 
-			Assert(ent is IClientUnknown unk);
-			Assert(unk.GetClientNetworkable());
+			Assert(ent is IClientUnknown unk && unk.GetClientNetworkable() != null);
 			cache.Networkable = ((IClientUnknown)ent).GetClientNetworkable();
 		}
 
@@ -193,6 +192,43 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	public BaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
 		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
 		return pEnt != null ? pEnt.GetBaseEntity() : null;
+	}
+
+	internal BaseEntity? FirstBaseEntity() {
+		EntInfo? list = FirstEntInfo();
+		while (list != null) {
+			if (list.Entity != null) {
+				IClientUnknown unk = (IClientUnknown)list.Entity;
+				C_BaseEntity? ret = unk.GetBaseEntity();
+				if (ret != null)
+					return ret;
+			}
+			list = list.Next;
+		}
+
+		return null;
+	}
+
+	internal BaseEntity? NextBaseEntity(BaseEntity ?ent) {
+		if (ent == null)
+			return FirstBaseEntity();
+
+		// Run through the list until we get a C_BaseEntity.
+		EntInfo? list = GetEntInfoPtr(ent.GetRefEHandle());
+		if (list != null) 
+			list = NextEntInfo(list);
+
+		while (list != null) {
+			if (list.Entity != null) {
+				IClientUnknown unk = (IClientUnknown)list.Entity;
+				C_BaseEntity? ret = unk.GetBaseEntity();
+				if (ret != null)
+					return ret;
+			}
+			list = list.Next;
+		}
+
+		return null;
 	}
 
 	class PVSNotifyInfo

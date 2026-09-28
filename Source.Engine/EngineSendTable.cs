@@ -166,6 +166,8 @@ public static class EngineSendTable
 			EncodeProp(info, i);
 		}
 
+		info.DeltaBitsWriter.Dispose();
+
 		return !dataOut.Overflowed;
 	}
 
@@ -202,6 +204,8 @@ public static class EngineSendTable
 
 			i++;
 		}
+
+		bitsWriter.Dispose();
 
 		// inputBuf.ForceFinished();
 	}

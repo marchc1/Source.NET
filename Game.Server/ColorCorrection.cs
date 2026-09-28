@@ -13,6 +13,7 @@ using FIELD = FIELD<ColorCorrection>;
 public class ColorCorrection : BaseEntity
 {
 	public static readonly SendTable DT_ColorCorrection = new([
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MinFalloff)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MaxFalloff)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(CurWeight)), 0, PropFlags.NoScale),

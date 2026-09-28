@@ -10,7 +10,7 @@ public class SlideshowDisplay : BaseEntity
 		SendPropBool(FIELD.OF(nameof(Enabled))),
 		SendPropString(FIELD.OF(nameof(DisplayText))),
 		SendPropString(FIELD.OF(nameof(SlideshowDirectory))),
-		SendPropInt(FIELD.OF(nameof(ChCurrentSlideLists)), 8, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(ChCurrentSlideLists)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(ChCurrentSlideLists), 0), 8, PropFlags.Unsigned)),
 		SendPropFloat(FIELD.OF(nameof(MinSlideTime)), 11, 0),
 		SendPropFloat(FIELD.OF(nameof(MaxSlideTime)), 11, 0),
 		SendPropInt(FIELD.OF(nameof(CycleType)), 2, PropFlags.Unsigned),
@@ -21,7 +21,7 @@ public class SlideshowDisplay : BaseEntity
 	public bool Enabled;
 	public InlineArray128<char> DisplayText;
 	public InlineArray128<char> SlideshowDirectory;
-	public int ChCurrentSlideLists;
+	public InlineArray16<byte> ChCurrentSlideLists;
 	public float MinSlideTime;
 	public float MaxSlideTime;
 	public int CycleType;

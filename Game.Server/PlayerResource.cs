@@ -1,4 +1,6 @@
-﻿namespace Game.Server;
+﻿global using static Game.Server.PlayerResourceGlobals;
+
+namespace Game.Server;
 
 using Game.Shared;
 
@@ -6,9 +8,14 @@ using Source.Common;
 
 using FIELD = Source.FIELD<PlayerResource>;
 
+public static class PlayerResourceGlobals{
+	public static PlayerResource? g_pPlayerResource;
+}
+
 [LinkEntityToClass("player_manager")]
 public class PlayerResource : BaseEntity
 {
+
 	public static readonly SendTable DT_PlayerResource = new([
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Ping)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Ping), 0), 12, PropFlags.Unsigned ) ),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Score)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Score), 0), 32 ) ),

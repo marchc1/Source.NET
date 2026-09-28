@@ -38,7 +38,7 @@ public class CommonHostState
 	}
 }
 
-public class Host
+public partial class Host
 {
 	public int TimeToTicks(TimeUnit_t dt) => (int)(0.5 + dt / host_state.IntervalPerTick);
 	public TimeUnit_t TicksToTime(int dt) => host_state.IntervalPerTick * dt;
@@ -52,7 +52,7 @@ public class Host
 	public static readonly ConVar developer = new("developer", "0", 0, "Set developer message level");
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-	public GameClient? Client;
+	public static GameClient? Client;
 	public ClientGlobalVariables clientGlobalVariables = null!;
 	public CL CL = null!;
 	public MatSysInterface MatSysInterface = null!;
@@ -326,6 +326,44 @@ public class Host
 	AudioState audioState;
 
 	public void SetAudioState(in AudioState state) => audioState = state;
+
+	[ConCommand("snd_restart", "Restart sound system.")]
+	public void Snd_Restart_f() {
+#if !SWDS
+		Span<char> szVoiceCodec = stackalloc char[MAX_PATH];
+		szVoiceCodec.Clear();
+		int nVoiceSampleRate = Voice.ConfiguredSampleRate();
+
+		{
+			// This is not valid after voice shuts down
+			ReadOnlySpan<char> pPreviousCodec = Voice.ConfiguredCodec();
+			if (!pPreviousCodec.IsEmpty && pPreviousCodec[0] != '\0')
+				strcpy(szVoiceCodec, pPreviousCodec);
+		}
+
+		Sound.Shutdown();
+		g_AudioSystem.MarkFirstTime();
+		cl.ClearSounds();
+		Sound.Init();
+
+		// Restart voice if it was running
+		if (szVoiceCodec[0] != '\0')
+			Voice.Init(szVoiceCodec, nVoiceSampleRate);
+
+		// Do this or else it won't have anything in the cache.
+		if (!sv.GetMapName().IsEmpty && sv.GetMapName()[0] != '\0')
+			g_AudioSystem.LevelInit(sv.GetMapName());
+
+		// Flush soundscapes so they don't stop. We don't insert text in the buffer here because
+		// cl_soundscape_flush is normally cheat-protected.
+		ConCommand? pCommand = cvar.FindCommand("cl_soundscape_flush");
+		if (pCommand != null) {
+			TokenizedCommand cmd = new();
+			cmd.Tokenize("cl_soundscape_flush");
+			pCommand.Dispatch(in cmd, CommandSource.Command, -1);
+		}
+#endif
+	}
 
 	public void UpdateSounds() {
 		if (cl.IsActive()) {
@@ -733,11 +771,6 @@ public class Host
 		return true;
 	}
 
-	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord, autoCompleteMethod: nameof(Map_CompletionFunc))]
-	public void Map_f(in TokenizedCommand args, CommandSource source, int clientSlot = -1) {
-		Map_Helper(in args, source, false, false, false);
-	}
-
 	IEnumerable<string> Map_CompletionFunc(string partial) { // todo: properly implement this once host maplist stuff is done
 		int space = partial.IndexOf(' ');
 		string prefix = space >= 0 ? partial[..(space + 1)] : "map ";
@@ -864,7 +897,7 @@ public class Host
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
 #endif
 
-		serverPluginHandler.LevelInit(mapName, GetCollisionBSPData().MapEntityString, oldMap, landmark, loadGame && !oldSave, backgroundLevel);
+		serverPluginHandler.LevelInit(mapName, GetCollisionBSPData().MapEntityData, oldMap, landmark, loadGame && !oldSave, backgroundLevel);
 
 		if (loadGame && !oldSave) {
 			sv.SetPaused(true);
@@ -1333,7 +1366,7 @@ public class Host
 		}
 #endif
 
-		// modelloader.UnloadUnreferencedModels();
+		modelloader.UnloadUnreferencedModels();
 
 		// TimeLastMemTest = 0;
 	}
@@ -1350,5 +1383,221 @@ public class Host
 		// if (HunkLevel != 0) {
 		// 	Hunk_FreeToLowMark(HunkLevel);
 		// }
+	}
+
+	internal static TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
+#if !SWDS
+		if (!sv.IsDedicated()) {
+			int index = cl.LookupSoundIndex(sample);
+			if (index >= 0)
+				return g_AudioSystem.GetSoundDuration(cl.GetSound(index));
+			return g_AudioSystem.GetSoundDuration(SoundCharsUtils.SkipSoundChars(sample));
+		}
+#endif
+		return 0.0f;
+	}
+
+	ref struct LocalMapAccessScope : IDisposable
+	{
+		public LocalMapAccessScope() => Enabled = false;
+		public void Dispose() { if (Enabled) g_pFileSystem.EndMapAccess(); }
+		public bool Enabled;
+	};
+
+	internal bool Changelevel(bool loadfromsavedgame, ReadOnlySpan<char> mapname, ReadOnlySpan<char> start) {
+		Span<char> _startspot = stackalloc char[MAX_PATH];
+		Span<char> startspot;
+		Span<char> oldlevel = stackalloc char[MAX_PATH];
+#if !SWDS
+		// SaveRestoreData? saveData = null;
+#endif
+		bool bTransitionBySave = false;
+
+		if (!sv.IsActive()) {
+			ConMsg("Only the server may changelevel\n");
+			return false;
+		}
+
+#if SWDS
+		// todo: demo?
+#endif
+
+#if !SWDS
+		Scr.BeginLoadingPlaque();
+
+		// stop sounds (especially looping!)
+		Sound.StopAllSounds(true);
+#endif
+
+		// Prepare new level
+		sv.InactivateClients();
+
+		// The qualified name of the map, excluding path/extension
+		Span<char> szMapName = stackalloc char[MAX_PATH];
+		// The file to load the map from.
+		Span<char> szMapFile = stackalloc char[MAX_PATH];
+		strcpy(szMapName, mapname);
+		Host.DefaultMapFileName(szMapName, szMapFile);
+
+		// Ask serverDLL to prepare this load
+#if !BUILD_GMOD
+		serverGameDLL.PrepareLevelResources(szMapName, szMapFile);
+#endif
+
+		if (!modelloader.Map_IsValid(szMapFile)) {
+#if !SWDS
+			Scr.EndLoadingPlaque();
+#endif
+			// We have already inactivated clients at this point due to PrepareLevelResources being blocking, false alarm,
+			// tell them to reconnect (which doesn't mean full reconnect, just start rejoining the map)
+			//
+			// In the likely case that the game DLL tries another map this is harmless, they'll wait on the game server in
+			// the connect process if its in another level change by time they get there.
+			sv.ReconnectClients();
+			return false;
+		}
+
+		// If changing from the same map to the same map, optimize by not closing and reopening
+		// the packfile which is embedded in the .bsp; we do this by incrementing the packfile's
+		// refcount via BeginMapAccess()/EndMapAccess() through the base filesystem API.
+
+		LocalMapAccessScope mapscope = new();
+		if (strcmp(sv.GetMapName(), szMapName) == 0) {
+			g_pFileSystem.BeginMapAccess();
+			mapscope.Enabled = true;
+		}
+
+		// g_pFileSystem.AsyncFinishAll();
+
+		if (start.IsEmpty)
+			startspot = null;
+		else {
+			strcpy(_startspot, start);
+			unsafe {
+				startspot = _startspot;
+			}
+		}
+
+		Warning("---- Host_Changelevel ----\n");
+
+#if !SWDS
+		// Add on time passed since the last time we kept track till this transition
+		// int iAdditionalSeconds = g_ServerGlobalVariables.curtime - saverestore->GetMostRecentElapsedTimeSet();
+		// int iElapsedSeconds = saverestore->GetMostRecentElapsedSeconds() + iAdditionalSeconds;
+		// int iElapsedMinutes = saverestore->GetMostRecentElapsedMinutes() + (iElapsedSeconds / 60);
+		// saverestore->SetMostRecentElapsedMinutes(iElapsedMinutes);
+		// saverestore->SetMostRecentElapsedSeconds((iElapsedSeconds % 60));
+
+		if (bTransitionBySave) {
+			// char comment[80];
+			// Pass in the total elapsed time so it gets added to the elapsed time for this map.
+			// serverGameDLL.GetSaveComment(
+			// 	comment,
+			// 	sizeof(comment),
+			// 	saverestore->GetMostRecentElapsedMinutes(),
+			// 	saverestore->GetMostRecentElapsedSeconds());
+			// 
+			// if (!saverestore->SaveGameSlot("_transition", comment, false, true, szMapName, startspot)) {
+			// 	Warning("Failed to save data for transition\n");
+			// 	SCR_EndLoadingPlaque();
+			// 	return false;
+			// }
+
+			// Not going to load a save after the transition, so add this map's elapsed time to the total elapsed time
+			// int totalSeconds = serverGlobalVariables.CurTime + saverestore->GetMostRecentElapsedSeconds();
+			// todo: saverestore->SetMostRecentElapsedMinutes((int)(totalSeconds / 60.0f) + saverestore->GetMostRecentElapsedMinutes());
+			// todo: saverestore->SetMostRecentElapsedSeconds((int)fmod(totalSeconds, 60.0f));
+		}
+#endif
+
+		strcpy(oldlevel, sv.GetMapName());
+
+#if !SWDS
+		if (loadfromsavedgame) {
+			if (!bTransitionBySave) {
+				// save the current level's state
+				// todo saverestore->SaveGameState(true, &pSaveData);
+
+				// todo if (!pSaveData) {
+				// todo 	Warning("Failed to save data for transition\n");
+				// todo 	Scr.EndLoadingPlaque();
+				// todo 	mapscope.Dispose();
+				// todo 	return false;
+				// todo }
+			}
+
+			// ensure resources in the transition volume stay
+			// todo AddTransitionResources(pSaveData, szMapName, startspot);
+		}
+#endif
+		serverPluginHandler.LevelShutdown();
+
+#if !SWDS
+		// todo audiosourcecache.LevelShutdown();
+#endif
+
+#if !SWDS
+		// todo saverestore.FinishAsyncSave();
+#endif
+
+		if (sv.RestartOnLevelChange()) {
+			Cbuf.Clear();
+			Cbuf.AddText("quit\n");
+			mapscope.Dispose();
+			return false;
+		}
+
+		g_DownloadListGenerator.OnLevelLoadStart(szMapName);
+
+		if (!sv.SpawnServer(szMapName, szMapFile, startspot)) {
+#if !SWDS
+			Scr.EndLoadingPlaque();
+#endif
+			mapscope.Dispose();
+			return false;
+		}
+
+#if !SWDS
+		if (loadfromsavedgame) {
+			if (!bTransitionBySave) {
+				// Finish saving gamestate
+				// todo saverestore->Finish(pSaveData);
+			}
+
+			serverGlobalVariables.CurTime = sv.GetTime();
+
+			// todo audiosourcecache.LevelInit(szMapName);
+			serverPluginHandler.LevelInit(szMapName, CM.EntityString(), oldlevel, startspot, true, false);
+
+			sv.SetPaused(true); // pause until client connects
+			sv.LoadGame = true;
+		}
+		else
+#endif
+		{
+			serverGlobalVariables.CurTime = sv.GetTime();
+#if !SWDS
+			// todo audiosourcecache.LevelInit(szMapName);
+#endif
+			serverPluginHandler.LevelInit(szMapName, CM.EntityString(), null, null, false, false);
+		}
+
+		SV.ActivateServer();
+
+#if !SWDS
+		// Offset stored elapsed time by the current elapsed time for this new map
+		// int maptime = sv.GetTime();
+		// int minutes = (int)(maptime / 60.0f);
+		// int seconds = (int)fmod(maptime, 60.0f);
+		// todo: saverestore->SetMostRecentElapsedMinutes(saverestore->GetMostRecentElapsedMinutes() - minutes);
+		// todo: saverestore->SetMostRecentElapsedSeconds(saverestore->GetMostRecentElapsedSeconds() - seconds);
+#endif
+
+		// NotifyDedicatedServerUI("UpdateMap");
+
+		g_DownloadListGenerator.OnLevelLoadEnd();
+
+		mapscope.Dispose();
+		return true;
 	}
 }

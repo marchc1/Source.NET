@@ -135,12 +135,20 @@ public class EngineToolImpl : IEngineToolInternal
 		throw new NotImplementedException();
 	}
 
-	public float GetSoundDuration(ReadOnlySpan<char> pszName) {
-		throw new NotImplementedException();
+	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> pszName) {
+#if !SWDS
+		return g_AudioSystem.GetSoundDuration(pszName);
+#else
+		return 0;
+#endif
 	}
 
-	public float GetSoundDuration(int guid) {
-		throw new NotImplementedException();
+	public TimeUnit_t GetSoundDuration(int guid) {
+#if !SWDS
+		return g_AudioSystem.SoundDurationByGuid(guid);
+#else
+		return 0;
+#endif
 	}
 
 	public StudioHeader? GetStudioModel(uint hEntity) {

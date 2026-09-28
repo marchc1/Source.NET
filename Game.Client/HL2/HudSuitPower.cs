@@ -1,7 +1,8 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
+using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
@@ -30,8 +31,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 
 	const int SUIT_POWER_INIT = -1;
 
-	public HudSuitPower(string? panelName) : base(null, "HudSuitPower") {
-		ElementName = panelName;
+	public HudSuitPower(string? panelName) : base("HudSuitPower", panelName) {
 		SetParent(clientMode.GetViewport());
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.NeedSuit | HideHudBits.PlayerDead);
 	}
@@ -44,10 +44,20 @@ public class HudSuitPower : EditableHudElement, IHudElement
 
 	public void Reset() => Init();
 
+#if GMOD_DLL
+	static ConVarRef? gmod_suit;
+#endif
+
 	public bool ShouldDraw() {
 		C_BaseHLPlayer? player = (C_BaseHLPlayer?)BasePlayer.GetLocalPlayer();
 		if (player == null)
 			return false;
+
+#if GMOD_DLL
+		gmod_suit ??= new("gmod_suit");
+		if (gmod_suit.Value.GetInt() == 0)
+			return false;
+#endif
 
 		bool needsDraw = (player.HL2Local.SuitPower != SuitPower) || AuxPowerColor.A > 0;
 		return needsDraw && IHudElement.DefaultShouldDraw(this);
@@ -67,10 +77,9 @@ public class HudSuitPower : EditableHudElement, IHudElement
 		else if (currentPower < 100.0f && (SuitPower >= 100.0f || SuitPower == SUIT_POWER_INIT))
 			clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitAuxPowerNotMax");
 
-		// todo!
-		bool flashlightActive = false;//player.IsFlashLightActive();
-		bool sprintActive = player.IsSprinting();
-		bool breatherActive = false;//player.IsBreatherActive();
+		bool flashlightActive = player.IsFlashlightActive();
+		bool sprintActive = player.IsSprintingBits();
+		bool breatherActive = player.IsBreatherActive();
 		int activeDevices = (flashlightActive ? 1 : 0) + (sprintActive ? 1 : 0) + (breatherActive ? 1 : 0);
 
 		if (activeDevices != ActiveSuitDevices) {
@@ -147,7 +156,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 		if (ActiveSuitDevices != 0) {
 			ypos = (int)text2_ypos;
 
-			if (false /*player.IsBreatherActive()*/) {// todo
+			if (player.IsBreatherActive()) {
 				tempString = localize.Find("#Valve_Hud_OXYGEN");
 
 				surface.DrawSetTextPos((int)text2_xpos, ypos);
@@ -160,7 +169,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 				ypos += (int)text2_gap;
 			}
 
-			if (false /*player.IsFlashlightActive()*/) {// todo
+			if (player.IsFlashlightActive()) {
 				tempString = localize.Find("#Valve_Hud_FLASHLIGHT");
 
 				surface.DrawSetTextPos((int)text2_xpos, ypos);
@@ -173,7 +182,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 				ypos += (int)text2_gap;
 			}
 
-			if (player.IsSprinting()) {
+			if (player.IsSprintingBits()) {
 				tempString = localize.Find("#Valve_Hud_SPRINT");
 
 				surface.DrawSetTextPos((int)text2_xpos, ypos);

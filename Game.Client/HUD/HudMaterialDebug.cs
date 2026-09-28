@@ -1,4 +1,4 @@
-#if DEBUG
+﻿#if DEBUG
 using Game.Shared;
 
 using Source;
@@ -28,6 +28,7 @@ public class HudMaterialDebug : Panel, IHudElement
 	static readonly ConVar sdn_matdebug = new("sdn_matdebug", "0", FCvar.ClientDLL, "Show material debug info for what's under the crosshair. 1 = world surfaces, 2 = also models/entities");
 
 	public HudMaterialDebug(string elementName) : base(null, "HudMaterialDebug") {
+		ElementName = elementName;
 		((IHudElement)this).Ctor(elementName);
 		SetParent(clientMode.GetViewport());
 		SetProportional(false);

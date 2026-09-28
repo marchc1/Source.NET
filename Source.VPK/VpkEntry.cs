@@ -69,7 +69,8 @@
 			}
 
 			if (partFile == null)
-				throw new Exception("Part file was null!");
+				return [];
+			//throw new Exception("Part file was null!");
 
 			if (HasPreloadData) {
 				dataCache = new byte[PreloadBytes + EntryLength];

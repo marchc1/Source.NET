@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -15,12 +15,12 @@ using Source.Engine.Server;
 using Steamworks;
 
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
 
 namespace Source.Engine;
 
 internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 {
-	public readonly SharedEdictChangeInfo g_roSharedEdictChangeInfo = new();
 	public void AddOriginToPVS(in Vector3 origin) {
 		throw new NotImplementedException();
 	}
@@ -40,9 +40,9 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 			for (int i = 0; i < sv.NumEdicts; i++)
 				sv.Edicts![i].SetChangeInfoSerialNumber(0);
 		}
-		else 
+		else
 			g_SharedEdictChangeInfo.SerialNumber++;
-		
+
 		g_SharedEdictChangeInfo.NumChangeInfos = 0;
 	}
 
@@ -78,13 +78,11 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 
 	public int CheckAreasConnected(int area1, int area2) => CM.AreasConnected(area1, area2);
 
-	static bool warnedCheckBoxInPVS = false;
 	public bool CheckBoxInPVS(in Vector3 mins, in Vector3 maxs, ReadOnlySpan<byte> checkpvs) {
-		if (!warnedCheckBoxInPVS) {
-			Console.WriteLine("CheckBoxInPVS not implemented");
-			warnedCheckBoxInPVS = true;
-		}
-		return false;
+		if (!CM.BoxVisible(mins, maxs, checkpvs))
+			return false;
+
+		return true;
 	}
 
 	public int CheckHeadnodeVisible(int nodenum, Span<byte> pvs) {
@@ -108,7 +106,20 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void ClientCommand(Edict edict, ReadOnlySpan<char> cmd) {
-		throw new NotImplementedException();
+		if (cmd.IsEmpty) {
+			Warning("ClientCommand, 0 length string supplied.\n");
+			return;
+		}
+
+		int entnum = NUM_FOR_EDICT(edict);
+
+		if (entnum < 1 || entnum > sv.GetClientCount()) {
+			ConMsg($"\n!!!\n\nStuffCmd:  Some entity tried to stuff '{cmd}' to console buffer of entity {entnum} when maxclients was set to {sv.GetMaxClients()}, ignoring\n\n");
+			return;
+		}
+
+		NET_StringCmd stringCmd = new(new(cmd));
+		sv.GetClient(entnum - 1)!.SendNetMsg(stringCmd);
 	}
 
 	public void ClientCommandKeyValues(Edict edict, KeyValues command) {
@@ -134,11 +145,14 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {}
 #else
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		if (IsDedicatedServer())
+			return;
+
+		Con.NPrintF(pos, msg);
 	}
 
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		Con.NXPrintF(in info, msg);
 	}
 #endif
 
@@ -178,8 +192,77 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void EmitAmbientSound(int entindex, in Vector3 pos, ReadOnlySpan<char> samp, float vol, SoundLevel soundlevel, int fFlags, int pitch, float delay = 0) {
-		throw new NotImplementedException();
+	public void EmitAmbientSound(int entindex, in Vector3 pos, ReadOnlySpan<char> samp, float vol, SoundLevel soundlevel, int fFlags, int pitch, float soundtime = 0) {
+		SoundInfo sound = default;
+		sound.SetDefault();
+
+		samp = samp.SliceNullTerminatedString();
+
+		sound.EntityIndex = entindex;
+		sound.Volume = vol;
+		sound.Soundlevel = soundlevel;
+		sound.Flags = (SoundFlags)fFlags;
+		sound.Pitch = pitch;
+		sound.Channel = SoundEntityChannel.Static;
+		sound.Origin = pos;
+		sound.IsAmbient = true;
+
+		// set sound delay
+
+		if (soundtime != 0.0f) {
+			sound.Delay = soundtime - sv.GetTime();
+			sound.Flags |= SoundFlags.Delay;
+		}
+
+		// if this is a sentence, get sentence number
+		if (SoundCharsUtils.TestSoundChar(samp, SoundChars.Sentence)) {
+			sound.IsSentence = true;
+			sound.SoundNum = atoi(SoundCharsUtils.SkipSoundChars(samp));
+#if !SWDS
+			if (sound.SoundNum >= g_AudioSystem.SentenceCount()) {
+				ConMsg($"EmitAmbientSound: invalid sentence number: {SoundCharsUtils.SkipSoundChars(samp)}");
+				return;
+			}
+#endif
+		}
+		else {
+			// check to see if samp was properly precached
+			sound.IsSentence = false;
+			sound.SoundNum = sv.LookupSoundIndex(samp);
+			if (sound.SoundNum <= 0) {
+				ConMsg($"EmitAmbientSound:  sound not precached: {samp}\n");
+				return;
+			}
+		}
+
+		if ((fFlags & (int)SoundFlags.Spawning) != 0 && sv.AllowSignOnWrites) {
+			SVC_Sounds sndmsg = new();
+			byte[] buffer = new byte[32];
+
+			sndmsg.DataOut.StartWriting(buffer, buffer.Length);
+			sndmsg.NumSounds = 1;
+			sndmsg.ReliableSound = true;
+
+			SoundInfo defaultSound = default; defaultSound.SetDefault();
+
+			sound.WriteDelta(ref defaultSound, sndmsg.DataOut);
+
+			// write into signon buffer
+			if (!sndmsg.WriteToBuffer(sv.Signon)) {
+				Sys.Error("EmitAmbientSound: Init message would overflow signon buffer!\n");
+				return;
+			}
+		}
+		else {
+			if ((fFlags & (int)SoundFlags.Spawning) != 0)
+				DevMsg("EmitAmbientSound: warning, broadcasting sound labled as SND_SPAWNING.\n");
+
+			// send sound to all active players
+			EngineRecipientFilter filter = new();
+			filter.AddAllPlayers();
+			filter.MakeReliable();
+			sv.BroadcastSound(sound, filter);
+		}
 	}
 
 	public bf_write? EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable) {
@@ -277,11 +360,45 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public int GetClusterCount() {
-		throw new NotImplementedException();
+		CollisionBSPData? bspData = GetCollisionBSPData();
+		if (bspData != null && bspData.MapVis != null)
+			return bspData.NumClusters;
+		return 0;
+	}
+
+	public int GetAllClusterBounds(Span<BBox> bboxList) {
+		int maxBBox = bboxList.Length;
+		CollisionBSPData? bspData = GetCollisionBSPData();
+		WorldBrushData? worldbrush = Singleton<CommonHostState>().WorldBrush;
+		if (bspData != null && bspData.MapVis != null && worldbrush != null) {
+			// clamp to max clusters in the map
+			if (maxBBox > bspData.NumClusters)
+				maxBBox = bspData.NumClusters;
+
+			// reset all of the bboxes
+			for (int i = 0; i < maxBBox; i++)
+				MathLib.ClearBounds(out bboxList[i].Mins, out bboxList[i].Maxs);
+
+			// add each leaf's bounds to the bounds for that cluster
+			for (int i = 0; i < worldbrush.NumLeafs; i++) {
+				Source.Common.Formats.BSP.BSPMLeaf leaf = worldbrush.Leafs![i];
+				// skip solid leaves and leaves with cluster < 0
+				if ((leaf.Contents & (int)Source.Common.Formats.BSP.Contents.Solid) == 0 && leaf.Cluster >= 0 && leaf.Cluster < maxBBox) {
+					Vector3 mins, maxs;
+					mins = leaf.Center - leaf.HalfDiagonal;
+					maxs = leaf.Center + leaf.HalfDiagonal;
+					MathLib.AddPointToBounds(mins, ref bboxList[leaf.Cluster].Mins, ref bboxList[leaf.Cluster].Maxs);
+					MathLib.AddPointToBounds(maxs, ref bboxList[leaf.Cluster].Mins, ref bboxList[leaf.Cluster].Maxs);
+				}
+			}
+
+			return bspData.NumClusters;
+		}
+		return 0;
 	}
 
 	public int GetClusterForOrigin(in Vector3 org) {
-		throw new NotImplementedException();
+		return CM.LeafCluster(CM.PointLeafnum(org));
 	}
 
 	public int GetEntityCount() => sv.NumEdicts - sv.FreeEdicts;
@@ -301,8 +418,8 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		return sid;
 	}
 
-	public ReadOnlySpan<char> GetMapEntitiesString() {
-		throw new NotImplementedException();
+	public ReadOnlyMemory<byte> GetMapEntitiesString() {
+		return GetCollisionBSPData().MapEntityData;
 	}
 
 	public ReadOnlySpan<char> GetMostRecentlyLoadedFileName() {
@@ -349,7 +466,18 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public int GetPVSForCluster(int cluster, Span<byte> outputpvs) {
-		throw new NotImplementedException();
+		int length = (CM.NumClusters() + 7) >> 3;
+
+		if (!outputpvs.IsEmpty) {
+			if (outputpvs.Length < length) {
+				Sys.Error($"GetPVSForOrigin called with inusfficient sized pvs array, need {length} bytes!");
+				return length;
+			}
+
+			CM.Vis(outputpvs, outputpvs.Length, cluster, CM.DVIS_PVS);
+		}
+
+		return length;
 	}
 
 	public ReadOnlySpan<char> GetSaveFileName() {
@@ -540,7 +668,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	void PR_CheckEmptyString(ReadOnlySpan<char> s){
+	void PR_CheckEmptyString(ReadOnlySpan<char> s) {
 		if (s.Length == 0)
 			Host.Error($"Bad string: {s}");
 	}
@@ -550,15 +678,26 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 			PR_CheckEmptyString(s);
 
 		int i = SV.FindOrAddModel(s, preload);
-		if (i >= 0) 
+		if (i >= 0)
 			return i;
 
 		Host.Error($"EngineServer.PrecacheModel: '{s}' overflow, too many models");
 		return 0;
 	}
 
+	//-----------------------------------------------------------------------------
+	// Purpose: Precache a sentence file (parse on server, send to client)
+	// Input  : *s - file name
+	//-----------------------------------------------------------------------------
 	public int PrecacheSentenceFile(ReadOnlySpan<char> s, bool preload = false) {
-		throw new NotImplementedException();
+		// UNDONE:  Set up preload flag
+
+		// UNDONE: Send this data to the client to support multiple sentence files
+#if !SWDS
+		g_AudioSystem.ReadSentenceFile(s);
+#endif
+
+		return 0;
 	}
 
 	public void RemoveEdict(Edict e) {
@@ -570,33 +709,53 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+#if !SWDS
 	public ReadOnlySpan<char> SentenceGrounameFromIndex(int groupIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupNameFromIndex(groupIndex);
 	}
 
 	public int SentenceGroupIndexFromName(ReadOnlySpan<char> pGrouname) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupIndexFromName(pGrouname);
 	}
 
 	public int SentenceGroupPick(int groupIndex, Span<char> name) {
-		throw new NotImplementedException();
+		Assert(name.Length > 0);
+
+		int pick = g_AudioSystem.SentenceGroupPick(groupIndex, out string found);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceGroupPickSequential(int groupIndex, Span<char> name, int sentenceIndex, int reset) {
-		throw new NotImplementedException();
+		Assert(name.Length > 0);
+
+		int pick = g_AudioSystem.SentenceGroupPickSequential(groupIndex, out string found, sentenceIndex, reset != 0);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceIndexFromName(ReadOnlySpan<char> pSentenceName) {
-		throw new NotImplementedException();
+		g_AudioSystem.LookupSentence(pSentenceName, out int sentenceIndex);
+
+		return sentenceIndex;
 	}
 
 	public float SentenceLength(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceLength(sentenceIndex);
 	}
 
 	public ReadOnlySpan<char> SentenceNameFromIndex(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceNameFromIndex(sentenceIndex);
 	}
+#else
+	public ReadOnlySpan<char> SentenceGrounameFromIndex(int groupIndex) => null;
+	public int SentenceGroupIndexFromName(ReadOnlySpan<char> pGrouname) => -1;
+	public int SentenceGroupPick(int groupIndex, Span<char> name) => -1;
+	public int SentenceGroupPickSequential(int groupIndex, Span<char> name, int sentenceIndex, int reset) => -1;
+	public int SentenceIndexFromName(ReadOnlySpan<char> pSentenceName) => -1;
+	public float SentenceLength(int sentenceIndex) => 0;
+	public ReadOnlySpan<char> SentenceNameFromIndex(int sentenceIndex) => null;
+#endif
 
 	static bool ValidCmd(ReadOnlySpan<char> cmd) {
 		int len = (int)strlen(cmd);
@@ -651,8 +810,8 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		cl.SendNetMsg(view);
 	}
 
-	public void SolidMoved(Edict pSolidEnt, ICollideable pSolidCollide, in Vector3 prevAbsOrigin, bool testSurroundingBoundsOnly) {
-		throw new NotImplementedException();
+	public void SolidMoved(Edict pSolidEnt, ICollideable pSolidCollide, Vector3? prevAbsOrigin, bool accurateBboxTriggerChecks) {
+		WorldTouch.SV_SolidMoved(pSolidEnt, pSolidCollide, prevAbsOrigin, accurateBboxTriggerChecks);
 	}
 
 	public void StaticDecal(in Vector3 originInEntitySpace, int decalIndex, int entityIndex, int modelIndex, bool lowpriority) {
@@ -676,8 +835,8 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 
 	public TimeUnit_t Time() => Sys.Time;
 
-	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
-		throw new NotImplementedException();
+	public void TriggerMoved(Edict pTriggerEnt, bool accurateBboxTriggerChecks) {
+		WorldTouch.SV_TriggerMoved(pTriggerEnt, accurateBboxTriggerChecks);
 	}
 
 	class MsgData
@@ -750,7 +909,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		return client.GetPrevPackInfo();
 	}
 
-	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_roSharedEdictChangeInfo;
+	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_pSharedEdictChangeInfo;
 
 	public Span<float> GMOD_SetTimeManipulator(float scaleFramerate) {
 		throw new NotImplementedException();

@@ -1379,8 +1379,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)currentMode * szm4x4;
 		Matrices[(int)currentMode] = m4x4;
-		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
-		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
+		fixed (Matrix4x4* pMatrix = &Matrices[(int)currentMode])
+			glNamedBufferSubData(uboMatrices, loc, szm4x4, pMatrix);
 
 		if (currentMode == MaterialMatrixMode.View) {
 			CacheWorldSpaceCameraPosition();
@@ -2630,5 +2630,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 		else
 			SetPixelShaderConstant(reg, MemoryMarshal.Cast<Vector4, float>(MemoryMarshal.CreateSpan(ref AmbientLightCube[0], 6)));
+	}
+
+	float IShaderDynamicAPI.GetLightMapScaleFactor() {
+		return HardwareConfig.GetHDRType() switch {
+			HDRType.Float => 1.0f,
+			HDRType.Integer => 16.0f,
+			_ => MathLib.GammaToLinearFullRange(2.0f),
+		};
 	}
 }

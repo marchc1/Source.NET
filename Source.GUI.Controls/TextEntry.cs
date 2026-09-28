@@ -63,7 +63,7 @@ public class TextEntry : Panel
 		LangInset = 0;
 
 		int langlen = 0;
-		if (AllowNonAsciiCharacters) {
+		if (AllowNonAsciiCharacters && DrawLanguageID) {
 			// TODO: IME related things
 		}
 
@@ -211,7 +211,7 @@ public class TextEntry : Panel
 
 		CursorPos = oldCursorPos;
 
-		if (HasFocus() && AllowNonAsciiCharacters && langlen > 0) {
+		if (HasFocus() && AllowNonAsciiCharacters && DrawLanguageID && langlen > 0) {
 			wide += LangInset;
 
 			if (DrawLanguageIDAtLeft)
@@ -311,7 +311,7 @@ public class TextEntry : Panel
 			x += getCharWidth(Font, ch);
 		}
 
-		if (DrawLanguageIDAtLeft)
+		if (DrawLanguageIDAtLeft && DrawLanguageID)
 			x += LangInset;
 
 	}
@@ -521,6 +521,7 @@ public class TextEntry : Panel
 	bool AllowNumericInputOnly;
 	int LangInset;
 	bool DrawLanguageIDAtLeft;
+	bool DrawLanguageID = true;
 	bool UseFallbackFont;
 	IFont? FallbackFont;
 
@@ -557,6 +558,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMousePressed hook
+#endif
 		if (code == ButtonCode.MouseLeft) {
 			bool keepChecking = SelectCheck(true);
 			if (!keepChecking) {
@@ -593,6 +597,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMouseReleased hook
+#endif
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 		if (GetSelectedRange(out int cx0, out int cx1)) {
@@ -654,6 +661,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnKeyCodePressed hook
+#endif
 		if (code == ButtonCode.KeyEnter) {
 			if (!CatchEnterKey) {
 				base.OnKeyCodePressed(code);
@@ -687,6 +697,19 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
+#if GMOD_DLL
+		if (code >= ButtonCode.KeyF1 && code <= ButtonCode.KeyF12) {
+			ReadOnlySpan<char> binding = gameuifuncs.GetBindingForButtonCode(code);
+			if (binding.IsEmpty || binding[0] == '\0')
+				return;
+
+			Span<char> command = stackalloc char[256];
+			strcpy(command, binding);
+			engine.ClientCmd_Unrestricted(command);
+			return;
+		}
+		// todo: OnKeyCodeTyped hook
+#endif
 		CursorIsAtEnd = PutCursorAtEnd;
 		PutCursorAtEnd = false;
 
@@ -877,6 +900,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKeyTyped(char ch) {
+#if GMOD_DLL
+		// todo: AllowInput hook
+#endif
 		CursorIsAtEnd = PutCursorAtEnd;
 		PutCursorAtEnd = false;
 
@@ -1137,6 +1163,9 @@ public class TextEntry : Panel
 	}
 
 	public override void OnKillFocus(Panel? newPanel) {
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 		if (DataChanged) {
 			FireActionSignal();
 			DataChanged = false;
@@ -1164,6 +1193,8 @@ public class TextEntry : Panel
 		int wx = GetWide() - 1;
 		CursorToPixelSpace(CursorPos, out int cx, out _);
 		if (wx <= 0) return false;
+		if (DrawLanguageID && !DrawLanguageIDAtLeft)
+			wx -= LangInset;
 
 		return cx >= wx;
 	}
@@ -1596,6 +1627,15 @@ public class TextEntry : Panel
 			FireActionSignal();
 	}
 
+	public virtual void CutSelected() {
+		CopySelected();
+		DeleteSelected();
+		RequestFocus();
+
+		if (DataChanged)
+			FireActionSignal();
+	}
+
 	private void Paste() {
 		if (!IsEditable())
 			return;
@@ -1749,10 +1789,23 @@ public class TextEntry : Panel
 
 	static readonly KeyValues TextNewLineActionSignal = new("TextNewLine");
 	static readonly KeyValues TextChangedActionSignal = new("TextChanged");
+#if GMOD_DLL
+	static bool FiringActionSignal;
+#endif
 	public void FireActionSignal() {
+#if GMOD_DLL
+		if (FiringActionSignal)
+			return;
+		FiringActionSignal = true;
+#endif
 		PostActionSignal(TextChangedActionSignal);
 		DataChanged = false;   // reset the data changed flag
 		InvalidateLayout();
+#if GMOD_DLL
+		RecalculateLineBreaks();
+		// todo: OnTextChanged hook
+		FiringActionSignal = false;
+#endif
 	}
 
 	private void ResetCursorBlink() {
@@ -1784,6 +1837,8 @@ public class TextEntry : Panel
 
 	public int PixelToCursorSpace(int cx, int cy) {
 		GetSize(out int w, out int h);
+		if (DrawLanguageIDAtLeft && DrawLanguageID)
+			cx -= LangInset;
 		cx = Math.Clamp(cx, 0, w + 100);
 		cy = Math.Clamp(cy, 0, h);
 
@@ -1922,6 +1977,19 @@ public class TextEntry : Panel
 
 	public bool IsEditable() => Editable;
 	public void SetMaximumCharCount(int chars) => MaxCharCount = chars;
+	public int GetMaximumCharCount() => MaxCharCount;
+	public void SetDrawLanguageIDAtLeft(bool state) => DrawLanguageIDAtLeft = state;
+	public void SetDrawLanguageID(bool state) => DrawLanguageID = state;
+#if GMOD_DLL
+	public override int GetCaretPos() => CursorPos;
+	public override void SetCaretPos(int pos) {
+		pos = Math.Max(pos, 0);
+		if (GetTextLength() < pos)
+			CursorPos = GetTextLength();
+		else
+			CursorPos = pos;
+	}
+#endif
 	public void SetAllowNonAsciiCharacters(bool state) => AllowNonAsciiCharacters = state;
 	public void SetAllowNumericInputOnly(bool state) => AllowNumericInputOnly = state;
 	public void SelectAllOnFirstFocus(bool state) => ShouldSelectAllOnFirstFocus = state;
@@ -1930,6 +1998,9 @@ public class TextEntry : Panel
 		ShouldSelectAllOnFocusAlways = state;
 	}
 	public override void OnSetFocus() {
+#if GMOD_DLL
+		// todo: OnGetFocus hook
+#endif
 		if (ShouldSelectAllOnFirstFocus) {
 			Select[1] = TextStream.Count;
 			Select[0] = Select[1] > 0 ? 0 : -1;
@@ -1963,6 +2034,9 @@ public class TextEntry : Panel
 		SelectAllOnFirstFocus(resourceData.GetInt("selectallonfirstfocus", 0) != 0);
 	}
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 
 		SetFgColor(GetSchemeColor("TextEntry.TextColor", scheme));

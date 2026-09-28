@@ -385,6 +385,9 @@ public class ViewRender : IViewRender
 
 		ViewDrawScene(drew3dSkybox, skyboxVisible, in viewRender, clearFlags, ViewID.Main, (whatToDraw & RenderViewInfo.DrawViewmodel) != 0);
 		render.SceneEnd();
+
+		RenderPlayerSprites();
+
 		DrawViewModels(in viewRender, (whatToDraw & RenderViewInfo.DrawViewmodel) != 0);
 
 		CleanupMain3DView(in viewRender);
@@ -537,6 +540,14 @@ public class ViewRender : IViewRender
 			}
 		}
 		CurrentlyDrawingEntity = null;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Renders voice feedback and other sprites attached to players
+	// Input  : none
+	//-----------------------------------------------------------------------------
+	void RenderPlayerSprites() {
+		GetClientVoiceMgr().DrawHeadLabels();
 	}
 
 	private void DrawViewModels(in ViewSetup viewRender, bool drawViewmodel) {

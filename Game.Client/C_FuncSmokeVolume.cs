@@ -9,13 +9,14 @@ using FIELD = FIELD<C_FuncSmokeVolume>;
 public class C_FuncSmokeVolume : C_BaseParticleEntity
 {
 	public static readonly RecvTable DT_FuncSmokeVolume = new(DT_BaseParticleEntity, [
-		RecvPropInt(FIELD.OF(nameof(Color1))),
-		RecvPropInt(FIELD.OF(nameof(Color2))),
+		RecvPropInt(FIELD.OF(nameof(Color1)), 0, RecvProxy_IntToColor32),
+		RecvPropInt(FIELD.OF(nameof(Color2)), 0, RecvProxy_IntToColor32),
 		RecvPropString(FIELD.OF(nameof(MaterialName))),
 		RecvPropFloat(FIELD.OF(nameof(ParticleDrawWidth))),
 		RecvPropFloat(FIELD.OF(nameof(ParticleSpacingDistance))),
 		RecvPropFloat(FIELD.OF(nameof(DensityRampSpeed))),
 		RecvPropFloat(FIELD.OF(nameof(RotationSpeed))),
+		RecvPropFloat(FIELD.OF(nameof(MovementSpeed))),
 		RecvPropFloat(FIELD.OF(nameof(Density))),
 		RecvPropInt(FIELD.OF(nameof(SpawnFlags))),
 	]);

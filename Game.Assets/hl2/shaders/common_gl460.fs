@@ -37,6 +37,41 @@
 #define ATI_NOPCF			1
 #define ATI_NO_PCF_FETCH4	2
 
+// Needs to match NormalDecodeMode_t enum in imaterialsystem.h
+#define NORM_DECODE_NONE			0
+#define NORM_DECODE_ATI2N			1
+#define NORM_DECODE_ATI2N_ALPHA		2
+
+vec4 DecompressNormal(sampler2D NormalSampler, vec2 tc, int nDecompressionMode, sampler2D AlphaSampler)
+{
+    vec4 normalTexel = texture(NormalSampler, tc);
+    vec4 result;
+
+    if (nDecompressionMode == NORM_DECODE_NONE)
+    {
+        result = vec4(normalTexel.xyz * 2.0 - 1.0, normalTexel.a);
+    }
+    else if (nDecompressionMode == NORM_DECODE_ATI2N)
+    {
+        result.xy = normalTexel.xy * 2.0 - 1.0;
+        result.z = sqrt(1.0 - dot(result.xy, result.xy));
+        result.a = 1.0;
+    }
+    else // ATI2N plus ATI1N for alpha
+    {
+        result.xy = normalTexel.xy * 2.0 - 1.0;
+        result.z = sqrt(1.0 - dot(result.xy, result.xy));
+        result.a = texture(AlphaSampler, tc).x;					// Note that this comes in on the X channel
+    }
+
+    return result;
+}
+
+vec4 DecompressNormal(sampler2D NormalSampler, vec2 tc, int nDecompressionMode)
+{
+    return DecompressNormal(NormalSampler, tc, nDecompressionMode, NormalSampler);
+}
+
 // texture combining modes for combining base and detail/basetexture2
 #define TCOMBINE_RGB_EQUALS_BASE_x_DETAILx2 0				// original mode
 #define TCOMBINE_RGB_ADDITIVE 1								// base.rgb+detail.rgb*fblend

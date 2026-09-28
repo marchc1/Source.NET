@@ -79,7 +79,7 @@ public class TextImage : Image
 		if (text.IsEmpty)
 			text = "";
 
-		Text = new(text);
+		Text = new(text.SliceNullTerminatedString());
 		LineBreaks.Clear();
 		LineXIndent.Clear();
 		RecalculateTruncation = true;

@@ -569,14 +569,14 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropQAngles (FIELD.OF(nameof(Rotation))),
 		RecvPropInt( FIELD.OF(nameof( TextureFrameIndex) )),
 		RecvPropDataTable( "predictable_id", DT_PredictableId ),
-		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick))),
-		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick))),
+		RecvPropInt(FIELD.OF(nameof(SimulatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
+		RecvPropInt(FIELD.OF(nameof(AnimatedEveryTick)), 0, RecvProxy_InterpolationAmountChanged),
 		RecvPropBool( FIELD.OF(nameof( AlternateSorting ))),
 
 		RecvPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(Collision)))),
 
 		// gmod specific
-		RecvPropInt(FIELD.OF(nameof(TakeDamage))),
+		RecvPropInt(FIELD.OF(nameof(m_takedamage))),
 		RecvPropInt(FIELD.OF(nameof(RealClassName))),
 
 		RecvPropInt(FIELD.OF(nameof(OverrideMaterial))),
@@ -591,9 +591,9 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropBool(FIELD.OF(nameof(OnFire))),
 		RecvPropFloat(FIELD.OF(nameof(CreationTime))),
 
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 0)),
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 1)),
-		RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(Velocity), 2)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 0)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 1)),
+		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Velocity), 2)),
 
 		// NW2 table
 		RecvPropGModTable(FIELD.OF(nameof(GMOD_DataTable))),
@@ -719,7 +719,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public PredictableId PredictableID = new();
 
-	public byte TakeDamage;
+	public byte m_takedamage;
 	public ushort RealClassName;
 	public ushort OverrideMaterial;
 	public InlineArray32<ushort> OverrideSubMaterials;
@@ -761,6 +761,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int Speed;
 	public int TeamNum;
+	public int GetTeamNumber() => TeamNum;
 
 	IPhysicsObject? PhysicsObject = null!;
 	public void VPhysicsUpdate(IPhysicsObject physics) { }
@@ -770,6 +771,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsFloating() => false;
 
 	public EHANDLE OwnerEntity = new();
+	public C_BaseEntity? GetOwnerEntity() => (C_BaseEntity?)OwnerEntity.Get();
 	public EHANDLE EffectEntity = new();
 	public EHANDLE GroundEntity = new();
 	public EHANDLE NetworkMoveParent = new();
@@ -971,6 +973,8 @@ public partial class C_BaseEntity : IClientEntity
 		return ref AbsRotation;
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
+
+	public virtual Source.Common.Audio.MouthInfo? GetMouth() => null;
 
 	public virtual bool GetSoundSpatialization(ref SpatializationInfo info) {
 		if (EntIndex() == 0)
@@ -1191,6 +1195,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	/// <summary>
 	/// The equiv of the dtor (kinda...)
+	/// see C_BaseEntity::~C_BaseEntity() etc
 	/// </summary>
 	public virtual void Term() {
 		DestroyAllDataObjects();
@@ -1648,6 +1653,15 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
+
+	// stubs on client
+	public void NetworkStateManualMode(bool _) { }
+	public void NetworkStateChanged() { }
+	public void NetworkStateChanged(IFieldAccessor _) { }
+	public void NetworkStateSetUpdateInterval(float _) { }
+	public void NetworkStateForceUpdate() { }
+
+
 	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
 
@@ -1723,7 +1737,7 @@ public partial class C_BaseEntity : IClientEntity
 		return ent;
 	}
 
-	protected virtual void UpdateVisibility() {
+	public virtual void UpdateVisibility() {
 		// todo: tools
 		if (ShouldDraw() && !IsDormant())
 			AddToLeafSystem();
@@ -1752,8 +1766,31 @@ public partial class C_BaseEntity : IClientEntity
 		if (RenderMode == (int)Source.RenderMode.None)
 			return RenderGroup.OpaqueEntity;
 
-		// The rest of this can be implemented later
-		return RenderGroup.OpaqueEntity;
+		// todo
+		// int tempComputeFrame = FXComputeFrame;
+		// FXComputeFrame = gpGlobals.FrameCount;
+
+		int fxBlend = GetFxBlend();
+
+		// todo
+		// FXComputeFrame = tempComputeFrame;
+
+		if (fxBlend == 0)
+			return RenderGroup.OpaqueEntity;
+
+		ModelType modelType = modelinfo.GetModelType(Model);
+		RenderGroup renderGroup = (modelType == ModelType.Brush) ? RenderGroup.OpaqueBrush : RenderGroup.OpaqueEntity;
+		if ((fxBlend != 255) || IsTransparent()) {
+			if (RenderMode != (int)Source.RenderMode.Environmental)
+				renderGroup = RenderGroup.TranslucentEntity;
+			else
+				renderGroup = RenderGroup.Other;
+		}
+
+		if ((renderGroup == RenderGroup.TranslucentEntity) && modelinfo.IsTranslucentTwoPass(Model))
+			renderGroup = RenderGroup.TwoPass;
+
+		return renderGroup;
 	}
 
 	public void AddToLeafSystem() => AddToLeafSystem(GetRenderGroup());
@@ -1776,6 +1813,12 @@ public partial class C_BaseEntity : IClientEntity
 		DestroyShadow();
 	}
 
+	public ref readonly QAngle GetLocalAngularVelocity() => ref AngVelocity;
+
+	public void SetLocalAngularVelocity(in QAngle vecAngVelocity) {
+		if (AngVelocity != vecAngVelocity)
+			AngVelocity = vecAngVelocity;
+	}
 
 	public virtual void NotifyShouldTransmit(ShouldTransmiteState state) {
 		if (EntIndex() < 0)
@@ -1926,6 +1969,16 @@ public partial class C_BaseEntity : IClientEntity
 			ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
 		}
 	}
+
+
+	public void ComputeAbsPosition(in Vector3 localPosition, out Vector3 absPosition) {
+		C_BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null)
+			absPosition = localPosition;
+		else
+			MathLib.VectorTransform(localPosition, moveParent.EntityToWorldTransform(), out absPosition);
+	}
+
 
 	public virtual void Spawn() { }
 	public virtual void Activate() { }
@@ -2700,7 +2753,7 @@ public partial class C_BaseEntity : IClientEntity
 			InvalidatePhysicsRecursive(changeFlags);
 	}
 
-	private void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
+	public void Interp_UpdateInterpolationAmounts(ref VarMapping map) {
 		if (Unsafe.IsNullRef(ref map))
 			return;
 
@@ -2743,6 +2796,48 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
+
+	public static bool sm_bDisableTouchFuncs = false;  // Disables PhysicsTouch and PhysicsStartTouch function calls
+	public int TouchStamp;
+
+	public delegate void TOUCHPTR(C_BaseEntity? other);
+	public TOUCHPTR? FnTouch;
+
+	public virtual void StartTouch(C_BaseEntity? other) {
+		// notify parent
+		//	if ( m_pParent != NULL )
+		//		m_pParent->StartTouch( pOther );
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Call touch function if one is set
+	// Input  : *pOther -
+	//-----------------------------------------------------------------------------
+	public virtual void Touch(C_BaseEntity? other) {
+		FnTouch?.Invoke(other);
+
+		// notify parent of touch
+		//	if ( m_pParent != NULL )
+		//		m_pParent->Touch( pOther );
+	}
+
+	public virtual void EndTouch(C_BaseEntity? other) {
+		// notify parent
+		//	if ( m_pParent != NULL )
+		//	{
+		//		m_pParent->EndTouch( pOther );
+		//	}
+	}
+
+	public void SetCheckUntouch(bool check) {
+		// Invalidate touchstamp
+		if (check) {
+			TouchStamp++;
+			AddEFlags(EFL.CheckUntouch);
+		}
+		else
+			RemoveEFlags(EFL.CheckUntouch);
+	}
 
 	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
 	public byte[]? OriginalData;
@@ -3032,7 +3127,7 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	EHANDLE ShadowDirUseOtherEntity = default;
+	EHANDLE ShadowDirUseOtherEntity = new();
 
 	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) {
 		if (ShadowDirUseOtherEntity.Get() != null)

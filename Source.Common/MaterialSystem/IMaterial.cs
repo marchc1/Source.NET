@@ -143,6 +143,19 @@ public static class VertexExts
 		}
 	}
 
+	public const int VERTEX_MAX_TEXTURE_COORDINATES = 8;
+
+	public static VertexFormat GetTexCoordSize(int index, int dimension) {
+		return dimension switch {
+			0 => 0,
+			1 => (VertexFormat)(1ul << ((int)VertexElement.TexCoord1D_0 + index)),
+			2 => (VertexFormat)(1ul << ((int)VertexElement.TexCoord2D_0 + index)),
+			3 => (VertexFormat)(1ul << ((int)VertexElement.TexCoord3D_0 + index)),
+			4 => (VertexFormat)(1ul << ((int)VertexElement.TexCoord4D_0 + index)),
+			_ => throw new NotSupportedException(),
+		};
+	}
+
 	public static VertexFormat GetUserDataSize(int userDatas) {
 		switch (userDatas) {
 			case 0: return 0;

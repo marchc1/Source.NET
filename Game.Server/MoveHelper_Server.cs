@@ -2,6 +2,7 @@
 
 using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Engine;
@@ -85,20 +86,32 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public bool PlayerFallingDamage() {
-		// todo
-		return true;
+		float flFallDamage = g_pGameRules.FlPlayerFallDamage(HostPlayer!);
+		if (flFallDamage > 0) {
+			HostPlayer!.TakeDamage(new TakeDamageInfo(BaseEntity.GetContainingEntity(INDEXENT(0)), BaseEntity.GetContainingEntity(INDEXENT(0)), flFallDamage, DamageType.Fall));
+			StartSound(HostPlayer.GetAbsOrigin(), "Player.FallDamage");
+		}
+
+		if (HostPlayer!.Health <= 0) {
+			if (g_pGameRules.FlPlayerFallDeathDoesScreenFade(HostPlayer)) {
+				Util.ScreenFade(HostPlayer, new(0, 0, 0, 255), 0, 9999, FadeFlags.Out | FadeFlags.StayOut);
+			}
+			return (false);
+		}
+
+		return (true);
 	}
 
 	public void PlayerSetAnimation(PlayerAnim playerAnim) {
-
+		HostPlayer!.SetAnimation(playerAnim);
 	}
 
 	public void ProcessImpacts() {
 		Assert(HostPlayer != null);
 
 		// Relink in order to build absorigin and absmin/max to reflect any changes
-		//  from prediction.  Relink will early out on SOLID_NOT. TODO
-		// HostPlayer.PhysicsTouchTriggers();
+		//  from prediction.  Relink will early out on SOLID_NOT
+		HostPlayer.PhysicsTouchTriggers();
 
 		// Don't bother if the player ain't solid
 		if (HostPlayer.IsSolidFlagSet(Source.SolidFlags.NotSolid))

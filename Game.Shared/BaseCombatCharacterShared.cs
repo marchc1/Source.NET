@@ -103,7 +103,7 @@ public partial class
 		return true;
 	}
 
-	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+	public virtual BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
 
 	public void RemoveAmmo(int count, int ammoIndex) {
 		if (count <= 0)

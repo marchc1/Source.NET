@@ -572,4 +572,12 @@ public static class CollisionUtils
 
 		return ComputeSeparatingPlane(worldToBox1, box2ToWorld, box1Size, box2Size, tolerance, out plane);
 	}
+
+	public static bool IsOBBIntersectingOBB(in Vector3 vecOrigin1, in QAngle vecAngles1, in Vector3 boxMin1, in Vector3 boxMax1,
+		in Vector3 vecOrigin2, in QAngle vecAngles2, in Vector3 boxMin2, in Vector3 boxMax2, float flTolerance = 0.0f) {
+		// OBB test...
+		bool bFoundPlane = ComputeSeparatingPlane(vecOrigin1, vecAngles1, boxMin1, boxMax1,
+			vecOrigin2, vecAngles2, boxMin2, boxMax2, flTolerance, out _);
+		return (bFoundPlane == false);
+	}
 }

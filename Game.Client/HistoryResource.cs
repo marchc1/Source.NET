@@ -45,8 +45,7 @@ class HudHistoryResource : EditableHudElement, IHudElement
 	[PanelAnimationVar("NumberFont", "HudNumbersSmall", "HFont")] protected IFont NumberFont;
 	[PanelAnimationVar("TextFont", "Default", "HFont")] protected IFont TextFont;
 
-	public HudHistoryResource(string elementName) : base(null, "HudHistoryResource") {
-		ElementName = elementName;
+	public HudHistoryResource(string elementName) : base("HudHistoryResource", elementName) {
 		SetParent(clientMode.GetViewport());
 
 		DoNotDraw = true;

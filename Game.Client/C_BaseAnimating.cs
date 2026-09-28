@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 using System;
+using System.Drawing;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Numerics;
@@ -18,6 +19,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using ClientModelRenderInfo = Source.Common.Engine.ModelRenderInfo;
+using Color = Source.Color;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseAnimating>;
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
@@ -123,10 +125,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return ShadowType.RenderToTexture;
 	}
 	public bool IsAboutToRagdoll() => RenderFX == (byte)RenderFx.Ragdoll;
-	public override void ClientThink() {
-		base.ClientThink();
-		StudioFrameAdvance();
-	}
 	public void StudioFrameAdvance() {
 		if (ClientSideAnimation)
 			return;
@@ -239,6 +237,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public ref readonly Matrix3x4 GetBone(int bone) => ref BoneAccessor.GetBone(bone);
 	public ref Matrix3x4 GetBoneForWrite(int bone) => ref BoneAccessor.GetBoneForWrite(bone);
 
+	BoneMergeCache? BoneMergeCache;
 
 	static long ModelBoneCounter;
 	long MostRecentModelBoneCounter;
@@ -280,15 +279,35 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// no bones have been simulated
 		MStudioBone pbones = hdr.Bone(0);
 
+		// todo
+		if (Ragdoll != null) {
+
+		}
+
 		// For EF_BONEMERGE entities, copy the bone matrices for any bones that have matching names.
 		bool boneMerge = IsEffectActive(EntityEffects.BoneMerge);
+		if (boneMerge || BoneMergeCache != null) {
+			if (boneMerge) {
+				if (BoneMergeCache == null) {
+					BoneMergeCache = new BoneMergeCache();
+					BoneMergeCache.Init(this);
+				}
+				BoneMergeCache.MergeMatchingBones(boneMask);
+			}
+			else
+				BoneMergeCache = null;
+		}
 
 		for (int i = 0; i < hdr.NumBones(); i++) {
 			// Only update bones reference by the bone mask.
 			if ((hdr.BoneFlags(i) & boneMask) == 0)
 				continue;
 
+			if (BoneMergeCache != null && BoneMergeCache.IsBoneMerged(i) != 0)
+				continue;
+
 			// animate all non-simulated bones
+			// todo: || CalcProceduralBone(hdr, i, BoneAccessor)
 			if (boneSimulated[i])
 				continue;
 
@@ -304,6 +323,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				Assert(MathF.Abs(pos[i].Y) < 100000);
 				Assert(MathF.Abs(pos[i].Z) < 100000);
 
+				// todo
+				// JiggleBones.BuildJiggleTransformations(i, gpGlobals.RealTime, jiggleInfo, goalMX, GetBoneForWrite(i));
+
 				if (hdr.BoneParent(i) == -1)
 					MathLib.ConcatTransforms(cameraTransform, bonematrix, out GetBoneForWrite(i));
 				else
@@ -313,6 +335,14 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			if (hdr.BoneParent(i) == -1)
 				// Apply client-side effects to the transformation matrix
 				ApplyBoneMatrixTransform(ref GetBoneForWrite(i));
+		}
+
+		// dimhotepus: Fix jittery model rendering when spectating a ragdoll.
+		if (Ragdoll != null) {
+			C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+			if (player != null) {
+				// todo
+			}
 		}
 	}
 
@@ -563,6 +593,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
+
+		if (!hdr.SequencesAvailable())
+			return;
+
+		if (GetSequence() >= hdr.GetNumSeq() || GetSequence() == -1)
+			SetSequence(0);
+
 		GetPoseParameters(hdr, poseparam);
 		TimeUnit_t cycle = GetCycle();
 		BoneSetup setup = new(hdr, boneMask, poseparam);
@@ -571,6 +608,17 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		MaintainSequenceTransitions(ref setup, cycle, pos, q);
 		AccumulateLayers(ref setup, pos, q, currentTime);
 		setup.CalcAutoplaySequences(pos, q, currentTime, null);
+
+		if (hdr.NumBoneControllers() != 0) {
+			// todo
+			// Span<float> controllers = stackalloc float[Studio.MAXSTUDIOBONECTRLS];
+			// GetBoneControllers(controllers);
+			// setup.CalcBoneAdj(pos, q, controllers);
+		}
+
+		// todo
+		// ChildLayerBlend(pos, q, currentTime, boneMask);
+		// UnragdollBlend(hdr, pos, q, currentTime);
 	}
 
 	private void GetPoseParameters(StudioHdr? hdr, Span<float> poseparam) {
@@ -602,7 +650,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (boneSetup.GetStudioHdr() == null)
 			return;
 
-		if (prediction.InPrediction()) {
+		if (prediction.InPrediction() || IsAboutToRagdoll()) {
 			PrevNewSequenceParity = NewSequenceParity;
 			return;
 		}
@@ -840,6 +888,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return null;
 
 		InvalidateBoneCache();
+		BoneMergeCache = null;
 
 		if (CachedBoneData.Count != hdr.NumBones()) {
 			CachedBoneData.SetSize(hdr.NumBones());
@@ -1193,18 +1242,28 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (hdr == null)
 			return 0;
 
+		TimeUnit_t curtime = gpGlobals.CurTime;
+
 		double flInterval = interval;
 		if (flInterval == 0.0) {
-			flInterval = GetAnimTimeInterval();
+			flInterval = curtime - AnimTime;
 			if (flInterval <= 0.001)
 				return 0;
 		}
 
-		UpdateModelScale();
+		if (AnimTime == 0)
+			flInterval = 0.0;
 
-		double cycleAdvance = flInterval * GetSequenceCycleRate(hdr, GetSequence()) * PlaybackRate;
-		double flNewCycle = GetCycle() + cycleAdvance;
-		AnimTime = gpGlobals.CurTime;
+		TimeUnit_t cyclerate = GetSequenceCycleRate(hdr, GetSequence());
+		TimeUnit_t addcycle = flInterval * cyclerate * PlaybackRate;
+
+		// todo
+		// if (GetServerIntendedCycle() != -1.0f) {
+
+		// }
+
+		double flNewCycle = GetCycle() + addcycle;
+		AnimTime = curtime;
 
 		if (flNewCycle < 0.0 || flNewCycle >= 1.0) {
 			if (IsSequenceLooping(hdr, GetSequence()))
@@ -1217,9 +1276,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		SetCycle(flNewCycle);
 
-		GroundSpeed = (float)GetSequenceGroundSpeed(hdr, GetSequence()) * GetModelScale();
-
-		return cycleAdvance;
+		return flInterval;
 	}
 
 	public virtual void UpdateClientSideAnimation() {
@@ -1376,11 +1433,35 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return markAsDrawn ? 1 : 0;
 	}
 
+	public static readonly ConVar vcollide_wireframe = new("vcollide_wireframe", "0", FCvar.Cheat, "Render physics collision models in wireframe", callback: VCollideWireframe_ChangeCallback);
+
+	private static void VCollideWireframe_ChangeCallback(IConVar var, in ConVarChangeContext ctx) {
+		for (C_BaseEntity? entity = cl_entitylist.FirstBaseEntity(); entity != null; entity = cl_entitylist.NextBaseEntity(entity))
+			entity.UpdateVisibility();
+	}
+
+	static readonly Color debugColor = new(0, 255, 255, 0);
+	static readonly Color debugColorPhys = new(255, 0, 0, 0);
 	private void DoInternalDrawModel(ref ClientModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> boneToWorldArray) {
 		if (!Unsafe.IsNullRef(ref state))
 			modelrender.DrawModelExecute(ref state, ref info, boneToWorldArray);
 
-		// vcollide_wireframe todo
+		if (vcollide_wireframe.GetBool()) {
+			//if (IsRagdoll()) 
+			// m_pRagdoll->DrawWireframe();
+			// else
+			if (IsSolid() && CollisionProp().GetSolid() == SolidType.VPhysics) {
+				VCollide? collide = modelinfo.GetVCollide(GetModelIndex());
+				if (collide != null && collide.SolidCount == 1) {
+					MathLib.AngleMatrix(GetAbsAngles(), GetAbsOrigin(), out Matrix3x4 matrix);
+					engine.DebugDrawPhysCollide(collide.Solids![0]!, null, matrix, debugColor);
+					if (VPhysicsGetObject() != null) {
+						VPhysicsGetObject()!.GetPositionMatrix(out matrix);
+						engine.DebugDrawPhysCollide(collide.Solids![0]!, null, matrix, debugColorPhys);
+					}
+				}
+			}
+		}
 	}
 
 	protected virtual bool OnPostInternalDrawModel(ref ClientModelRenderInfo info) {
@@ -1616,7 +1697,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	int PrevResetEventsParity;
 
 	public int GetSequence() => Sequence;
-	protected override void UpdateVisibility() {
+	public override void UpdateVisibility() {
 		base.UpdateVisibility();
 
 		// todo
@@ -1643,8 +1724,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			angles = moveParent.GetRenderAngles();
 		}
 		else {
-			// TODO: Bone merge cache
-			base.GetAimEntOrigin(attachedTo, out origin, out angles);
+			origin = default;
+			angles = default;
+			if (BoneMergeCache == null || !BoneMergeCache.GetAimEntOrigin(ref origin, ref angles))
+				base.GetAimEntOrigin(attachedTo, out origin, out angles);
 		}
 	}
 

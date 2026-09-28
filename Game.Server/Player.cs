@@ -1,4 +1,6 @@
-﻿using Game.Shared;
+﻿global using static Game.Server.PlayerConvars;
+
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -11,6 +13,7 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 using Source.Engine;
 
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -23,6 +26,61 @@ public enum PlayerConnectedState
 	Connected,
 	Disconnecting,
 	Disconnected
+}
+
+public static class PlayerConvars
+{
+	public static readonly ConVar sv_noclipduringpause = new("sv_noclipduringpause", "0", FCvar.Replicated | FCvar.Cheat, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.).");
+
+	public static BaseEntity? FindEntityClassForward(BasePlayer me, ReadOnlySpan<char> classname) {
+		me.EyeVectors(out Vector3 forward);
+		Util.TraceLine(me.EyePosition(), me.EyePosition() + forward * MAX_COORD_RANGE, Mask.Solid, me, CollisionGroup.None, out Trace tr);
+		if (tr.Fraction != 1.0 && tr.DidHitNonWorldEntity()) {
+			BaseEntity? hit = tr.Ent;
+			if (BaseEntity.FClassnameIs(hit, classname))
+				return hit;
+		}
+		return null;
+	}
+
+	public static BaseEntity? FindEntityForward(BasePlayer? me, bool hull) {
+		if (me != null) {
+			Mask mask;
+
+			if (hull)
+				mask = Mask.Solid;
+			else
+				mask = Mask.Shot;
+
+			me.EyeVectors(out Vector3 forward);
+			Util.TraceLine(me.EyePosition(), me.EyePosition() + forward * MAX_COORD_RANGE, mask, me, CollisionGroup.None, out Trace tr);
+			if (tr.Fraction != 1.0 && tr.DidHitNonWorldEntity())
+				return tr.Ent;
+		}
+		return null;
+	}
+
+	public static BaseEntity? FindPickerEntityClass(BasePlayer player, ReadOnlySpan<char> classname) {
+		BaseEntity? entity = FindEntityClassForward(player, classname);
+
+		if (entity == null) {
+			player.EyeVectors(out Vector3 forward);
+			Vector3 origin = player.WorldSpaceCenter();
+			entity = gEntList.FindEntityClassNearestFacing(origin, forward, 0.95f, classname);
+		}
+		return entity;
+	}
+
+	public static BaseEntity? FindPickerEntity(BasePlayer? player) {
+		BaseEntity? entity = FindEntityForward(player, true);
+
+		if (entity == null) {
+			player!.EyeVectors(out Vector3 forward);
+			Vector3 origin = player.WorldSpaceCenter();
+			entity = gEntList.FindEntityNearestFacing(origin, forward, 0.95f);
+		}
+		return entity;
+	}
 }
 
 public class GamePlayerInfo : IBotController, IPlayerInfo
@@ -188,14 +246,28 @@ public enum PlayerPhysFlag
 
 public partial class BasePlayer : BaseCombatCharacter
 {
+	public const int SF_NORESPAWN = 1 << 30;
 	public static readonly SendTable DT_PlayerState = new([
 		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
+
 	public override bool IsPlayer() => true;
+	public virtual bool IsBot() => (GetFlags() & EntityFlags.FakeClient) != 0;
+	public virtual bool IsFakeClient() => (GetFlags() & EntityFlags.FakeClient) != 0;
+	public virtual bool IsBotOfType(int botType) => (GetBotType() != 0) && (GetBotType() == botType);
+	public virtual int GetBotType() => 0;
+
+	public int GetLockViewanglesTickNumber() => LockViewanglesTickNumber;
+	public QAngle GetLockViewanglesData() => LockedViewangles;
+
+	public Vector3 PreviouslyPredictedOrigin;
+
+	public override bool IsNetClient() => true;
+
 	public BaseViewModel? GetViewModel(int index) => ViewModel[index].Get();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
-		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
+		SendPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local),
 		SendPropFloat(FIELD.OF(nameof(Friction)), 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), SendPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)), 16, PropFlags.Unsigned)),
 		SendPropInt(FIELD.OF(nameof(TickBase)), -1, PropFlags.ChangesOften),
@@ -260,6 +332,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	TimeUnit_t LastObjectiveTime;
 	UserCmd LastCmd;
 
+	public int Impulse;
+
 	protected QAngle AutoAim;
 	protected Vector3 AdditionalPVSOrigin;
 	protected Vector3 CameraPVSOrigin;
@@ -304,16 +378,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		int data = field.GetValue<int>(instance);
 		outData.Int = data & mask;
 	}
-
-	public static object? SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		recipients.SetOnly(objectID - 1);
-		return data;
-	}
-	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		// throw new NotImplementedException();
-		return data;
-	}
-
 
 	GamePlayerInfo PlayerInfo = new();
 
@@ -415,6 +479,19 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
+
+	public ref AudioParams GetAudioParams() => ref Local.Audio;
+
+	// Used by env_soundscape_triggerable to manage when the player is touching multiple
+	// soundscape triggers simultaneously.
+	// The one at the HEAD of the list is always the current soundscape for the player.
+	public readonly List<EHANDLE> TriggerSoundscapeList = [];
+
+	public void SetBodyPitch(float pitch) {
+		if (BodyPitchPoseParam >= 0)
+			SetPoseParameter(BodyPitchPoseParam, pitch);
+	}
+
 	public EHANDLE Vehicle = new();
 	public EHANDLE UseEntity = new();
 	public EHANDLE ObserverTarget = new();
@@ -439,10 +516,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	int FOVStart;
 	TimeUnit_t FOVTime;
 	float DefaultFOV;
-	Vector3 ConstraintCenter;
-	float ConstraintRadius;
-	float ConstraintWidth;
-	float ConstraintSpeedFactor;
+	public Vector3 ConstraintCenter;
+	public float ConstraintRadius;
+	public float ConstraintWidth;
+	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
 	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
@@ -472,12 +549,113 @@ public partial class BasePlayer : BaseCombatCharacter
 	public InButtons AfButtonDisabled;
 	public InButtons AfButtonForced;
 
+	//-----------------------------------------------------------------------------
+	// Purpose: Strips off IN_xxx flags from the player's input
+	//-----------------------------------------------------------------------------
+	public void ForceButtons(InButtons buttons) {
+		AfButtonForced |= buttons;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Re-enables stripped IN_xxx flags to the player's input
+	//-----------------------------------------------------------------------------
+	public void UnforceButtons(InButtons buttons) {
+		AfButtonForced &= ~buttons;
+	}
+
+	public bool GamePaused;
+
+	public virtual void EquipSuit(bool playEffects = false) {
+		Local.WearingSuit = true;
+	}
+
+	public virtual void RemoveSuit() {
+		Local.WearingSuit = false;
+	}
+
 	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		return ViewModel[index].Get();
 	}
 
+	public virtual BaseEntity? GetObserverTarget() => null; // todo
+
+	public Vector3 VehicleViewOrigin;
+	public QAngle VehicleViewAngles;
+	public float VehicleViewFOV;
+	public int VehicleViewSavedFrame;
+
+	public int GetFOVForNetworking() {
+		int defaultFOV;
+
+		// The vehicle's FOV wins if we're asking for a default value
+		if (GetVehicle() != null) {
+			CacheVehicleView();
+			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : (int)VehicleViewFOV;
+		}
+		else
+			defaultFOV = GetDefaultFOV();
+
+		int fFOV = (FOV == 0) ? defaultFOV : FOV;
+
+		// If it's immediate, just do it
+		if (Local.FOVRate == 0.0f)
+			return fFOV;
+
+		if (gpGlobals.CurTime - FOVTime < Local.FOVRate)
+			fFOV = Math.Min(fFOV, FOVStart);
+
+		return fFOV;
+	}
+
+	public int GetFOV() {
+		int defaultFOV;
+
+		// The vehicle's FOV wins if we're asking for a default value
+		if (GetVehicle() != null) {
+			CacheVehicleView();
+			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : (int)VehicleViewFOV;
+		}
+		else {
+			defaultFOV = GetDefaultFOV();
+		}
+
+		int fFOV = (FOV == 0) ? defaultFOV : FOV;
+
+		// If it's immediate, just do it
+		if (Local.FOVRate == 0.0f)
+			return fFOV;
+
+		TimeUnit_t deltaTime = (float)(gpGlobals.CurTime - FOVTime) / Local.FOVRate;
+
+		if (deltaTime >= 1.0f)
+			//If we're past the zoom time, just take the new value and stop lerping
+			FOVStart = fFOV;
+		else
+			fFOV = (int)MathLib.SimpleSplineRemapValClamped(deltaTime, 0.0f, 1.0f, FOVStart, fFOV);
+
+		return fFOV;
+	}
+
+
+	public TimeUnit_t ConsumeMovementTimeForUserCmdProcessing(TimeUnit_t timeNeeded) {
+		if (MovementTimeForUserCmdProcessingRemaining <= 0.0)
+			return 0.0;
+		else if (timeNeeded > MovementTimeForUserCmdProcessingRemaining + TimeUnit_t.Epsilon) {
+			TimeUnit_t result = MovementTimeForUserCmdProcessingRemaining;
+			MovementTimeForUserCmdProcessingRemaining = 0.0;
+			return result;
+		}
+		else {
+			MovementTimeForUserCmdProcessingRemaining -= timeNeeded;
+			if (MovementTimeForUserCmdProcessingRemaining < 0.0)
+				MovementTimeForUserCmdProcessingRemaining = 0.0;
+			return timeNeeded;
+		}
+	}
+
+
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
-	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+	public override BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
 	public void ResetAutoaim() => OnTarget = false;
 
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
@@ -508,8 +686,57 @@ public partial class BasePlayer : BaseCombatCharacter
 		return pent;
 	}
 
-	public void ImpulseCommands() {
-		// todo
+	public virtual void CheatImpulseCommands(int impulse) {
+		if (!sv_cheats.GetBool())
+			return;
+	}
+	public virtual void ImpulseCommands() {
+		Trace tr;
+
+		int iImpulse = (int)Impulse;
+		switch (iImpulse) {
+			case 100:
+				// temporary flashlight for level designers
+				if (FlashlightIsOn())
+					FlashlightTurnOff();
+				else
+					FlashlightTurnOn();
+				break;
+
+			case 200:
+				if (sv_cheats.GetBool()) {
+					BaseCombatWeapon weapon;
+
+					weapon = GetActiveWeapon()!;
+
+					if (weapon.IsEffectActive(EntityEffects.NoDraw))
+						weapon.Deploy();
+					else
+						weapon.Holster();
+				}
+				break;
+
+			case 201:// paint decal
+				if (gpGlobals.CurTime < NextDecalTime) {
+					// too early!
+					break;
+				} {
+					EyeVectors(out Vector3 forward);
+					Util.TraceLine(EyePosition(), EyePosition() + forward * 128, Mask.SolidBrushOnly, this, Source.CollisionGroup.None, out tr);
+				}
+
+				if (tr.Fraction != 1.0) { // line hit something, so paint a decal
+					// todo
+				}
+
+				break;
+			default:
+				// check all of the cheat impulse commands now
+				CheatImpulseCommands(iImpulse);
+				break;
+		}
+
+		Impulse = 0;
 	}
 
 	public virtual void InitialSpawn() {
@@ -589,18 +816,18 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// InitFogController();
 
-		// DmgTake = 0;
-		// DmgSave = 0;
-		// HUDDamage = -1;
+		DmgTake = 0;
+		DmgSave = 0;
+		HUDDamage = -1;
 		// DamageType = 0;
-		// PhysicsFlags = 0;
-		// DrownRestored = DrownDmg;
+		PhysicsFlags = 0;
+		DrownRestored = DrownDmg;
 
-		// SetFOV(this, 0);
+		SetFOV(this, 0);
 
-		// NextDecalTime = 0;
+		NextDecalTime = 0;
 
-		// GeigerDelay = gpGlobals.CurTime + 2.0f;
+		GeigerDelay = gpGlobals.CurTime + 2.0f;    // wait a few seconds until user-defined message registrations
 
 		// FieldOfView = 0.766;
 
@@ -610,17 +837,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		// if (!GameHUDInitialized)
 		// 	GameRules.SetDefaultPlayerTeam(this);
 
-		GetPlayerSpawnSpot(this);
+		g_pGameRules.GetPlayerSpawnSpot(this);
 
-		Local.Ducked = false;
-		Local.Ducking = false;
-		Local.DuckSpeed = 0.1f;                // GMod player_sandbox.DuckSpeed
-		Local.UnDuckSpeed = 0.1f;              // GMod player_sandbox.UnDuckSpeed
-		Local.SprintSpeed = 400.0f;            // GMod player_sandbox.RunSpeed
-		Local.WalkSpeed = 200.0f;              // GMod player_sandbox.WalkSpeed (default move speed)
-		Local.SlowWalkSpeed = 100.0f;          // GMod player_sandbox.SlowWalkSpeed (+walk)
-		Local.LadderSpeed = 150.0f;
-		Local.CrouchedWalkSpeed = 0.3f;        // GMod player_default.CrouchedWalkSpeed
 		SetViewOffset(VEC_VIEW_SCALED(this));
 		Precache();
 
@@ -631,7 +849,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// HackedGunPos = new Vector3(0, 32, 0);
 		// BonusChallenge;
 
-		// SetThink(null);
+		SetThink(null);
 
 		InitHUD = true;
 
@@ -641,9 +859,10 @@ public partial class BasePlayer : BaseCombatCharacter
 		LaggedMovementValue = 1.0f;
 
 		base.Spawn();
+
+		InitVCollision(GetAbsOrigin(), GetAbsVelocity());
 	}
 
-	private void IncrementInterpolationFrame() => InterpolationFrame = (byte)((InterpolationFrame + 1) % NOINTERP_PARITY_MAX);
 
 	public TimeUnit_t GetDeathTime() => DeathTime;
 
@@ -724,11 +943,13 @@ public partial class BasePlayer : BaseCombatCharacter
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
 
-	double LastPlayerTalkTime;
+	TimeUnit_t LastPlayerTalkTime;
 	public TimeUnit_t LastTimePlayerTalked() => LastPlayerTalkTime;
 	public void NotePlayerTalked() => LastPlayerTalkTime = gpGlobals.CurTime;
 
 	public bool CanSpeak() => true;
+
+	public virtual void CheckChatText(ReadOnlySpan<char> text) { }
 
 	int GetCommandContextCount() => CommandContext.Count;
 
@@ -791,18 +1012,43 @@ public partial class BasePlayer : BaseCombatCharacter
 		return simulationTicks;
 	}
 
+	static readonly ConVar sv_clockcorrection_msecs = new("sv_clockcorrection_msecs", "60", 0, "The server tries to keep each player's m_nTickBase withing this many msecs of the server absolute tickcount");
+	static readonly ConVar sv_playerperfhistorycount = new("sv_playerperfhistorycount", "60", 0, "Number of samples to maintain in player perf history", 1.0, 128.0);
+
 	void AdjustPlayerTimeBase(int simulationTicks) {
 		Assert(simulationTicks >= 0);
 		if (simulationTicks < 0)
 			return;
 
-		// todo
+		PlayerSimInfo? pi = null;
+		if (sv_playerperfhistorycount.GetInt() > 0) {
+			while (VecPlayerSimInfo.Count > sv_playerperfhistorycount.GetInt())
+				VecPlayerSimInfo.RemoveAt(0);
+
+			pi = new();
+			VecPlayerSimInfo.Add(pi);
+		}
 
 		if (gpGlobals.MaxClients == 1)
-			TickBase = (int)(gpGlobals.TickCount + simulationTicks + gpGlobals.SimTicksThisFrame);
+			TickBase = (int)(gpGlobals.TickCount - simulationTicks + gpGlobals.SimTicksThisFrame);
 		else {
+			float correctionSeconds = Math.Clamp(sv_clockcorrection_msecs.GetFloat() / 1000.0f, 0.0f, 1.0f);
+			int correctionTicks = TIME_TO_TICKS(correctionSeconds);
 
+			int idealFinalTick = (int)(gpGlobals.TickCount + correctionTicks);
+			int estimatedFinalTick = (int)(TickBase + simulationTicks);
+
+			int too_fast_limit = idealFinalTick + correctionTicks;
+			int too_slow_limit = idealFinalTick - correctionTicks;
+
+			if (estimatedFinalTick > too_fast_limit || estimatedFinalTick < too_slow_limit) {
+				int correctedTick = (int)(idealFinalTick - simulationTicks + gpGlobals.SimTicksThisFrame);
+				pi?.TicksCorrected = correctionTicks;
+				TickBase = correctedTick;
+			}
 		}
+
+		pi?.FinalSimulationTime = TICKS_TO_TIME(TickBase + simulationTicks + gpGlobals.SimTicksThisFrame);
 	}
 
 	bool IsUserCmdDataValid(UserCmd cmd) {
@@ -818,9 +1064,9 @@ public partial class BasePlayer : BaseCombatCharacter
 		pl.FixAngle = (int)FixAngle.Absolute;
 	}
 
-	UserCmd GetLastUserCommand() => LastCmd; // todo BotCmd
+	public UserCmd GetLastUserCommand() => LastCmd; // todo BotCmd
 
-	void SetLastUserCommand(UserCmd cmd) => LastCmd = cmd;
+	public void SetLastUserCommand(UserCmd cmd) => LastCmd = cmd;
 
 	static ConVar sv_usercmd_custom_random_seed = new("1", FCvar.Cheat, "When enabled server will populate an additional random seed independent of the client");
 
@@ -1027,7 +1273,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		MoveHelperServer.s_MoveHelperServer.SetHost(null);
 	}
 
-	private void SetTimeBase(double timeBase) => TickBase = TIME_TO_TICKS(timeBase);
+	public void SetTimeBase(double timeBase) => TickBase = TIME_TO_TICKS(timeBase);
 
 	private class UserCmdRef
 	{
@@ -1035,13 +1281,46 @@ public partial class BasePlayer : BaseCombatCharacter
 		public AnonymousSafeFieldPointer<UserCmd> Ptr => new(this, static o => ref ((UserCmdRef)o).Cmd);
 	}
 
+	bool TouchedPhysObject;
+
+	static readonly ConVar xc_crouch_debounce = new("xc_crouch_debounce", "0", 0);
+
+	public bool GetToggledDuckState() => DuckToggled;
+	public void ToggleDuck() {
+		DuckToggled = !DuckToggled;
+	}
+
 	public virtual void PlayerRunCommand(UserCmd userCmd, IMoveHelper s_MoveHelperServer) {
-		// TouchedPhysObject = false;
+		TouchedPhysObject = false;
 
 		if (pl.FixAngle == (int)FixAngle.None)
 			MathLib.VectorCopy(userCmd.ViewAngles, out pl.ViewingAngle);
 
-		// todo
+		// Handle FL_FROZEN.
+		// Prevent player moving for some seconds after New Game, so that they pick up everything
+		if ((GetFlags() & EntityFlags.Frozen) != 0 || (developer.GetInt() == 0 && gpGlobals.LoadType == MapLoadType.NewGame && gpGlobals.CurTime < 3.0)) {
+			userCmd.ForwardMove = 0;
+			userCmd.SideMove = 0;
+			userCmd.UpMove = 0;
+			userCmd.Buttons = 0;
+			userCmd.Impulse = 0;
+			MathLib.VectorCopy(pl.ViewingAngle, out userCmd.ViewAngles);
+		}
+		else {
+			// Force a duck if we're toggled
+			if (GetToggledDuckState()) {
+				// If this is set, we've altered our menu options and need to debounce the duck
+				if (xc_crouch_debounce.GetBool()) {
+					ToggleDuck();
+
+					// Mark it as handled
+					xc_crouch_debounce.SetValue(0);
+				}
+				else {
+					userCmd.Buttons |= InButtons.Duck;
+				}
+			}
+		}
 
 		g_PlayerMove.RunCommand(this, new UserCmdRef { Cmd = userCmd }.Ptr, s_MoveHelperServer);
 	}
@@ -1061,9 +1340,56 @@ public partial class BasePlayer : BaseCombatCharacter
 		return base.ShouldTransmit(info);
 	}
 
+	public int Frags;
+	public int Deaths;
+
+	public TimeUnit_t NextDecalTime;
+
+	public int FragCount() => Frags;
+	public int DeathCount() => Deaths;
+	public bool IsConnected() => Connected != PlayerConnectedState.Disconnected;
+	public bool IsDisconnecting() => Connected == PlayerConnectedState.Disconnecting;
+	public bool IsSuitEquipped() => Local.WearingSuit;
+
+	public virtual void ChangeTeam(int teamNum, bool autoTeam = false, bool silent = false, bool autoBalance = false) {
+		if (GetGlobalTeam(teamNum) == null) {
+			Warning($"CBasePlayer::ChangeTeam( {teamNum} ) - invalid team index.\n");
+			return;
+		}
+
+		if (teamNum == GetTeamNumber())
+			return;
+
+		IGameEvent? ev = gameeventmanager.CreateEvent("player_team");
+		if (ev != null) {
+			ev.SetInt("userid", GetUserID());
+			ev.SetInt("team", teamNum);
+			ev.SetInt("oldteam", GetTeamNumber());
+			ev.SetInt("disconnect", IsDisconnecting() ? 1 : 0);
+			ev.SetInt("autoteam", autoTeam ? 1 : 0);
+			ev.SetInt("silent", silent ? 1 : 0);
+			ev.SetString("name", GetPlayerName());
+
+			gameeventmanager.FireEvent(ev);
+		}
+
+		GetTeam()?.RemovePlayer(this);
+
+		if (teamNum != 0)
+			GetGlobalTeam(teamNum)!.AddPlayer(this);
+
+		base.ChangeTeam(teamNum);
+	}
+
+	public override Vector3 GetSmoothedVelocity() {
+		if (IsInAVehicle())
+			return GetVehicle()!.GetVehicleEnt()!.GetSmoothedVelocity();
+		return SmoothedVelocity;
+	}
+
 	const float SMOOTHING_FACTOR = 0.9f;
 	public virtual void PostThink() {
-		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
+		SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
 
 		if (!g_fGameOver /*&& !PlayerLocked*/) {
 			if (IsAlive()) {
@@ -1072,7 +1398,7 @@ public partial class BasePlayer : BaseCombatCharacter
 				else
 					SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
 
-				// if (UseEntity != null) {
+				// if (UseEntity.Get() != null) {
 				// 	if (UseEntity.OnControls(this) && (!GetActiveWeapon() || GetActiveWeapon()->IsEffectActive(EF_NODRAW) || (GetActiveWeapon()->GetActivity() == ACT_VM_HOLSTER)))
 				// 		UseEntity.Use(this, this, USE_SET, 2);
 				// 	else
@@ -1101,7 +1427,7 @@ public partial class BasePlayer : BaseCombatCharacter
 			if (GetSequence() == -1)
 				SetSequence(0);
 
-			// StudioFrameAdvance();
+			StudioFrameAdvance();
 			// DispatchAnimEvents(this);
 			SetSimulationTime(gpGlobals.CurTime);
 			// Weapon_FrameUpdate();
@@ -1114,10 +1440,125 @@ public partial class BasePlayer : BaseCombatCharacter
 			// 	Local.PunchAngleVel.Init();
 			// }
 
-			// PostThinkVPhysics();
+			PostThinkVPhysics();
 		}
 
 		SimulatePlayerSimulatedEntities();
+	}
+
+	IPhysicsPlayerController? PhysicsController;
+
+	public void InitVCollision(in Vector3 vecAbsOrigin, in Vector3 vecAbsVelocity) {
+		VPhysicsDestroyObject();
+
+		PhysCollide model = physcollision.BBoxToCollide(GetPlayerMins(), GetPlayerMaxs());
+
+		ObjectParams solid = g_PhysDefaultObjectParams;
+		solid.GameData = this;
+		solid.Name = "player";
+		solid.Mass = 85.0f;
+		solid.Inertia = 1e24f;
+		solid.EnableCollisions = true;
+		solid.DragCoefficient = 0;
+
+		IPhysicsObject? shadow = physenv.CreatePolyObject(model, (int)physprops.GetSurfaceIndex("player"), vecAbsOrigin, vec3_angle, ref solid);
+		if (shadow == null)
+			return;
+
+		VPhysicsSetObject(shadow);
+		PhysAddShadow(this);
+
+		PhysicsController = physenv.CreatePlayerController(shadow);
+		PhysicsController.SetPushMassLimit(350.0f);
+		PhysicsController.SetPushSpeedLimit(50.0f);
+
+		shadow.SetPosition(vecAbsOrigin, vec3_angle, true);
+	}
+
+	bool ShadowCollisionsDisabled;
+
+	void UpdateVPhysicsShadowState() {
+		IPhysicsObject? shadow = VPhysicsGetObject();
+		if (shadow == null)
+			return;
+
+		MoveType mt = (MoveType)GetMoveType();
+		bool noclip = mt == Source.MoveType.Noclip || mt == Source.MoveType.Observer;
+		if (noclip != ShadowCollisionsDisabled) {
+			ShadowCollisionsDisabled = noclip;
+			shadow.EnableCollisions(!noclip);
+		}
+	}
+
+	public void PostThinkVPhysics() {
+		if (PhysicsController == null)
+			return;
+
+		UpdateVPhysicsShadowState();
+
+		bool onground = (GetFlags() & EntityFlags.OnGround) != 0;
+		IPhysicsObject? ground = GetGroundEntity()?.VPhysicsGetObject();
+		PhysicsController.Update(GetAbsOrigin(), GetAbsVelocity(), (float)gpGlobals.FrameTime, onground, ground!);
+	}
+
+	public float GeigerRange = 1000;     // range to nearest radiation source
+	public TimeUnit_t GeigerDelay;      // delay per update of range msg to client
+	public int GeigerRangePrev = 1000;
+
+	const float GEIGERDELAY = 0.25f;
+
+	public void UpdateGeigerCounter() {
+		byte range;
+
+		// delay per update ie: don't flood net with these msgs
+		if (gpGlobals.CurTime < GeigerDelay)
+			return;
+
+		GeigerDelay = gpGlobals.CurTime + GEIGERDELAY;
+
+		// send range to radition source to client
+		range = (byte)Math.Clamp((int)MathF.Floor(GeigerRange / 4), 0, 255);
+
+		// This is to make sure you aren't driven crazy by geiger while in the airboat
+		if (IsInAVehicle())
+			range = (byte)Math.Clamp((int)range * 4, 0, 255);
+
+		if (range != GeigerRangePrev) {
+			GeigerRangePrev = range;
+
+			SingleUserRecipientFilter user = new(this);
+			user.MakeReliable();
+			UserMessageBegin(user, "Geiger");
+			MessageWriteByte(range);
+			MessageEnd();
+		}
+
+		// reset counter and semaphore
+		if (random.RandomInt(0, 3) == 0)
+			GeigerRange = 1000;
+	}
+
+	public void CheckSuitUpdate() {
+		// Ignore suit updates if no suit
+		if (!IsSuitEquipped())
+			return;
+
+		// if in range of radiation source, ping geiger counter
+		UpdateGeigerCounter();
+
+		if (g_pGameRules.IsMultiplayer()) {
+			// don't bother updating HEV voice in multiplayer.
+			return;
+		}
+	}
+
+	public void NotifyNearbyRadiationSource(float range) {
+		// if player's current geiger counter range is larger
+		// than range to this trigger hurt, reset player's
+		// geiger counter range
+
+		if (GeigerRange >= range)
+			GeigerRange = range;
 	}
 
 	public virtual void PreThink() {
@@ -1134,7 +1575,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		UpdateClientData();
 		// CheckTimeBasedDamage();
-		// CheckSuitUpdate();
+		CheckSuitUpdate();
 
 		// if (GetObserverMode() > Shared.ObserverMode.FreezeCam)
 		// 	CheckObserverSettings();
@@ -1193,10 +1634,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		return false;// todo
 	}
 
-	internal void Teleport(Vector3 origin, QAngle angles, Vector3 vec3_origin) {
-		throw new NotImplementedException();
-	}
-
 	public virtual void ForceDropOfCarriedPhysObjects(BaseEntity? ground) { }
 
 	private Action? FnThink;
@@ -1213,7 +1650,108 @@ public partial class BasePlayer : BaseCombatCharacter
 		return NetworkIDString.AsSpan()[..l];
 	}
 
-	public virtual bool IsNetClient() => false;
+	TimeUnit_t NextSuicideTime;
+	int SuicideCustomKillFlags;
+
+	public virtual float GetHeldObjectMass(IPhysicsObject? heldObject) => 0;
+
+	internal void CommitSuicide(bool explode = false, bool force = false) {
+		if (!IsAlive())
+			return;
+
+		// prevent suiciding too often
+		if (NextSuicideTime > gpGlobals.CurTime && !force)
+			return;
+
+		// don't let them suicide for 5 seconds after suiciding
+		NextSuicideTime = gpGlobals.CurTime + 5;
+
+		DamageType fDamage = DamageType.PreventPhysicsForce | (explode ? (DamageType.Blast | DamageType.AlwaysGib) : DamageType.NeverGib);
+
+		// have the player kill themself
+		Health = 0;
+		TakeDamageInfo info = new(this, this, 0, fDamage, SuicideCustomKillFlags);
+		Event_Killed(info);
+		Event_Dying(info);
+		SuicideCustomKillFlags = 0;
+	}
+
+	public bool ClearUseEntity() {
+		if (UseEntity.Get() != null) {
+			// Stop controlling the train/object
+			// TODO: Send HUD Update
+			UseEntity.Get()!.Use(this, this, UseType.Off, 0);
+			UseEntity.Set(null);
+			return true;
+		}
+
+		return false;
+	}
+
+	public override void Event_Killed(in TakeDamageInfo info) {
+		ref WorldSoundInstance sound = ref Unsafe.NullRef<WorldSoundInstance>();
+
+		// todo: Hints()?.ResetHintTimers();
+
+		g_pGameRules.PlayerKilled(this, info);
+
+		// todo: gamestats.Event_PlayerKilled(this, info);
+
+		// todo: RumbleEffect(RUMBLE_STOP_ALL, 0, RUMBLE_FLAGS_NONE);
+
+		ClearUseEntity();
+
+		// this client isn't going to be thinking for a while, so reset the sound until they respawn
+		sound = ref SoundEnt.SoundPointerForIndex(SoundEnt.ClientSoundIndex(Edict()));
+		if (!Unsafe.IsNullRef<WorldSoundInstance>(ref sound))
+			sound.Reset();
+
+		// don't let the status bar glitch for players with <0 health.
+		if (Health < -99)
+			Health = 0;
+
+		// holster the current weapon
+		GetActiveWeapon()?.Holster();
+
+		SetAnimation(PlayerAnim.Die);
+
+		if (!IsObserver())
+			SetViewOffset(VEC_DEAD_VIEWHEIGHT_SCALED(this));
+
+		LifeState = (int)Source.LifeState.Dying;
+
+		pl.DeadFlag = true;
+		AddSolidFlags(SolidFlags.NotSolid);
+		// force contact points to get flushed if no longer valid
+		// UNDONE: Always do this on RecheckCollisionFilter() ?
+		IPhysicsObject? pObject = VPhysicsGetObject();
+		pObject?.RecheckContactPoints();
+
+		SetMoveType(Source.MoveType.FlyGravity);
+		SetGroundEntity(null);
+
+		// clear out the suit message cache so we don't keep chattering
+		SetSuitUpdate(null, false, 0);
+
+		// reset FOV
+		SetFOV(this, 0);
+
+		if (FlashlightIsOn())
+			FlashlightTurnOff();
+
+		DeathTime = gpGlobals.CurTime;
+
+		ClearLastKnownArea();
+		base.Event_Killed(in info);
+	}
+
+	public virtual void SetFlashlightEnabled() { }
+	public virtual bool FlashlightIsOn() => false;
+	public virtual void FlashlightTurnOn() { }
+	public virtual void FlashlightTurnOff() { }
+	public virtual bool IsIlluminatedByFlashlight(BaseEntity entity, ref float _) => false;
+
+	public void Event_Dying(in TakeDamageInfo info) { }
 
 	readonly char[] NetworkIDString = new char[Constants.MAX_NETWORKID_LENGTH];
 }

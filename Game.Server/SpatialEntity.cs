@@ -7,7 +7,7 @@ using FIELD = FIELD<SpatialEntity>;
 public class SpatialEntity : BaseEntity
 {
 	public static readonly SendTable DT_SpatialEntity = new([
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MinFalloff)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MaxFalloff)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(CurWeight)), 0, PropFlags.NoScale),

@@ -38,7 +38,7 @@ public enum StructInitializationMode {
 	Default,
 	New
 }
-public class ReusableBox<T> where T : struct {
+public class ReusableBox<T> : IPoolableObject where T : struct {
 	// Instance fields
 	public T Struct;
 
@@ -46,7 +46,7 @@ public class ReusableBox<T> where T : struct {
 	public ref T Ref() => ref Struct;
 
 	// Static members
-	static readonly ClassMemoryPool<ReusableBox<T>> pool = new();
+	static readonly ObjectPool<ReusableBox<T>> pool = new();
 	// Static methods
 	public static ReusableBox<T> Rent(StructInitializationMode initializeMode = StructInitializationMode.New) {
 		ReusableBox<T> box = pool.Alloc();
@@ -57,6 +57,14 @@ public class ReusableBox<T> where T : struct {
 			box.Struct = default;
 
 		return box;
+	}
+
+	public void Init(){
+
+	}
+
+	public void Reset(){
+		Struct = default;
 	}
 
 	public static void Return(ReusableBox<T> box) {

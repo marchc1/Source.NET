@@ -12,10 +12,10 @@ public class FuncRotating : BaseEntity
 {
 	public static readonly SendTable DT_FuncRotating = new(DT_BaseEntity, [
 		SendPropExclude(nameof(DT_BaseEntity), nameof(Rotation)),
-		SendPropExclude(nameof(DT_BaseEntity), nameof(Origin)),
+		SendPropExclude(nameof(DT_BaseEntity), NetworkVarFields.Origin.Name),
 		SendPropExclude(nameof(DT_BaseEntity), nameof(SimulationTime)),
 
-		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_FuncRotatingOrigin),
+		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_FuncRotatingOrigin),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(Rotation), 0), 13, PropFlags.RoundDown | PropFlags.ChangesOften, proxyFn: SendProxy_FuncRotatingAngle),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(Rotation), 1), 13, PropFlags.RoundDown | PropFlags.ChangesOften, proxyFn: SendProxy_FuncRotatingAngle),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(Rotation), 2), 13, PropFlags.RoundDown | PropFlags.ChangesOften, proxyFn: SendProxy_FuncRotatingAngle),

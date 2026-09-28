@@ -113,9 +113,9 @@ public sealed class HandleList
 	readonly object _lock = new();
 
 	public HandleList() {
-		for (int i = 0; i < _items.Length; i++) 
+		for (int i = 0; i < _items.Length; i++)
 			_items[i] = new();
-		
+
 		_capacity = SPHASH_HANDLELIST_BLOCK;
 		_next = new int[_capacity];
 		for (int i = _capacity - 1; i >= 0; --i) {
@@ -136,6 +136,7 @@ public sealed class HandleList
 			if (_freeHead == -1) Grow();
 			int idx = _freeHead;
 			_freeHead = _next[idx];
+			_items[idx] ??= new();
 			_count++;
 			return (ushort)idx;
 		}
@@ -675,7 +676,7 @@ public interface PartitionVisitor
 	int Tree { get; }
 	public bool Visit(SpatialPartitionHandle_t partition, SpatialEntityInfo info) {
 		int visitBit = info.VisitBit[Tree];
-		if (Visits.IsBitSet(visitBit)) 
+		if (Visits.IsBitSet(visitBit))
 			return false;
 
 		Visits.Set(visitBit);
@@ -777,9 +778,9 @@ public sealed class VoxelTree
 
 		Debug.Assert(_levelCount == 4);
 		_voxelHash = new VoxelHash[_levelCount];
-		for (int i = 0; i < _levelCount; i++) 
+		for (int i = 0; i < _levelCount; i++)
 			_voxelHash[i] = new VoxelHash();
-			
+
 	}
 
 	public void Init(SpatialPartitionImpl owner, int treeId, in Vector3 worldMin, in Vector3 worldMax) {

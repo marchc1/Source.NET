@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 
 using MemoryExtensions = System.MemoryExtensions;
 
@@ -52,9 +53,33 @@ public class ConPanel : BasePanel
 		DefaultColor[2] = 1.0f;
 		SetName("ConPanel");
 		drawDebugAreas = false;
+#if GMOD_DLL
+		Instance = this;
+		NotifyOverlayPanel = new NotifyOverlayPanel();
+		NotifyOverlayPanel.SetParent(Surface.GetEmbeddedPanel());
+		NotifyOverlayPanel.MakePopup(true, false);
+		NotifyOverlayPanel.SetKeyboardInputEnabled(false);
+		NotifyOverlayPanel.SetMouseInputEnabled(false);
+#endif
 	}
 
+#if GMOD_DLL
+	internal static ConPanel? Instance;
+	Panel? NotifyOverlayPanel;
+
+	public override void Dispose() {
+		if (NotifyOverlayPanel != null) {
+			NotifyOverlayPanel.SetParent(null);
+			NotifyOverlayPanel.MarkForDeletion();
+			NotifyOverlayPanel = null;
+		}
+		Instance = null;
+		base.Dispose();
+	}
+#endif
+
 	public Host Host = Singleton<Host>();
+	public IBaseClientDLL ClientDLL = Singleton<IBaseClientDLL>();
 	public Con Con = Singleton<Con>();
 	public VideoMode_Common videomode = (VideoMode_Common)Singleton<IVideoMode>();
 
@@ -66,51 +91,18 @@ public class ConPanel : BasePanel
 	}
 
 	public override void Paint() {
+#if GMOD_DLL
+		if (ClientDLL.ShouldDrawDropdownConsole())
+			DrawDebugAreas();
+#else
 		// Client DLL shoulddrawdropdownconsole?
 
 		DrawDebugAreas();
 		DrawNotify();
-	}
-
-	protected int GetConLinesSize(out int width, out int height) {
-		width = 0;
-		height = 0;
-
-		int fontTall = Surface.GetFontTall(FontFixed) + 1;
-		Span<NotifyText> textToDraw = TextToDraw.AsSpan();
-		int c = textToDraw.Length;
-		for (int i = 0; i < c; i++) {
-			ref NotifyText notify = ref textToDraw[i];
-			TimeUnit_t timeleft = notify.LifeRemaining;
-
-			if (timeleft < .5f) {
-				TimeUnit_t f = Math.Clamp(timeleft, 0.0, .5) / .5;
-				if (i == 0 && f < 0.2f)
-					height -= (int)(float)(fontTall * (1.0 - f / 0.2));
-			}
-
-			height += fontTall;
-			Surface.GetTextSize(FontFixed, notify.Text, out int wide, out _);
-			width = Math.Max(width, wide);
-		}
-
-		return c;
+#endif
 	}
 
 	public override void PaintBackground() {
-#if GMOD_DLL
-		if (ConsoleCVars.con_bgalpha.GetInt() != 0) {
-			int _x = 8;
-			int _y = 5;
-			if (GetConLinesSize(out int width, out int height) != 0) {
-				int b = ConsoleCVars.con_border.GetInt();
-
-				Surface.DrawSetColor(0, 0, 0, ConsoleCVars.con_bgalpha.GetInt());
-				Surface.DrawFilledRect(Math.Max(0, _x - b), Math.Max(0, _y - b), width + (b * 2), height);
-			}
-		}
-#endif
-
 		if (!Con.IsVisible())
 			return;
 
@@ -121,7 +113,11 @@ public class ConPanel : BasePanel
 
 		Surface.DrawSetTextColor(new Color(255, 255, 255, 255));
 		int x = wide - DrawTextLen(Font, text) - 2;
+#if GMOD_DLL
+		DrawText(Font, x, 30, text);
+#else
 		DrawText(Font, x, 0, text);
+#endif
 
 		if (cl.IsActive()) {
 			if (cl.NetChannel!.IsLoopback())
@@ -132,7 +128,11 @@ public class ConPanel : BasePanel
 			int tall = Surface.GetFontTall(Font);
 
 			x = wide - DrawTextLen(Font, text) - 2;
+#if GMOD_DLL
+			DrawText(Font, x, tall + 31, text);
+#else
 			DrawText(Font, x, tall + 1, text);
+#endif
 		}
 	}
 
@@ -148,6 +148,10 @@ public class ConPanel : BasePanel
 		if (!Host.developer.GetBool())
 			return;
 
+#if GMOD_DLL
+		// todo: return if cl_movieinfo.IsRecording()
+#endif
+
 		Surface.DrawSetTextFont(FontFixed);
 
 		int fontTall = Surface.GetFontTall(FontFixed) + 1;
@@ -160,6 +164,37 @@ public class ConPanel : BasePanel
 
 		Span<NotifyText> textToDraw = TextToDraw.AsSpan();
 		int c = textToDraw.Length;
+#if GMOD_DLL
+		int border = ConsoleCVars.con_border.GetInt();
+		int bgAlpha = ConsoleCVars.con_bgalpha.GetInt();
+		int width = 0;
+		int height = 0;
+		for (int i = 0; i < c; i++) {
+			ref NotifyText notify = ref textToDraw[i];
+			float timeleft = (float)notify.LifeRemaining;
+
+			if (timeleft < .5f) {
+				float f = Math.Clamp(timeleft, 0.0f, .5f) / .5f;
+				if (i == 0 && f < 0.2f)
+					height = (int)(height - (1.0f - f * 5.0f) * fontTall);
+			}
+
+			height += fontTall;
+			ReadOnlySpan<char> text = ((ReadOnlySpan<char>)notify.Text).SliceNullTerminatedString();
+			int len = DrawTextLen(FontFixed, text);
+			if (width < len)
+				width = DrawTextLen(FontFixed, text);
+		}
+
+		int charWide = DrawTextLen(FontFixed, "c");
+		if (border >= 5) {
+			x = border + 4;
+			y = border + 1;
+		}
+
+		Surface.DrawSetColor(0, 0, 0, bgAlpha);
+		Surface.DrawFilledRect(x - border, y - border, border + (width - charWide) + x, border + (height - fontTall) + y);
+#endif
 		for (int i = 0; i < c; i++) {
 			ref NotifyText notify = ref textToDraw[i];
 			TimeUnit_t timeleft = notify.LifeRemaining;
@@ -245,7 +280,7 @@ public class ConPanel : BasePanel
 						NotifyText);
 				}
 
-				if (NotifyText[0] != '\0') {
+				if (!NotifyText.IsEmpty && NotifyText[0] != '\0') {
 					left = Math.Min(left, x);
 					top = Math.Min(top, y);
 					right = Math.Max(right, x + len);
@@ -424,12 +459,38 @@ public class ConPanel : BasePanel
 		}
 	}
 }
+
+#if GMOD_DLL
+public class NotifyOverlayPanel : Panel
+{
+	readonly IBaseClientDLL ClientDLL = Singleton<IBaseClientDLL>();
+
+	public NotifyOverlayPanel() : base(null, "GModConsoleOverlayPanel") {
+		Surface.GetScreenSize(out int wide, out int tall);
+		SetSize(wide, tall);
+		SetPos(0, 0);
+	}
+
+	public override void OnThink() => Surface.MovePopupToFront(this);
+
+	public override void Paint() {
+		if (ClientDLL.ShouldDrawDropdownConsole() && ConPanel.Instance != null)
+			ConPanel.Instance.DrawNotify();
+	}
+
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		Surface.GetScreenSize(out int wide, out int tall);
+		SetSize(wide, tall);
+		SetPos(0, 0);
+	}
+}
+#endif
 #endif
 
 
-public class Con(Host Host, ICvar cvar
+public class Con(
 #if !SWDS
-, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
+ IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
 #endif
 )
 {
@@ -457,7 +518,7 @@ public class Con(Host Host, ICvar cvar
 	}
 
 	public void HideConsole() {
-	#if !SWDS
+#if !SWDS
 		if (EngineVGui.IsConsoleVisible())
 			EngineVGui.HideConsole();
 #endif
@@ -474,14 +535,18 @@ public class Con(Host Host, ICvar cvar
 #endif
 	}
 
-	public void Init() { }
+	public void Init() {
+		con_initialized = true;
+	}
 	public void Shutdown() { }
 	public void Execute() { }
 
 	// TODO: ConPanel
 
 	internal void ClearNotify() {
-
+#if !SWDS
+		conPanel?.ClearNotify();
+#endif
 	}
 
 	public void Clear() {
@@ -491,9 +556,9 @@ public class Con(Host Host, ICvar cvar
 
 	[ConCommand] void clear() => Clear();
 
-	bool g_fColorPrintf;
-	bool g_fIsDebugPrint;
-	bool g_bInColorPrint;
+	static bool g_fColorPrintf;
+	static bool g_fIsDebugPrint;
+	static bool g_bInColorPrint;
 
 	public void ColorPrintf(in Color clr, ReadOnlySpan<char> fmt) {
 #if !SWDS
@@ -504,7 +569,7 @@ public class Con(Host Host, ICvar cvar
 	}
 	static ConVar spew_consolelog_to_debugstring = new("0", 0, "Send console log to PLAT_DebugString()");
 
-	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
+	public static void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
 #if !SWDS
 		if (g_bInColorPrint)
 			return;
@@ -564,7 +629,7 @@ public class Con(Host Host, ICvar cvar
 				cvar.ConsolePrintf(msg);
 		}
 
-		if (Host.Sys != null && !Host.Sys.InSpew)
+		if (Sys.InSpew)
 			Msg(msg);
 
 #if !SWDS
@@ -577,7 +642,7 @@ public class Con(Host Host, ICvar cvar
 	}
 
 #if !SWDS
-	public bool IsVisible() => EngineVGui.IsConsoleVisible();
+	public static bool IsVisible() => __EngineVGui.IsConsoleVisible();
 #endif
 
 	internal void CreateConsolePanel(Panel parent) {
@@ -587,10 +652,64 @@ public class Con(Host Host, ICvar cvar
 #endif
 	}
 
+	public static void DebugLog(ReadOnlySpan<char> text) {
+		// TODO
+	}
+
+	static bool con_debuglog = false;
+	static bool con_initialized = false;
+	static bool con_debuglogmapprefixed = false;
+
+	public static bool HandleRedirectAndDebugLog(ReadOnlySpan<char> msg) {
+		// Add to redirected message
+		if (SV.RedirectActive()) {
+			SV.RedirectAddText(msg);
+			return false;
+		}
+
+		// log all messages to file
+		if (con_debuglog)
+			DebugLog(msg);
+
+		if (!con_initialized)
+			return false;
+
+		return true;
+	}
+
+	static bool inupdate;
+	public static void PrintF(ReadOnlySpan<char> msg) {
+
+		if (!HandleRedirectAndDebugLog(msg)) {
+			return;
+		}
+
+#if SWDS
+	Msg(msg);
+#else
+		if (sv.IsDedicated()) {
+			Msg(msg);
+		}
+		else {
+			Color clr = new(0, 0, 0, 255);
+			ColorPrint(clr, msg);
+		}
+#endif
+	}
+	public static void NPrintF(int idx, ReadOnlySpan<char> text) {
+#if !SWDS
+		if (IsPC())
+			conPanel!.Con_NPrintf(idx, text);
+		else
+			PrintF(text);
+#endif
+	}
 	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text) {
 #if !SWDS
 		if (IsPC())
 			conPanel!.Con_NXPrintf(in info, text);
+		else
+			PrintF(text);
 #endif
 	}
 

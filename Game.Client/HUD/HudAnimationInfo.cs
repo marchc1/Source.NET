@@ -1,4 +1,4 @@
-using Game.Client.HUD;
+﻿using Game.Client.HUD;
 
 using Source;
 using Source.Common.Commands;
@@ -21,8 +21,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 
 	Panel? Watch;
 
-	public HudAnimationInfo(string panelName) : base(null, "HudAnimationInfo") {
-		ElementName = panelName;
+	public HudAnimationInfo(string panelName) : base("HudAnimationInfo", panelName) {
 		ANIM_INFO_WIDTH = 300 * (ScreenWidth() / 640);
 
 		Panel parent = clientMode.GetViewport();
@@ -160,13 +159,23 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 
 	static IEnumerable<string> HudElementCompletion(string partial) {
 		const string commandName = "cl_animationinfo";
-		string partialName = partial[(commandName.Length + 1)..];
-		int space = partial.IndexOf(' ');
-		string prefix = space >= 0 ? partial[..(space + 1)] : "map ";
+		string substring = partial;
+		if (partial.Contains(commandName, StringComparison.Ordinal) && partial.Length > commandName.Length)
+			substring = partial[(commandName.Length + 1)..];
 
 		for (int i = 0; i < gHUD.HudList.Count; i++) {
-			if (gHUD.HudList[i].GetName().StartsWith(partialName, StringComparison.OrdinalIgnoreCase))
-				yield return prefix + gHUD.HudList[i].GetName().ToString(); // FIXME: Seems a lot of elements are not setting ElementName
+			IHudElement e = gHUD.HudList[i];
+			if (e == null)
+				continue;
+
+			bool add;
+			if (substring.Length > 0)
+				add = e.GetName().StartsWith(substring, StringComparison.OrdinalIgnoreCase);
+			else
+				add = true;
+
+			if (add)
+				yield return $"{commandName} {e.GetName()}";
 		}
 	}
 

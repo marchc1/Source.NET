@@ -1,4 +1,4 @@
-using Game.Shared;
+﻿using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -114,9 +114,23 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	bool WasFrozen;
 	int Physics;
 	bool FiredWeapon;
+
+
+
+
 	public bool HasFiredWeapon() => FiredWeapon;
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
+	public virtual bool IsAllowedToSwitchWeapons() => !IsObserver();
+
+	public bool IsPlayerDead() => pl.DeadFlag == true;
+
+	public Source.Common.MaterialSystem.IMaterial? GetHeadLabelMaterial() {
+		if (GetClientVoiceMgr() == null)
+			return null;
+
+		return GetClientVoiceMgr().GetHeadLabelMaterial();
+	}
 
 	public bool AudioStateIsUnderwater(Vector3 mainViewOrigin) {
 		if (IsObserver()) {
@@ -331,7 +345,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
 		RecvPropFloat(FIELD.OF(nameof(Maxspeed))),
 		RecvPropInt(FIELD.OF("flags")),
+		// todo: RecvProxy_ObserverMode
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
+		// todo: RecvProxy_ObserverTarget
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
 		RecvPropFloat(FIELD.OF(nameof(FOV))),
 		RecvPropFloat(FIELD.OF(nameof(FOVStart))),
@@ -394,7 +410,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			ctx.Cmd.UpMove = 0;
 			ctx.Cmd.Buttons = 0;
 			ctx.Cmd.Impulse = 0;
-			//VectorCopy ( pl.v_angle, ctx->cmd.viewangles );
+			//VectorCopy ( pl.v_angle, ctx.cmd.viewangles );
 		}
 
 		// Run the next command
@@ -420,6 +436,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float GetStepSize() => Local.StepSize;
 
 	float OldPlayerZ;
+	bool WasFreezeFraming;
+	Vector3 FreezeFrameStart;
+	TimeUnit_t FreezeFrameStartTime;
+	float FreezeFrameDistance;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		if (updateType == DataUpdateType.Created) {
@@ -448,14 +468,22 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		base.PostDataUpdate(updateType);
 
 		if (IsLocalPlayer()) {
-			QAngle angles;
-			engine.GetViewAngles(out angles);
+			engine.GetViewAngles(out QAngle angles);
 			if (updateType == DataUpdateType.Created) {
 				SetLocalViewAngles(angles);
 				OldPlayerZ = GetLocalOrigin().Z;
+
+			}
+			SetLocalAngles(angles);
+
+			if (!WasFreezeFraming && GetObserverMode() == Shared.ObserverMode.FreezeCam) {
+				// todo: freeze framing
+			}
+			else if (WasFreezeFraming && GetObserverMode() != Shared.ObserverMode.FreezeCam) {
+				// todo: freeze framing
 			}
 
-			SetLocalAngles(angles);
+			// todo: force calculate vision when the local vision flags changed
 		}
 
 		// If we are updated while paused, allow the player origin to be snapped by the
@@ -501,6 +529,70 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public long FinalPredictedTick;
 	InlineArray32<char> AnimExtension;
 	FlashlightEffect? PointFlashlight;
+	public virtual BaseEntity? GetObserverTarget() => null; // todo
+
+	static readonly ConVar demo_fov_override = new("demo_fov_override", "0", FCvar.ClientDLL | FCvar.DontRecord, "If nonzero, this value will be used to override FOV during demo playback.");
+
+	public virtual float GetFOV() {
+		// Allow users to override the FOV during demo playback
+		bool useDemoOverrideFov = engine.IsPlayingDemo() && demo_fov_override.GetFloat() > 0.0f;
+
+		if (useDemoOverrideFov)
+			return Math.Clamp(demo_fov_override.GetFloat(), 10.0f, 90.0f);
+
+		if (GetObserverMode() == Shared.ObserverMode.InEye) {
+			C_BasePlayer? targetPlayer = (C_BasePlayer?)GetObserverTarget();
+
+			// get fov from observer target. Not if target is observer itself
+			if (targetPlayer != null && !targetPlayer.IsObserver())
+				return targetPlayer.GetFOV();
+		}
+
+		// Allow our vehicle to override our FOV if it's currently at the default FOV.
+		float defaultFOV;
+		IClientVehicle? vehicle = GetVehicle();
+		if (vehicle != null) {
+			CacheVehicleView();
+			defaultFOV = (VehicleViewFOV == 0) ? GetDefaultFOV() : VehicleViewFOV;
+		}
+		else
+			defaultFOV = GetDefaultFOV();
+
+		float fFOV = (FOV == 0) ? defaultFOV : FOV;
+
+		// Don't do lerping during prediction. It's only necessary when actually rendering,
+		// and it'll cause problems due to prediction timing messiness.
+		if (!prediction.InPrediction()) {
+			// See if we need to lerp the values for local player
+			if (IsLocalPlayer() && (fFOV != FOVStart) && (Local.FOVRate > 0.0f)) {
+				TimeUnit_t deltaTime = (float)(gpGlobals.CurTime - FOVTime) / Local.FOVRate;
+
+#if !NO_ENTITY_PREDICTION
+				if (GetPredictable()) {
+					// m_flFOVTime was set to a predicted time in the future, because the FOV change was predicted.
+					deltaTime = (float)(GetFinalPredictedTime() - FOVTime);
+					deltaTime += (gpGlobals.InterpolationAmount * TICK_INTERVAL);
+					deltaTime /= Local.FOVRate;
+				}
+#endif
+
+				if (deltaTime >= 1.0f) {
+					//If we're past the zoom time, just take the new value and stop lerping
+					FOVStart = (int)fFOV;
+				}
+				else {
+					fFOV = (int)MathLib.SimpleSplineRemapValClamped(deltaTime, 0.0f, 1.0f, (float)FOVStart, fFOV);
+				}
+			}
+		}
+
+		return fFOV;
+	}
+
+	public Vector3 VehicleViewOrigin;
+	public QAngle VehicleViewAngles;
+	public float VehicleViewFOV;
+	public int VehicleViewSavedFrame;
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;
@@ -576,7 +668,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
 	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
 
-	public BaseCombatWeapon? GetActiveWeapon() {
+	public override BaseCombatWeapon? GetActiveWeapon() {
 		BasePlayer fromPlayer = this;
 
 		if (fromPlayer == GetLocalPlayer()) {// observer mode todo

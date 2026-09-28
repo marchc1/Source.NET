@@ -705,6 +705,11 @@ public unsafe class StudioRender
 				Assert(false);
 				return null;
 			}
+
+			bCheckForConVarDrawTranslucentSubModels = true;
+
+			pMaterial.AlphaModulate(pRC.AlphaMod);
+			pMaterial.ColorModulate(pRC.ColorMod.X, pRC.ColorMod.Y, pRC.ColorMod.Z);
 		}
 		else {
 			// TODO!!

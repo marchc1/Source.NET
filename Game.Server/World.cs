@@ -15,7 +15,6 @@ using FIELD = Source.FIELD<World>;
 
 public static class WorldGlobals
 {
-	public static bool g_fGameOver = false;
 	public static World? GetWorldEntity() => World.g_WorldEntity;
 }
 
@@ -23,7 +22,7 @@ public static class WorldGlobals
 public class World : BaseEntity
 {
 	public static World? g_WorldEntity { get; private set; }
-
+	public override int RequiredEdictIndex() => 0;
 	public static SendTable DT_World = new([
 		SendPropDataTable("baseclass", DT_BaseEntity),
 
@@ -39,6 +38,8 @@ public class World : BaseEntity
 
 	public World() {
 		AddEFlags(EFL.NoAutoEdictAttach | EFL.KeepOnRecreateEntities);
+		NetworkProp().AttachEdict(INDEXENT(RequiredEdictIndex()));
+
 		ActivityList.Init();
 		SetSolid(Source.SolidType.BSP);
 		SetMoveType(Source.MoveType.None);
@@ -74,7 +75,7 @@ public class World : BaseEntity
 
 		// InitBodyQue();
 
-		// SENTENCEG_Init();
+		SENTENCEG_Init();
 		// PrecacheStandardParticleSystems();
 
 		BaseCombatWeapon.W_Precache();
@@ -137,7 +138,7 @@ public class World : BaseEntity
 		SetModelName(modelinfo.GetModelName(modelinfo.GetModel(GetModelIndex())));
 		AddFlag(Source.EntityFlags.WorldBrush);
 
-		// EventQueue.Init();
+		g_EventQueue.Init();
 		Precache();
 
 		GlobalEntity.Add("is_console", gpGlobals.MapName, (IsConsole()) ? GlobalEState.On : GlobalEState.Off);

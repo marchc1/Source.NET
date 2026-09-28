@@ -5,9 +5,11 @@ using Source.Common;
 
 
 namespace Game.Client;
+using System.Numerics;
 using FIELD_DP = Source.FIELD<C_DynamicProp>;
 using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
 using FIELD_BPD = Source.FIELD<C_BasePropDoor>;
+using FIELD_PPM = Source.FIELD<PhysicsPropMultiplayer>;
 
 public class C_DynamicProp : C_BreakableProp
 {
@@ -22,15 +24,23 @@ public class C_DynamicProp : C_BreakableProp
 public class PhysicsPropMultiplayer : C_PhysicsProp
 {
 	public static readonly RecvTable DT_PhysicsPropMultiplayer = new(DT_PhysicsProp, [
-
+		RecvPropInt(FIELD_PPM.OF(nameof(PhysicsMode))),
+		RecvPropFloat(FIELD_PPM.OF(nameof(Mass))),
+		RecvPropVector(FIELD_PPM.OF(nameof(CollisionMins))),
+		RecvPropVector(FIELD_PPM.OF(nameof(CollisionMaxs))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PhysicsPropMultiplayer", DT_PhysicsPropMultiplayer).WithManualClassID(StaticClassIndices.CPhysicsPropMultiplayer);
+
+	public int PhysicsMode;
+	public float Mass;
+	public Vector3 CollisionMins;
+	public Vector3 CollisionMaxs;
 }
 
 public class PhysBoxMultiplayer : C_PhysBox
 {
 	public static readonly RecvTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
-		RecvPropInt(FIELD_PBM.OF(nameof(PhysicsMode))),
+		RecvPropInt(FIELD_PBM.OF(nameof(PhysicsMode)), PropFlags.Unsigned),
 		RecvPropFloat(FIELD_PBM.OF(nameof(Mass)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PhysBoxMultiplayer", DT_PhysBoxMultiplayer).WithManualClassID(StaticClassIndices.CPhysBoxMultiplayer);

@@ -54,6 +54,9 @@ public interface IPanel : IExtDisposable
 
 	void GetAbsPos(out int x, out int y);
 	void GetClipRect(out int x0, out int y0, out int x1, out int y1);
+#if GMOD_DLL
+	void SetClipRect(int x0, int y0, int x1, int y1);
+#endif
 	void SetInset(int left, int top, int right, int bottom);
 	void GetInset(out int left, out int top, out int right, out int bottom);
 

@@ -1158,7 +1158,7 @@ public class AnimationController : Panel, IAnimationController
 				}
 
 				int endIdx = token.IndexOf(")", StringComparison.Ordinal);
-				token = endIdx == -1 ? null : token[endIdx..];
+				token = endIdx == -1 ? null : token[(endIdx + 1)..];
 			}
 		}
 		else if (token[0] == 'r' || token[0] == 'R') {
@@ -1170,7 +1170,8 @@ public class AnimationController : Panel, IAnimationController
 			token = token[1..];
 		}
 
-		int endindex = Math.Min(token.IndexOf('\0'), token.IndexOf(' '));
+		token = token.SliceNullTerminatedString();
+		int endindex = token.IndexOf(' ');
 		if (endindex != -1)
 			token = token[..endindex];
 		// get the number

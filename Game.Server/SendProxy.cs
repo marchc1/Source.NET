@@ -28,8 +28,9 @@ public static class SendProxy
 	public static SendProp SendPropTime64(IFieldAccessor field) {
 		return SendPropVectorXY(field, -1, PropFlags.NoScale, proxyFn: SendProxy_DoubleToVectorXY);
 	}
-	public static SendProp SendPropEHandle(IFieldAccessor field, PropFlags flags = 0, SendVarProxyFn? proxyFn = null) {
-		return SendPropInt(field, Constants.NUM_NETWORKED_EHANDLE_BITS, PropFlags.Unsigned | flags, proxyFn ?? SendProxy_EHandleToInt);
+	// field may be null for UtlVector/list element templates (mirrors C++ SendPropEHandle(NULL, 0)).
+	public static SendProp SendPropEHandle(IFieldAccessor? field = null, PropFlags flags = 0, SendVarProxyFn? proxyFn = null) {
+		return SendPropInt(field!, Constants.NUM_NETWORKED_EHANDLE_BITS, PropFlags.Unsigned | flags, proxyFn ?? SendProxy_EHandleToInt);
 	}
 	public static SendProp SendPropIntWithMinusOneFlag(IFieldAccessor field, int bits, SendVarProxyFn? proxyFn = null)
 		=> SendPropInt(field, bits, PropFlags.Unsigned, proxyFn ?? SendProxy_IntAddOne);
