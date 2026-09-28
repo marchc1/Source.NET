@@ -110,7 +110,14 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	// bool ProcessVoiceData(CLC_VoiceData msg) { }
+	protected override bool ProcessVoiceData(CLC_VoiceData msg) {
+		byte[] voiceDataBuffer = new byte[4096];
+		int bitsRead = (int)msg.DataIn.ReadBitsClamped(voiceDataBuffer, (uint)msg.Length);
+
+		SV.BroadcastVoiceData(this, Protocol.Bits2Bytes(bitsRead), voiceDataBuffer);
+
+		return true;
+	}
 
 	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
 	// 	SV.ServerGameClients.ClientCommandKeyValues(Edict, msg.KeyValues);
@@ -173,11 +180,33 @@ public class GameClient : BaseClient
 
 	// void SetUpdateRate(int udpaterate, bool force) { }
 
-	void UpdateUserSettings() { }
+	public override void UpdateUserSettings() {
+		// set voice loopback
+		VoiceLoopback = ConVars!.GetInt("voice_loopback", 0) != 0;
 
-	// bool IsHearingClient(int index) { }
+		base.UpdateUserSettings();
 
-	// bool IsProximityHearingClient(int index) { }
+		// Give entity dll a chance to look at the changes.
+		// Do this after BaseClient.UpdateUserSettings() so name changes like prepending a (1)
+		// take effect before the server dll sees the name.
+		serverPluginHandler.ClientSettingsChanged(Edict);
+	}
+
+	public override bool IsHearingClient(int index) {
+		if (IsHLTV())
+			return true;
+
+		if (index == GetPlayerSlot())
+			return VoiceLoopback;
+
+		GameClient client = sv.Client(index);
+		return client.VoiceStreams.Get(GetPlayerSlot()) != 0;
+	}
+
+	public override bool IsProximityHearingClient(int index) {
+		GameClient client = sv.Client(index);
+		return client.VoiceProximity.Get(GetPlayerSlot()) != 0;
+	}
 
 	public override void Inactivate() {
 		if (Edict != null && !Edict.IsFree())
@@ -345,7 +374,17 @@ public class GameClient : BaseClient
 	}
 
 	bool CheckConnect() {
-		return true; // todo
+		// Allow the game dll to reject this client.
+		Span<char> rejectReason = stackalloc char[128];
+		"Connection rejected by game\n".CopyTo(rejectReason);
+
+		if (!serverPluginHandler.ClientConnect(Edict, Name, NetChannel!.GetAddress(), rejectReason)) {
+			// Reject the connection and drop the client.
+			Disconnect(rejectReason.SliceNullTerminatedString());
+			return false;
+		}
+
+		return true;
 	}
 
 	public override void ActivatePlayer() {

@@ -937,6 +937,6 @@ public class ClientDLL(IServiceProvider services
 	}
 
 	internal void Shutdown() {
-
+		g_ClientDLL?.Shutdown();
 	}
 }

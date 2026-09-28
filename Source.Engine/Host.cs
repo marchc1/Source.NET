@@ -327,6 +327,44 @@ public partial class Host
 
 	public void SetAudioState(in AudioState state) => audioState = state;
 
+	[ConCommand("snd_restart", "Restart sound system.")]
+	public void Snd_Restart_f() {
+#if !SWDS
+		Span<char> szVoiceCodec = stackalloc char[MAX_PATH];
+		szVoiceCodec.Clear();
+		int nVoiceSampleRate = Voice.ConfiguredSampleRate();
+
+		{
+			// This is not valid after voice shuts down
+			ReadOnlySpan<char> pPreviousCodec = Voice.ConfiguredCodec();
+			if (!pPreviousCodec.IsEmpty && pPreviousCodec[0] != '\0')
+				strcpy(szVoiceCodec, pPreviousCodec);
+		}
+
+		Sound.Shutdown();
+		g_AudioSystem.MarkFirstTime();
+		cl.ClearSounds();
+		Sound.Init();
+
+		// Restart voice if it was running
+		if (szVoiceCodec[0] != '\0')
+			Voice.Init(szVoiceCodec, nVoiceSampleRate);
+
+		// Do this or else it won't have anything in the cache.
+		if (!sv.GetMapName().IsEmpty && sv.GetMapName()[0] != '\0')
+			g_AudioSystem.LevelInit(sv.GetMapName());
+
+		// Flush soundscapes so they don't stop. We don't insert text in the buffer here because
+		// cl_soundscape_flush is normally cheat-protected.
+		ConCommand? pCommand = cvar.FindCommand("cl_soundscape_flush");
+		if (pCommand != null) {
+			TokenizedCommand cmd = new();
+			cmd.Tokenize("cl_soundscape_flush");
+			pCommand.Dispatch(in cmd, CommandSource.Command, -1);
+		}
+#endif
+	}
+
 	public void UpdateSounds() {
 		if (cl.IsActive()) {
 			Sound.Update(in audioState);
@@ -1348,7 +1386,15 @@ public partial class Host
 	}
 
 	internal static TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
-		return 0; // todo
+#if !SWDS
+		if (!sv.IsDedicated()) {
+			int index = cl.LookupSoundIndex(sample);
+			if (index >= 0)
+				return g_AudioSystem.GetSoundDuration(cl.GetSound(index));
+			return g_AudioSystem.GetSoundDuration(SoundCharsUtils.SkipSoundChars(sample));
+		}
+#endif
+		return 0.0f;
 	}
 
 	ref struct LocalMapAccessScope : IDisposable

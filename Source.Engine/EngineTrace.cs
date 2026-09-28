@@ -47,10 +47,23 @@ public abstract class EngineTrace : IEngineTrace
 			return;
 
 		Model? model = collide.GetCollisionModel();
+		bool isStudioModel = false;
+		StudioHeader? studioHdr = null;
+		if (model != null && model.Type == ModelType.Studio) {
+			isStudioModel = true;
+			studioHdr = (StudioHeader?)modelloader.GetExtraData(model);
+			// Cull if the collision mask isn't set + we're not testing hitboxes.
+			if ((mask & (Mask)Contents.HitBox) == 0) {
+				if (studioHdr == null || ((int)mask & studioHdr.Contents) == 0)
+					return;
+			}
+		}
 
 		Matrix3x4? oldRoot = RootMoveParent;
-		if (((SolidFlags)collide.GetSolidFlags() & SolidFlags.RootParentAligned) != 0)
-			RootMoveParent = collide.GetRootParentToWorldTransform();
+		if (((SolidFlags)collide.GetSolidFlags() & SolidFlags.RootParentAligned) != 0) {
+			ref readonly Matrix3x4 rootParentToWorld = ref collide.GetRootParentToWorldTransform();
+			RootMoveParent = Unsafe.IsNullRef(in rootParentToWorld) ? null : rootParentToWorld;
+		}
 
 		bool traced = false;
 		bool customPerformed = false;
@@ -60,7 +73,7 @@ public abstract class EngineTrace : IEngineTrace
 			customPerformed = true;
 		}
 		else {
-			traced = ClipRayToVPhysics(in ray, mask, collide, ref trace);
+			traced = ClipRayToVPhysics(in ray, mask, collide, studioHdr, ref trace);
 		}
 
 		// FIXME: Why aren't we using solid type to check what kind of collisions to test against?!?!
@@ -70,13 +83,90 @@ public abstract class EngineTrace : IEngineTrace
 		if (!traced)
 			traced = ClipRayToOBB(in ray, mask, collide, ref trace);
 
+		// Hitboxes..
+		bool tracedHitboxes = false;
+		if (isStudioModel && (mask & (Mask)Contents.HitBox) != 0) {
+			// Until hitboxes are no longer implemented as custom raytests,
+			// don't bother to do the work twice
+			if (!customPerformed) {
+				traced = ClipRayToHitboxes(in ray, mask, collide, ref trace);
+				if (traced) {
+					// Hitboxes will set the surface properties
+					tracedHitboxes = true;
+				}
+			}
+		}
+
 		if (!traced)
 			ClipRayToBBox(in ray, mask, collide, ref trace);
+
+		if (isStudioModel && studioHdr != null && !tracedHitboxes && trace.DidHit() && (!customPerformed || trace.Surface.SurfaceProps == 0)) {
+			trace.Contents = (Contents)studioHdr.Contents;
+			// use the default surface properties
+			trace.Surface.Name = "**studio**";
+			trace.Surface.Flags = 0;
+			trace.Surface.SurfaceProps = (ushort)physprop.GetSurfaceIndex(studioHdr.SurfaceProp());
+		}
 
 		if (trace.EntHandle == null && trace.DidHit())
 			SetTraceEntity(collide, ref trace);
 
 		RootMoveParent = oldRoot;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Sets up bounding boxes for hitboxes
+	//-----------------------------------------------------------------------------
+	protected bool ClipRayToHitboxes(in Ray ray, Mask mask, ICollideable collideable, ref Trace trace) {
+		Trace hitboxTrace = default;
+		CM.ClearTrace(ref hitboxTrace);
+
+		// Keep track of the contents of what was hit initially
+		hitboxTrace.Contents = trace.Contents;
+		MathLib.VectorAdd(ray.Start, ray.StartOffset, out hitboxTrace.StartPos);
+		MathLib.VectorAdd(hitboxTrace.StartPos, ray.Delta, out hitboxTrace.EndPos);
+
+		// At the moment, it has to be a true ray to work with hitboxes
+		if (!ray.IsRay)
+			return false;
+
+		// If the hitboxes weren't even tested, then just use the original trace
+		if (!collideable.TestHitboxes(ray, (Contents)mask, ref hitboxTrace))
+			return false;
+
+		// If they *were* tested and missed, clear the original trace
+		if (!hitboxTrace.DidHit()) {
+			CM.ClearTrace(ref trace);
+			trace.StartPos = hitboxTrace.StartPos;
+			trace.EndPos = hitboxTrace.EndPos;
+		}
+		else if (collideable.GetSolid() != SolidType.VPhysics) {
+			// If we also hit the hitboxes, maintain fractionleftsolid +
+			// startpos because those are reasonable enough values and the
+			// hitbox code doesn't set those itself.
+			Vector3 vecStartPos = trace.StartPos;
+			float flFractionLeftSolid = trace.FractionLeftSolid;
+
+			trace = hitboxTrace;
+
+			if (hitboxTrace.StartSolid) {
+				trace.StartPos = vecStartPos;
+				trace.FractionLeftSolid = flFractionLeftSolid;
+			}
+		}
+		else {
+			// Fill out the trace hitbox details
+			trace.Contents = hitboxTrace.Contents;
+			trace.HitGroup = hitboxTrace.HitGroup;
+			trace.HitBox = hitboxTrace.HitBox;
+			trace.PhysicsBone = hitboxTrace.PhysicsBone;
+			trace.Surface = hitboxTrace.Surface;
+			Assert(trace.PhysicsBone >= 0);
+			// Fill out the surfaceprop details from the hitbox. Use the physics bone instead of the hitbox bone
+			Assert(trace.Surface.Flags == hitboxTrace.Surface.Flags);
+		}
+
+		return true;
 	}
 
 	public void ClipRayToEntity(in Ray ray, Mask mask, IHandleEntity ent, ref Trace trace) {
@@ -91,30 +181,77 @@ public abstract class EngineTrace : IEngineTrace
 		collide.TestCollision(in ray, (Contents)mask, ref trace);
 	}
 
-	protected bool ClipRayToVPhysics(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+	//-----------------------------------------------------------------------------
+	// Perform vphysics trace
+	//-----------------------------------------------------------------------------
+	protected bool ClipRayToVPhysics(in Ray ray, Mask mask, ICollideable collide, StudioHeader? studioHdr, ref Trace trace) {
 		if (collide.GetSolid() != SolidType.VPhysics)
 			return false;
 
+		bool traced = false;
+
+		// use the vphysics model for rotated brushes and vphysics simulated objects
 		Model? model = collide.GetCollisionModel();
+
 		if (model == null)
 			return false;
 
-		VCollide? pCollide = VCollideForModel(collide.GetCollisionModelIndex(), model);
-		if (pCollide == null || pCollide.SolidCount == 0 || pCollide.Solids == null)
-			return false;
+		if (studioHdr != null) {
+			StudioConvexInfo studioConvex = new(studioHdr);
+			VCollide? pCollide = mdlcache.GetVCollide(model.Studio);
+			if (pCollide != null && pCollide.SolidCount != 0) {
+				physcollision.TraceBox(
+					in ray,
+					(Contents)mask,
+					studioConvex,
+					pCollide.Solids![0]!, // UNDONE: Support other solid indices?!?!?!? (forced zero)
+					in collide.GetCollisionOrigin(),
+					in collide.GetCollisionAngles(),
+					out trace);
+				traced = true;
+			}
+		}
+		else {
+			Assert(model.Type != ModelType.Studio);
+			// use the regular code for raytraces against brushes
+			// do ray traces with normal code, but use vphysics to do box traces
+			if (!ray.IsRay || model.Type != ModelType.Brush) {
+				int nModelIndex = collide.GetCollisionModelIndex();
 
-		IConvexInfo? convexInfo = model.Type == ModelType.Brush ? BrushConvexInfo(collide) : null;
-		physcollision.TraceBox(in ray, (Contents)mask, convexInfo, pCollide.Solids[0]!, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), out trace);
-		return true;
+				// BUGBUG: This only works when the vcollide in question is the first solid in the model
+				VCollide? pCollide = CM.VCollideForModel(nModelIndex, model);
+
+				if (pCollide != null && pCollide.SolidCount != 0) {
+					BrushConvexInfo brushConvex = new();
+
+					IConvexInfo? convexInfo = (model.Type) == ModelType.Brush ? brushConvex : null;
+					physcollision.TraceBox(
+						in ray,
+						(Contents)mask,
+						convexInfo,
+						pCollide.Solids![0]!, // UNDONE: Support other solid indices?!?!?!? (forced zero)
+						in collide.GetCollisionOrigin(),
+						in collide.GetCollisionAngles(),
+						out trace);
+					traced = true;
+				}
+			}
+		}
+
+		return traced;
 	}
 
+	//-----------------------------------------------------------------------------
+	// Perform bsp trace
+	//-----------------------------------------------------------------------------
 	protected bool ClipRayToBSP(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
 		int nModelIndex = collide.GetCollisionModelIndex();
-		int nHeadNode = InlineModelHeadNode(nModelIndex - 1);
-		if (nHeadNode < 0)
+		CollisionModel? cmodel = CM.InlineModelNumber(nModelIndex - 1);
+		if (cmodel == null)
 			return false;
 
-		TransformedBoxTrace(in ray, nHeadNode, mask, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), ref trace);
+		int nHeadNode = cmodel.HeadNode;
+		CM.TransformedBoxTrace(in ray, nHeadNode, mask, in collide.GetCollisionOrigin(), in collide.GetCollisionAngles(), ref trace);
 		return true;
 	}
 
@@ -126,39 +263,67 @@ public abstract class EngineTrace : IEngineTrace
 		return true;
 	}
 
+	// NOTE: Switched over to SIMD ray/box test since there is a bug we haven't hunted down yet in the scalar version
 	protected bool ClipRayToBBox(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
 		if (collide.GetSolid() != SolidType.BBox)
 			return false;
 
-		MathLib.VectorAdd(in collide.GetCollisionOrigin(), in collide.OBBMins(), out Vector3 vecAbsMins);
-		MathLib.VectorAdd(in collide.GetCollisionOrigin(), in collide.OBBMaxs(), out Vector3 vecAbsMaxs);
-		IntersectRayWithBox(in ray, in vecAbsMins, in vecAbsMaxs, ref trace);
+		// We can't use the OBBMins/Maxs unless the collision angles are world-aligned
+		Assert(collide.GetCollisionAngles() == vec3_angle);
+
+		Vector3 vecAbsMins, vecAbsMaxs;
+		Vector3 vecInvDelta;
+		// NOTE: If m_pRootMoveParent is set, then the boxes should be rotated into the root parent's space
+		if (!ray.IsRay && RootMoveParent.HasValue) {
+			Matrix3x4 rootMoveParent = RootMoveParent.Value;
+			Ray ray_l = default;
+
+			ray_l.Extents = ray.Extents;
+
+			MathLib.VectorIRotate(ray.Delta, rootMoveParent, out ray_l.Delta);
+			ray_l.StartOffset = default;
+			MathLib.VectorITransform(ray.Start, rootMoveParent, out ray_l.Start);
+
+			vecInvDelta = ray_l.InvDelta();
+			MathLib.VectorITransform(collide.GetCollisionOrigin(), rootMoveParent, out Vector3 localEntityOrigin);
+			ray_l.IsRay = ray.IsRay;
+			ray_l.IsSwept = ray.IsSwept;
+
+			MathLib.VectorAdd(localEntityOrigin, collide.OBBMins(), out vecAbsMins);
+			MathLib.VectorAdd(localEntityOrigin, collide.OBBMaxs(), out vecAbsMaxs);
+			CM.IntersectRayWithBox(ray_l, vecInvDelta, vecAbsMins, vecAbsMaxs, ref trace);
+
+			if (trace.DidHit()) {
+				Vector3 temp = trace.Plane.Normal;
+				MathLib.VectorRotate(temp, rootMoveParent, out trace.Plane.Normal);
+				MathLib.VectorAdd(ray.Start, ray.StartOffset, out trace.StartPos);
+
+				if (trace.Fraction == 1)
+					MathLib.VectorAdd(trace.StartPos, ray.Delta, out trace.EndPos);
+				else
+					MathLib.VectorMA(trace.StartPos, trace.Fraction, ray.Delta, out trace.EndPos);
+				trace.Plane.Dist = Vector3.Dot(trace.EndPos, trace.Plane.Normal);
+				if (trace.FractionLeftSolid < 1)
+					trace.StartPos += ray.Delta * trace.FractionLeftSolid;
+			}
+			else
+				MathLib.VectorAdd(ray.Start, ray.StartOffset, out trace.StartPos);
+
+			return true;
+		}
+
+		vecInvDelta = ray.InvDelta();
+		MathLib.VectorAdd(collide.GetCollisionOrigin(), collide.OBBMins(), out vecAbsMins);
+		MathLib.VectorAdd(collide.GetCollisionOrigin(), collide.OBBMaxs(), out vecAbsMaxs);
+		CM.IntersectRayWithBox(ray, vecInvDelta, vecAbsMins, vecAbsMaxs, ref trace);
 		return true;
 	}
 
-	protected virtual VCollide? VCollideForModel(int modelIndex, Model model) {
-		throw new NotImplementedException();
-	}
-
-	protected virtual IConvexInfo? BrushConvexInfo(ICollideable collide) {
-		throw new NotImplementedException();
-	}
-
-	protected virtual int InlineModelHeadNode(int inlineModelIndex) {
-		throw new NotImplementedException();
-	}
-
-	protected virtual void TransformedBoxTrace(in Ray ray, int headNode, Mask mask, in Vector3 origin, in QAngle angles, ref Trace trace) {
-		throw new NotImplementedException();
-	}
 
 	protected virtual void IntersectRayWithOBB(in Ray ray, in Vector3 origin, in QAngle angles, in Vector3 mins, in Vector3 maxs, float tolerance, ref Trace trace) {
 		throw new NotImplementedException();
 	}
 
-	protected virtual void IntersectRayWithBox(in Ray ray, in Vector3 mins, in Vector3 maxs, ref Trace trace) {
-		throw new NotImplementedException();
-	}
 
 	public void EnumerateEntities<IEE>(in Ray ray, bool triggers, scoped ref IEE enumerator) where IEE : IEntityEnumerator, allows ref struct {
 		throw new NotImplementedException();
@@ -383,6 +548,40 @@ public abstract class EngineTrace : IEngineTrace
 	}
 }
 
+
+//-----------------------------------------------------------------------------
+// Convex info for studio + brush models
+//-----------------------------------------------------------------------------
+class BrushConvexInfo : IConvexInfo
+{
+	public BrushConvexInfo() {
+		BSPData = GetCollisionBSPData();
+	}
+
+	public uint GetContents(int convexGameData) {
+		return (uint)BSPData.MapBrushes[convexGameData].Contents;
+	}
+
+	readonly CollisionBSPData BSPData;
+}
+
+class StudioConvexInfo : IConvexInfo
+{
+	public StudioConvexInfo(StudioHeader studioHdr) {
+		StudioHdr = studioHdr;
+	}
+
+	public uint GetContents(int convexGameData) {
+		if (convexGameData == 0)
+			return (uint)StudioHdr.Contents;
+
+		Assert(convexGameData <= StudioHdr.NumBones);
+		MStudioBone bone = StudioHdr.Bone(convexGameData - 1);
+		return (uint)bone.Contents;
+	}
+
+	readonly StudioHeader StudioHdr;
+}
 
 public class EngineTraceClient : EngineTrace
 {

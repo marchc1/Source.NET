@@ -26,7 +26,7 @@ namespace Source.Engine;
 #if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
 							MaterialSystem_Config MaterialSystemConfig,
-							MatSysInterface MatSys, ModelLoader modelloader, CL CL) : IEngineClient
+							MatSysInterface MatSys, ModelLoader modelloader, CL CL, Cmd Cmd) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) => Key.NameForBinding(binding);
 	public void GetMainMenuBackgroundName(Span<char> dest) {
@@ -206,7 +206,12 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void ServerCmd(ReadOnlySpan<char> szCmdString, bool bReliable = true) {
-		throw new NotImplementedException();
+		// info handling
+		string buf = $"cmd {szCmdString}";
+
+		TokenizedCommand args = new();
+		args.Tokenize(buf);
+		Cmd.ForwardToServer(args);
 	}
 
 	public ref ClientTextMessage TextMessageGet(ReadOnlySpan<char> name) {
@@ -242,7 +247,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void Sound_ExtraUpdate() {
-		throw new NotImplementedException();
+		Host.Sound.ExtraUpdate();
 	}
 
 	public ReadOnlySpan<char> GetGameDirectory() {
@@ -304,7 +309,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public ref IVoiceTweak GetVoiceTweakAPI() {
-		throw new NotImplementedException();
+		return ref Voice.g_VoiceTweakAPI;
 	}
 
 	public void EngineStats_BeginFrame() {
@@ -328,31 +333,36 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public int SentenceGroupPick(int groupIndex, Span<char> name, int nameBufLen) {
-		throw new NotImplementedException();
+		int pick = g_AudioSystem.SentenceGroupPick(groupIndex, out string found);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceGroupPickSequential(int groupIndex, Span<char> name, int nameBufLen, int sentenceIndex, int reset) {
-		throw new NotImplementedException();
+		int pick = g_AudioSystem.SentenceGroupPickSequential(groupIndex, out string found, sentenceIndex, reset != 0);
+		strcpy(name, found);
+		return pick;
 	}
 
 	public int SentenceIndexFromName(ReadOnlySpan<char> sentenceName) {
-		throw new NotImplementedException();
+		g_AudioSystem.LookupSentence(sentenceName, out int sentenceIndex);
+		return sentenceIndex;
 	}
 
 	public ReadOnlySpan<char> SentenceNameFromIndex(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceNameFromIndex(sentenceIndex);
 	}
 
 	public int SentenceGroupIndexFromName(ReadOnlySpan<char> grouname) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupIndexFromName(grouname);
 	}
 
 	public ReadOnlySpan<char> SentenceGrounameFromIndex(int groupIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceGroupNameFromIndex(groupIndex);
 	}
 
 	public float SentenceLength(int sentenceIndex) {
-		throw new NotImplementedException();
+		return g_AudioSystem.SentenceLength(sentenceIndex);
 	}
 
 	public void ComputeLighting(in Vector3 pt, in Vector3 normal, bool clamp, out Vector3 color, Span<Vector3> boxColors = default) {

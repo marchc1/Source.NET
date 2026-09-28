@@ -109,8 +109,8 @@ public class ServerPlugin : IServerPluginHelpers
 		SV.ServerGameClients!.ClientSettingsChanged(edict);
 	}
 
-	bool ClientConnect(Edict entity, ReadOnlySpan<char> pszName, ReadOnlySpan<char> pszAddress, ReadOnlySpan<char> reject, int maxrejectlen) {
-		throw new NotImplementedException();
+	public bool ClientConnect(Edict entity, ReadOnlySpan<char> pszName, ReadOnlySpan<char> pszAddress, Span<char> reject) {
+		return SV.ServerGameClients!.ClientConnect(entity, pszName, pszAddress, reject);
 	}
 
 	public void ClientCommand(Edict entity, TokenizedCommand args) {

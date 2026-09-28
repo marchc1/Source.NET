@@ -246,7 +246,7 @@ public class ConPanel : BasePanel
 						NotifyText);
 				}
 
-				if (NotifyText[0] != '\0') {
+				if (!NotifyText.IsEmpty && NotifyText[0] != '\0') {
 					left = Math.Min(left, x);
 					top = Math.Min(top, y);
 					right = Math.Max(right, x + len);

@@ -65,12 +65,12 @@ public partial class SV
 		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence)) {
 			sound.IsSentence = true;
 			sound.SoundNum = atoi(SoundCharsUtils.SkipSoundChars(sample));
-			// todo if (sound.SoundNum >= Vox.SentenceCount()) {
-			// todo 	ConMsg("SV_StartSound: invalid sentence number: %s", PSkipSoundChars(pSample));
-			// todo 	return;
-			// todo }
-			Warning("No VOX yet!\n");
-			return;
+#if !SWDS
+			if (sound.SoundNum >= g_AudioSystem.SentenceCount()) {
+				ConMsg($"SV_StartSound: invalid sentence number: {SoundCharsUtils.SkipSoundChars(sample)}");
+				return;
+			}
+#endif
 		}
 		else {
 			sound.IsSentence = false;

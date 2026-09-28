@@ -1,5 +1,6 @@
 ﻿using Source.Common;
 using Source.Common.Audio;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -13,8 +14,6 @@ namespace Source.Engine;
 
 public class EngineSoundClient(Sound Sound) : IEngineSound
 {
-	int lastGuid;
-
 	public void EmitAmbientSound(ReadOnlySpan<char> pSample, float volume, int pitch = 100, int flags = 0, double soundTime = 0) {
 		float delay = 0.0f;
 		if (soundTime != 0.0f)
@@ -36,11 +35,18 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		parms.FromServer = false;
 		parms.Delay = delay;
 
-		lastGuid = (int)Sound.StartSound(in parms);
+		Sound.StartSound(in parms);
 	}
 
+	//-----------------------------------------------------------------------------
+	// Plays a sentence
+	//-----------------------------------------------------------------------------
 	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int sentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
-		throw new NotImplementedException();
+		if (sentenceIndex >= 0) {
+			string pName = $"!{sentenceIndex}";
+			EmitSoundInternal(filter, entIndex, channel, pName, volume, soundlevel,
+				flags, pitch, specialDSP, origin, direction, origins, updatePositions, soundTime, speakerEntity);
+		}
 	}
 
 	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, float attenuation, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
@@ -50,8 +56,11 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 
 	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
 		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence)) {
+#if !SWDS
+			g_AudioSystem.LookupSentence(SoundCharsUtils.SkipSoundChars(sample), out int sentenceIndex);
+#else
 			int sentenceIndex = -1;
-			// VOX_LookupString(SoundCharsUtils.SkipSoundChars(sample), &sentenceIndex); TODO
+#endif
 			if (sentenceIndex >= 0)
 				EmitSentenceByIndex(filter, entIndex, channel, sentenceIndex, volume,
 					soundlevel, flags, pitch, specialDSP, origin, direction, origins, updatePositions, soundTime, speakerEntity);
@@ -108,7 +117,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 			startDirection = new(0);
 		}
 		else {
-			if (Unsafe.IsNullRef(in origin)) {
+			if (!origin.HasValue) {
 				IClientEntity? ent = entitylist.GetClientEntity(entIndex);
 				if (ent != null && (flags & SoundFlags.Stop) == 0)
 					startOrigin = ent.GetRenderOrigin();
@@ -116,7 +125,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 					startOrigin = new(0);
 			}
 
-			if (Unsafe.IsNullRef(in direction)) {
+			if (!direction.HasValue) {
 				IClientEntity? ent = entitylist.GetClientEntity(entIndex);
 				if (ent != null && (flags & SoundFlags.Stop) == 0) {
 					QAngle angles = ent.GetAbsAngles();
@@ -127,9 +136,13 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 			}
 		}
 
+		origins?.Add(startOrigin);
+
 		float delay = 0.0f;
 		if (soundTime != 0.0f) {
+			// this sound was played directly on the client, use its clock sync
 			delay = Sound.ComputeDelayForSoundtime(soundTime, ClockSyncIndex.Client);
+			// anything over 250ms is assumed to be intentional skipping
 			if (delay <= 0 && delay > -0.250f)
 				delay = 1e-6f;
 		}
@@ -151,15 +164,15 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		parms.Delay = delay;
 		parms.SpeakerEntity = speakerEntity;
 
-		lastGuid = (int)Sound.StartSound(in parms);
+		Sound.StartSound(in parms);
 	}
 
-	public ref SndInfo GetActiveSound() {
-		throw new NotImplementedException();
-	}
-
-	public int GetActiveSoundCount() {
-		throw new NotImplementedException();
+	//-----------------------------------------------------------------------------
+	// Purpose: Retrieves list of all active sounds
+	// Input  : sndlist - 
+	//-----------------------------------------------------------------------------
+	public void GetActiveSounds(List<SndInfo> sndlist) {
+		Sound.GetActiveSounds(sndlist);
 	}
 
 	public float GetDistGainFromSoundLevel(SoundLevel soundlevel, float dist) {
@@ -167,16 +180,21 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public int GetGuidForLastSoundEmitted() {
-		return lastGuid;
+		return Sound.GetGuidForLastSoundEmitted();
 	}
 
 	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
-		// TODO: return AudioSource_GetSoundDuration(sample);
-		return 0;
+		return Sound.GetSoundDuration(sample);
 	}
 
 	public bool IsSoundPrecached(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence))
+			return true;
+
+		int idx = cl.LookupSoundIndex(sample);
+		if (idx == -1)
+			return false;
+		return true;
 	}
 
 	public bool IsSoundStillPlaying(int guid) {
@@ -184,15 +202,16 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public void NotifyBeginMoviePlayback() {
-		throw new NotImplementedException();
+		StopAllSounds(true);
 	}
 
 	public void NotifyEndMoviePlayback() {
-		throw new NotImplementedException();
 	}
 
 	public void PrecacheSentenceGroup(ReadOnlySpan<char> groupName) {
-		throw new NotImplementedException();
+#if !SWDS
+		g_AudioSystem.PrecacheSentenceGroup(this, groupName, null);
+#endif
 	}
 
 	public bool PrecacheSound(ReadOnlySpan<char> sample, bool preload = false, bool isUISound = false) {
@@ -208,18 +227,25 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public void PrefetchSound(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+		Sound.PrefetchSound(sample, true);
 	}
 
 	public void SetPlayerDSP<T>(scoped in T filter, int dspType, bool fastReset) where T : IRecipientFilter {
-		// throw new NotImplementedException();
-		//TODO
+		dsp_player ??= cvar.FindVar("dsp_player");
+		dsp_player?.SetValue(dspType);
+#if !SWDS
+		if (fastReset)
+			g_AudioSystem.DSP_FastReset(dspType);
+#endif
 	}
 
 	public void SetRoomType<T>(scoped in T filter, int roomType) where T : IRecipientFilter {
-		// throw new NotImplementedException();
-		//TODO
+		dsp_room ??= cvar.FindVar("dsp_room");
+		dsp_room?.SetValue(roomType);
 	}
+
+	[CvarIgnore] ConVar? dsp_player;
+	[CvarIgnore] ConVar? dsp_room;
 
 	public void SetVolumeByGuid(int guid, float fvol) {
 		Sound.SetVolumeByGuid(guid, fvol);
@@ -229,19 +255,13 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		Sound.StopAllSounds(clearBuffers);
 	}
 
+	//-----------------------------------------------------------------------------
+	// Stops a sound
+	//-----------------------------------------------------------------------------
 	public void StopSound(int entIndex, int channel, ReadOnlySpan<char> pSample) {
-		SfxTable? sound = Sound.PrecacheSound(pSample);
-		if (sound == null)
-			return;
-
-		StartSoundParams parms = new();
-		parms.StaticSound = channel == (int)SoundEntityChannel.Static;
-		parms.SoundSource = entIndex;
-		parms.EntChannel = (SoundEntityChannel)channel;
-		parms.Sfx = sound;
-		parms.Flags = SoundFlags.Stop;
-
-		Sound.StartSound(in parms);
+		EngineSingleUserFilter filter = new(cl.PlayerSlot + 1);
+		EmitSound(filter, entIndex, channel, pSample, 0, SoundLevel.LvlNone, SoundFlags.Stop, PITCH_NORM, 0,
+			null, null, null, true);
 	}
 
 	public void StopSoundByGuid(int guid) {

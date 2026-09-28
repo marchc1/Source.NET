@@ -916,6 +916,159 @@ public static partial class CM
 		}
 		return false;
 	}
+	// slightly different version of the above.  This folds in more of the trace_t output because CM_ComputeTraceEndpts() isn't called after this
+	// so this routine needs to properly compute start/end points and fractions in all cases
+	public static bool IntersectRayWithBox(in Ray ray, in Vector3 inInvDelta, in Vector3 inBoxMins, in Vector3 inBoxMaxs, ref Trace trace) {
+		// mark trace as not hitting
+		trace.StartSolid = false;
+		trace.AllSolid = false;
+		trace.Fraction = 1.0f;
+
+		// Load the unaligned ray/box parameters into SIMD registers
+		fltx4 start = MathLib.LoadFloat3(ray.Start);
+		fltx4 extents = MathLib.LoadFloat3(ray.Extents);
+		fltx4 delta = MathLib.LoadFloat3(ray.Delta);
+		fltx4 boxMins = MathLib.LoadFloat3(inBoxMins);
+		fltx4 boxMaxs = MathLib.LoadFloat3(inBoxMaxs);
+
+		// compute the mins/maxs of the box expanded by the ray extents
+		// relocate the problem so that the ray start is at the origin.
+		fltx4 offsetMins = MathLib.SubSIMD(boxMins, start);
+		fltx4 offsetMaxs = MathLib.SubSIMD(boxMaxs, start);
+		fltx4 offsetMinsExpanded = MathLib.SubSIMD(offsetMins, extents);
+		fltx4 offsetMaxsExpanded = MathLib.AddSIMD(offsetMaxs, extents);
+
+		// Check to see if both the origin (start point) and the end point (delta) are on the front side
+		// of any of the box sides - if so there can be no intersection
+		fltx4 startOutMins = MathLib.CmpLtSIMD(MathLib.Four_Zeros, offsetMinsExpanded);
+		fltx4 endOutMins = MathLib.CmpLtSIMD(delta, offsetMinsExpanded);
+		fltx4 minsMask = MathLib.AndSIMD(startOutMins, endOutMins);
+		fltx4 startOutMaxs = MathLib.CmpGtSIMD(MathLib.Four_Zeros, offsetMaxsExpanded);
+		fltx4 endOutMaxs = MathLib.CmpGtSIMD(delta, offsetMaxsExpanded);
+		fltx4 maxsMask = MathLib.AndSIMD(startOutMaxs, endOutMaxs);
+		if (MathLib.IsAnyNegative(MathLib.SetWToZeroSIMD(MathLib.OrSIMD(minsMask, maxsMask))))
+			return false;
+
+		fltx4 crossPlane = MathLib.OrSIMD(MathLib.XorSIMD(startOutMins, endOutMins), MathLib.XorSIMD(startOutMaxs, endOutMaxs));
+		// now build the per-axis interval of t for intersections
+		fltx4 invDelta = MathLib.LoadFloat3(inInvDelta);
+		fltx4 tmins = MathLib.MulSIMD(offsetMinsExpanded, invDelta);
+		fltx4 tmaxs = MathLib.MulSIMD(offsetMaxsExpanded, invDelta);
+		// now sort the interval per axis
+		fltx4 mint = MathLib.MinSIMD(tmins, tmaxs);
+		fltx4 maxt = MathLib.MaxSIMD(tmins, tmaxs);
+		// only axes where we cross a plane are relevant
+		mint = MathLib.MaskedAssign(crossPlane, mint, MathLib.Four_Negative_FLT_MAX);
+		maxt = MathLib.MaskedAssign(crossPlane, maxt, MathLib.Four_FLT_MAX);
+
+		// now find the intersection of the intervals on all axes
+		fltx4 firstOut = MathLib.FindLowestSIMD3(maxt);
+		fltx4 lastIn = MathLib.FindHighestSIMD3(mint);
+		// NOTE: This is really a scalar quantity now [t0,t1] == [lastIn,firstOut]
+		firstOut = MathLib.MinSIMD(firstOut, MathLib.Four_Ones);
+		lastIn = MathLib.MaxSIMD(lastIn, MathLib.Four_Zeros);
+
+		// If the final interval is valid lastIn<firstOut, check for separation
+		fltx4 separation = MathLib.CmpGtSIMD(lastIn, firstOut);
+
+		if (MathLib.IsAllZeros(separation)) {
+			bool startOut = MathLib.IsAnyNegative(MathLib.SetWToZeroSIMD(MathLib.OrSIMD(startOutMins, startOutMaxs)));
+			offsetMinsExpanded = MathLib.SubSIMD(offsetMinsExpanded, Four_DistEpsilons);
+			offsetMaxsExpanded = MathLib.AddSIMD(offsetMaxsExpanded, Four_DistEpsilons);
+
+			tmins = MathLib.MulSIMD(offsetMinsExpanded, invDelta);
+			tmaxs = MathLib.MulSIMD(offsetMaxsExpanded, invDelta);
+
+			fltx4 minface0 = MathLib.LoadInt4(g_CubeFaceIndex0).As<int, float>();
+			fltx4 minface1 = MathLib.LoadInt4(g_CubeFaceIndex1).As<int, float>();
+			fltx4 faceMask = MathLib.CmpLeSIMD(tmins, tmaxs);
+			mint = MathLib.MinSIMD(tmins, tmaxs);
+			maxt = MathLib.MaxSIMD(tmins, tmaxs);
+			fltx4 faceId = MathLib.MaskedAssign(faceMask, minface0, minface1);
+			// only axes where we cross a plane are relevant
+			mint = MathLib.MaskedAssign(crossPlane, mint, MathLib.Four_Negative_FLT_MAX);
+			maxt = MathLib.MaskedAssign(crossPlane, maxt, MathLib.Four_FLT_MAX);
+
+			fltx4 firstOutTmp = MathLib.FindLowestSIMD3(maxt);
+
+			//fltx4 lastInTmp = FindHighestSIMD3(mint);
+			// implement FindHighest of 3, but use intermediate masks to find the
+			// corresponding index in faceId to the highest at the same time
+			fltx4 compareOne = MathLib.RotateLeft(mint);
+			faceMask = MathLib.CmpGtSIMD(mint, compareOne);
+			// compareOne is [y,z,G,x]
+			fltx4 max_xy = MathLib.MaxSIMD(mint, compareOne);
+			fltx4 faceRot = MathLib.RotateLeft(faceId);
+			fltx4 faceId_xy = MathLib.MaskedAssign(faceMask, faceId, faceRot);
+			// max_xy is [max(x,y), ... ]
+			compareOne = MathLib.RotateLeft2(mint);
+			faceRot = MathLib.RotateLeft2(faceId);
+			// compareOne is [z, G, x, y]
+			faceMask = MathLib.CmpGtSIMD(max_xy, compareOne);
+			fltx4 max_xyz = MathLib.MaxSIMD(max_xy, compareOne);
+			faceId = MathLib.MaskedAssign(faceMask, faceId_xy, faceRot);
+			fltx4 lastInTmp = MathLib.SplatXSIMD(max_xyz);
+
+			firstOut = MathLib.MinSIMD(firstOutTmp, MathLib.Four_Ones);
+			lastIn = MathLib.MaxSIMD(lastInTmp, MathLib.Four_Zeros);
+			separation = MathLib.CmpGtSIMD(lastIn, firstOut);
+			Assert(MathLib.IsAllZeros(separation));
+			if (MathLib.IsAllZeros(separation)) {
+				uint faceIndex = MathLib.SubInt(faceId, 0);
+				Assert(faceIndex < 6);
+				float t1 = MathLib.SubFloat(ref lastIn, 0);
+
+				// this condition is copied from the brush case to avoid hitting an assert and
+				// overwriting a previous start solid with a new shorter fraction
+				if (startOut && ray.IsRay && trace.FractionLeftSolid > t1)
+					startOut = false;
+
+				if (!startOut) {
+					float t2 = MathLib.SubFloat(ref firstOut, 0);
+					trace.StartSolid = true;
+					trace.Contents = Contents.Solid;
+					trace.Fraction = 0.0f;
+					trace.StartPos = ray.Start + ray.StartOffset;
+					trace.EndPos = trace.StartPos;
+					if (t2 >= 1.0f)
+						trace.AllSolid = true;
+					else if (t2 > trace.FractionLeftSolid) {
+						trace.FractionLeftSolid = t2;
+						trace.StartPos += ray.Delta * trace.FractionLeftSolid;
+					}
+					return true;
+				}
+				else {
+					if (t1 <= 1.0f) {
+						trace.Fraction = t1;
+						trace.Plane.Normal = vec3_origin;
+						if (faceIndex >= 3) {
+							faceIndex -= 3;
+							trace.Plane.Dist = inBoxMaxs[(int)faceIndex];
+							trace.Plane.Normal[(int)faceIndex] = 1.0f;
+							trace.Plane.SignBits = 0;
+						}
+						else {
+							trace.Plane.Dist = -inBoxMins[(int)faceIndex];
+							trace.Plane.Normal[(int)faceIndex] = -1.0f;
+							trace.Plane.SignBits = (byte)signbits[(int)faceIndex];
+						}
+						trace.Plane.Type = (PlaneType)faceIndex;
+						trace.Contents = Contents.Solid;
+						MathLib.VectorAdd(ray.Start, ray.StartOffset, out Vector3 startVec);
+
+						if (trace.Fraction == 1)
+							MathLib.VectorAdd(startVec, ray.Delta, out trace.EndPos);
+						else
+							MathLib.VectorMA(startVec, trace.Fraction, ray.Delta, out trace.EndPos);
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	internal static void ClipBoxToBrush(bool IS_POINT, TraceInfo traceInfo, in CollisionBrush brush) {
 		if (brush.IsBox()) {
 			ref CollisionBoxBrush box = ref traceInfo.BSPData!.MapBoxBrushes.AsSpan()[brush.GetBox()];
@@ -1234,6 +1387,51 @@ public static partial class CM
 		else
 			RecursiveHullCheckImpl(false, traceInfo, num, p1f, p2f, p1, p2);
 	}
+	public static void TransformedBoxTrace(in Ray ray, int headnode, Mask brushmask, in Vector3 origin, in QAngle angles, ref Trace tr) {
+		Matrix3x4 localToWorld = default;
+		Ray ray_l = default;
+
+		// subtract origin offset
+		MathLib.VectorCopy(ray.StartOffset, out ray_l.StartOffset);
+		MathLib.VectorCopy(ray.Extents, out ray_l.Extents);
+
+		// Are we rotated?
+		bool rotated = (angles[0] != 0 || angles[1] != 0 || angles[2] != 0);
+
+		// rotate start and end into the models frame of reference
+		if (rotated) {
+			// NOTE: In this case, the bbox is rotated into the space of the BSP as well
+			// to insure consistency at all orientations, we must rotate the origin of the ray
+			// and reapply the offset to the center of the box.  That way all traces with the
+			// same box centering will have the same transformation into local space
+			Vector3 worldOrigin = ray.Start + ray.StartOffset;
+			MathLib.AngleMatrix(angles, origin, out localToWorld);
+			MathLib.VectorIRotate(ray.Delta, localToWorld, out ray_l.Delta);
+			MathLib.VectorITransform(worldOrigin, localToWorld, out ray_l.Start);
+			ray_l.Start -= ray.StartOffset;
+		}
+		else {
+			MathLib.VectorSubtract(ray.Start, origin, out ray_l.Start);
+			MathLib.VectorCopy(ray.Delta, out ray_l.Delta);
+		}
+
+		ray_l.IsRay = ray.IsRay;
+		ray_l.IsSwept = ray.IsSwept;
+
+		// sweep the box through the model, don't compute endpoints
+		BoxTrace(ray_l, headnode, brushmask, false, ref tr);
+
+		// If we hit, gotta fix up the normal...
+		if ((tr.Fraction != 1) && rotated) {
+			// transform the normal from the local space of this entity to world space
+			Vector3 temp;
+			MathLib.VectorCopy(tr.Plane.Normal, out temp);
+			MathLib.VectorRotate(temp, localToWorld, out tr.Plane.Normal);
+		}
+
+		ComputeTraceEndpoints(ray, ref tr);
+	}
+
 	internal static void ComputeTraceEndpoints(in Ray ray, ref Trace tr) {
 		// The ray start is the center of the extents; compute the actual start
 		Vector3 start;

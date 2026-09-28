@@ -792,6 +792,19 @@ public static partial class CM
 
 	}
 
+	public static VCollide? VCollideForModel(int modelindex, Model? model) {
+		if (model != null) {
+			switch (model.Type) {
+				case ModelType.Brush:
+					return GetVCollide(modelindex - 1);
+				case ModelType.Studio:
+					return mdlcache.GetVCollide(model.Studio);
+			}
+		}
+
+		return null;
+	}
+
 	public static VCollide? GetVCollide(int modelIndex) {
 		CollisionModel? model = InlineModelNumber(modelIndex);
 		if (model == null)
@@ -801,7 +814,7 @@ public static partial class CM
 		return model.VCollisionData;
 	}
 
-	private static CollisionModel? InlineModelNumber(int index) {
+	internal static CollisionModel? InlineModelNumber(int index) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 
 		if ((index < 0) || (index >= bspData.MapCollisionModels.Count))

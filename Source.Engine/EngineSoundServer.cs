@@ -11,12 +11,18 @@ namespace Source.Engine;
 
 public class EngineSoundServer : IEngineSound
 {
+	readonly IAudioSystem? g_AudioSystem = OptionalSingleton<IAudioSystem>();
+
 	public void EmitAmbientSound(ReadOnlySpan<char> pSample, float volume, int pitch = 100, int flags = 0, double soundTime = 0) {
-		throw new NotImplementedException();
+		AssertMsg(false, "Not supported");
 	}
 
 	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int iSentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
-		throw new NotImplementedException();
+		if (iSentenceIndex >= 0) {
+			string pName = $"!{iSentenceIndex}";
+			EmitSoundInternal(filter, entIndex, channel, pName, volume, soundlevel,
+				flags, pitch, specialDSP, in origin, in direction, origins!, updatePositions, soundTime, speakerEntity);
+		}
 	}
 
 	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, float attenuation, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
@@ -29,7 +35,7 @@ public class EngineSoundServer : IEngineSound
 	public void EmitSound<T>(scoped in T filter, int entIndex, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3? origin = default, in Vector3? direction = default, List<Vector3>? origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
 		if (!sample.IsEmpty && SoundCharsUtils.TestSoundChar(sample, SoundChars.Sentence)) {
 			int iSentenceIndex = -1;
-			// TODO Vox.LookupString(SoundCharsUtils.SkipSoundChars(sample), ref iSentenceIndex);
+			g_AudioSystem?.LookupSentence(SoundCharsUtils.SkipSoundChars(sample), out iSentenceIndex);
 			if (iSentenceIndex >= 0) {
 				EmitSentenceByIndex(filter, entIndex, channel, iSentenceIndex, volume,
 					soundlevel, flags, pitch, specialDSP, origin, direction, origins, updatePositions, soundTime, speakerEntity);
@@ -65,20 +71,20 @@ public class EngineSoundServer : IEngineSound
 			flags, pitch, specialDSP, origin, soundTime, speakerEntity, origins);
 	}
 
-	public ref SndInfo GetActiveSound() {
-		throw new NotImplementedException();
-	}
-
-	public int GetActiveSoundCount() {
-		throw new NotImplementedException();
+	// Retrieves list of all active sounds
+	public void GetActiveSounds(List<SndInfo> sndlist) {
+		Warning("Can't call GetActiveSounds from server\n");
+		return;
 	}
 
 	public float GetDistGainFromSoundLevel(SoundLevel soundlevel, float dist) {
-		throw new NotImplementedException();
+		return SndGain.S_GetGainFromSoundLevel(soundlevel, dist);
 	}
 
+	// Client .dll only functions
 	public int GetGuidForLastSoundEmitted() {
-		throw new NotImplementedException();
+		Warning("Can't call GetGuidForLastSoundEmitted from server\n");
+		return 0;
 	}
 
 	public TimeUnit_t GetSoundDuration(ReadOnlySpan<char> sample) {
@@ -93,19 +99,20 @@ public class EngineSoundServer : IEngineSound
 	}
 
 	public bool IsSoundStillPlaying(int guid) {
-		throw new NotImplementedException();
+		Warning("Can't call IsSoundStillPlaying from server\n");
+		return false;
 	}
 
 	public void NotifyBeginMoviePlayback() {
-		throw new NotImplementedException();
+		AssertMsg(false, "Not supported");
 	}
 
 	public void NotifyEndMoviePlayback() {
-		throw new NotImplementedException();
+		AssertMsg(false, "Not supported");
 	}
 
 	public void PrecacheSentenceGroup(ReadOnlySpan<char> groupName) {
-		throw new NotImplementedException();
+		g_AudioSystem?.PrecacheSentenceGroup(this, groupName, null);
 	}
 
 	public bool PrecacheSound(ReadOnlySpan<char> sample, bool preload = false, bool isUISound = false) {
@@ -138,27 +145,67 @@ public class EngineSoundServer : IEngineSound
 		sv.LookupSoundIndex(sample);
 	}
 
-	public void SetPlayerDSP<T>(scoped in T filter, int dspType, bool fastReset) where T : IRecipientFilter {
-		throw new NotImplementedException();
+	void BuildRecipientList<T>(List<Edict> list, in T filter) where T : IRecipientFilter {
+		int c = filter.GetRecipientCount();
+		for (int i = 0; i < c; i++) {
+			int playerindex = filter.GetRecipientIndex(i);
+
+			if (playerindex < 1 || playerindex > sv.GetClientCount())
+				continue;
+
+			Server.GameClient cl = sv.Client(playerindex - 1);
+			// Never output to bots
+			if (cl.IsFakeClient())
+				continue;
+
+			if (!cl.IsSpawned())
+				continue;
+
+			list.Add(cl.Edict);
+		}
 	}
 
+	public void SetPlayerDSP<T>(scoped in T filter, int dspType, bool fastReset) where T : IRecipientFilter {
+		Assert(!fastReset);
+		if (fastReset)
+			Warning("SetPlayerDSP:  fastReset only valid from client\n");
+
+		List<Edict> players = [];
+		BuildRecipientList(players, in filter);
+
+		for (int i = 0; i < players.Count; i++)
+			engine.ClientCommand(players[i], $"dsp_player {dspType}\n");
+	}
+
+	// Set the room type for a player
 	public void SetRoomType<T>(scoped in T filter, int roomType) where T : IRecipientFilter {
-		throw new NotImplementedException();
+		List<Edict> players = [];
+		BuildRecipientList(players, in filter);
+
+		for (int i = 0; i < players.Count; i++)
+			engine.ClientCommand(players[i], $"room_type {roomType}\n");
 	}
 
 	public void SetVolumeByGuid(int guid, float fvol) {
-		throw new NotImplementedException();
+		Warning("Can't call SetVolumeByGuid from server\n");
+		return;
 	}
 
 	public void StopAllSounds(bool clearBuffers) {
-		throw new NotImplementedException();
+		AssertMsg(false, "Not supported");
 	}
 
 	public void StopSound(int entIndex, int channel, ReadOnlySpan<char> pSample) {
-		throw new NotImplementedException();
+		EngineRecipientFilter filter = new();
+		filter.AddAllPlayers();
+		filter.MakeReliable();
+
+		EmitSound(filter, entIndex, channel, pSample, 0, SoundLevel.LvlNone, SoundFlags.Stop, PITCH_NORM, 0,
+			null, null, null, true);
 	}
 
 	public void StopSoundByGuid(int guid) {
-		throw new NotImplementedException();
+		Warning("Can't call StopSoundByGuid from server\n");
+		return;
 	}
 }

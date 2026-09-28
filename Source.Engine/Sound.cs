@@ -2,197 +2,70 @@
 using Source.Common.Audio;
 using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
-using Source.Common.Mathematics;
-using Source.Common.Networking;
-using Source.Engine.Client;
-using Source.Engine.Server;
 
-using System.Numerics;
 namespace Source.Engine;
 
-public enum ClockSyncIndex
+public class Sound
 {
-	Client = 0,
-	Server = 1,
-	Num = 2
-}
-
-public partial class Sound
-{
-	bool onLoadScreen = false;
-	internal void OnLoadScreen(bool value) {
-		onLoadScreen = value;
-	}
-	public float ComputeDelayForSoundtime(double soundtime, ClockSyncIndex server) {
-		return 0; // todo
-	}
-
-	readonly ConVar snd_surround = new("snd_surround_speakers", "-1", FCvar.InternalUse);
-	readonly ConVar snd_legacy_surround = new("snd_legacy_surround", "0", FCvar.Archive);
-	readonly ConVar snd_noextraupdate = new("snd_noextraupdate", "0", 0);
-	readonly ConVar snd_show = new("snd_show", "0", FCvar.Cheat, "Show sounds info");
-	readonly ConVar snd_visualize = new("snd_visualize", "0", FCvar.Cheat, "Show sounds location in world");
-	readonly ConVar snd_pitchquality = new("snd_pitchquality", "1", FCvar.Archive);      // 1) use high quality pitch shifters
-
-	readonly ConVar snd_mixahead = new("snd_mixahead", "0.1", FCvar.Archive);
-	readonly ConVar snd_mix_async = new("snd_mix_async", "0", 0);
-
-	public bool Initialized;
 	readonly IAudioSystem? AudioSystem = OptionalSingleton<IAudioSystem>();
 
-	public void Init() {
-		DevMsg("Sound Initialization: Start\n");
-		// TODO: Vox
+	public bool Initialized => AudioSystem?.IsInitted() ?? false;
 
-		Initialized = true;
-		AudioSystem?.Init();
+	public void Init() => AudioSystem?.Init();
+	public void Shutdown() => AudioSystem?.Shutdown();
+	public bool IsInitted() => AudioSystem?.IsInitted() ?? false;
 
-		StopAllSounds(true);
-		// AllocDsps?
-		DevMsg($"Sound Initialization: Finish, Sampling Rate: {AudioSystem!.DeviceDmaSpeed()} Hz\n");
-	}
+	public void StopAllSounds(bool clear) => AudioSystem?.StopAllSounds(clear);
+	public void Update() => AudioSystem?.Update(null);
+	public void Update(in AudioState audioState) => AudioSystem?.Update(audioState);
+	public void ExtraUpdate() => AudioSystem?.ExtraUpdate();
+	public void ClearBuffer() => AudioSystem?.ClearBuffer();
+	public void BlockSound() => AudioSystem?.BlockSound();
+	public void UnblockSound() => AudioSystem?.UnblockSound();
+	public float GetMasterVolume() => AudioSystem?.GetMasterVolume() ?? 0;
+	public void SoundFade(float percent, float holdtime, float intime, float outtime) => AudioSystem?.SoundFade(percent, holdtime, intime, outtime);
+	public void OnLoadScreen(bool value) => AudioSystem?.OnLoadScreen(value);
+	public void EnableThreadedMixing(bool enable) => AudioSystem?.EnableThreadedMixing(enable);
+	public void EnableMusic(bool enable) => AudioSystem?.EnableMusic(enable);
 
-	readonly IFileSystem fileSystem;
-	readonly ICommandLine CommandLine;
-	readonly ISoundServices soundServices;
-
-	public Sound(IFileSystem fileSystem, ISoundServices soundServices, ICommandLine commandLine) {
-		this.fileSystem = fileSystem;
-		this.soundServices = soundServices;
-		this.CommandLine = commandLine;
-
-		SfxTable.Impl.GetName = SfxTable_GetName;
-		SfxTable.Impl.IsPrecachedSound = SfxTable_IsPrecachedSound;
-	}
-
-	ReadOnlySpan<char> SfxTable_GetName(SfxTable self) {
-		if (Sounds.ContainsKey(self.NamePoolIndex)) {
-			ReadOnlySpan<char> str = fileSystem.String(self.NamePoolIndex);
-			return str;
-		}
-
-		return null;
-	}
-
-	bool SfxTable_IsPrecachedSound(SfxTable self) {
-		ReadOnlySpan<char> name = SfxTable_GetName(self);
-
-		if (sv.IsActive())
-			return sv.LookupSoundIndex(name) != 0;
-
-		return cl.LookupSoundIndex(name) != -1;
-	}
-
-	readonly Dictionary<FileNameHandle_t, SfxTable> Sounds = [];
-	public SfxTable? PrecacheSound(ReadOnlySpan<char> name) {
-		FileNameHandle_t handle = fileSystem.FindOrAddFileName(name);
-		if (Sounds.TryGetValue(handle, out SfxTable? table))
-			return table;
-
-		Sounds[handle] = table = new();
-		table.SetNamePoolIndex(handle);
-		return table;
-	}
-
-	bool FirstTime;
-
-	public void Restart() {
-		Span<char> voiceCodec = stackalloc char[MAX_PATH];
-		int voiceSampleRate = Voice.ConfiguredSampleRate();
-
-		{
-			ReadOnlySpan<char> previousCodec = Voice.ConfiguredCodec();
-			if (!previousCodec.IsStringEmpty)
-				strcpy(voiceCodec, previousCodec);
-
-		}
-
-		Shutdown();
-		FirstTime = true;
-		cl.ClearSounds();
-		Init();
-
-		if (voiceCodec[0] != '\0')
-			Voice.Init(voiceCodec, voiceSampleRate);
-	}
-
-
-	public void MarkUISound(SfxTable sound) {
-		sound.IsUISound = true;
-	}
-
-	internal long StartSound(in StartSoundParams parms) {
-		if (parms.Sfx == null)
-			return 0;
-
-		if (parms.StaticSound)
-			return StartStaticSound(parms);
-		else
-			return StartDynamicSound(parms);
-	}
-
-	private long StartDynamicSound(in StartSoundParams parms) => AudioSystem?.StartDynamicSound(in parms) ?? 0;
-	private long StartStaticSound(in StartSoundParams parms) => AudioSystem?.StartStaticSound(in parms) ?? 0;
-	internal void Shutdown() { }
-
-	Vector3 ListenerOrigin;
-	Vector3 ListenerForward;
-	Vector3 ListenerRight;
-	Vector3 ListenerUp;
-	bool IsListenerUnderwater;
-
-	internal void Update() {
-		if (!AudioSystem!.IsActive())
-			return;
-
-		ListenerOrigin = vec3_origin;
-		ListenerForward = vec3_origin;
-		ListenerRight = vec3_origin;
-		ListenerUp = vec3_origin;
-		IsListenerUnderwater = false;
-
-		PerformUpdate();
-	}
-
-	internal void Update(in AudioState audioState) {
-		if (!AudioSystem!.IsActive())
-			return;
-
-		ListenerOrigin = audioState.Origin;
-		MathLib.AngleVectors(in audioState.Angles, out ListenerForward, out ListenerRight, out ListenerUp);
-		IsListenerUnderwater = audioState.IsUnderwater;
-
-		PerformUpdate();
-	}
-
-	TimeUnit_t LastSoundFrame;
-	TimeUnit_t LastMixTime;
-	TimeUnit_t EstFrameTime;
-
-	private void PerformUpdate() {
-		// Something should've set up the ListenerOrigin/ListenerDirection/IsListenerUnderwater variables before calling this method!
-
-		AudioSystem!.UpdateListener(in ListenerOrigin, in ListenerForward, in ListenerRight, in ListenerUp, IsListenerUnderwater);
-
-		TimeUnit_t now = Platform.Time;
-		LastSoundFrame = now;
-		LastMixTime = now;
-		EstFrameTime = (EstFrameTime * 0.9f) + (soundServices.GetHostFrametime() * 0.1f);
-		AudioSystem.Update(EstFrameTime + snd_mixahead.GetDouble());
-	}
-
-	public void StopAllSounds(bool clear) {
+	public int StartSound(in StartSoundParams parms) {
 		if (AudioSystem == null)
-			return;
-
-		if (!AudioSystem.IsActive())
-			return;
-
-		AudioSystem.StopAllSounds(clear);
+			return 0;
+		StartSoundParams copy = parms;
+		return AudioSystem.StartSound(ref copy);
 	}
+	public void StopSound(int entnum, int entchannel) => AudioSystem?.StopSound(entnum, entchannel);
 
-	public bool IsSoundStillPlaying(int guid) => AudioSystem?.IsSoundStillPlaying(guid) ?? false;
+	public float ComputeDelayForSoundtime(double soundtime, ClockSyncIndex syncIndex) => AudioSystem?.ComputeDelayForSoundtime((float)soundtime, syncIndex) ?? 0;
+
 	public void StopSoundByGuid(int guid) => AudioSystem?.StopSoundByGuid(guid);
+	public float SoundDurationByGuid(int guid) => AudioSystem?.SoundDurationByGuid(guid) ?? 0;
+	public int GetGuidForLastSoundEmitted() => AudioSystem?.GetGuidForLastSoundEmitted() ?? 0;
+	public bool IsSoundStillPlaying(int guid) => AudioSystem?.IsSoundStillPlaying(guid) ?? false;
+	public void GetActiveSounds(List<SndInfo> sndlist) => AudioSystem?.GetActiveSounds(sndlist);
 	public void SetVolumeByGuid(int guid, float fvol) => AudioSystem?.SetVolumeByGuid(guid, fvol);
+	public float GetElapsedTimeByGuid(int guid) => AudioSystem?.GetElapsedTimeByGuid(guid) ?? 0;
+	public bool IsLoopingSoundByGuid(int guid) => AudioSystem?.IsLoopingSoundByGuid(guid) ?? false;
+	public void ReloadSound(ReadOnlySpan<char> sample) => AudioSystem?.ReloadSound(sample);
+	public float GetMono16Samples(ReadOnlySpan<char> name, List<short> sampleList) => AudioSystem?.GetMono16Samples(name, sampleList) ?? 0;
+
+	public SfxTable? DummySfx(ReadOnlySpan<char> name) => AudioSystem?.DummySfx(name);
+	public SfxTable? PrecacheSound(ReadOnlySpan<char> sample) => AudioSystem?.PrecacheSound(sample);
+	public void PrefetchSound(ReadOnlySpan<char> name, bool playOnce) => AudioSystem?.PrefetchSound(name, playOnce);
+	public void MarkUISound(SfxTable sfx) => AudioSystem?.MarkUISound(sfx);
+	public void ReloadFilesInList(IFileList filesToReload) => AudioSystem?.ReloadFilesInList(filesToReload);
+
+	public float GetNominalClipDist() => AudioSystem?.GetNominalClipDist() ?? 0;
+
+	public void MovieStart() => AudioSystem?.MovieStart();
+	public void MovieEnd() => AudioSystem?.MovieEnd();
+
+	public int GetCurrentStaticSounds(Span<SoundInfo> result, int sizeResult, int entchannel) => AudioSystem?.GetCurrentStaticSounds(result, sizeResult, entchannel) ?? 0;
+
+	public void GetCurrentlyPlayingMusic(List<MusicSave> list) => AudioSystem?.GetCurrentlyPlayingMusic(list);
+	public void RestartSong(in MusicSave song) => AudioSystem?.RestartSong(in song);
+
+	public float GetSoundDuration(ReadOnlySpan<char> name) => AudioSystem?.GetSoundDuration(name) ?? 0;
 }

@@ -169,6 +169,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IRegistry, Registry>();
 
 		this.AddSingleton<IEngineServer, EngineServer>();
+		this.AddSingleton<IVoiceServer, VoiceServer>();
 		// We have to tell the dependency injection system how to resolve parent classes ourselves.
 		this.AddSingleton<BaseServer>(x => x.GetRequiredService<GameServer>());
 		this.AddSingleton<IEngine, GameEngine>();

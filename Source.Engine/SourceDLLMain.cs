@@ -46,6 +46,7 @@ public static class SourceDllMain
 	[Dependency(Required = false)] public static IClientLeafSystemEngine clientleafsystem { get; private set; } = null!;
 #endif
 	[Dependency] public static IPhysicsCollision physcollision { get; private set; } = null!;
+	[Dependency] public static IPhysicsSurfaceProps physprop { get; private set; } = null!;
 	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
@@ -68,6 +69,7 @@ public static class SourceDllMain
 	[Dependency] public static IMaterialSystemHardwareConfig HardwareConfig { get; private set; } = null!;
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
+	[KeyedDependency(Key = Realm.Server)] public static IEngineTrace g_pEngineTraceServer { get; private set; } = null!;
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
 
 

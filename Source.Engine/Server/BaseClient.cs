@@ -46,6 +46,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<CLC_Move>();
 		channel.RegisterMessage<CLC_BaselineAck>();
 		channel.RegisterMessage<CLC_ListenEvents>();
+		channel.RegisterMessage<CLC_VoiceData>();
 		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
 	public virtual bool IgnoreTempEntity(EventInfo evnt) { return false; }
@@ -71,6 +72,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case CLC_Move m: return ProcessMove(m);
 			case CLC_BaselineAck m: return ProcessBaselineAck(m);
 			case CLC_ListenEvents m: return ProcessListenEvents(m);
+			case CLC_VoiceData m: return ProcessVoiceData(m);
 			case CLC_GMod_ClientToServer m: return ProcessGMod_ClientToServer(m);
 		}
 		return false;
@@ -81,6 +83,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool ProcessMove(CLC_Move m) => true;
+	protected virtual bool ProcessVoiceData(CLC_VoiceData m) => true;
 
 	protected virtual bool ProcessTick(NET_Tick m) {
 		NetChannel!.SetRemoteFramerate(m.HostFrameTime, m.HostFrameDeviation);
@@ -197,7 +200,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SetName(PendingNameChange);
 	}
 
-	public void UpdateUserSettings() {
+	public virtual void UpdateUserSettings() {
 		int rate = ConVars!.GetInt("rate", Source.Common.Networking.NetChannel.DEFAULT_RATE);
 
 		if (sv.IsActive()) {
@@ -750,7 +753,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public uint FriendsID;
 	public string FriendsName;
 
-	KeyValues? ConVars;
+	protected KeyValues? ConVars;
 	bool InitialConVarsSet;
 	public bool ConVarsChanged;
 	public bool NeedSendServerInfo;
@@ -1093,13 +1096,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		NetChannel.SendNetMsg(print);
 	}
 
-	public bool IsHearingClient(int index) {
-		throw new NotImplementedException();
-	}
+	public virtual bool IsHearingClient(int index) => false;
 
-	public bool IsProximityHearingClient(int index) {
-		throw new NotImplementedException();
-	}
+	public virtual bool IsProximityHearingClient(int index) => false;
 
 	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) => NetChannel?.SetMaxRoutablePayloadSize(nMaxRoutablePayloadSize);
 
