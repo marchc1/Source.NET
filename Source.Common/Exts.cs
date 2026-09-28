@@ -1646,16 +1646,16 @@ public static class UnmanagedUtils
 
 		int wordLen = 0;
 		while (true) {
-			if (!buffer.IsValid())
-				break;
-
 			tokenBuf[wordLen] = c;
 			if (++wordLen == tokenBuf.Length) {
 				return tokenBuf.Length;
 			}
 
-			c = buffer.GetChar();
+			int next = buffer.Read();
+			if (next < 0)
+				break;
 
+			c = (char)next;
 
 			if (breaks.Contains(c) || c == '\"' || (c > '\0' && c <= ' ')) {
 				buffer.Seek(-1, SeekOrigin.Current);

@@ -2231,6 +2231,8 @@ public class StudioHeader
 		=> Studio.ProduceArrayIdx(this, ref poseParamDescCache, NumLocalPoseParameters, LocalPoseParamIndex, i, MStudioPoseParamDesc.SIZEOF, Data, MStudioPoseParamDesc.FACTORY);
 
 	public int SurfacePropIndex;
+	string? surfacePropCache;
+	public string SurfaceProp() => Studio.ProduceASCIIString(ref surfacePropCache, Data.Span[SurfacePropIndex..]);
 	public int KeyValueIndex;
 	public int KeyValueSize;
 

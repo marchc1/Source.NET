@@ -202,7 +202,7 @@ public interface IEngineServer
 	void BuildEntityClusterList(Edict edict, ref PVSInfo pvsInfo);
 
 	// A solid entity moved, update spatial partition
-	void SolidMoved(Edict pSolidEnt, ICollideable pSolidCollide, in Vector3 prevAbsOrigin, bool testSurroundingBoundsOnly);
+	void SolidMoved(Edict pSolidEnt, ICollideable pSolidCollide, Vector3? prevAbsOrigin, bool testSurroundingBoundsOnly);
 	// A trigger entity moved, update spatial partition
 	void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly);
 
@@ -313,7 +313,7 @@ public interface IEngineServer
 	CSteamID? GetClientSteamIDByPlayerIndex(int entNum);
 	// Gets a list of all clusters' bounds.  Returns total number of clusters.
 	int GetClusterCount();
-	// TODO: GetAllClusterBounds
+	int GetAllClusterBounds(Span<BBox> bboxList);
 
 	// Create a bot with the given name.  Returns NULL if fake client can't be created
 	Edict? CreateFakeClientEx(ReadOnlySpan<char> netname, bool bReportFakeClient = true);

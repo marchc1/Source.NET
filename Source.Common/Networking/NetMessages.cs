@@ -472,6 +472,10 @@ public class SVC_UpdateStringTable : NetMessage
 public class SVC_VoiceInit : NetMessage
 {
 	public SVC_VoiceInit() : base(SVC.VoiceInit) { }
+	public SVC_VoiceInit(ReadOnlySpan<char> codec, int sampleRate) : base(SVC.VoiceInit) {
+		VoiceCodec = codec.IsEmpty ? "" : new(codec.SliceNullTerminatedString());
+		SampleRate = sampleRate;
+	}
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
 	public string VoiceCodec = "";
@@ -486,17 +490,39 @@ public class SVC_VoiceInit : NetMessage
 
 		byte legacyQuality = buffer.ReadByte();
 		if (legacyQuality == 255) {
+			// v2 packet
 			SampleRate = buffer.ReadShort();
 		}
 		else {
-
+			// v1 packet
+			// Hacky workaround for v1 packets not actually indicating if we were using steam voice -- we've kept the steam
+			// voice separate convar that was in use at the time as replicated&hidden, and if whatever network stream we're
+			// interpreting sets it, lie about the subsequent voice init's codec & sample rate.
+			if (sv_use_steam_voice.GetBool()) {
+				Msg("Legacy SVC_VoiceInit - got a set for sv_use_steam_voice convar, assuming Steam voice\n");
+				VoiceCodec = "steam";
+				// Legacy steam voice can always be parsed as auto sample rate.
+				SampleRate = 0;
+			}
+			else if (VoiceCodec.Equals("vaudio_celt", StringComparison.OrdinalIgnoreCase)) {
+				// Legacy rate vaudio_celt always selected during v1 packet era
+				SampleRate = 22050;
+			}
+			else {
+				// Legacy rate everything but CELT always selected during v1 packet era
+				SampleRate = 11025;
+			}
 		}
 
 		return !buffer.Overflowed;
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		buffer.WriteNetMessageType(this);
+		buffer.WriteString(VoiceCodec);
+		buffer.WriteByte( /* Legacy Quality Field */ 255);
+		buffer.WriteShort(SampleRate);
+		return !buffer.Overflowed;
 	}
 }
 public class SVC_Sounds : NetMessage
@@ -525,12 +551,19 @@ public class SVC_Sounds : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
+		Length = DataOut.BitsWritten;
+
 		buffer.WriteNetMessageType(this);
+
+		Assert(NumSounds > 0);
+
 		if (ReliableSound) {
+			// as single sound message is 32 bytes long maximum
 			buffer.WriteOneBit(1);
 			buffer.WriteUBitLong((uint)Length, 8);
 		}
 		else {
+			// a bunch of unreliable messages
 			buffer.WriteOneBit(0);
 			buffer.WriteUBitLong((uint)NumSounds, 8);
 			buffer.WriteUBitLong((uint)Length, 16);
@@ -846,7 +879,7 @@ public class SVC_VoiceData : NetMessage
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		FromClient = buffer.ReadByte();
-		Proximity = buffer.ReadByte() == 0;
+		Proximity = buffer.ReadByte() != 0;
 		Length = buffer.ReadWord();
 
 		buffer.CopyTo(DataIn);

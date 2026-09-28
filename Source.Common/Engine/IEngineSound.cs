@@ -13,6 +13,7 @@ public static class EngineSoundGlobals {
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(int x) => (SoundLevel)(int)(x - 256);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_TO_COMPATIBILITY_MODE(SoundLevel x) => (SoundLevel)(int)(x + 256);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(SoundLevel x) => (SoundLevel)(int)(x - 256);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool SNDLEVEL_IS_COMPATIBILITY_MODE(SoundLevel x) => (int)x >= 256;
 }
 
 public interface IEngineSound
@@ -73,9 +74,7 @@ public interface IEngineSound
 	void SetVolumeByGuid(int guid, float fvol);
 
 	// Retrieves list of all active sounds
-	// This differentiates from Source since C# doesn't like putting ref structs in spans etc
-	int GetActiveSoundCount();
-	ref SndInfo GetActiveSound();
+	void GetActiveSounds(List<SndInfo> sndlist);
 
 	void PrecacheSentenceGroup( ReadOnlySpan<char> groupName );
 	void NotifyBeginMoviePlayback();

@@ -304,6 +304,21 @@ public struct SoundInfo
 		SpeakerEntity = -1;
 	}
 
+	public void Set(int newEntity, SoundEntityChannel newChannel, FileNameHandle_t newName, in Vector3 newOrigin, in Vector3 newDirection,
+			float newVolume, SoundLevel newSoundLevel, bool newLooping, int newPitch, in Vector3 vecListenerOrigin, int speakerentity) {
+		EntityIndex = newEntity;
+		Channel = newChannel;
+		Name = newName;
+		Origin = newOrigin;
+		Direction = newDirection;
+		Volume = newVolume;
+		Soundlevel = newSoundLevel;
+		Looping = newLooping;
+		Pitch = newPitch;
+		ListenerOrigin = vecListenerOrigin;
+		SpeakerEntity = speakerentity;
+	}
+
 	public void SetDefault() {
 		Delay = DEFAULT_SOUND_PACKET_DELAY;
 		Volume = DEFAULT_SOUND_PACKET_VOLUME;
