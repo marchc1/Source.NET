@@ -790,10 +790,10 @@ public class Sentence
 	}
 
 	public void InitFromDataChunk(ReadOnlySpan<byte> data) {
-		UtlBuffer buf = new(0, 0, UtlBuffer.BufferFlags.TEXT_BUFFER);
+		UtlBuffer buf = new(0, 0, UtlBuffer.BufferFlags.TextBuffer);
 		buf.EnsureCapacity(data.Length);
 		buf.Put(data);
-		buf.SeekPut(UtlBuffer.SeekType.SEEK_HEAD, data.Length);
+		buf.SeekPut(SeekOrigin.Begin, data.Length);
 
 		InitFromBuffer(buf);
 	}
