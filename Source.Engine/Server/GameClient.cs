@@ -119,18 +119,24 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
-	// 	SV.ServerGameClients.ClientCommandKeyValues(Edict, msg.KeyValues);
-	// 	return true;
-	// }
+	protected override bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
+		SV.ServerGameClients!.ClientCommandKeyValues(Edict, msg.KeyValues!);
+		return true;
+	}
 
-	// bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) { }
+	protected override bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) { 
+	
+	}
 
-	// bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) { }
+	protected override bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) { 
+	
+	}
 
-	// bool ProcessFileMD5Check(CLC_FileMD5Check msg) { }
+	protected override bool ProcessFileMD5Check(CLC_FileMD5Check msg) { 
+	
+	}
 
-	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { }
+	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { } // seems to be removed?
 
 	void DownloadCustomizations() { }
 
