@@ -228,6 +228,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(PhysicsGameSystem());
+		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(SoundscapeSystemGlobals).TypeHandle);
+		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CheckClient).TypeHandle);
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -524,8 +526,10 @@ public class ServerGameClients : IServerGameClients
 	public void ClientActive(Edict entity, bool loadGame) {
 		GMODClient.ClientActive(entity, loadGame);
 
-		if (gpGlobals.LoadType == MapLoadType.LoadGame) {
-			// todo
+		if (gpGlobals.LoadType != MapLoadType.LoadGame) {
+			// notify all entities that the player is now in the game
+			for (BaseEntity? ent = gEntList.FirstEnt(); ent != null; ent = gEntList.NextEnt(ent))
+				ent.PostClientActive();
 		}
 
 		BasePlayer player = (BasePlayer)BaseEntity.Instance(entity)!;
@@ -671,7 +675,15 @@ public class ServerGameEnts : IServerGameEnts
 	}
 
 	public void MarkEntitiesAsTouching(Edict e1, Edict e2) {
-		throw new NotImplementedException();
+		BaseEntity? entity = BaseEntity.GetContainingEntity(e1);
+		BaseEntity? entityTouched = BaseEntity.GetContainingEntity(e2);
+		if (entity != null && entityTouched != null) {
+			// HACKHACK: UNDONE: Pass in the trace here??!?!?
+			Trace tr = default;
+			Util.ClearTrace(ref tr);
+			tr.EndPos = (entity.GetAbsOrigin() + entityTouched.GetAbsOrigin()) * 0.5f;
+			entity.PhysicsMarkEntitiesAsTouching(entityTouched, tr);
+		}
 	}
 
 	public void SetDebugEdictBase(Edict[] edict) {

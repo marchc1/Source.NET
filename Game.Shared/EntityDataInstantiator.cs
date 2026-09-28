@@ -25,7 +25,7 @@ public class EntityDataInstantiator<T> : IEntityDataInstantiator where T : new()
 	}
 
 	public void DestroyDataObject(BaseEntity instance) {
-		throw new NotImplementedException();
+		Data.Remove(instance);
 	}
 
 	public ref U GetDataObject<U>(BaseEntity instance) where U : new() {

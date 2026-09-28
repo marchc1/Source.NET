@@ -226,7 +226,7 @@ public class CollisionProperty : ICollideable
 	public Vector3 Size;
 	float Radius;
 	public ushort SolidFlags;
-	SpatialPartitionHandle_t Partition;
+	SpatialPartitionHandle_t Partition = PARTITION_INVALID_HANDLE;
 	byte SurroundType;
 	public byte SolidType;
 
@@ -239,21 +239,72 @@ public class CollisionProperty : ICollideable
 	Vector3 SpecifiedSurroundingMaxs;
 
 	public void UseTriggerBounds(bool enable, float bloat) {
+		Assert(bloat <= 127.0f);
 		TriggerBloat = (byte)bloat;
-		// todo
+		if (enable) {
+			AddSolidFlags(Source.SolidFlags.UseTriggerBounds);
+			Assert(bloat > 0.0f);
+		}
+		else
+			RemoveSolidFlags(Source.SolidFlags.UseTriggerBounds);
 	}
+
+	public void CheckForUntouch() {
+#if !CLIENT_DLL
+		if (!IsSolid() && !IsSolidFlagSet(Source.SolidFlags.Trigger)) {
+			// If this ent's touch list isn't empty, it's transitioning to not solid
+			if (GetOuter().IsCurrentlyTouching()) {
+				// mark ent so that at the end of frame it will check to 
+				// see if it's no longer touching ents
+				GetOuter().SetCheckUntouch(true);
+			}
+		}
+#endif
+	}
+
 	public void SetSolid(SolidType val) {
 		if ((byte)val == SolidType)
 			return;
 
+#if !CLIENT_DLL
+		bool wasNotSolid = IsSolid();
+#endif
+
 		MarkSurroundingBoundsDirty();
+
+		// OBB is not yet implemented
+		if (val == Source.SolidType.BSP) {
+			if (GetOuter().GetMoveParent() != null) {
+				if (GetOuter().GetRootMoveParent()!.GetSolid() != Source.SolidType.BSP) {
+					// must be SOLID_VPHYSICS because parent might rotate
+					val = Source.SolidType.VPhysics;
+				}
+			}
+#if !CLIENT_DLL
+			// UNDONE: This should be fine in the client DLL too.  Move GetAllChildren() into shared code.
+			// If the root of the hierarchy is SOLID_BSP, then assume that the designer
+			// wants the collisions to rotate with this hierarchy so that the player can
+			// move while riding the hierarchy.
+			if (GetOuter().GetMoveParent() == null) {
+				// NOTE: This assumes things don't change back from SOLID_BSP
+				// NOTE: This is 100% true for HL2 - need to support removing the flag to support changing from SOLID_BSP
+				List<BaseEntity> list = [];
+				Hierarchy.GetAllChildren(GetOuter(), list);
+				for (int i = list.Count - 1; i >= 0; --i)
+					list[i].AddSolidFlags(Source.SolidFlags.RootParentAligned);
+			}
+#endif
+		}
 
 		SolidType = (byte)val;
 
 #if !CLIENT_DLL
 		GetOuter().CollisionRulesChanged();
+
 		UpdateServerPartitionMask();
-		// (SOLID_BSP parent-alignment and CheckForUntouch handling omitted; not needed for props yet)
+
+		if (wasNotSolid != IsSolid())
+			CheckForUntouch();
 #endif
 	}
 
@@ -430,6 +481,19 @@ public class CollisionProperty : ICollideable
 
 	public ref readonly Vector3 OBBMins() => ref Mins;
 	public ref readonly Vector3 OBBMaxs() => ref Maxs;
+
+	//-----------------------------------------------------------------------------
+	// Returns the center in OBB space
+	//-----------------------------------------------------------------------------
+	public Vector3 OBBCenter() {
+		MathLib.VectorLerp(Mins, Maxs, 0.5f, out Vector3 vecResult);
+		return vecResult;
+	}
+
+	//-----------------------------------------------------------------------------
+	// center point of entity
+	//-----------------------------------------------------------------------------
+	public Vector3 WorldSpaceCenter() => CollisionToWorldSpace(OBBCenter());
 	public ref readonly Vector3 OBBSize(){
 		MathLib.VectorSubtract(Maxs, Mins, out Size);
 		return ref Size;
@@ -482,20 +546,24 @@ public class CollisionProperty : ICollideable
 		vecWorldMaxs.Z += (float)TriggerBloat * 0.5f;
 	}
 
+	//-----------------------------------------------------------------------------
+	// Collision methods implemented in the entity
+	// FIXME: This shouldn't happen there!!
+	//-----------------------------------------------------------------------------
 	public bool TestCollision(in Ray ray, Contents contentsMask, ref Trace tr) {
-		throw new NotImplementedException();
+		return Outer.TestCollision(ray, contentsMask, ref tr);
 	}
 
 	public bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) {
-		throw new NotImplementedException();
+		return Outer.TestHitboxes(ray, contentsMask, ref tr);
 	}
 
 	public int GetCollisionModelIndex() {
-		throw new NotImplementedException();
+		return Outer.GetModelIndex();
 	}
 
 	public Model? GetCollisionModel() {
-		throw new NotImplementedException();
+		return Outer.GetModel();
 	}
 
 	public ref readonly Vector3 GetCollisionOrigin() => ref Outer.GetAbsOrigin();
@@ -533,12 +601,19 @@ public class CollisionProperty : ICollideable
 
 	public int GetSolidFlags() => SolidFlags;
 
+	//-----------------------------------------------------------------------------
+	// IClientUnknown
+	//-----------------------------------------------------------------------------
 	public IClientUnknown? GetIClientUnknown() {
-		throw new NotImplementedException();
+#if CLIENT_DLL
+		return Outer.GetIClientUnknown();
+#else
+		return null;
+#endif
 	}
 
 	public CollisionGroup GetCollisionGroup() {
-		throw new NotImplementedException();
+		return Outer.GetCollisionGroup();
 	}
 
 	public void WorldSpaceSurroundingBounds(out Vector3 vecMins, out Vector3 vecMaxs) {
@@ -555,21 +630,96 @@ public class CollisionProperty : ICollideable
 		}
 	}
 
+	//-----------------------------------------------------------------------------
+	// Transforms a point in OBB space to world space
+	//-----------------------------------------------------------------------------
+	public Vector3 CollisionToWorldSpace(in Vector3 input) {
+		Vector3 result;
+		// Makes sure we don't re-use the same temp twice
+		if (!IsBoundsDefinedInEntitySpace() || (GetCollisionAngles() == vec3_angle))
+			MathLib.VectorAdd(input, GetCollisionOrigin(), out result);
+		else
+			MathLib.VectorTransform(input, CollisionToWorldTransform(), out result);
+		return result;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Transforms a point in world space to OBB space
+	//-----------------------------------------------------------------------------
+	public Vector3 WorldToCollisionSpace(in Vector3 input) {
+		Vector3 result;
+		if (!IsBoundsDefinedInEntitySpace() || (GetCollisionAngles() == vec3_angle))
+			MathLib.VectorSubtract(input, GetCollisionOrigin(), out result);
+		else
+			MathLib.VectorITransform(input, CollisionToWorldTransform(), out result);
+		return result;
+	}
+
+	public void CalcNearestPoint(in Vector3 vecWorldPt, out Vector3 vecNearestWorldPt) {
+		// Calculate physics force
+		Vector3 localPt = WorldToCollisionSpace(vecWorldPt);
+		MathLib.CalcClosestPointOnAABB(Mins, Maxs, localPt, out Vector3 localClosestPt);
+		vecNearestWorldPt = CollisionToWorldSpace(localClosestPt);
+	}
+
+	public float CalcDistanceFromPoint(in Vector3 vecWorldPt) {
+		// Calculate physics force
+		Vector3 localPt = WorldToCollisionSpace(vecWorldPt);
+		MathLib.CalcClosestPointOnAABB(Mins, Maxs, localPt, out Vector3 localClosestPt);
+		return Vector3.Distance(localPt, localClosestPt);
+	}
+
 	public bool ShouldTouchTrigger(int triggerSolidFlags) {
-		throw new NotImplementedException();
+		// debris only touches certain triggers
+		if (GetCollisionGroup() == Source.CollisionGroup.Debris) {
+			if ((triggerSolidFlags & (int)Source.SolidFlags.TriggerTouchDebris) != 0)
+				return true;
+
+			return false;
+		}
+
+		// triggers don't touch other triggers (might be solid to other ents as well as trigger)
+		if (IsSolidFlagSet(Source.SolidFlags.Trigger))
+			return false;
+
+		return true;
 	}
 
 	public ref readonly Matrix3x4 GetRootParentToWorldTransform() {
-		throw new NotImplementedException();
+		if (IsSolidFlagSet(Source.SolidFlags.RootParentAligned)) {
+			BaseEntity? entity = Outer.GetRootMoveParent();
+			Assert(entity != null);
+			if (entity != null)
+				return ref entity.CollisionProp().CollisionToWorldTransform();
+		}
+		return ref System.Runtime.CompilerServices.Unsafe.NullRef<Matrix3x4>();
 	}
 
-	internal void SetSolidFlags(SolidFlags flags) => SolidFlags = (ushort)flags;
+	internal void SetSolidFlags(SolidFlags flags) {
+		int oldFlags = SolidFlags;
+		SolidFlags = (ushort)((int)flags & 0xFFFF);
+		if (oldFlags == SolidFlags)
+			return;
+
+		// These two flags, if changed, can produce different surrounding bounds
+		if ((oldFlags & (int)(Source.SolidFlags.ForceWorldAligned | Source.SolidFlags.UseTriggerBounds)) !=
+			 (SolidFlags & (int)(Source.SolidFlags.ForceWorldAligned | Source.SolidFlags.UseTriggerBounds)))
+			MarkSurroundingBoundsDirty();
+
+		if ((oldFlags & (int)(Source.SolidFlags.NotSolid | Source.SolidFlags.Trigger)) != (SolidFlags & (int)(Source.SolidFlags.NotSolid | Source.SolidFlags.Trigger)))
+			GetOuter().CollisionRulesChanged();
+
+#if !CLIENT_DLL
+		if ((oldFlags & (int)(Source.SolidFlags.NotSolid | Source.SolidFlags.Trigger)) != (SolidFlags & (int)(Source.SolidFlags.NotSolid | Source.SolidFlags.Trigger))) {
+			UpdateServerPartitionMask();
+			CheckForUntouch();
+		}
+#endif
+	}
 
 	internal bool IsSolidFlagSet(SolidFlags flagMask) => (SolidFlags & (ushort)flagMask) != 0;
 
-	internal void RemoveSolidFlags(SolidFlags flags) {
-		throw new NotImplementedException();
-	}
+	internal void RemoveSolidFlags(SolidFlags flags) => SetSolidFlags((SolidFlags)(SolidFlags & ~(int)flags));
 
 	internal bool IsSolid() => Constants.IsSolid((SolidType)SolidType, SolidFlags);
 

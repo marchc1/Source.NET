@@ -122,6 +122,15 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 
+	public bool IsPlayerDead() => pl.DeadFlag == true;
+
+	public Source.Common.MaterialSystem.IMaterial? GetHeadLabelMaterial() {
+		if (GetClientVoiceMgr() == null)
+			return null;
+
+		return GetClientVoiceMgr().GetHeadLabelMaterial();
+	}
+
 	public bool AudioStateIsUnderwater(Vector3 mainViewOrigin) {
 		if (IsObserver()) {
 			Contents cont = enginetrace.GetPointContents(mainViewOrigin, out _);

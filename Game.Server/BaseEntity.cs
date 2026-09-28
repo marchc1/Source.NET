@@ -581,6 +581,7 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;
 	public virtual bool IsNPC() => false;
+	public bool IsTransparent() => RenderMode != (byte)Source.RenderMode.Normal;
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
@@ -791,7 +792,7 @@ public partial class BaseEntity : IServerEntity
 
 		SetMoveType(Source.MoveType.None);
 		SetOwnerEntity(null);
-		// SetCheckUntouch(false);
+		SetCheckUntouch(false);
 		SetModelIndex(0);
 		SetModelName(null);
 
@@ -1320,7 +1321,7 @@ public partial class BaseEntity : IServerEntity
 
 	public readonly GModTable GMOD_DataTable = new();
 
-	public int Speed;
+	public float Speed;
 
 	public EHANDLE OwnerEntity = new();
 	public EHANDLE EffectEntity = new();
@@ -2237,12 +2238,12 @@ public partial class BaseEntity : IServerEntity
 	/// </summary>
 	public virtual void Term() {
 		VPhysicsDestroyObject();
-		DestroyAllDataObjects();
 
+		// Need to remove references to this entity before EHANDLES go null
 		{
 			Util.g_bDisableEhandleAccess = false;
-			// BaseEntity.PhysicsRemoveTouchedList(this);
-			// BaseEntity.PhysicsRemoveGroundList(this);
+			BaseEntity.PhysicsRemoveTouchedList(this);
+			BaseEntity.PhysicsRemoveGroundList(this);
 			SetGroundEntity(null); // remove us from the ground entity if we are on it
 			DestroyAllDataObjects();
 			Util.g_bDisableEhandleAccess = true;
@@ -2250,6 +2251,8 @@ public partial class BaseEntity : IServerEntity
 			// Remove this entity from the ent list (NOTE:  This Makes EHANDLES go NULL)
 			gEntList.RemoveEntity(GetRefEHandle());
 		}
+
+		CollisionProp().DestroyPartitionHandle();
 	}
 
 	public ReadOnlySpan<char> GetModelName() => ModelName;
@@ -2336,7 +2339,12 @@ public partial class BaseEntity : IServerEntity
 
 
 	BaseHandle RefEHandle = new();
-	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
+	public void SetRefEHandle(in BaseHandle handle) {
+		RefEHandle = handle;
+		Edict? edict = NetworkProp()?.Edict();
+		if (edict != null)
+			edict.NetworkSerialNumber = (short)(RefEHandle.GetSerialNumber() & ((1 << Constants.NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS) - 1));
+	}
 
 	protected int flags;
 	EFL eflags;
@@ -2554,9 +2562,234 @@ public partial class BaseEntity : IServerEntity
 		return 0;
 	}
 
-	public virtual void StartTouch(BaseEntity? other) { }
-	public virtual void Touch(BaseEntity? other) { }
-	public virtual void EndTouch(BaseEntity? other) { }
+	public static bool sm_bDisableTouchFuncs = false;  // Disables PhysicsTouch and PhysicsStartTouch function calls
+	public static bool sm_bAccurateTriggerBboxChecks = true;   // SOLID_BBOX entities do a fully accurate trigger vs bbox check when this is set
+	public int TouchStamp;
+
+	public void SetTouch(TOUCHPTR? func) => FnTouch = func;
+
+	public void GetVelocity(out Vector3 velocity, out Vector3 angVelocity) {
+		if (GetMoveType() == Source.MoveType.VPhysics && PhysicsObject != null)
+			PhysicsObject.GetVelocity(out velocity, out angVelocity);
+		else {
+			velocity = GetAbsVelocity();
+			QAngle tmp = GetLocalAngularVelocity();
+			angVelocity = new(tmp.Z, tmp.X, tmp.Y);
+		}
+	}
+
+	public bool Intersects(BaseEntity other) {
+		if (Edict() == null || other.Edict() == null)
+			return false;
+
+		CollisionProperty myProp = CollisionProp();
+		CollisionProperty otherProp = other.CollisionProp();
+
+		return CollisionUtils.IsOBBIntersectingOBB(
+			myProp.GetCollisionOrigin(), myProp.GetCollisionAngles(), myProp.OBBMins(), myProp.OBBMaxs(),
+			otherProp.GetCollisionOrigin(), otherProp.GetCollisionAngles(), otherProp.OBBMins(), otherProp.OBBMaxs());
+	}
+
+	public bool IsMoving() {
+		GetVelocity(out Vector3 velocity, out _);
+		return velocity != vec3_origin;
+	}
+
+	public virtual Vector3 GetSmoothedVelocity() {
+		GetVelocity(out Vector3 vel, out _);
+		return vel;
+	}
+
+	public virtual void PostClientActive() { }
+
+	public void AddSpawnFlags(int flags) => SpawnFlags |= flags;
+	public void RemoveSpawnFlags(int flags) => SpawnFlags &= ~flags;
+	public void SetFriction(float friction) => Friction = friction;
+
+	public TimeUnit_t GetNextThink(ReadOnlySpan<char> context = default) {
+		long tick = GetNextThinkTick(context);
+		if (tick == TICK_NEVER_THINK)
+			return TICK_NEVER_THINK;
+
+		return TICK_INTERVAL * tick;
+	}
+
+	public void IncrementInterpolationFrame() => InterpolationFrame = (byte)((InterpolationFrame + 1) % NOINTERP_PARITY_MAX);
+
+	public void SUB_Remove() {
+		if (Health > 0) {
+			// this situation can screw up NPCs who can't tell their entity pointers are invalid.
+			Health = 0;
+			DevWarning(2, "SUB_Remove called on entity with health > 0\n");
+		}
+
+		Util.Remove(this);
+	}
+
+	struct TeleportListEntry
+	{
+		public BaseEntity Entity;
+		public Vector3 PrevAbsOrigin;
+		public QAngle PrevAbsAngles;
+	}
+
+	static void TeleportEntity(BaseEntity sourceEntity, ref TeleportListEntry entry, Vector3? newPosition, QAngle? newAngles, Vector3? newVelocity) {
+		BaseEntity teleport = entry.Entity;
+
+		SolidFlags solidFlags = (SolidFlags)teleport.GetSolidFlags();
+		teleport.AddSolidFlags(SolidFlags.NotSolid);
+
+		// I'm teleporting myself
+		if (sourceEntity == teleport) {
+			if (newAngles.HasValue) {
+				teleport.SetLocalAngles(newAngles.Value);
+				if (teleport.IsPlayer()) {
+					BasePlayer player = (BasePlayer)teleport;
+					player.SnapEyeAngles(newAngles.Value);
+				}
+			}
+
+			if (newVelocity.HasValue) {
+				teleport.SetAbsVelocity(newVelocity.Value);
+				teleport.SetBaseVelocity(vec3_origin);
+			}
+
+			if (newPosition.HasValue) {
+				teleport.IncrementInterpolationFrame();
+				Util.SetOrigin(teleport, newPosition.Value);
+			}
+		}
+		else {
+			// My parent is teleporting, just update my position & physics
+			teleport.CalcAbsolutePosition();
+		}
+		IPhysicsObject? phys = teleport.VPhysicsGetObject();
+
+		// handle physics objects / shadows
+		if (phys != null) {
+			if (newVelocity.HasValue) {
+				phys.GetVelocity(out _, out Vector3 angVelocity);
+				phys.SetVelocity(newVelocity.Value, angVelocity);
+			}
+			QAngle rotAngles = teleport.GetAbsAngles();
+			// don't rotate physics on players or bbox entities
+			if (teleport.IsPlayer() || teleport.GetSolid() == SolidType.BBox)
+				rotAngles = vec3_angle;
+
+			phys.SetPosition(teleport.GetAbsOrigin(), rotAngles, true);
+		}
+
+		teleport.SetSolidFlags(solidFlags);
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Recurses an entity hierarchy and fills out a list of all entities
+	//			in the hierarchy with their current origins and angles.
+	//
+	//			This list is necessary to keep lazy updates of abs origins and angles
+	//			from messing up our child/constrained entity fixup.
+	//-----------------------------------------------------------------------------
+	static void BuildTeleportList_r(BaseEntity teleport, List<TeleportListEntry> teleportList) {
+		TeleportListEntry entry;
+
+		entry.Entity = teleport;
+		entry.PrevAbsOrigin = teleport.GetAbsOrigin();
+		entry.PrevAbsAngles = teleport.GetAbsAngles();
+
+		teleportList.Add(entry);
+
+		BaseEntity? list = teleport.FirstMoveChild();
+		while (list != null) {
+			BuildTeleportList_r(list, teleportList);
+			list = list.NextMovePeer();
+		}
+	}
+
+	static readonly List<BaseEntity> g_TeleportStack = [];
+	public virtual void Teleport(Vector3? newPosition, QAngle? newAngles, Vector3? newVelocity) {
+		if (g_TeleportStack.Contains(this))
+			return;
+		g_TeleportStack.Add(this);
+
+		List<TeleportListEntry> teleportList = [];
+		BuildTeleportList_r(this, teleportList);
+
+		int i;
+		for (i = 0; i < teleportList.Count; i++) {
+			TeleportListEntry entry = teleportList[i];
+			TeleportEntity(this, ref entry, newPosition, newAngles, newVelocity);
+		}
+
+		for (i = 0; i < teleportList.Count; i++)
+			teleportList[i].Entity.CollisionRulesChanged();
+
+		if (IsPlayer()) {
+			// Tell the client being teleported
+			IGameEvent? ev = gameeventmanager.CreateEvent("base_player_teleported");
+			if (ev != null) {
+				ev.SetInt("entindex", EntIndex());
+				gameeventmanager.FireEventClientSide(ev);
+			}
+		}
+
+		g_TeleportStack.Remove(this);
+	}
+	public bool IsWorld() => EntIndex() == 0;
+
+	public virtual void StartTouch(BaseEntity? other) {
+		// notify parent
+		GetMoveParent()?.StartTouch(other);
+	}
+
+	public virtual void Touch(BaseEntity? other) {
+		FnTouch?.Invoke(other);
+
+		// notify parent of touch
+		GetMoveParent()?.Touch(other);
+	}
+
+	public virtual void EndTouch(BaseEntity? other) {
+		// notify parent
+		GetMoveParent()?.EndTouch(other);
+	}
+
+	public void SetCheckUntouch(bool check) {
+		// Invalidate touchstamp
+		if (check) {
+			TouchStamp++;
+			if (!IsEFlagSet(EFL.CheckUntouch)) {
+				AddEFlags(EFL.CheckUntouch);
+				EntityTouchManager.EntityTouch_Add(this);
+			}
+		}
+		else
+			RemoveEFlags(EFL.CheckUntouch);
+	}
+
+	public void PhysicsTouchTriggers(Vector3? prevAbsOrigin = null) {
+		Edict? edict = Edict();
+		if (edict != null && !IsWorld()) {
+			Assert(CollisionProp() != null);
+			bool isTriggerCheckSolids = IsSolidFlagSet(SolidFlags.Trigger);
+			bool isSolidCheckTriggers = IsSolid() && !isTriggerCheckSolids;     // NOTE: Moving triggers (items, ammo etc) are not
+																				// checked against other triggers to reduce the number of touchlinks created
+			if (!(isSolidCheckTriggers || isTriggerCheckSolids))
+				return;
+
+			if (GetSolid() == SolidType.BSP) {
+				if (GetModel() == null && GetModelName().IsEmpty) {
+					Warning($"Inserted {GetClassname()} with no model\n");
+					return;
+				}
+			}
+
+			SetCheckUntouch(true);
+			if (isSolidCheckTriggers)
+				engine.SolidMoved(edict, CollisionProp(), prevAbsOrigin, sm_bAccurateTriggerBboxChecks);
+			if (isTriggerCheckSolids)
+				engine.TriggerMoved(edict, sm_bAccurateTriggerBboxChecks);
+		}
+	}
 	public virtual void StartBlocked(BaseEntity? other) { }
 	public virtual void Blocked(BaseEntity? other) { }
 	public virtual void EndBlocked() { }
@@ -2581,7 +2814,14 @@ public partial class BaseEntity : IServerEntity
 	}
 	private float GetFriction() => Friction;
 
-	internal void SetTransmit(CheckTransmitInfo info, bool always) {
+	public int GetSoundSourceIndex() => EntIndex();
+
+	public static void EmitSentenceByIndex<T>(in T filter, int entIndex, int channel, int sentenceIndex, float volume, Source.Common.Audio.SoundLevel soundlevel, int flags = 0, int pitch = PITCH_NORM, Vector3? origin = null, Vector3? direction = null, bool updatePositions = true, TimeUnit_t soundtime = 0.0f) where T : IRecipientFilter {
+		List<Vector3> dummy = [];
+		enginesound.EmitSentenceByIndex(filter, entIndex, channel, sentenceIndex, volume, soundlevel, (Source.Common.Audio.SoundFlags)flags, pitch, 0, origin, direction, dummy, updatePositions, soundtime);
+	}
+
+	public virtual void SetTransmit(CheckTransmitInfo info, bool always) {
 		int entIndex = EntIndex();
 
 		if (info.TransmitEdict.Get(entIndex) != 0)

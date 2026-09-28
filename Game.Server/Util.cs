@@ -203,6 +203,30 @@ public ref struct FlaggedEntitiesEnum : IPartitionEnumerator
 
 public static partial class Util
 {
+	public static void ClearTrace(ref Trace trace) {
+		trace = default;
+		trace.Fraction = 1.0f;
+		trace.FractionLeftSolid = 0;
+	}
+
+	public static void EmitAmbientSound(int entindex, in Vector3 vecOrigin, ReadOnlySpan<char> samp, float vol, Source.Common.Audio.SoundLevel soundlevel, int fFlags, int pitch, TimeUnit_t soundtime = 0.0f) => EmitAmbientSound(entindex, vecOrigin, samp, vol, soundlevel, fFlags, pitch, soundtime, out _);
+
+	public static void EmitAmbientSound(int entindex, in Vector3 vecOrigin, ReadOnlySpan<char> samp, float vol, Source.Common.Audio.SoundLevel soundlevel, int fFlags, int pitch, TimeUnit_t soundtime, out TimeUnit_t duration) {
+		duration = 0;
+		if (!samp.IsEmpty && samp[0] == '!') {
+			int sentenceIndex = SENTENCEG_Lookup(samp);
+			if (sentenceIndex >= 0) {
+				string name = $"!{sentenceIndex}";
+				engine.EmitAmbientSound(entindex, vecOrigin, name, vol, soundlevel, fFlags, pitch, (float)soundtime);
+				duration = enginesound.GetSoundDuration(name);
+
+				// g_SoundEmitterSystem.TraceEmitSound( "UTIL_EmitAmbientSound:  Sentence emitted '%s' (ent %i)\n", name, entindex );
+			}
+		}
+		else
+			g_SoundEmitterSystem.EmitAmbientSound(entindex, vecOrigin, samp, vol, soundlevel, fFlags, pitch, soundtime, out duration);
+	}
+
 	public static bool g_bDisableEhandleAccess = false;
 	public static bool g_bReceivedChainedUpdateOnRemove = false;
 	public static void LogPrintf(ReadOnlySpan<char> text) {
@@ -558,7 +582,7 @@ public static partial class Util
 		return null;
 	}
 
-	internal static void SetOrigin(BaseEntity entity, in Vector3 origin) {
+	internal static void SetOrigin(BaseEntity entity, in Vector3 origin, bool fireTriggers = false) {
 		entity.SetLocalOrigin(origin);
 	}
 

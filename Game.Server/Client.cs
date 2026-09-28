@@ -279,8 +279,8 @@ public static class HostSV
 			// if (player != null && !client.CanHearAndReadChatFrom(player))
 			// continue;
 
-			// if (player != null && GetVoiceGameMgr()?.IsPlayerIgnoringPlayer(player->entindex(), i) ?? false)
-			// continue;
+			if (player != null && GetVoiceGameMgr() != null && GetVoiceGameMgr().IsPlayerIgnoringPlayer(player.EntIndex(), i))
+				continue;
 
 			SingleUserRecipientFilter user = new(client);
 			user.MakeReliable();

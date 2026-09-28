@@ -108,6 +108,9 @@ public abstract class
 #endif
 	() : base("GameRules") {
 		g_pGameRules = this;
+#if GAME_DLL
+		GetVoiceGameMgr().Init(g_pVoiceGameMgrHelper, gpGlobals.MaxClients);
+#endif
 	}
 
 	public static readonly ViewVectors g_DefaultViewVectors = new(
@@ -314,7 +317,9 @@ public abstract class
 		Think();
 	}
 
-	public abstract void Think();// GR_Think - runs every server frame, should handle any timer tasks, periodic events, etc.
+	public virtual void Think() {// GR_Think - runs every server frame, should handle any timer tasks, periodic events, etc.
+		GetVoiceGameMgr().Update(gpGlobals.FrameTime);
+	}
 	public abstract bool IsAllowedToSpawn(BaseEntity entity);  // Can this item spawn (eg NPCs don't spawn in deathmatch).
 
 	// Called at the end of GameFrame (i.e. after all game logic has run this frame)
@@ -622,10 +627,12 @@ public abstract class
 
 	public virtual bool AllowAutoTargetCrosshair() => true;
 	public virtual bool ClientCommand(BaseEntity edict, in TokenizedCommand args) {
-		// todo: if (pEdict->IsPlayer()) {
-		// todo: 	if (GetVoiceGameMgr()->ClientCommand(static_cast<CBasePlayer*>(pEdict), args))
-		// todo: 		return true;
-		// todo: }
+#if GAME_DLL
+		if (edict.IsPlayer()) {
+			if (GetVoiceGameMgr().ClientCommand((BasePlayer)edict, args))
+				return true;
+		}
+#endif
 
 		return false;
 	}

@@ -396,8 +396,18 @@ public class HL2_Player : BasePlayer
 		throw new NotImplementedException();
 	}
 
-	Vector3 EyeDirection3D() {
-		throw new NotImplementedException();
+	public override Vector3 EyeDirection3D() {
+		Vector3 vecForward;
+
+		// Return the vehicle angles if we request them
+		if (GetVehicle() != null) {
+			CacheVehicleView();
+			EyeVectors(out vecForward);
+			return vecForward;
+		}
+
+		Source.Common.Mathematics.MathLib.AngleVectors(EyeAngles(), out vecForward);
+		return vecForward;
 	}
 
 	bool Weapon_Switch(BaseCombatWeapon weapon, int viewmodelindex) {

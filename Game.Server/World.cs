@@ -75,7 +75,7 @@ public class World : BaseEntity
 
 		// InitBodyQue();
 
-		// SENTENCEG_Init();
+		SENTENCEG_Init();
 		// PrecacheStandardParticleSystems();
 
 		BaseCombatWeapon.W_Precache();

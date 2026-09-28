@@ -301,6 +301,22 @@ public partial class
 		return false;
 	}
 
+	public virtual bool ShouldCollide(CollisionGroup collisionGroup, Contents contentsMask) {
+		if (CollisionGroup == (int)Source.CollisionGroup.Debris) {
+			if ((contentsMask & Contents.Debris) == 0)
+				return false;
+		}
+		return true;
+	}
+
+	public virtual bool TestCollision(in Ray ray, Contents mask, ref Trace trace) {
+		return false;
+	}
+
+	public virtual bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) {
+		return false;
+	}
+
 	public BaseEntity GetRootMoveParent() {
 		BaseEntity? entity = this;
 		BaseEntity? parent = this.GetMoveParent();

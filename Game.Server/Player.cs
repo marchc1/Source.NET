@@ -480,6 +480,13 @@ public partial class BasePlayer : BaseCombatCharacter
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 
+	public ref AudioParams GetAudioParams() => ref Local.Audio;
+
+	// Used by env_soundscape_triggerable to manage when the player is touching multiple
+	// soundscape triggers simultaneously.
+	// The one at the HEAD of the list is always the current soundscape for the player.
+	public readonly List<EHANDLE> TriggerSoundscapeList = [];
+
 	public void SetBodyPitch(float pitch) {
 		if (BodyPitchPoseParam >= 0)
 			SetPoseParameter(BodyPitchPoseParam, pitch);
@@ -541,6 +548,20 @@ public partial class BasePlayer : BaseCombatCharacter
 	public InButtons AfButtonLast;
 	public InButtons AfButtonDisabled;
 	public InButtons AfButtonForced;
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Strips off IN_xxx flags from the player's input
+	//-----------------------------------------------------------------------------
+	public void ForceButtons(InButtons buttons) {
+		AfButtonForced |= buttons;
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Re-enables stripped IN_xxx flags to the player's input
+	//-----------------------------------------------------------------------------
+	public void UnforceButtons(InButtons buttons) {
+		AfButtonForced &= ~buttons;
+	}
 
 	public bool GamePaused;
 
@@ -806,7 +827,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		NextDecalTime = 0;
 
-		// GeigerDelay = gpGlobals.CurTime + 2.0f;
+		GeigerDelay = gpGlobals.CurTime + 2.0f;    // wait a few seconds until user-defined message registrations
 
 		// FieldOfView = 0.766;
 
@@ -842,7 +863,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		InitVCollision(GetAbsOrigin(), GetAbsVelocity());
 	}
 
-	private void IncrementInterpolationFrame() => InterpolationFrame = (byte)((InterpolationFrame + 1) % NOINTERP_PARITY_MAX);
 
 	public TimeUnit_t GetDeathTime() => DeathTime;
 
@@ -1359,9 +1379,15 @@ public partial class BasePlayer : BaseCombatCharacter
 		base.ChangeTeam(teamNum);
 	}
 
+	public override Vector3 GetSmoothedVelocity() {
+		if (IsInAVehicle())
+			return GetVehicle()!.GetVehicleEnt()!.GetSmoothedVelocity();
+		return SmoothedVelocity;
+	}
+
 	const float SMOOTHING_FACTOR = 0.9f;
 	public virtual void PostThink() {
-		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
+		SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
 
 		if (!g_fGameOver /*&& !PlayerLocked*/) {
 			if (IsAlive()) {
@@ -1473,6 +1499,66 @@ public partial class BasePlayer : BaseCombatCharacter
 		PhysicsController.Update(GetAbsOrigin(), GetAbsVelocity(), (float)gpGlobals.FrameTime, onground, ground!);
 	}
 
+	public float GeigerRange = 1000;     // range to nearest radiation source
+	public TimeUnit_t GeigerDelay;      // delay per update of range msg to client
+	public int GeigerRangePrev = 1000;
+
+	const float GEIGERDELAY = 0.25f;
+
+	public void UpdateGeigerCounter() {
+		byte range;
+
+		// delay per update ie: don't flood net with these msgs
+		if (gpGlobals.CurTime < GeigerDelay)
+			return;
+
+		GeigerDelay = gpGlobals.CurTime + GEIGERDELAY;
+
+		// send range to radition source to client
+		range = (byte)Math.Clamp((int)MathF.Floor(GeigerRange / 4), 0, 255);
+
+		// This is to make sure you aren't driven crazy by geiger while in the airboat
+		if (IsInAVehicle())
+			range = (byte)Math.Clamp((int)range * 4, 0, 255);
+
+		if (range != GeigerRangePrev) {
+			GeigerRangePrev = range;
+
+			SingleUserRecipientFilter user = new(this);
+			user.MakeReliable();
+			UserMessageBegin(user, "Geiger");
+			MessageWriteByte(range);
+			MessageEnd();
+		}
+
+		// reset counter and semaphore
+		if (random.RandomInt(0, 3) == 0)
+			GeigerRange = 1000;
+	}
+
+	public void CheckSuitUpdate() {
+		// Ignore suit updates if no suit
+		if (!IsSuitEquipped())
+			return;
+
+		// if in range of radiation source, ping geiger counter
+		UpdateGeigerCounter();
+
+		if (g_pGameRules.IsMultiplayer()) {
+			// don't bother updating HEV voice in multiplayer.
+			return;
+		}
+	}
+
+	public void NotifyNearbyRadiationSource(float range) {
+		// if player's current geiger counter range is larger
+		// than range to this trigger hurt, reset player's
+		// geiger counter range
+
+		if (GeigerRange >= range)
+			GeigerRange = range;
+	}
+
 	public virtual void PreThink() {
 		if (g_fGameOver /*|| PlayerLocked*/)
 			return;
@@ -1487,7 +1573,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		UpdateClientData();
 		// CheckTimeBasedDamage();
-		// CheckSuitUpdate();
+		CheckSuitUpdate();
 
 		// if (GetObserverMode() > Shared.ObserverMode.FreezeCam)
 		// 	CheckObserverSettings();
@@ -1544,10 +1630,6 @@ public partial class BasePlayer : BaseCombatCharacter
 	internal bool IsDead() {
 		// throw new NotImplementedException();
 		return false;// todo
-	}
-
-	internal void Teleport(Vector3 origin, QAngle angles, Vector3 vec3_origin) {
-		throw new NotImplementedException();
 	}
 
 	public virtual void ForceDropOfCarriedPhysObjects(BaseEntity? ground) { }

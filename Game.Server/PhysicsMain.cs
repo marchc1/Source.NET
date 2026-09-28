@@ -98,7 +98,7 @@ public partial class BaseEntity
 			if ((GetFlags() & EntityFlags.OnGround) == 0)
 				PhysicsStepRecheckGround();
 
-			// PhysicsTouchTriggers();
+			PhysicsTouchTriggers();
 		}
 
 		if ((GetFlags() & EntityFlags.OnGround) == 0 && !isfalling)
@@ -244,7 +244,7 @@ public partial class BaseEntity
 
 			if (updateFromVPhysics) {
 				SetAbsOrigin(position);
-				// PhysicsTouchTriggers();
+				PhysicsTouchTriggers();
 			}
 		}
 

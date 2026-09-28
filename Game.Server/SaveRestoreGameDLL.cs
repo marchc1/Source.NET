@@ -31,7 +31,7 @@ public static class SaveRestoreGameDLL
 					case FieldType.ModelName:
 					case FieldType.SoundName:
 					case FieldType.String:
-						field.Accessor.SetValue(obj, new string(value));
+						field.Accessor.SetValue(obj, new string(value.SliceNullTerminatedString()));
 						return true;
 
 					case FieldType.Time:

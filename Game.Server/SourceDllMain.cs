@@ -29,6 +29,7 @@ public static class SourceDllMain
 	[Dependency] public static ISoundEmitterSystemBase soundemitterbase { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
+	[Dependency] public static IVoiceServer g_pVoiceServer { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static IVModelInfo modelinfo { get; private set; } = null!;

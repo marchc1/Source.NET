@@ -48,6 +48,13 @@ GameRules
 	public override bool IsMultiplayer() {
 		return true;
 	}
+
+	public override bool ShouldDrawHeadLabels() {
+		if (mp_show_voice_icons.GetBool() == false)
+			return false;
+
+		return base.ShouldDrawHeadLabels();
+	}
 	public override DamageType Damage_GetTimeBased() {
 		DamageType damage = (DamageType.Paralyze | DamageType.NerveGas | DamageType.Poison | DamageType.Radiation | DamageType.DrownRecover | DamageType.Acid | DamageType.SlowBurn);
 		return damage;
@@ -135,6 +142,8 @@ GameRules
 	}
 
 	public override void Think() {
+		base.Think();
+
 		if (g_fGameOver) {
 			// todo: ChangeLevel();
 			return;
@@ -164,6 +173,8 @@ GameRules
 		return "";
 	}
 	public override void FrameUpdatePostEntityThink() {
+		base.FrameUpdatePostEntityThink();
+
 		TimeUnit_t flNow = Source.Platform.Time;
 
 		// Update time when client was last connected
@@ -209,7 +220,7 @@ GameRules
 		return base.SwitchToNextBestWeapon(player, currentWeapon);
 	}
 	public override bool ClientConnected(Edict entity, ReadOnlySpan<char> pszName, ReadOnlySpan<char> pszAddress, Span<char> reject) {
-		// todo
+		GetVoiceGameMgr().ClientConnected(entity);
 		return true;
 	}
 	public override void InitHUD(BasePlayer pl) {

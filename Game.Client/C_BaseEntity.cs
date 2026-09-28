@@ -769,6 +769,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsFloating() => false;
 
 	public EHANDLE OwnerEntity = new();
+	public C_BaseEntity? GetOwnerEntity() => (C_BaseEntity?)OwnerEntity.Get();
 	public EHANDLE EffectEntity = new();
 	public EHANDLE GroundEntity = new();
 	public EHANDLE NetworkMoveParent = new();
@@ -970,6 +971,8 @@ public partial class C_BaseEntity : IClientEntity
 		return ref AbsRotation;
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
+
+	public virtual Source.Common.Audio.MouthInfo? GetMouth() => null;
 
 	public virtual bool GetSoundSpatialization(ref SpatializationInfo info) {
 		if (EntIndex() == 0)
@@ -2757,6 +2760,48 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
+
+	public static bool sm_bDisableTouchFuncs = false;  // Disables PhysicsTouch and PhysicsStartTouch function calls
+	public int TouchStamp;
+
+	public delegate void TOUCHPTR(C_BaseEntity? other);
+	public TOUCHPTR? FnTouch;
+
+	public virtual void StartTouch(C_BaseEntity? other) {
+		// notify parent
+		//	if ( m_pParent != NULL )
+		//		m_pParent->StartTouch( pOther );
+	}
+
+	//-----------------------------------------------------------------------------
+	// Purpose: Call touch function if one is set
+	// Input  : *pOther -
+	//-----------------------------------------------------------------------------
+	public virtual void Touch(C_BaseEntity? other) {
+		FnTouch?.Invoke(other);
+
+		// notify parent of touch
+		//	if ( m_pParent != NULL )
+		//		m_pParent->Touch( pOther );
+	}
+
+	public virtual void EndTouch(C_BaseEntity? other) {
+		// notify parent
+		//	if ( m_pParent != NULL )
+		//	{
+		//		m_pParent->EndTouch( pOther );
+		//	}
+	}
+
+	public void SetCheckUntouch(bool check) {
+		// Invalidate touchstamp
+		if (check) {
+			TouchStamp++;
+			AddEFlags(EFL.CheckUntouch);
+		}
+		else
+			RemoveEFlags(EFL.CheckUntouch);
+	}
 
 	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
 	public byte[]? OriginalData;

@@ -246,7 +246,7 @@ public partial class
 	public InlineArrayMaxPlayerNameLength<char> Netname;
 
 
-	private void CacheVehicleView() {
+	protected void CacheVehicleView() {
 		if (VehicleViewSavedFrame == gpGlobals.FrameCount)
 			return;
 

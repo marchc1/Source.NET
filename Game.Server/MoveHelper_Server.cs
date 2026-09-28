@@ -110,8 +110,8 @@ public class MoveHelperServer : IMoveHelperServer
 		Assert(HostPlayer != null);
 
 		// Relink in order to build absorigin and absmin/max to reflect any changes
-		//  from prediction.  Relink will early out on SOLID_NOT. TODO
-		// HostPlayer.PhysicsTouchTriggers();
+		//  from prediction.  Relink will early out on SOLID_NOT
+		HostPlayer.PhysicsTouchTriggers();
 
 		// Don't bother if the player ain't solid
 		if (HostPlayer.IsSolidFlagSet(Source.SolidFlags.NotSolid))
