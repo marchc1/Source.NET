@@ -490,34 +490,34 @@ public class ServerAddons : IServerAddons
 	}
 
 	internal static string ResultToString(EResult result) {
-		switch ((int)result) {
-			case 1: return "OK";
-			case 2: return "Generic failure";
-			case 3: return "No internet connection";
-			case 6: return "Logged in elsewhere";
-			case 8: return "Invalid parameter (Weird symbols in name/descrption?)";
-			case 9: return "File not found";
-			case 10: return "Method is busy";
-			case 0xf: return "Access denied (Item hidden/banned?)";
-			case 0x10: return "Timed out";
-			case 0x11: return "Item/user is banned";
-			case 0x12: return "Account not found";
-			case 0x14: return "Service unavailable";
-			case 0x15: return "Not logged on";
-			case 0x18: return "Insufficient privilege";
-			case 0x19: return "Limit exceeded";
-			case 0x22: return "Log on session replaced (Your GSLT is used elsewhere)";
-			case 0x25: return "Input/output failure";
-			case 0x33: return "Operation suspended";
-			case 0x34: return "Operation cancelled";
-			case 0x36: return "Disk drive full";
-			case 0x56: return "Item(GSLT?) deleted";
-			case 0x5d: return "Time is not synched";
-			case 0x66: return "GSL token banned";
-			case 0x67: return "GS owner denied";
-			case 0x6a: return "GSL token expired";
-			case 0x70: return "Limited user account";
-			default: return "Steam error code " + (int)result;
-		}
+		return result switch {
+			EResult.k_EResultOK => "OK",
+			EResult.k_EResultFail => "Generic failure",
+			EResult.k_EResultNoConnection => "No internet connection",
+			EResult.k_EResultLoggedInElsewhere => "Logged in elsewhere",
+			EResult.k_EResultInvalidParam => "Invalid parameter (Weird symbols in name/descrption?)",
+			EResult.k_EResultFileNotFound => "File not found",
+			EResult.k_EResultBusy => "Method is busy",
+			EResult.k_EResultAccessDenied => "Access denied (Item hidden/banned?)",
+			EResult.k_EResultTimeout => "Timed out",
+			EResult.k_EResultBanned => "Item/user is banned",
+			EResult.k_EResultAccountNotFound => "Account not found",
+			EResult.k_EResultServiceUnavailable => "Service unavailable",
+			EResult.k_EResultNotLoggedOn => "Not logged on",
+			EResult.k_EResultInsufficientPrivilege => "Insufficient privilege",
+			EResult.k_EResultLimitExceeded => "Limit exceeded",
+			EResult.k_EResultLogonSessionReplaced => "Log on session replaced (Your GSLT is used elsewhere)",
+			EResult.k_EResultIOFailure => "Input/output failure",
+			EResult.k_EResultSuspended => "Operation suspended",
+			EResult.k_EResultCancelled => "Operation cancelled",
+			EResult.k_EResultDiskFull => "Disk drive full",
+			EResult.k_EResultItemDeleted => "Item(GSLT?) deleted",
+			EResult.k_EResultTimeNotSynced => "Time is not synched",
+			EResult.k_EResultGSLTDenied => "GSL token banned",
+			EResult.k_EResultGSOwnerDenied => "GS owner denied",
+			EResult.k_EResultGSLTExpired => "GSL token expired",
+			EResult.k_EResultLimitedUserAccount => "Limited user account",
+			_ => "Steam error code " + (int)result,
+		};
 	}
 }
