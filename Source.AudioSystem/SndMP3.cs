@@ -56,7 +56,7 @@ public static class SndMP3
 			file.Stream.ReadExactly(contents);
 			file.Dispose();
 
-			UtlBuffer buf = new(contents, UtlBuffer.BufferFlags.TEXT_BUFFER);
+			UtlBuffer buf = new(contents, UtlBuffer.BufferFlags.TextBuffer);
 			Span<char> token = stackalloc char[4096];
 			while (true) {
 				buf.GetString(token);

@@ -1,4 +1,5 @@
 using Source.Common.Filesystem;
+using Source.Common.Utilities;
 
 using System.Collections;
 using System.Diagnostics;
@@ -20,6 +21,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		Pointer,
 		Color,
 		Uint64,
+		NumTypes
 	}
 
 	public void Clear() {
@@ -874,7 +876,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		return new(); // todo: proper implementation of this
 	}
 
-	public void SetName(ReadOnlySpan<char> name) => Name = name.ToString();
+	public void SetName(ReadOnlySpan<char> name) => Name = name.SliceNullTerminatedString().ToString();
 	public void SetFloat(ReadOnlySpan<char> keyName, float value) {
 		KeyValues? dat = FindKey(keyName, true);
 		if (dat != null) {
@@ -948,5 +950,214 @@ public class KeyValues : IEnumerable<KeyValues>
 			return true;
 
 		return false;
+	}
+
+	public bool WriteAsBinary(UtlBuffer buffer) {
+		if (buffer.IsText())
+			return false;
+		if (!buffer.IsValid())
+			return false;
+
+		// loop through all our peers
+		for (KeyValues? dat = this; dat != null; dat = dat.node.Next?.Value) {
+			// write type
+			buffer.PutUnsignedChar((byte)dat.Type);
+
+			// write name
+			buffer.PutString(dat.Name);
+
+			// write type
+			switch (dat.Type) {
+				case Types.None: {
+						dat.GetFirstSubKey()!.WriteAsBinary(buffer);
+						break;
+					}
+				case Types.String: {
+						if (dat.Value is not string str)
+							buffer.PutString("");
+						else
+							buffer.PutString(str);
+						break;
+					}
+				case Types.Int: {
+						int v;
+						switch (dat.Value) {
+							case int f: v = f; break;
+							case long f: v = Convert.ToInt32(f); break;
+							default: v = 0; break;
+						}
+						buffer.PutInt(v);
+						break;
+					}
+
+				case Types.Uint64: {
+						if (dat.Value is not ulong i)
+							i = 0;
+						buffer.PutDouble(const_reinterpret<ulong, double>(new(in i))[0]);
+						break;
+					}
+
+				case Types.Double: {
+						float v;
+						switch (dat.Value) {
+							case float f: v = f; break;
+							case double f: v = (float)f; break;
+							default: v = 0; break;
+						}
+						buffer.PutFloat(v);
+						break;
+					}
+				case Types.Color: {
+						if (dat.Value is not Color c)
+							c = default;
+						buffer.PutUnsignedChar(c[0]);
+						buffer.PutUnsignedChar(c[1]);
+						buffer.PutUnsignedChar(c[2]);
+						buffer.PutUnsignedChar(c[3]);
+						break;
+					}
+				case Types.Pointer: {
+						// hmm... not sure how to do this proper...
+
+						break;
+					}
+
+				default:
+					break;
+			}
+		}
+
+		buffer.PutUnsignedChar((byte)Types.NumTypes);
+
+		return buffer.IsValid();
+	}
+
+	public void RemoveEverything() {
+		children.Clear();
+		Value = null;
+		node.List!.Remove(node);
+	}
+
+	public void Init() {
+		Name = null!;
+		Type = Types.None;
+		children.Clear();
+
+		useEscapeSequences = false;
+		evaluateConditionals = true;
+	}
+
+	public const int KEYVALUES_TOKEN_SIZE = 4096;
+
+	public bool ReadAsBinary(UtlBuffer buffer, int nStackDepth = 0) {
+		if (buffer.IsText()) // must be a binary buffer
+			return false;
+
+		if (!buffer.IsValid()) // must be valid, no overflows etc
+			return false;
+
+		RemoveEverything(); // remove current content
+		Init(); // reset
+
+		if (nStackDepth > 100) {
+			AssertMsg(false, "KeyValues::ReadAsBinary() stack depth > 100\n");
+			return false;
+		}
+
+		KeyValues? dat = this;
+		Types type = (Types)buffer.GetUnsignedChar();
+
+		// loop through all our peers
+		Span<char> token = stackalloc char[KEYVALUES_TOKEN_SIZE];
+
+		while (true) {
+			if (type == Types.NumTypes)
+				break; // no more peers
+
+			dat.Type = type;
+
+			{
+				buffer.GetString(token);
+				token[KEYVALUES_TOKEN_SIZE - 1] = '\0';
+				dat.SetName(token);
+			}
+
+			switch (type) {
+				case Types.None: {
+						var sub = new KeyValues("");
+						if (dat.children.Count == 0)
+							dat.children.AddFirst(new LinkedListNode<KeyValues>(sub));
+						else {
+							dat.children.First!.ValueRef = sub;
+							sub.node = dat.children.First;
+						}
+
+						sub.ReadAsBinary(buffer, nStackDepth + 1);
+						break;
+					}
+				case Types.String: {
+						buffer.GetString(token);
+						token[KEYVALUES_TOKEN_SIZE - 1] = '\0';
+
+						int len = (int)strlen(token);
+						dat.Value = new string(token[..len]);
+
+						break;
+					}
+				case Types.Int: {
+						dat.Value = buffer.GetInt();
+						break;
+					}
+
+				case Types.Uint64: {
+						dat.Value = buffer.GetInt64();
+						break;
+					}
+
+				case Types.Double: {
+						dat.Value = buffer.GetFloat();
+						break;
+					}
+				case Types.Color: {
+						Color c = new Color();
+						c[0] = buffer.GetUnsignedChar();
+						c[1] = buffer.GetUnsignedChar();
+						c[2] = buffer.GetUnsignedChar();
+						c[3] = buffer.GetUnsignedChar();
+						dat.Value = c;
+						break;
+					}
+				case Types.Pointer: {
+						// WOW: This sucks! Doesn't this imply the binary data going across two sides is dependant on both being 64-bit?? Why?????????
+						/*
+		# ifdef PLATFORM_64BITS
+								dat->m_pValue = (void*)buffer.GetUint64();
+		#else
+								dat->m_pValue = (void*)buffer.GetUnsignedInt();
+		#endif
+								*/
+
+						break;
+					}
+
+				default:
+					break;
+			}
+
+			if (!buffer.IsValid()) // error occured
+				return false;
+
+			type = (Types)buffer.GetUnsignedChar();
+
+			if (type == Types.NumTypes)
+				break;
+
+			// new peer follows
+			var peer = new KeyValues("");
+			dat.children.AddLast(peer);
+			dat = peer;
+		}
+
+		return buffer.IsValid();
 	}
 }

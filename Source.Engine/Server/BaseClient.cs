@@ -7,6 +7,7 @@ using SharpCompress.Common;
 using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -70,6 +71,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case NET_SignonState m: return ProcessSignonState(m);
 			case CLC_ClientInfo m: return ProcessClientInfo(m);
 			case CLC_Move m: return ProcessMove(m);
+			case CLC_RespondCvarValue m: return ProcessRespondCvarValue(m);
+			case CLC_FileCRCCheck m: return ProcessFileCRCCheck(m);
+			case CLC_FileMD5Check m: return ProcessFileMD5Check(m);
+			case CLC_CmdKeyValues m: return ProcessCmdKeyValues(m);
 			case CLC_BaselineAck m: return ProcessBaselineAck(m);
 			case CLC_ListenEvents m: return ProcessListenEvents(m);
 			case CLC_VoiceData m: return ProcessVoiceData(m);
@@ -84,6 +89,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	protected virtual bool ProcessMove(CLC_Move m) => true;
 	protected virtual bool ProcessVoiceData(CLC_VoiceData m) => true;
+	protected virtual bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) => true;
+	protected virtual bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) => true;
+	protected virtual bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) => true;
+	protected virtual bool ProcessFileMD5Check(CLC_FileMD5Check msg) => true;
 
 	protected virtual bool ProcessTick(NET_Tick m) {
 		NetChannel!.SetRemoteFramerate(m.HostFrameTime, m.HostFrameDeviation);
