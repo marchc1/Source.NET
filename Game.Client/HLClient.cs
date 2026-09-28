@@ -91,7 +91,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void PostInit() {
-
+		IGameSystem.PostInitAllSystems();
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {

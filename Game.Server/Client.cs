@@ -181,7 +181,7 @@ public static class HostSV
 		BasePlayer? client;
 		nint j;
 		scoped ReadOnlySpan<char> p;
-		ReadOnlySpan<char> text = stackalloc char[256];
+		Span<char> text = stackalloc char[256];
 		Span<char> temp = stackalloc char[256];
 		ReadOnlySpan<char> say = "say";
 		ReadOnlySpan<char> sayTeam = "say_team";
@@ -244,14 +244,20 @@ public static class HostSV
 
 		if (!pszPrefix.IsStringEmpty) {
 			if (!pszLocation.IsStringEmpty)
-				text = $"{pszPrefix} {pszPlayerName} @ {pszLocation}: ";
+				sprintf(text, "%s %s @ %s: ").S(pszPrefix).S(pszPlayerName).S(pszLocation);
 			else
-				text = $"{pszPrefix} {pszPlayerName}: ";
+				sprintf(text, "%s %s: ").S(pszPrefix).S(pszPlayerName);
 		}
 		else
-			text = $"{pszPlayerName}: ";
+			sprintf(text, "%s: ").S(pszPlayerName);
 
-		text = $"{p.SliceNullTerminatedString()}\n";
+		j = text.Length - 2 - strlen(text);
+		if (strlen(p) > j)
+			p = p[..(int)j];
+
+		strcat(text, p);
+		strcat(text, "\n");
+		text = text.SliceNullTerminatedString();
 
 		// loop through all players
 		// Start with the first player.
@@ -314,6 +320,7 @@ public static class HostSV
 		ReadOnlySpan<char> playerName = "Console";
 		ReadOnlySpan<char> playerTeam = "Console";
 		if (player != null) {
+			player.CheckChatText(text);
 			userid = player.GetUserID();
 			networkID = player.GetNetworkIDString();
 			playerName = player.GetPlayerName();

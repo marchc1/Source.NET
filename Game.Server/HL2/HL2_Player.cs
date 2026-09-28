@@ -13,7 +13,7 @@ namespace Game.Server.HL2;
 using FIELD = Source.FIELD<HL2_Player>;
 
 [PrecacheRegister("player")]
-public class HL2_Player : BasePlayer
+public class HL2_Player : BaseMultiplayerPlayer
 {
 	public static readonly SendTable DT_HL2_Player = new(DT_BasePlayer, [
 		SendPropDataTable(nameof(HL2Local), FIELD.OF(nameof(HL2Local)), HL2PlayerLocalData.DT_HL2Local, SendProxy_SendLocalDataTable),

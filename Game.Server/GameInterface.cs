@@ -466,7 +466,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void PostInit() {
-
+		IGameSystem.PostInitAllSystems();
 	}
 
 	public void PreClientUpdate(bool simulating) {

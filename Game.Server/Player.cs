@@ -949,6 +949,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public bool CanSpeak() => true;
 
+	public virtual void CheckChatText(ReadOnlySpan<char> text) { }
+
 	int GetCommandContextCount() => CommandContext.Count;
 
 	CommandContext AllocCommandContext() {
