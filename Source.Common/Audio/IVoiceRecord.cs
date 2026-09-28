@@ -2,6 +2,9 @@
 
 public interface IVoiceRecord
 {
+	// Use this to delete the object.
+	void Release();
+
 	// Start/stop capturing.
 	bool RecordStart();
 	void RecordStop();

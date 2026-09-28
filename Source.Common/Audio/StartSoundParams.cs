@@ -92,56 +92,50 @@ public enum SoundEntityChannel
 	UserBase = VoiceBase + 128
 }
 
-public interface IAudioSystem
-{
-	ReadOnlySpan<char> DeviceName();
-	int DeviceChannels();
-	int DeviceSampleBits();
-	int DeviceSampleBytes();
-	int DeviceDmaSpeed();
-	int DeviceSampleCount();
-	bool IsActive();
-	void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater);
-	void Update(double v);
-	bool Init();
-	long StartDynamicSound(in StartSoundParams parms);
-	long StartStaticSound(in StartSoundParams parms);
-	void StopAllSounds(bool clear);
-	bool IsSoundStillPlaying(int guid);
-	void StopSoundByGuid(int guid);
-	void SetVolumeByGuid(int guid, float fvol);
-	IVoiceRecord? CreateVoiceRecord(int v);
-}
 public class SfxTable
 {
-	// Engine implements this. Kinda sucks, but whatever
+	// The audio system implements these (CSfxTable's name pool lives in snd_dma).
 	public static class Impl
 	{
 		public delegate ReadOnlySpan<char> GetNameFn(SfxTable sfx);
+		public delegate FileNameHandle_t GetFileNameHandleFn(SfxTable sfx);
 		public delegate bool IsPrecachedSoundFn(SfxTable sfx);
-		public static GetNameFn GetName = null!;
-		public static IsPrecachedSoundFn IsPrecachedSound = null!;
+		public delegate void OnNameChangedFn(SfxTable sfx, ReadOnlySpan<char> name);
+		public delegate bool IsValidNamePoolIndexFn(FileNameHandle_t index);
+		public static GetNameFn? GetName;
+		public static GetFileNameHandleFn? GetFileNameHandle;
+		public static IsPrecachedSoundFn? IsPrecachedSound;
+		public static OnNameChangedFn? OnNameChanged;
+		public static IsValidNamePoolIndexFn? IsValidNamePoolIndex;
 	}
-	public AudioSource? Source { get; set; }
-	public bool UseErrorFilename { get; set; }
-	public bool IsUISound { get; set; }
-	public bool IsLateLoad { get; set; }
-	public bool MixGroupsCached { get; set; }
-	public byte MixGroupCount { get; set; }
 
 	public FileNameHandle_t NamePoolIndex;
-	public ReadOnlySpan<char> GetName() => Impl.GetName(this);
-	public bool IsPrecachedSound() => Impl.IsPrecachedSound(this);
+	public AudioSource? Source;
+
+	public bool UseErrorFilename;
+	public bool IsUISound;
+	public bool IsLateLoad;
+	public bool MixGroupsCached;
+	public byte MixGroupCount;
+	// UNDONE: Use a fixed bit vec here?
+	public readonly byte[] MixGroupList = new byte[8];
+
+	// gets sound name, possible decoracted with prefixes
+	public virtual ReadOnlySpan<char> GetName() => Impl.GetName != null ? Impl.GetName(this) : null;
+	// gets the filename, the part after the optional prefixes
 	public ReadOnlySpan<char> GetFileName() {
 		ReadOnlySpan<char> name = GetName();
 		return !name.IsEmpty ? SoundCharsUtils.SkipSoundChars(name) : null;
 	}
-	public void SetNamePoolIndex(FileNameHandle_t handle) {
-		NamePoolIndex = handle;
-		if (NamePoolIndex != FileNameHandle_t.MaxValue) {
-			// on name changed todo
-		}
+	public FileNameHandle_t GetFileNameHandle() => Impl.GetFileNameHandle != null ? Impl.GetFileNameHandle(this) : 0;
+
+	public void SetNamePoolIndex(FileNameHandle_t index) {
+		NamePoolIndex = index;
+		if (Impl.IsValidNamePoolIndex != null && Impl.IsValidNamePoolIndex(NamePoolIndex))
+			OnNameChanged(GetName());
 	}
+	public bool IsPrecachedSound() => Impl.IsPrecachedSound != null && Impl.IsPrecachedSound(this);
+	public void OnNameChanged(ReadOnlySpan<char> name) => Impl.OnNameChanged?.Invoke(this, name);
 }
 
 public struct StartSoundParams

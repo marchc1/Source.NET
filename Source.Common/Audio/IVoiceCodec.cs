@@ -34,3 +34,17 @@ public interface IVoiceCodec
 	int Decompress(ReadOnlySpan<byte> @in, Span<byte> @out);
 	bool ResetState();
 }
+
+public static class VoiceCodecFactory
+{
+	static readonly Dictionary<string, Func<IVoiceCodec>> Factories = new(StringComparer.OrdinalIgnoreCase);
+
+	public static void Register(string codecName, Func<IVoiceCodec> factory) => Factories[codecName] = factory;
+
+	public static Func<IVoiceCodec>? GetFactory(ReadOnlySpan<char> codecName) {
+		foreach (var kvp in Factories)
+			if (codecName.Equals(kvp.Key, StringComparison.OrdinalIgnoreCase))
+				return kvp.Value;
+		return null;
+	}
+}
