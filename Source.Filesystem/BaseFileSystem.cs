@@ -168,6 +168,9 @@ public class BaseFileSystem : IFileSystem
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
 				var searchPath = collection.GetAddOrder()[i];
+				if (searchPath != path)
+					continue;
+
 				if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 					return;
 				else {
@@ -303,6 +306,45 @@ public class BaseFileSystem : IFileSystem
 
 		Span<char> concatBuffer = stackalloc char[MAX_PATH];
 		return ISearchPath.Concat(winner, fileName, dest);
+	}
+
+	public bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative) {
+		fullPath = fullPath.SliceNullTerminatedString();
+		Span<char> fullPathNormalized = stackalloc char[MAX_PATH];
+		ReadOnlySpan<char> normalized = ISearchPath.Normalize(fullPath, fullPathNormalized);
+
+		foreach (var searchPaths in SearchPaths) {
+			foreach (var searchPath in searchPaths.Value.GetSortOrder()) {
+				if (searchPath is not DiskSearchPath)
+					continue;
+
+				Span<char> diskPathNormalized = stackalloc char[MAX_PATH];
+				ReadOnlySpan<char> diskPath = ISearchPath.Normalize(searchPath.GetDiskPath(), diskPathNormalized);
+				if (diskPath.IsEmpty || !normalized.StartsWith(diskPath, StringComparison.OrdinalIgnoreCase))
+					continue;
+
+				ReadOnlySpan<char> remainder = normalized[diskPath.Length..];
+				if (remainder.Length >= relative.Length)
+					return false;
+
+				remainder.CopyTo(relative);
+				relative[remainder.Length] = '\0';
+				return true;
+			}
+		}
+
+		if (!relative.IsEmpty)
+			relative[0] = '\0';
+		return false;
+	}
+
+	public bool WriteFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, ReadOnlySpan<byte> buf) {
+		using IFileHandle? handle = Open(fileName, FileOpenOptions.Write | FileOpenOptions.Binary, pathID);
+		if (handle == null)
+			return false;
+
+		handle.Stream.Write(buf);
+		return true;
 	}
 
 	readonly ref struct IsDirectory_Op() : IFirstToThePostOp<bool>
@@ -625,6 +667,9 @@ public class BaseFileSystem : IFileSystem
 		SearchPathCollection? currentCollection;
 		ISearchPath? currentPath;
 		HashSet<FileNameHandle_t>? foundAlready;
+#if GMOD_DLL
+		List<SearchFile>? addonFiles;
+#endif
 
 		public bool IsDirectory;
 
@@ -635,6 +680,11 @@ public class BaseFileSystem : IFileSystem
 			FindHandle = lockedIdx;
 			Wildcard = new UtlSymbol(wildcard);
 			PathID = new UtlSymbol(pathID);
+
+#if GMOD_DLL
+			if (!pathID.IsEmpty && !pathID.Equals("MOD", StringComparison.Ordinal) && !pathID.Equals("GAME", StringComparison.Ordinal) && !pathID.Equals("workshop", StringComparison.Ordinal))
+				g_AddonFileSystem.FindInAddon(new string(pathID), new string(wildcard), addonFiles!);
+#endif
 		}
 
 		public void Reset() {
@@ -651,6 +701,10 @@ public class BaseFileSystem : IFileSystem
 
 			foundAlready ??= [];
 			foundAlready.Clear();
+#if GMOD_DLL
+			addonFiles ??= [];
+			addonFiles.Clear();
+#endif
 		}
 
 
@@ -671,8 +725,17 @@ public class BaseFileSystem : IFileSystem
 					goto findPath; // We don't need to perform the next check
 				}
 			}
-			if (currentCollection == null)
+			if (currentCollection == null) {
+#if GMOD_DLL
+				if (addonFiles!.Count != 0) {
+					SearchFile file = addonFiles[0];
+					addonFiles.RemoveAt(0);
+					IsDirectory = file.Folder;
+					return file.FileName;
+				}
+#endif
 				return null; // Cannot continue.
+			}
 
 		findPath:
 			if (currentPath == null) {
@@ -712,6 +775,7 @@ public class BaseFileSystem : IFileSystem
 				return;
 			}
 
+			currentPath?.UnlockFinds();
 			Locked = 0;
 			Reset();
 		}
@@ -838,7 +902,7 @@ public class BaseFileSystem : IFileSystem
 
 
 #if GMOD_DLL
-	static IGet get = null!;
+	internal static IGet get = null!;
 	static readonly AddonFileSystem g_AddonFileSystem = new();
 	static readonly GamemodeSystem g_GamemodeSystem = new();
 	static readonly GameDepotSystem g_GameDepotSystem = new();
@@ -855,24 +919,23 @@ public class BaseFileSystem : IFileSystem
 	public LegacyAddons.System LegacyAddons() => g_LegacyAddons;
 	public Language Language() => g_LanguageSystem;
 
-	public void DoFilesystemRefresh() {
-		g_LegacyAddons.Refresh();
-		g_AddonFileSystem.Refresh();
-		g_GameDepotSystem.Refresh();
-		g_GamemodeSystem.Refresh();
-	}
+	int FilesystemRefresh;
 
-	public int LastFilesystemRefresh() {
-		Msg("BaseFileSystem.LastFilesystemRefresh\n");
-		return 1;
-	}
+	public void DoFilesystemRefresh() => FilesystemRefresh++;
+
+	public int LastFilesystemRefresh() => FilesystemRefresh;
 
 	public void AddVPKFileFromPath(ReadOnlySpan<char> vpk, ReadOnlySpan<char> path, uint id) {
 		AddVPKFile(vpk, path, (SearchPathAdd)id, PathGroupName.Default);
 	}
 
 	public void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game) {
-
+		string workshop = Path.Combine(new string(game), "workshop");
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "GAME", SearchPathAdd.ToHead);
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "workshop", SearchPathAdd.ToHead);
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "thirdparty", SearchPathAdd.ToHead);
+		MarkPathIDByRequestOnly("workshop", true);
+		MarkPathIDByRequestOnly("thirdparty", true);
 	}
 
 	public void GMOD_FixPathCase(Span<char> a) {

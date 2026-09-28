@@ -88,6 +88,7 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services)
 		initInfo.FileSystem.MarkPathIDByRequestOnly("mod_write", true);
 
 #if GMOD_DLL
+		initInfo.FileSystem.GMOD_SetupDefaultPaths(baseDir, initInfo.DirectoryName);
 		initInfo.FileSystem.DoFilesystemRefresh();
 #endif
 

@@ -45,6 +45,7 @@ static class AssetUtils
 		return [
 			new("hl2/maps", "garrysmod/maps", IsDirectory: true, Optional: true),
 			new("hl2/cfg/autoexec.cfg", "garrysmod/cfg/autoexec.cfg", Optional: true),
+			new("hl2/cache/workshop", "garrysmod/cache/workshop", IsDirectory: true, Optional: false),
 		];
 	}
 

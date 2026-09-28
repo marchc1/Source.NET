@@ -38,7 +38,8 @@ public class SteamworksExts
 		Steamworks = Assembly.GetAssembly(typeof(SteamClient))!;
 		TypeLookup = [];
 		try {
-			TypeLookup = Steamworks.GetTypes().ToDictionary(x => x.Name);
+			foreach (var t in Steamworks.GetTypes())
+				TypeLookup.TryAdd(t.Name, t);
 		}
 		// ^^ This won't work because of some stupid thing in the steamworks library
 		catch (ReflectionTypeLoadException typeloadex) {
@@ -81,7 +82,7 @@ public interface ISteamMatchmaking;
 public interface ISteamGameSearch;
 public interface ISteamUserStats
 {
-	public bool RequestCurrentStats() => SteamUserStats.RequestCurrentStats();
+	public bool RequestCurrentStats() => SteamUserStats.RequestUserStats(SteamUser.GetSteamID()) != SteamAPICall_t.Invalid;
 	public bool GetStat(ReadOnlySpan<char> pchName, out int pData) => SteamUserStats.GetStat(new(pchName), out pData);
 	public bool GetStat(ReadOnlySpan<char> pchName, out float pData) => SteamUserStats.GetStat(new(pchName), out pData);
 	public bool SetStat(ReadOnlySpan<char> pchName, int nData) => SteamUserStats.SetStat(new(pchName), nData);
@@ -147,7 +148,10 @@ public interface ISteamGameServer
 	public void SetGameData(ReadOnlySpan<char> pchGameData) => SteamGameServer.SetGameData(new(pchGameData));
 	public void SetRegion(ReadOnlySpan<char> pszRegion) => SteamGameServer.SetRegion(new(pszRegion));
 	public void SetAdvertiseServerActive(bool bActive) => SteamGameServer.SetAdvertiseServerActive(bActive);
-	public HAuthTicket GetAuthSessionTicket(byte[] pTicket, int cbMaxTicket, out uint pcbTicket) => SteamGameServer.GetAuthSessionTicket(pTicket, cbMaxTicket, out pcbTicket);
+	public HAuthTicket GetAuthSessionTicket(byte[] pTicket, int cbMaxTicket, out uint pcbTicket) {
+		SteamNetworkingIdentity snid = default;
+		return SteamGameServer.GetAuthSessionTicket(pTicket, cbMaxTicket, out pcbTicket, ref snid);
+	}
 	public EBeginAuthSessionResult BeginAuthSession(byte[] pAuthTicket, int cbAuthTicket, CSteamID steamID) => SteamGameServer.BeginAuthSession(pAuthTicket, cbAuthTicket, steamID);
 	public void EndAuthSession(CSteamID steamID) => SteamGameServer.EndAuthSession(steamID);
 	public void CancelAuthTicket(HAuthTicket hAuthTicket) => SteamGameServer.CancelAuthTicket(hAuthTicket);

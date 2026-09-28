@@ -477,6 +477,15 @@ public class GameServer : BaseServer
 		startspot = startspot.SliceNullTerminatedString();
 		modelloader.ResetModelServerCounts();
 
+#if GMOD_DLL && !SWDS
+		EngineVGui().UpdateCustomProgressBar(0.01f, "Waiting for Steam Workshop to finish...");
+		while (!g_pFileSystem.Addons().AllJobsFinished()) {
+			g_pFileSystem.Addons().Think();
+			Scr.UpdateScreen();
+			Thread.Sleep(50);
+		}
+#endif
+
 		// ReloadWhitelist(mapName);
 		Common.TimestampedLog($"SV_SpawnServer({mapName})");
 #if !SWDS
