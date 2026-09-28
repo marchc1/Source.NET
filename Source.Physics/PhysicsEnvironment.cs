@@ -68,7 +68,6 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		World.SubstepCount = 2;
 		World.SolverIterations = (12, 4);
 		World.AllowDeactivation = true;
-		World.DynamicTree.EnableAutomaticOptimization = false;
 
 		PerformanceSettings.Defaults();
 	}

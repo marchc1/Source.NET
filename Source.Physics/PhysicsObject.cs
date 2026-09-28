@@ -316,11 +316,9 @@ internal class PhysicsObject : IPhysicsObject
 	}
 
 	public void RecheckCollisionFilter() {
-		throw new NotImplementedException();
 	}
 
 	public void RecheckContactPoints() {
-		throw new NotImplementedException();
 	}
 
 	public void RemoveHinged() {

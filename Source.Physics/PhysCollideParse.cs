@@ -116,7 +116,7 @@ public readonly ref struct PhyParser(ReadOnlySpan<byte> buffer)
 	public readonly int ExtractSize()
 		=> const_reinterpret<byte, PhyHeader>(buffer)[0].Size + sizeof(int);
 
-	public unsafe void ParseSurfaces(List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
+	public unsafe void ParseSurfaces(List<Vector3[]> outConvexHulls, List<Vector3> outTriangles, List<int>? outGameData = null) {
 		ref readonly PhySurfaceHeader header = ref ExtractPhySurfaceHeader();
 
 		ReadOnlySpan<byte> surfaceData = buffer[sizeof(PhySurfaceHeader)..];
@@ -125,27 +125,28 @@ public readonly ref struct PhyParser(ReadOnlySpan<byte> buffer)
 		int massCentreFieldOffset = Marshal.OffsetOf<PhyCompactSurfaceHeader>(nameof(PhyCompactSurfaceHeader.MassCenter)).ToInt32();
 
 		int rootNodePos = massCentreFieldOffset + compactHeader.OffsetLedgetreeRoot;
-		WalkLedgetree(surfaceData, rootNodePos, outConvexHulls, outTriangles);
+		WalkLedgetree(surfaceData, rootNodePos, outConvexHulls, outTriangles, outGameData);
 	}
 
-	private unsafe void WalkLedgetree(ReadOnlySpan<byte> surfaceData, int nodeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
+	private unsafe void WalkLedgetree(ReadOnlySpan<byte> surfaceData, int nodeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles, List<int>? outGameData) {
 		ref readonly PhyLedgeNode node = ref const_reinterpret<byte, PhyLedgeNode>(surfaceData[nodeOffset..])[0];
 
 		if (node.RightNodeOffset == 0) {
 			int ledgeOffset = nodeOffset + node.CompactNodeOffset;
-			ExtractLedgeVertices(surfaceData, ledgeOffset, outConvexHulls, outTriangles);
+			ExtractLedgeVertices(surfaceData, ledgeOffset, outConvexHulls, outTriangles, outGameData);
 		}
 		else {
 			int leftOffset = nodeOffset + sizeof(PhyLedgeNode);
 			int rightOffset = nodeOffset + node.RightNodeOffset;
 
-			WalkLedgetree(surfaceData, leftOffset, outConvexHulls, outTriangles);
-			WalkLedgetree(surfaceData, rightOffset, outConvexHulls, outTriangles);
+			WalkLedgetree(surfaceData, leftOffset, outConvexHulls, outTriangles, outGameData);
+			WalkLedgetree(surfaceData, rightOffset, outConvexHulls, outTriangles, outGameData);
 		}
 	}
 
-	private unsafe void ExtractLedgeVertices(ReadOnlySpan<byte> surfaceData, int ledgeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles) {
+	private unsafe void ExtractLedgeVertices(ReadOnlySpan<byte> surfaceData, int ledgeOffset, List<Vector3[]> outConvexHulls, List<Vector3> outTriangles, List<int>? outGameData) {
 		ref readonly PhyLedge ledge = ref const_reinterpret<byte, PhyLedge>(surfaceData[ledgeOffset..])[0];
+		outGameData?.Add(ledge.BoneIndex);
 
 		int triCount = ledge.TrianglesCount;
 

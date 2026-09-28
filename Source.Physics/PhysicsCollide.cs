@@ -230,15 +230,15 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void TraceBox(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceAPI.SweepBox(start, end, mins, maxs, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceBox(in Ray ray, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceBox(ray, unchecked((Contents)Mask.All), null, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceBox(in Ray ray, Contents contentsMask, IConvexInfo? convexInfo, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
-		throw new NotImplementedException();
+		TraceAPI.SweepBox(ray, contentsMask, convexInfo, collide, collideOrigin, collideAngles, out trace);
 	}
 
 	public void TraceCollide(in Vector3 start, in Vector3 end, PhysCollide pSweepCollide, in QAngle sweepAngles, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
@@ -290,8 +290,9 @@ public class PhysCollideCompactSurface : PhysCollide
 {
 	public readonly List<Vector3[]> ConvexHulls = [];
 	public readonly List<Vector3> Triangles = [];
+	public readonly List<int> ConvexGameData = [];
 	private unsafe void Init(PhyParser parser, int index, bool swap) {
-		parser.ParseSurfaces(ConvexHulls, Triangles);
+		parser.ParseSurfaces(ConvexHulls, Triangles, ConvexGameData);
 	}
 
 	public PhysCollideCompactSurface(PhyParser parser, int index, bool swap = false) {
@@ -300,5 +301,17 @@ public class PhysCollideCompactSurface : PhysCollide
 
 	public PhysCollideCompactSurface(Vector3[] hull) {
 		ConvexHulls.Add(hull);
+		ConvexGameData.Add(0);
+	}
+
+	TraceHull[]? traceHulls;
+	public TraceHull[] GetTraceHulls() {
+		if (traceHulls != null)
+			return traceHulls;
+
+		TraceHull[] hulls = new TraceHull[ConvexHulls.Count];
+		for (int i = 0; i < hulls.Length; i++)
+			hulls[i] = new TraceHull(ConvexHulls[i], i < ConvexGameData.Count ? ConvexGameData[i] : 0);
+		return traceHulls = hulls;
 	}
 }
