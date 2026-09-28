@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/External Dependencies/">
     <Project Path="Dependencies/OpenGL/OpenGL46.csproj" />
+    <Project Path="Dependencies/Steamworks/Steamworks.csproj" />
   </Folder>
   <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Roslyn Code Analysis/">
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.CodeFixes/Source.CodeAnalysis.CodeFixes.csproj" />

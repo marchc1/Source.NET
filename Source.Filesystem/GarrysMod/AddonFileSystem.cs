@@ -1,4 +1,4 @@
-#define DEBUG_ADDONS
+// #define DEBUG_ADDONS
 
 using Source.Common.Commands;
 using Source.Common.Filesystem;
