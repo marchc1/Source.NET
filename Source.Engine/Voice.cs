@@ -1034,8 +1034,7 @@ public static class Voice
 			VoiceTweakSpeakingVolume = 0;
 
 			for (int i = 0; i < nDecompressed; ++i)
-				VoiceTweakSpeakingVolume = Math.Max((int)Math.Abs(shortData[i]), VoiceTweakSpeakingVolume);
-
+				VoiceTweakSpeakingVolume = unchecked((short)Math.Max((long)Math.Abs((int)shortData[i]), (long)VoiceTweakSpeakingVolume));
 			VoiceTweakSpeakingVolume &= 0xFE00;
 		}
 
