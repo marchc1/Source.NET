@@ -259,8 +259,71 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 		return true;
 	}
 
+	static readonly ConVar sv_voiceenable = new("sv_voiceenable", "1", FCvar.Archive | FCvar.Notify); // set to 0 to disable all voice forwarding.
+	static readonly ConVar sv_voicecodec = new("sv_voicecodec", "vaudio_celt", 0,
+							 "Specifies which voice codec to use. Valid options are:\n" +
+							 "vaudio_speex - Legacy Speex codec (lowest quality)\n" +
+							 "vaudio_celt - Newer CELT codec\n" +
+							 "steam - Use Steam voice API");
+
+	public static void WriteVoiceCodec(bf_write buf) {
+		// Only send in multiplayer. Otherwise, we don't want voice.
+
+		ReadOnlySpan<char> codec = sv.IsMultiplayer() ? sv_voicecodec.GetString() : null;
+		int sampleRate = !codec.IsEmpty ? Voice.GetDefaultSampleRate(codec) : 0;
+		SVC_VoiceInit voiceinit = new(codec, sampleRate);
+		voiceinit.WriteToBuffer(buf);
+	}
+
+	// Gets voice data from a client and forwards it to anyone who can hear this client.
+	static readonly ConVar voice_debugfeedbackfrom = new("voice_debugfeedbackfrom", "0");
+
+	public static void BroadcastVoiceData(IClient client, int bytes, byte[] data) {
+		// Disable voice?
+		if (sv_voiceenable.GetInt() == 0)
+			return;
+
+		// Build voice message once
+		SVC_VoiceData voiceData = new();
+		voiceData.FromClient = client.GetPlayerSlot();
+		voiceData.Length = bytes * 8;    // length in bits
+		voiceData.DataOut = data;
+
+		if (voice_debugfeedbackfrom.GetBool())
+			Msg($"Sending voice from: {client.GetClientName()} - playerslot: {client.GetPlayerSlot() + 1}\n");
+
+		for (int i = 0; i < sv.GetClientCount(); i++) {
+			IClient destClient = sv.GetClient(i)!;
+
+			bool self = destClient == client;
+
+			// Only send voice to active clients
+			if (!destClient.IsActive())
+				continue;
+
+			// Does the game code want cl sending to this client?
+
+			bool hearsPlayer = destClient.IsHearingClient(voiceData.FromClient);
+			voiceData.Proximity = destClient.IsProximityHearingClient(voiceData.FromClient);
+
+			if (!hearsPlayer && !self)
+				continue;
+
+			voiceData.Length = bytes * 8;
+
+			// Is loopback enabled?
+			if (!hearsPlayer) {
+				// Still send something, just zero length (this is so the client 
+				// can display something that shows knows the server knows it's talking).
+				voiceData.Length = 0;
+			}
+
+			destClient.SendNetMsg(voiceData);
+		}
+	}
+
 	private void CreateBaseline() {
-		// WriteVoiceCodec(sv.Signon);
+		WriteVoiceCodec(sv.Signon);
 
 		ServerClass? pClasses = serverGameDLL.GetAllServerClasses();
 
