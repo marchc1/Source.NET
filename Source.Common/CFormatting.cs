@@ -433,13 +433,32 @@ public static class CFormatting
 	/// <param name="str"></param>
 	/// <returns></returns>
 	public static float strtof(ReadOnlySpan<char> input, out ReadOnlySpan<char> output) {
-		Span<char> outputBuffer = stackalloc char[input.Length];
 		int i = 0;
-		while (i < input.Length && input[i] switch { '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9' or '.' => true, _ => false }) {
-			outputBuffer[i] = input[i];
+		while (i < input.Length && input[i] is ' ' or '\t' or '\n' or '\r' or '\f' or '\v')
 			i++;
+
+		int start = i;
+		if (i < input.Length && (input[i] == '+' || input[i] == '-'))
+			i++;
+
+		int mantissaStart = i;
+		while (i < input.Length && (char.IsAsciiDigit(input[i]) || input[i] == '.'))
+			i++;
+
+		if (i > mantissaStart && i < input.Length && (input[i] == 'e' || input[i] == 'E')) {
+			int expStart = i;
+			i++;
+			if (i < input.Length && (input[i] == '+' || input[i] == '-'))
+				i++;
+			if (i < input.Length && char.IsAsciiDigit(input[i])) {
+				while (i < input.Length && char.IsAsciiDigit(input[i]))
+					i++;
+			}
+			else
+				i = expStart;
 		}
-		if (float.TryParse(outputBuffer[..i], NumberStyles.Float, CultureInfo.InvariantCulture, out float ret)) {
+
+		if (float.TryParse(input[start..i], NumberStyles.Float, CultureInfo.InvariantCulture, out float ret)) {
 			output = input[i..];
 			return ret;
 		}
