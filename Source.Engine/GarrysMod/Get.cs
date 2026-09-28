@@ -135,7 +135,7 @@ public class Get(IServiceProvider services, EngineParms host_parms) : IGet
 			materials = services.GetRequiredService<IMaterialSystem>();
 			resources = services.GetRequiredService<IResources>();
 			// todo: audio
-			// todo: serverAddons
+			serverAddons = services.GetRequiredService<IServerAddons>();
 
 			if (html == null) {
 				if (!commandLine.CheckParm("-nochromium")) {

@@ -44,7 +44,7 @@ public static class Addon
 	{
 		void Clear();
 		void Refresh();
-		int MountFile(ReadOnlySpan<char> unk1, List<string> unk2);
+		int MountFile(ReadOnlySpan<char> file, List<string>? files, ulong workshopID, ulong unk1, int unk2);
 		bool ShouldMount(ReadOnlySpan<char> unk1);
 		bool ShouldMount(ulong unk1);
 		void SetShouldMount(ReadOnlySpan<char> unk1, bool unk2);
@@ -59,8 +59,8 @@ public static class Addon
 		ref readonly IAddonSystem.Information FindFileOwner(ReadOnlySpan<char> unk1);
 		void AddFile(ref IAddonSystem.Information info);
 		void ClearAllGMAs();
-		void GetSteamUGCFile(ulong workshopID, bool unk1);
-		void UnmountAddon(ulong workshopID);
+		string GetSteamUGCFile(ulong workshopID, bool unk1);
+		void UnmountAddon(ulong workshopID, ReadOnlySpan<char> reason);
 		void UnmountServerAddons();
 		void MountFloatingAddons();
 		void Shutdown();
@@ -72,7 +72,7 @@ public static class Addon
 		void AddonDownloaded(ref IAddonSystem.Information info);
 		void NotifyAddonFailedToDownload(ref IAddonSystem.Information info);
 		List<SteamUGCDetails_t> GetSubList();
-		void IsAddonValidPreInstall(SteamUGCDetails_t unk1);
+		string IsAddonValidPreInstall(in SteamUGCDetails_t details);
 		void Load();
 	}
 

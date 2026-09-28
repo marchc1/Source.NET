@@ -26,6 +26,7 @@ public class GarrysMod
 {
 	public void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IIntroScreen, IntroScreen>();
+		services.AddSingleton<IServerAddons, ServerAddons>();
 	}
 
   	public void InitializeMod(IServiceProvider services){
