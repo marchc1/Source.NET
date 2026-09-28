@@ -500,7 +500,7 @@ public struct PropTypeFns
 
 		int nLengthBits = prop.GetNumArrayLengthBits();
 		int length1 = (int)p1.ReadUBitLong(nLengthBits);
-		int length2 = (int)p1.ReadUBitLong(nLengthBits);
+		int length2 = (int)p2.ReadUBitLong(nLengthBits);
 
 		int bDifferent = (length1 != length2) ? 1 : 0;
 
@@ -516,7 +516,7 @@ public struct PropTypeFns
 
 			int nExtra = Math.Max(length1, length2) - nSame;
 			for (int iEatUp = 0; iEatUp < nExtra; iEatUp++) {
-				g_PropTypeFns[(int)arrayProp.Type].SkipProp(prop, buffer);
+				g_PropTypeFns[(int)arrayProp.Type].SkipProp(arrayProp, buffer);
 			}
 		}
 
@@ -630,12 +630,17 @@ public struct PropTypeFns
 
 		int nElements = Array_GetLength(instance, prop, objectID);
 
+		// Write the number of elements.
 		writeOut.WriteUBitLong((uint)nElements, prop.GetNumArrayLengthBits());
 
+		DynamicArrayAccessor? arrayField = AsBaseArray(arrayProp!.FieldInfo);
 		for (int iElement = 0; iElement < nElements; iElement++) {
-			// TODO	
-			// DVariant arrayVar;
-			// arrayProp.GetProxyFn()(arrayProp, instance, ) ??? how fieldinfo
+			DVariant arrayVar = new();
+
+			// Call the proxy to get the value, then encode.
+			IFieldAccessor? element = arrayField?.AtIndex(iElement) ?? arrayProp.FieldInfo;
+			arrayProp.GetProxyFn()(arrayProp, instance, element, ref arrayVar, iElement, objectID);
+			g_PropTypeFns[(int)arrayProp.GetPropType()].Encode(instance, ref arrayVar, arrayProp, writeOut, objectID);
 		}
 	}
 	public static ReadOnlySpan<char> Array_GetTypeNameString() => "DPT_Array";
@@ -674,7 +679,30 @@ public struct PropTypeFns
 	#endregion
 	#region SendPropType.GModTable
 #if GMOD_DLL
-	public static int GModTable_CompareDeltas(SendProp prop, bf_read p1, bf_read p2) => throw new NotImplementedException();
+	public static int GModTable_CompareDeltas(SendProp prop, bf_read p1, bf_read p2) {
+		int start1 = p1.BitsRead;
+		GModTable_Skip(p1);
+		int bits1 = p1.BitsRead - start1;
+
+		int start2 = p2.BitsRead;
+		GModTable_Skip(p2);
+		int bits2 = p2.BitsRead - start2;
+
+		if (bits1 != bits2)
+			return 1;
+
+		int end1 = p1.BitsRead, end2 = p2.BitsRead;
+		p1.Seek(start1);
+		p2.Seek(start2);
+
+		int different = 0;
+		for (int remaining = bits1; remaining > 0 && different == 0; remaining -= 32)
+			different = p1.CompareBits(p2, Math.Min(32, remaining)) ? 1 : 0;
+
+		p1.Seek(end1);
+		p2.Seek(end2);
+		return different;
+	}
 	public static void GModTable_Decode(ref DecodeInfo decodeInfo) {
 		var gmodtable = decodeInfo.FieldInfo.GetValue<GModTable>(decodeInfo.Object);
 
@@ -710,6 +738,9 @@ public struct PropTypeFns
 	public static void GModTable_DecodeZero(ref DecodeInfo info) { }
 	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) {
 		GModTable? gmodtable = (GModTable?)var.Data;
+
+		writeOut.WriteUBitLong(0, GModTable.ENTRIES_BITS);
+		writeOut.WriteOneBit(0);
 	}
 	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
 	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => GModTable_Skip(p);
