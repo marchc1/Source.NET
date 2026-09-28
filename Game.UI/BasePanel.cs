@@ -850,8 +850,18 @@ public class BasePanel : Panel
 		if (clientScheme != null) {
 			GameTitlePos.Clear();
 
+#if GMOD_DLL
+			// todo: gmod menu
+			IFont titleFont = Surface.CreateFont();
+			Surface.SetFontGlyphSet(titleFont, "Tahoma", SchemeManager.GetProportionalScaledValue(32), 0, 0, 0, SurfaceFontFlags.Antialias);
+#endif
+
 			for (int i = 0; i < GameMenuButtons.Count; ++i) {
+#if GMOD_DLL // todo ^, then remove both
+				GameMenuButtons[i].SetFont(titleFont);
+#else
 				GameMenuButtons[i].SetFont(clientScheme.GetFont("ClientTitleFont", true));
+#endif
 				GameTitlePos.Add(new Coord() {
 					X = SchemeManager.GetProportionalScaledValue(int.TryParse(clientScheme.GetResourceString($"Main.Title{i + 1}.X"), out int x) ? x : 0),
 					Y = SchemeManager.GetProportionalScaledValue(int.TryParse(clientScheme.GetResourceString($"Main.Title{i + 1}.Y"), out int y) ? y : 0),
@@ -962,7 +972,12 @@ public class BasePanel : Panel
 	private void CreateGameMenu() {
 		KeyValues datafile = new KeyValues("GameMenu");
 		datafile.UsesEscapeSequences(true);
+#if GMOD_DLL
+		// todo: gmod menu, then we can remove this
+		if (datafile.LoadFromFile(FileSystem, "sdn_resource/GameMenu.res"))
+#else
 		if (datafile.LoadFromFile(FileSystem, "resource/GameMenu.res"))
+#endif
 			GameMenu = RecursiveLoadGameMenu(datafile);
 
 		if (!GameMenu.IsValid())

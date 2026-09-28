@@ -13,13 +13,19 @@ namespace Game.Client.HL2;
 public class HudHealth : HudNumericDisplay, IHudElement
 {
 	int Health;
+#if !GMOD_DLL
 	int BitsDamage;
+#endif
 
 	public HudHealth(string? panelName) : base(null, "HudHealth") {
 		/*(IHudElement.)*/ ElementName = panelName;
 
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
+#if GMOD_DLL
+		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit);
+		Health = 0;
+#endif
 	}
 
 	public void Init() {
@@ -27,12 +33,14 @@ public class HudHealth : HudNumericDisplay, IHudElement
 		Reset();
 	}
 
-	public void VidReset() {
+	public void VidInit() {
 		Reset();
 	}
 	public void Reset() {
 		Health = -1;
+#if !GMOD_DLL
 		BitsDamage = 0;
+#endif
 		ReadOnlySpan<char> tempString = Localize.Find("#Valve_Hud_HEALTH");
 
 		if (!tempString.IsEmpty) 
@@ -60,6 +68,13 @@ public class HudHealth : HudNumericDisplay, IHudElement
 			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthIncreasedBelow20");
 			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthLow");
 		}
+
+#if GMOD_DLL
+		if (Health < 1000)
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthBelow999");
+		else
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthOver999");
+#endif
 
 		SetDisplayValue(Health);
 	}

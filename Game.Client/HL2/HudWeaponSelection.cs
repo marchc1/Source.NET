@@ -27,6 +27,9 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	[PanelAnimationVar("NumberFont", "HudSelectionNumbers")] protected IFont NumberFont;
 	[PanelAnimationVar("TextFont", "HudSelectionText")] protected IFont TextFont;
 	[PanelAnimationVar("Blur", "0")] protected float Blur;
+#if GMOD_DLL
+	[PanelAnimationVarAliasType("LargeBoxUnselectedTall", "24", "proportional_float")] protected float UnselectedBoxSize;
+#endif
 	[PanelAnimationVarAliasType("SmallBoxSize", "32", "proportional_float")] protected float SmallBoxSize;
 	[PanelAnimationVarAliasType("LargeBoxWide", "108", "proportional_float")] protected float LargeBoxWide;
 	[PanelAnimationVarAliasType("LargeBoxTall", "72", "proportional_float")] protected float LargeBoxTall;
@@ -73,6 +76,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	void SetSelectedSlot(int slot) => SelectedSlot = slot;
 	void SetSelectedSlideDir(int dir) => SelectedSlideDir = dir;
 
+#if !GMOD_DLL
 	public override void SetWeaponSelected() {
 		base.SetWeaponSelected();
 		switch (hud_fastswitch.GetInt()) {
@@ -85,6 +89,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				break;
 		}
 	}
+#endif
 
 	void OnWeaponPickup(BaseCombatWeapon weapon) {
 		HudHistoryResource? hr = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
@@ -114,15 +119,19 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 	}
 
-	bool ShouldDraw() {
+	public bool ShouldDraw() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
+#if GMOD_DLL
+		if (player == null || player.IsInAVehicle()) {
+#else
 		if (player == null) {
+#endif
 			if (IsInSelectionMode())
 				HideSelection();
 			return false;
 		}
 
-		bool bret = HudElement.ShouldDraw();
+		bool bret = IHudElement.DefaultShouldDraw(this);
 		if (!bret)
 			return false;
 
@@ -132,8 +141,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return SelectionVisible;
 	}
 
-	void LevelInit() {
-		HudElement.LevelInit();
+	public void LevelInit() {
 		SelectedWeaponBox = -1;
 		SelectedSlideDir = 0;
 		LastWeapon = null;
@@ -233,6 +241,156 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return SelectionAlphaOverride * (AlphaOverride / 255.0f);
 	}
 
+#if GMOD_DLL
+	public override void Paint() {
+		if (!ShouldDraw())
+			return;
+
+		BasePlayer? localPlayer = BasePlayer.GetLocalPlayer();
+		if (localPlayer == null)
+			return;
+
+		BaseCombatWeapon? selectedWeapon = hud_fastswitch.GetInt() switch {
+			HUDTYPE_FASTSWITCH or HUDTYPE_CAROUSEL => localPlayer.GetActiveWeapon(),
+			_ => GetSelectedWeapon(),
+		};
+
+		if (selectedWeapon == null)
+			return;
+
+		int largeBoxWide = (int)LargeBoxWide;
+		float largeBoxTall = LargeBoxTall;
+		float percentageDone = 1.0f;
+		Color selectedColor = new();
+		for (int i = 0; i < 4; i++)
+			selectedColor[i] = (byte)((SelectedBoxColor[i] - BoxColor[i]) * percentageDone + BoxColor[i]);
+
+		if (hud_fastswitch.GetInt() != HUDTYPE_BUCKETS)
+			return;
+
+		int numSlots = MAX_WEAPON_SLOTS;
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = localPlayer.GetWeapon(i);
+			if (weapon != null && weapon.IsBaseCombatWeapon() && weapon.GetSlot() > numSlots - 1)
+				numSlots = weapon.GetSlot() + 1;
+		}
+		if (numSlots > MAX_SELECTABLE_SLOTS)
+			numSlots = MAX_SELECTABLE_SLOTS;
+
+		int xpos = (GetWide() - (int)((BoxGap + SmallBoxSize) * (numSlots - 1) + largeBoxWide)) / 2;
+		int activeSlot = selectedWeapon.GetSlot();
+
+		for (int i = 0; i < numSlots; i++) {
+			if (i == activeSlot) {
+				bool drawBucketNumber = true;
+				List<BaseCombatWeapon> weapons = GetWeaponsInSlot(i);
+
+				int ypos = 0;
+				for (int slotPos = 0; slotPos < weapons.Count; slotPos++) {
+					if (GetWeaponInSlot(i, slotPos) == selectedWeapon) {
+						ypos = (int)((UnselectedBoxSize + BoxGap) * slotPos);
+						ypos = ypos <= GetTall() / 2 ? 0 : GetTall() / 2 - ypos;
+						break;
+					}
+				}
+
+				for (int slotPos = 0; slotPos < weapons.Count; slotPos++) {
+					BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotPos);
+					if (weapon == null)
+						continue;
+
+					bool selected = weapon == selectedWeapon;
+					float boxTall = selected ? largeBoxTall : UnselectedBoxSize;
+					if (selected)
+						DrawLargeWeaponBox(weapon, true, xpos, ypos, largeBoxWide, (int)boxTall, selectedColor, SelectionAlphaOverride, drawBucketNumber ? i + 1 : -1);
+					else
+						DrawLargeWeaponBox(weapon, false, xpos, ypos, largeBoxWide, (int)boxTall, BoxColor, AlphaOverride / 255.0f * SelectionAlphaOverride, drawBucketNumber ? i + 1 : -1);
+
+					drawBucketNumber = false;
+					ypos = (int)((int)boxTall + BoxGap + ypos);
+				}
+
+				xpos += largeBoxWide;
+			}
+			else {
+				int smallBoxSize = (int)SmallBoxSize;
+				if (GetFirstPos(i) == null)
+					base.DrawBox(xpos, 0, smallBoxSize, smallBoxSize, EmptyBoxColor, AlphaOverride / 255.0f);
+				else
+					DrawBox(xpos, 0, smallBoxSize, smallBoxSize, BoxColor, AlphaOverride, i + 1);
+
+				xpos = (int)(xpos + SmallBoxSize);
+			}
+
+			xpos = (int)(xpos + BoxGap);
+		}
+	}
+
+	void DrawLargeWeaponBox(BaseCombatWeapon weapon, bool selected, int xpos, int ypos, int boxWide, int boxTall, Color selectedColor, float alpha, int number) {
+		Color col = selected ? SelectedFgColor : GetFgColor();
+
+		if (hud_fastswitch.GetInt() == HUDTYPE_BUCKETS) {
+			DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
+
+			// todo: lua hook (DrawWeaponSelection)
+			if (selected) {
+				col[3] = (byte)(alpha * (1.0f / 255.0f) * col[3]);
+				HudTexture? spriteInactive = weapon.GetSpriteInactive();
+				if (spriteInactive != null) {
+					int x_offs = (boxWide - spriteInactive.Width()) / 2;
+					int y_offs = (boxTall - spriteInactive.Height()) / 2;
+					int x = xpos + x_offs;
+
+					if (!weapon.CanBeSelected())
+						col = new(255, 0, 0, col[3]);
+					else {
+						col[3] = (byte)alpha;
+						weapon.GetSpriteActive()?.DrawSelf(x, ypos + y_offs, col);
+					}
+
+					spriteInactive.DrawSelf(x, ypos + y_offs, col);
+				}
+			}
+		}
+
+		if (hud_fastswitch.GetInt() == HUDTYPE_PLUS)
+			return;
+
+		col = TextColor;
+
+		// todo: lua hook (language.GetPhrase)
+		Span<char> text = stackalloc char[128];
+		ReadOnlySpan<char> printName = weapon.GetPrintName();
+		ReadOnlySpan<char> localized = localize.Find(printName);
+		if (!localized.IsEmpty)
+			localized.ClampedCopyTo(text);
+		else
+			printName.ClampedCopyTo(text);
+		ReadOnlySpan<char> remaining = text.SliceNullTerminatedString();
+
+		surface.DrawSetTextColor(col);
+		surface.DrawSetTextFont(TextFont);
+
+		int centerX = (int)(boxWide * 0.5f + xpos);
+		surface.GetTextSize(TextFont, remaining, out _, out int textTall);
+		int ty = boxTall - 8 + (ypos - textTall);
+
+		while (true) {
+			int newline = remaining.IndexOf('\n');
+			ReadOnlySpan<char> line = newline < 0 ? remaining : remaining[..newline];
+
+			surface.GetTextSize(TextFont, line, out int lineWide, out int lineTall);
+			surface.DrawSetTextPos((int)(centerX - lineWide * 0.5f), ty);
+			surface.DrawString(line);
+
+			if (newline < 0)
+				return;
+
+			ty += lineTall;
+			remaining = remaining[(newline + 1)..];
+		}
+	}
+#else
 	public override void Paint() {
 		int width;
 		int xpos;
@@ -596,18 +754,31 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 	}
 
+#endif
+
 	void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int number) {
 		base.DrawBox(x, y, wide, tall, color, normalizedAlpha / 255.0f);
 
 		if (number >= 0) {
 			Color numberColor = NumberColor;
-			numberColor.A *= (byte)(normalizedAlpha / 255.0f);
+			numberColor[3] = (byte)(numberColor[3] * normalizedAlpha / 255.0f);
 			Surface.DrawSetTextColor(numberColor);
 			Surface.DrawSetTextFont(NumberFont);
+#if GMOD_DLL
+			Surface.DrawSetTextPos((int)(x + SelectionNumberXPos), (int)(y + SelectionNumberYPos));
+			if (number < 10)
+				Surface.DrawChar((char)('0' + number));
+			else {
+				Span<char> unicode = stackalloc char[3];
+				sprintf(unicode, "%d").D(number);
+				Surface.DrawString(unicode);
+			}
+#else
 			Span<char> unicode = stackalloc char[2];
 			sprintf(unicode, "%d").D(number);
 			Surface.DrawSetTextPos(x + (int)SelectionNumberXPos, y + (int)SelectionNumberYPos);
 			Surface.DrawString(unicode);
+#endif
 		}
 	}
 
@@ -641,6 +812,46 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		FadingOut = false;
 	}
 
+#if GMOD_DLL
+	BaseCombatWeapon? FindNextWeaponInWeaponSelection(int currentSlot, int currentPosition) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
+
+		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(currentSlot);
+		if (currentPosition + 1 >= 0 && currentPosition + 1 < weapons.Count && weapons[currentPosition + 1] != null)
+			return weapons[currentPosition + 1];
+
+		while (++currentSlot < MAX_SELECTABLE_SLOTS) {
+			weapons = GetWeaponsInSlot(currentSlot);
+			if (weapons.Count > 0)
+				return weapons[0];
+		}
+
+		return null;
+	}
+
+	BaseCombatWeapon? FindPrevWeaponInWeaponSelection(int currentSlot, int currentPosition) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
+
+		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(currentSlot);
+		if (weapons.Count < currentPosition)
+			currentPosition = weapons.Count;
+
+		if (currentPosition - 1 >= 0 && currentPosition - 1 < weapons.Count && weapons[currentPosition - 1] != null)
+			return weapons[currentPosition - 1];
+
+		while (--currentSlot >= 0) {
+			weapons = GetWeaponsInSlot(currentSlot);
+			if (weapons.Count > 0)
+				return weapons[^1];
+		}
+
+		return null;
+	}
+#else
 	BaseCombatWeapon? FindNextWeaponInWeaponSelection(int currentSlot, int currentPosition) {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null)
@@ -702,9 +913,14 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 		return prevWeapon;
 	}
+#endif
 
 	public override void CycleToNextWeapon() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
+#if GMOD_DLL
+		if (player != null && player.IsInAVehicle())
+			return;
+#endif
 		if (player == null)
 			return;
 
@@ -715,23 +931,39 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			BaseCombatWeapon? weapon = GetSelectedWeapon();
 			if (weapon == null)
 				return;
+#if GMOD_DLL
+			if (!weapon.IsBaseCombatWeapon())
+				return;
+#endif
 
 			nextWeapon = FindNextWeaponInWeaponSelection(weapon.GetSlot(), GetWeaponPosition(weapon));
 		}
 		else {
 			nextWeapon = player.GetActiveWeapon();
+#if GMOD_DLL
+			if (nextWeapon != null && nextWeapon.IsBaseCombatWeapon())
+#else
 			if (nextWeapon != null)
+#endif
 				nextWeapon = FindNextWeaponInWeaponSelection(nextWeapon.GetSlot(), GetWeaponPosition(nextWeapon));
 		}
 
+#if GMOD_DLL
+		nextWeapon ??= FindNextWeaponInWeaponSelection(0, -1);
+#else
 		nextWeapon ??= FindNextWeaponInWeaponSelection(-1, -1);
+#endif
 		if (nextWeapon != null) {
 			SetSelectedWeapon(nextWeapon);
 			SetSelectedSlideDir(1);
 
+#if GMOD_DLL
+			if (!IsInSelectionMode())
+#else
 			if (hud_fastswitch.GetInt() != 0)
 				SelectWeapon();
 			else if (!IsInSelectionMode())
+#endif
 				OpenSelection();
 
 			player.EmitSound("Player.WeaponSelectionMoveSlot");
@@ -740,6 +972,10 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	public override void CycleToPrevWeapon() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
+#if GMOD_DLL
+		if (player != null && player.IsInAVehicle())
+			return;
+#endif
 		if (player == null)
 			return;
 
@@ -750,24 +986,51 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			BaseCombatWeapon? weapon = GetSelectedWeapon();
 			if (weapon == null)
 				return;
+#if GMOD_DLL
+			if (!weapon.IsBaseCombatWeapon())
+				return;
+#endif
 
 			prevWeapon = FindPrevWeaponInWeaponSelection(weapon.GetSlot(), GetWeaponPosition(weapon));
 		}
 		else {
 			prevWeapon = player.GetActiveWeapon();
+#if GMOD_DLL
+			if (prevWeapon != null && prevWeapon.IsBaseCombatWeapon())
+#else
 			if (prevWeapon != null)
+#endif
 				prevWeapon = FindPrevWeaponInWeaponSelection(prevWeapon.GetSlot(), GetWeaponPosition(prevWeapon));
 		}
 
+#if GMOD_DLL
+		if (prevWeapon == null) {
+			int highestSlot = -9999;
+			for (int i = 0; i < MAX_WEAPONS; i++) {
+				BaseCombatWeapon? weapon = player.GetWeapon(i);
+				if (weapon != null && weapon.GetSlot() > highestSlot)
+					highestSlot = weapon.GetSlot();
+				if (highestSlot > 9)
+					break;
+			}
+
+			prevWeapon = FindPrevWeaponInWeaponSelection(highestSlot, 9999);
+		}
+#else
 		prevWeapon ??= FindPrevWeaponInWeaponSelection(MAX_SELECTABLE_SLOTS, MAX_WEAPON_POSITIONS);
+#endif
 
 		if (prevWeapon != null) {
 			SetSelectedWeapon(prevWeapon);
 			SetSelectedSlideDir(-1);
 
+#if GMOD_DLL
+			if (!IsInSelectionMode())
+#else
 			if (hud_fastswitch.GetInt() != 0)
 				SelectWeapon();
 			else if (!IsInSelectionMode())
+#endif
 				OpenSelection();
 
 			player.EmitSound("Player.WeaponSelectionMoveSlot");
@@ -783,6 +1046,10 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	void FastWeaponSwitch(int weaponSlot) {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
+#if GMOD_DLL
+		if (player != null && player.IsInAVehicle())
+			return;
+#endif
 		if (player == null)
 			return;
 
@@ -790,21 +1057,33 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 		int position = -1;
 		BaseCombatWeapon? activeWeapon = player.GetActiveWeapon();
+#if GMOD_DLL
+		if (activeWeapon != null && activeWeapon.IsBaseCombatWeapon() && activeWeapon.GetSlot() == weaponSlot)
+#else
 		if (activeWeapon != null && activeWeapon.GetSlot() == weaponSlot)
+#endif
 			position = GetWeaponPosition(activeWeapon);
 
 		BaseCombatWeapon? nextWeapon = FindNextWeaponInWeaponSelection(weaponSlot, position);
 
+#if GMOD_DLL
+		if (nextWeapon == null || !nextWeapon.IsBaseCombatWeapon() || nextWeapon.GetSlot() != weaponSlot)
+#else
 		if (nextWeapon == null || nextWeapon.GetSlot() != weaponSlot)
+#endif
 			nextWeapon = FindNextWeaponInWeaponSelection(weaponSlot, -1);
 
+#if GMOD_DLL
+		if (nextWeapon != null && nextWeapon != activeWeapon && nextWeapon.IsBaseCombatWeapon() && nextWeapon.GetSlot() == weaponSlot)
+#else
 		if (nextWeapon != null && nextWeapon != activeWeapon && nextWeapon.GetSlot() == weaponSlot)
+#endif
 			input.MakeWeaponSelection(nextWeapon);
 		else if (nextWeapon != activeWeapon) {
 			player.EmitSound("Player.DenyWeaponSelection");
 		}
 
-		if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+		if (HUDTYPE_CAROUSEL != hud_fastswitch.GetInt())
 			SelectionTime = 0.0f;
 	}
 
@@ -862,17 +1141,30 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	}
 
 	public override void SelectWeaponSlot(int slot) {
+#if GMOD_DLL
+		BasePlayer? vehiclePlayer = BasePlayer.GetLocalPlayer();
+		if (vehiclePlayer != null && vehiclePlayer.IsInAVehicle())
+			return;
+#endif
 		--slot;
 
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null)
 			return;
 
+#if GMOD_DLL
+		if ((uint)slot >= MAX_SELECTABLE_SLOTS)
+			return;
+
+		if (!player.IsAllowedToSwitchWeapons())
+			return;
+#else
 		if (slot >= MAX_SELECTABLE_SLOTS)
 			return;
 
 		// if (!player.IsAllowToSwitchWeapons()) todo
 		// 	return;
+#endif
 
 		switch (hud_fastswitch.GetInt()) {
 			case HUDTYPE_FASTSWITCH:
@@ -880,6 +1172,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					FastWeaponSwitch(slot);
 					return;
 				}
+#if !GMOD_DLL
 			case HUDTYPE_PLUS: {
 					if (!IsInSelectionMode())
 						OpenSelection();
@@ -888,7 +1181,16 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					ActivateWeaponHighlight(GetSelectedWeapon()!);
 				}
 				break;
+#endif
 			case HUDTYPE_BUCKETS: {
+#if GMOD_DLL
+					BaseCombatWeapon? activeWeapon = GetSelectedWeapon();
+					if (IsInSelectionMode() && activeWeapon != null)
+						activeWeapon = FindNextWeaponInWeaponSelection(activeWeapon.GetSlot(), GetWeaponPosition(activeWeapon));
+
+					if (activeWeapon == null || activeWeapon.GetSlot() != slot)
+						activeWeapon = GetNextActivePos(slot, 0);
+#else
 					int slotPos = 0;
 					BaseCombatWeapon? activeWeapon = GetSelectedWeapon();
 
@@ -897,6 +1199,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 					activeWeapon = GetNextActivePos(slot, slotPos);
 					activeWeapon ??= GetNextActivePos(slot, 0);
+#endif
 
 					if (activeWeapon != null) {
 						if (!IsInSelectionMode())

@@ -176,7 +176,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 		if (HandleHudMenuInput(slot))
 			return;
 
-		if (!HudElement.ShouldDraw())
+		if (!IHudElement.DefaultShouldDraw(this))
 			return;
 
 		UpdateSelectionTime();
@@ -188,7 +188,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	[ConCommand("invnext", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_NextWeapon() {
-		if (!Instance!.HudElement.ShouldDraw())
+		if (!IHudElement.DefaultShouldDraw(Instance!))
 			return;
 
 		int fastSwitchMode = hud_fastswitch.GetInt();
@@ -201,7 +201,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	[ConCommand("invprev", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_PrevWeapon() {
-		if (!Instance!.HudElement.ShouldDraw())
+		if (!IHudElement.DefaultShouldDraw(Instance!))
 			return;
 
 		int fastSwitchMode = hud_fastswitch.GetInt();
@@ -214,7 +214,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	[ConCommand("lastinv", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_LastWeapon() {
-		if (!Instance!.HudElement.ShouldDraw())
+		if (!IHudElement.DefaultShouldDraw(Instance!))
 			return;
 
 		Instance.SwitchToLastWeapon();
@@ -290,7 +290,14 @@ public class BaseHudWeaponSelection : EditableHudElement
 		return weapons;
 	}
 
+#if GMOD_DLL
+	public int GetWeaponPosition(BaseCombatWeapon weapon) {
+		int index = GetWeaponsInSlot(weapon.GetSlot()).IndexOf(weapon);
+		return index >= 0 ? index : weapon.GetPosition();
+	}
+#else
 	public int GetWeaponPosition(BaseCombatWeapon weapon) => GetWeaponsInSlot(weapon.GetSlot()).IndexOf(weapon);
+#endif
 
 	public BaseCombatWeapon? GetFirstPos(int slot) {
 		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(slot);

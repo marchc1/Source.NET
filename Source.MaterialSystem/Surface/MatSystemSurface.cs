@@ -1564,6 +1564,8 @@ public class MatSystemSurface : IMatSystemSurface
 		return FontManager.SetFontGlyphSet(font, windowsFontName, tall, weight, blur, scanlines, flags, rangeMin, rangeMax);
 	}
 
+	public void ClearTemporaryFontCache() => FontManager.ClearTemporaryFontCache();
+
 	public void SetForegroundWindow(IPanel panel) {
 		throw new NotImplementedException();
 	}

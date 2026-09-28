@@ -37,6 +37,7 @@ public interface IBaseClientDLL
 	void ExtraMouseSample(double frametime, bool active);
 	void IN_ClearStates();
 	bool ShouldAllowConsole();
+	bool ShouldDrawDropdownConsole();
 	void FrameStageNotify(ClientFrameStage stage);
 	ClientClass? GetAllClasses();
 	RenamedRecvTableInfo? GetRenamedRecvTableInfos();

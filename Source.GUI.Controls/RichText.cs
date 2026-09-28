@@ -78,7 +78,7 @@ public class RichText : Panel
 		public Color Color;
 		public int PixelsIndent;
 		public bool TextClickable;
-		public ulong ClickableTextAction;
+		public UtlSymbol ClickableTextAction;
 		public Fade Fade;
 		public int TextStreamIndex;
 
@@ -206,6 +206,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMousePressed hook
+#endif
 		if (code == ButtonCode.MouseLeft) {
 			SelectNone();
 
@@ -237,6 +240,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+#if GMOD_DLL
+		// todo: OnMouseReleased hook
+#endif
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 
@@ -245,6 +251,9 @@ public class RichText : Panel
 	}
 
 	public override void OnMouseWheeled(int delta) {
+#if GMOD_DLL
+		// todo: OnMouseWheeled hook
+#endif
 		MoveScrollBar(delta);
 	}
 
@@ -621,6 +630,9 @@ public class RichText : Panel
 	private bool HasText() => TextStream.Count != 0;
 
 	public override void OnKillFocus(Panel? newPanel) {
+#if GMOD_DLL
+		// todo: OnLoseFocus hook
+#endif
 		bool mouseRightClicked = Input.WasMousePressed(ButtonCode.MouseRight);
 		bool mouseRightUp = Input.WasMouseReleased(ButtonCode.MouseRight);
 		bool mouseRightDown = Input.IsMouseDown(ButtonCode.MouseRight);
@@ -802,13 +814,103 @@ public class RichText : Panel
 		return startIndex;
 	}
 
-	private int GetLineHeight() => Surface.GetFontTall(Font);
+#if GMOD_DLL
+	public short LineHeight = -1;
+	public bool CustomSelectionColors;
+
+	public int GetLineHeight() => LineHeight < 0 ? Surface.GetFontTall(Font) : LineHeight;
+#else
+	public int GetLineHeight() => Surface.GetFontTall(Font);
+#endif
+	public int GetNumLines() => LineBreaks.Count;
+	public void SetUnderlineFont(IFont? font) => FontUnderline = font;
+
+	public void SetToFullHeight() {
+#if GMOD_DLL
+		PerformLayout();
+		GetSize(out int wide, out int tall);
+		tall = GetNumLines() * (GetLineHeight() + DrawOffsetY) + DrawOffsetY + 2;
+		SetSize(wide, tall);
+		PerformLayout();
+#else
+		RecalculateLineBreaks();
+		PerformLayout();
+		GetSize(out int wide, out int tall);
+		tall = GetNumLines() * (GetLineHeight() + DrawOffsetY) + DrawOffsetY + QuickPropScale(2);
+		SetSize(wide, tall);
+		PerformLayout();
+#endif
+	}
+
+	public void InsertClickableTextStart(ReadOnlySpan<char> clickAction) {
+		ref FormatStreamPiece prevItem = ref FormatStream.AsSpan()[FormatStream.Count - 1];
+		if (prevItem.TextStreamIndex == TextStream.Count) {
+			prevItem.TextClickable = true;
+			prevItem.ClickableTextAction = clickAction;
+		}
+		else {
+			FormatStreamPiece formatStreamCopy = prevItem;
+			formatStreamCopy.TextStreamIndex = TextStream.Count;
+			formatStreamCopy.TextClickable = true;
+			formatStreamCopy.ClickableTextAction = clickAction;
+			FormatStream.Add(formatStreamCopy);
+		}
+
+		InvalidateLineBreakStream();
+		InvalidateLayout();
+	}
+
+	public void InsertClickableTextEnd() {
+		ref FormatStreamPiece prevItem = ref FormatStream.AsSpan()[FormatStream.Count - 1];
+		if (!prevItem.TextClickable) {
+		}
+		else if (prevItem.TextStreamIndex == TextStream.Count) {
+			prevItem.TextClickable = false;
+		}
+		else {
+			FormatStreamPiece streamItem = prevItem;
+			streamItem.TextClickable = false;
+			streamItem.TextStreamIndex = TextStream.Count;
+			FormatStream.Add(streamItem);
+		}
+	}
+
+	public virtual void CutSelected() {
+		CopySelected();
+		RequestFocus();
+	}
+
+	public virtual void CopySelected() {
+		if (GetSelectedRange(out int x0, out int x1)) {
+			List<char> buf = [];
+			for (int i = x0; i < x1; i++) {
+				if (!TextStream.IsValidIndex(i))
+					continue;
+
+				if (TextStream[i] == '\n') {
+					if (buf.Count == 0)
+						continue;
+
+					buf.Add('\r');
+				}
+				buf.Add(TextStream[i]);
+			}
+			buf.Add('\0');
+			system.SetClipboardText(buf.AsSpan());
+		}
+
+		RequestFocus();
+	}
+
 	private void SelectNone() {
 		Select[0] = -1;
 		Repaint();
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
+#if GMOD_DLL
+		// todo: ApplySchemeSettings hook
+#endif
 		base.ApplySchemeSettings(scheme);
 
 		Font = scheme.GetFont("Default", IsProportional());
@@ -817,8 +919,14 @@ public class RichText : Panel
 		SetFgColor(GetSchemeColor("RichText.TextColor", scheme));
 		SetBgColor(GetSchemeColor("RichText.BgColor", scheme));
 
-		SelectionTextColor = GetSchemeColor("RichText.SelectedTextColor", GetFgColor(), scheme);
-		SelectionColor = GetSchemeColor("RichText.SelectedBgColor", scheme);
+#if GMOD_DLL
+		if (!CustomSelectionColors) {
+#endif
+			SelectionTextColor = GetSchemeColor("RichText.SelectedTextColor", GetFgColor(), scheme);
+			SelectionColor = GetSchemeColor("RichText.SelectedBgColor", scheme);
+#if GMOD_DLL
+		}
+#endif
 
 		ReadOnlySpan<char> insetX = scheme.GetResourceString("RichText.InsetX");
 		if (!insetX.IsEmpty && insetX.Length != 0)

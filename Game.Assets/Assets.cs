@@ -17,7 +17,7 @@ static class AssetUtils
 	public static void CheckRequired() {
 		string? root = Path.Combine(FindProjectRoot(), "Game.Assets");
 
-		if (File.Exists(Path.Combine(root, "hl2", "garrysmod_dir.vpk")) && File.Exists(Path.Combine(root, "sourceengine", "scripts", "surfaceproperties_manifest.txt")))
+		if (GetRequiredAssets().All(asset => IsAssetLinked(asset.LocalPath, root)))
 			return;
 
 		bool result = Singleton<MessageBoxFn>()("Source.NET", "Missing required content, should we automatically link it?", true);
@@ -31,8 +31,7 @@ static class AssetUtils
 			new("hl2/steam.inf", "garrysmod/steam.inf"),
 			new("sourceengine", "sourceengine", IsDirectory: true),
 			new("platform", "platform", IsDirectory: true),
-			// Would be nice, but causes some issues rn
-			// new("hl2/resource", "garrysmod/resource", IsDirectory: true)
+			new("hl2/resource", "garrysmod/resource", IsDirectory: true)
 		];
 
 		string[] specificGmodVpks = ["dir", "000", "001", "002"];
@@ -121,7 +120,9 @@ static class AssetUtils
 
 	public static bool IsAssetLinked(string localRelativePath, string projectRoot) {
 		string fullPath = Path.Combine(projectRoot, localRelativePath);
-		return File.Exists(fullPath) || Directory.Exists(fullPath);
+		if (Directory.Exists(fullPath))
+			return new DirectoryInfo(fullPath).LinkTarget != null;
+		return File.Exists(fullPath);
 	}
 
 	public static bool UnlinkAsset(string localRelativePath, string projectRoot) {
@@ -150,8 +151,12 @@ static class AssetUtils
 
 			if (File.Exists(asset.Local))
 				File.Delete(asset.Local);
-			else if (asset.IsDirectory && Directory.Exists(asset.Local))
-				Directory.Delete(asset.Local, false);
+			else if (asset.IsDirectory && Directory.Exists(asset.Local)) {
+				if (new DirectoryInfo(asset.Local).LinkTarget == null)
+					Directory.Move(asset.Local, $"{asset.Local}_bak");
+				else
+					Directory.Delete(asset.Local, false);
+			}
 		}
 
 		try {

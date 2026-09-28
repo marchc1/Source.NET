@@ -121,6 +121,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public bool HasFiredWeapon() => FiredWeapon;
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
+	public virtual bool IsAllowedToSwitchWeapons() => !IsObserver();
 
 	public bool IsPlayerDead() => pl.DeadFlag == true;
 
