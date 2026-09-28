@@ -8,6 +8,7 @@ using Source.Common.Filesystem;
 using Source.Common.Utilities;
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.AudioSystem;
 
@@ -200,15 +201,19 @@ public class VAudioNLayer : IVAudio
 		EventStream stream;
 		MpegFile? file;
 		float[] floatBuffer = [];
+		int outputRate;
+		int outputChannels;
 
 		public MP3StreamDecoder(IAudioStreamEvent eventHandler) {
 			this.eventHandler = eventHandler;
 			stream = new EventStream(eventHandler);
 			stream.NextOffset = 0;
 			file = new MpegFile(stream);
+			outputRate = file.SampleRate;
+			outputChannels = file.Channels;
 		}
 
-		public bool IsValid() => file != null && file.SampleRate > 0 && file.Channels > 0;
+		public bool IsValid() => file != null && outputRate > 0 && outputChannels > 0;
 
 		public int Decode(Span<byte> buffer) {
 			if (file == null)
@@ -227,8 +232,8 @@ public class VAudioNLayer : IVAudio
 		}
 
 		public int GetOutputBits() => 16;
-		public int GetOutputRate() => file?.SampleRate ?? 0;
-		public int GetOutputChannels() => file?.Channels ?? 0;
+		public int GetOutputRate() => outputRate;
+		public int GetOutputChannels() => outputChannels;
 
 		public uint GetPosition() => (uint)stream.BytesRead;
 
@@ -265,12 +270,12 @@ public class VAudioNLayer : IVAudio
 	}
 }
 
-public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
+public class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 {
 	// Lazily initialized, use GetStream
 	IAudioStream? stream;
 	bool streamInit;
-	readonly byte[] samples = GC.AllocateArray<byte>(MP3_BUFFER_SIZE, pinned: true);
+	readonly byte[] samples = new byte[MP3_BUFFER_SIZE];
 	int sampleCount;
 	int samplePosition;
 	int channelCount;
@@ -294,19 +299,20 @@ public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 		base.Dispose();
 	}
 
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
 		Assert(IsReadyToMix());
 		if (channelCount == 1)
-			device.Mix16Mono(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+			device.Mix16Mono(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 		else
-			device.Mix16Stereo(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+			device.Mix16Stereo(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 
 	// Some MP3 files are wrapped in ID3
+	[SkipLocalsInit]
 	void GetID3HeaderOffset() {
-		byte* copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
+		Span<byte> copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
 
-		int bytesRead = this.data!.ReadSourceData(out byte* data, 0, 10, copyBuf);
+		int bytesRead = this.data!.ReadSourceData(out ReadOnlySpan<byte> data, 0, 10, copyBuf);
 		if (bytesRead < 10)
 			return;
 
@@ -341,23 +347,21 @@ public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 
 		offset += headerOffset; // skip any id3 header/wrapper
 
-		fixed (byte* pBuffer = buffer) {
-			while (bytesRequested > 0) {
-				byte* outputBuffer = pBuffer;
-				outputBuffer += totalBytesRead;
+		while (bytesRequested > 0) {
+			Span<byte> outputBuffer = buffer;
+			outputBuffer = outputBuffer[totalBytesRead..];
 
-				int bytesRead = this.data!.ReadSourceData(out byte* data, offset + totalBytesRead, bytesRequested, outputBuffer);
+			int bytesRead = this.data!.ReadSourceData(out ReadOnlySpan<byte> data, offset + totalBytesRead, bytesRequested, outputBuffer);
 
-				if (bytesRead == 0)
-					break;
-				if (bytesRead > bytesRequested)
-					bytesRead = bytesRequested;
-				// if the source is buffering it, copy it to the MP3 decomp buffer
-				if (data != outputBuffer)
-					Unsafe.CopyBlock(outputBuffer, data, (uint)bytesRead);
-				totalBytesRead += bytesRead;
-				bytesRequested -= bytesRead;
-			}
+			if (bytesRead == 0)
+				break;
+			if (bytesRead > bytesRequested)
+				bytesRead = bytesRequested;
+			// if the source is buffering it, copy it to the MP3 decomp buffer
+			if (!data.Overlaps(outputBuffer, out int elementOffset) || elementOffset != 0)
+				data[..bytesRead].CopyTo(outputBuffer);
+			totalBytesRead += bytesRead;
+			bytesRequested -= bytesRead;
 		}
 
 		this.offset += totalBytesRead;
@@ -412,8 +416,8 @@ public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 	//			sampleCount - number of samples (or pairs)
 	// Output : int - available samples (zero to stop decoding)
 	//-----------------------------------------------------------------------------
-	public override int GetOutputData(out byte* data, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 		if (samplePosition >= this.sampleCount) {
 			if (!DecodeBlock())
 				return 0;
@@ -427,7 +431,7 @@ public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 
 		if (samplePosition < this.sampleCount) {
 			int sampleSize = stream.GetOutputChannels() * 2;
-			data = PinnedPointer(samples) + samplePosition;
+			data = samples.AsSpan(samplePosition);
 			int available = this.sampleCount - samplePosition;
 			int bytesRequired = sampleCount * sampleSize;
 			if (available > bytesRequired)
@@ -473,7 +477,7 @@ public unsafe class AudioMixerWaveMP3 : AudioMixerWave, IAudioStreamEvent
 	public override void SetPositionFromSaved(int position) => GetStream()?.SetPosition((uint)position);
 }
 
-public abstract unsafe class AudioSourceMP3 : AudioSourceBase
+public abstract class AudioSourceMP3 : AudioSourceBase
 {
 	protected AudioSourceCachedInfoHandle audioCacheHandle;
 	protected int cachedDataSize;
@@ -664,14 +668,14 @@ public abstract unsafe class AudioSourceMP3 : AudioSourceBase
 	// Purpose:
 	// Output : byte
 	//-----------------------------------------------------------------------------
-	protected byte* GetCachedDataPointer() {
+	protected byte[]? GetCachedDataPointer() {
 		AudioSourceCachedInfo? info = audioCacheHandle.Get(AudioSourceType.AUDIO_SOURCE_MP3, sfx.IsPrecachedSound(), sfx, ref cachedDataSize);
 		if (info == null) {
 			AssertMsg(false, "CAudioSourceMP3::GetCachedDataPointer info == NULL");
 			return null;
 		}
 
-		return PinnedPointer(info.CachedData());
+		return info.CachedData();
 	}
 
 	// Returns true if the source is a voice source.
@@ -711,7 +715,7 @@ public abstract unsafe class AudioSourceMP3 : AudioSourceBase
 //-----------------------------------------------------------------------------
 // Purpose: Streaming MP3 file
 //-----------------------------------------------------------------------------
-public unsafe class AudioSourceStreamMP3 : AudioSourceMP3, IWaveStreamSource
+public class AudioSourceStreamMP3 : AudioSourceMP3, IWaveStreamSource
 {
 	//-----------------------------------------------------------------------------
 	// CAudioSourceStreamMP3
@@ -730,7 +734,7 @@ public unsafe class AudioSourceStreamMP3 : AudioSourceMP3, IWaveStreamSource
 	public int UpdateLoopingSamplePosition(int samplePosition) {
 		return samplePosition;
 	}
-	public void UpdateSamples(byte* data, int sampleCount) { }
+	public void UpdateSamples(Span<byte> data, int sampleCount) { }
 
 	public int GetLoopingInfo(out int loopBlock, out int numLeadingSamples, out int numTrailingSamples) {
 		loopBlock = 0;
@@ -764,13 +768,13 @@ public unsafe class AudioSourceStreamMP3 : AudioSourceMP3, IWaveStreamSource
 		return null;
 	}
 
-	public override int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 		return 0;
 	}
 }
 
-public unsafe class AudioSourceMP3Cache : AudioSourceMP3
+public class AudioSourceMP3Cache : AudioSourceMP3
 {
 	protected memhandle_t cache;
 
@@ -824,8 +828,8 @@ public unsafe class AudioSourceMP3Cache : AudioSourceMP3
 
 	public override void Prefetch() { }
 
-	protected virtual byte* GetDataPointer() {
-		byte* mp3Data = null;
+	protected virtual Span<byte> GetDataPointer() {
+		Span<byte> mp3Data = default;
 
 		if (cache == 0)
 			CacheLoad();
@@ -843,8 +847,8 @@ public unsafe class AudioSourceMP3Cache : AudioSourceMP3
 	}
 
 	// NOTE: "samples" are bytes for MP3
-	public override int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 
 		// how many bytes are available ?
 		int totalSampleCount = dataSize - samplePosition;
@@ -874,8 +878,8 @@ public unsafe class AudioSourceMP3Cache : AudioSourceMP3
 				data = GetCachedDataPointer();
 			}
 
-			if (data != null)
-				data = data + samplePosition;
+			if (!data.IsEmpty)
+				data = data[samplePosition..];
 			else {
 				// Out of data or file i/o problem
 				sampleCount = 0;

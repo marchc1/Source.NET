@@ -17,7 +17,7 @@ namespace Source.AudioSystem;
 // who is speaking) into the sound engine.
 // ------------------------------------------------------------------------- //
 
-public unsafe class AudioSourceVoice : AudioSourceWave
+public class AudioSourceVoice : AudioSourceWave
 {
 	public override AudioSourceType GetAudioSourceType() {
 		return AudioSourceType.AUDIO_SOURCE_VOICE;
@@ -62,7 +62,7 @@ public unsafe class AudioSourceVoice : AudioSourceWave
 		}
 
 		// this file is in memory, simply pass along the data request to the source
-		public int ReadSourceData(out byte* pData, int sampleIndex, int sampleCount, byte* copyBuf) {
+		public int ReadSourceData(out ReadOnlySpan<byte> pData, int sampleIndex, int sampleCount, Span<byte> copyBuf) {
 			return m_source.GetOutputData(out pData, sampleIndex, sampleCount, copyBuf);
 		}
 
@@ -118,17 +118,17 @@ public unsafe class AudioSourceVoice : AudioSourceWave
 		return pMixer;
 	}
 
-	public override int GetOutputData(out byte* pData, int samplePosition, int sampleCount, byte* copyBuf) {
+	public override int GetOutputData(out ReadOnlySpan<byte> pData, int samplePosition, int sampleCount, Span<byte> copyBuf) {
 		int nSamplesGotten = soundServices.Voice_GetOutputData(
 			m_iChannel,
-			new Span<byte>(copyBuf, AUDIOSOURCE_COPYBUF_SIZE),
+			copyBuf,
 			AUDIOSOURCE_COPYBUF_SIZE,
 			samplePosition,
 			sampleCount);
 
 		// If there weren't enough bytes in the received data channel, pad it with zeros.
 		if (nSamplesGotten < sampleCount) {
-			new Span<byte>(&copyBuf[nSamplesGotten], (sampleCount - nSamplesGotten) * BYTES_PER_SAMPLE).Clear();
+			copyBuf.Slice(nSamplesGotten * BYTES_PER_SAMPLE, (sampleCount - nSamplesGotten) * BYTES_PER_SAMPLE).Clear();
 			nSamplesGotten = sampleCount;
 		}
 

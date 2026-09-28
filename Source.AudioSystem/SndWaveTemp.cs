@@ -14,7 +14,7 @@ namespace Source.AudioSystem;
 // Purpose: Create an output wave stream.  Used to record audio for in-engine movies or
 // mixer debugging.
 //-----------------------------------------------------------------------------
-public static unsafe class SndWaveTemp
+public static class SndWaveTemp
 {
 	const int PCMWAVEFORMAT_SIZE = 16;
 
@@ -57,7 +57,7 @@ public static unsafe class SndWaveTemp
 		}
 	}
 
-	public static void WaveAppendTmpFile(ReadOnlySpan<char> filename, void* buffer, int sampleBits, int numSamples) {
+	public static void WaveAppendTmpFile(ReadOnlySpan<char> filename, ReadOnlySpan<byte> buffer, int sampleBits, int numSamples) {
 		string tmpfilename = TmpFileName(filename);
 
 		IFileHandle? file = filesystem.Open(tmpfilename, FileOpenOptions.Append | FileOpenOptions.Binary);
@@ -66,7 +66,7 @@ public static unsafe class SndWaveTemp
 
 		using (file) {
 			file.Stream.Seek(0, SeekOrigin.End);
-			file.Stream.Write(new ReadOnlySpan<byte>(buffer, numSamples * sampleBits / 8));
+			file.Stream.Write(buffer[..(numSamples * sampleBits / 8)]);
 		}
 	}
 

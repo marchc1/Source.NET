@@ -8,14 +8,47 @@ using Source.Common.Filesystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Source.AudioSystem;
 
-public unsafe struct Sentence_t
+public readonly struct BytePtr : IEquatable<BytePtr>
 {
-	public byte* pName;
+	public readonly byte[]? Array;
+	public readonly int Offset;
+
+	public BytePtr(byte[]? array, int offset = 0) {
+		Array = array;
+		Offset = offset;
+	}
+
+	public static readonly BytePtr Null = default;
+
+	public bool IsNull => Array == null;
+
+	public ref byte this[int index] => ref Array![Offset + index];
+
+	public static BytePtr operator +(BytePtr p, int n) => new(p.Array, p.Offset + n);
+	public static BytePtr operator -(BytePtr p, int n) => new(p.Array, p.Offset - n);
+	public static int operator -(BytePtr a, BytePtr b) => a.Offset - b.Offset;
+	public static BytePtr operator ++(BytePtr p) => new(p.Array, p.Offset + 1);
+	public static BytePtr operator --(BytePtr p) => new(p.Array, p.Offset - 1);
+	public static bool operator <(BytePtr a, BytePtr b) => a.Offset < b.Offset;
+	public static bool operator >(BytePtr a, BytePtr b) => a.Offset > b.Offset;
+	public static bool operator <=(BytePtr a, BytePtr b) => a.Offset <= b.Offset;
+	public static bool operator >=(BytePtr a, BytePtr b) => a.Offset >= b.Offset;
+	public static bool operator ==(BytePtr a, BytePtr b) => a.Array == b.Array && a.Offset == b.Offset;
+	public static bool operator !=(BytePtr a, BytePtr b) => !(a == b);
+
+	public bool Equals(BytePtr other) => this == other;
+	public override bool Equals(object? obj) => obj is BytePtr other && this == other;
+	public override int GetHashCode() => HashCode.Combine(Array, Offset);
+}
+
+public struct Sentence_t
+{
+	public BytePtr pName;
 	public float length;
 	public bool closecaption;
 	public bool isPrecached;
@@ -59,7 +92,7 @@ public unsafe struct Sentence_t
 // To play, we parse each word in the sentence, chain the words, and play the sentence
 // each word's data is loaded directy from disk and freed right after playback.
 //===============================================================================
-public static unsafe class Vox
+public static class Vox
 {
 	public const int CVOXWORDMAX = 32;
 	public const int CVOXZEROSCANMAX = 255;         // scan up to this many samples for next zero crossing
@@ -70,20 +103,22 @@ public static unsafe class Vox
 	public static readonly List<Sentence_t> g_Sentences = new(MAX_EXPECTED_SENTENCES);
 
 	// Module Locals
-	static readonly byte** rgpparseword = (byte**)NativeMemory.AllocZeroed((nuint)(sizeof(byte*) * CVOXWORDMAX));   // array of pointers to parsed words
-	static readonly byte* voxperiod = AllocString("_period");               // vocal pause
-	static readonly byte* voxcomma = AllocString("_comma");             // vocal pause
+	static readonly BytePtr[] rgpparseword = new BytePtr[CVOXWORDMAX];   // array of pointers to parsed words
+	static readonly BytePtr voxperiod = AllocString("_period");               // vocal pause
+	static readonly BytePtr voxcomma = AllocString("_comma");             // vocal pause
 
 	const int CVOXMAPNAMESMAX = 24;
-	static readonly byte** g_rgmapnames = (byte**)NativeMemory.AllocZeroed((nuint)(sizeof(byte*) * CVOXMAPNAMESMAX));
+	static readonly BytePtr[] g_rgmapnames = new BytePtr[CVOXMAPNAMESMAX];
 	static int g_cmapnames = 0;
 
-	static byte* AllocString(string s) {
-		byte* p = (byte*)NativeMemory.AllocZeroed((nuint)(s.Length + 1));
+	static BytePtr AllocString(string s) {
+		BytePtr p = new(new byte[s.Length + 1]);
 		for (int i = 0; i < s.Length; i++)
 			p[i] = (byte)s[i];
 		return p;
 	}
+
+	static BytePtr AllocBuffer(int size) => new(new byte[size]);
 
 	static void VOX_Reload() {
 		VOX_Shutdown();
@@ -93,7 +128,7 @@ public static unsafe class Vox
 	static void vox_reload() => VOX_Reload();
 
 	static byte[] g_GroupLRU = [];
-	static byte* g_SentenceFile;
+	static BytePtr g_SentenceFile;
 
 	struct SentenceGroup
 	{
@@ -111,8 +146,8 @@ public static unsafe class Vox
 	{
 		public string word = "";
 
-		public void Set(byte* w) {
-			if (w == null) {
+		public void Set(BytePtr w) {
+			if (w.IsNull) {
 				word = "";
 				return;
 			}
@@ -139,28 +174,33 @@ public static unsafe class Vox
 	}
 
 
-	static string Str(byte* p) => p == null ? "" : new string((sbyte*)p);
+	static string Str(BytePtr p) {
+		if (p.IsNull)
+			return "";
+		int len = strlen(p);
+		return Encoding.Latin1.GetString(p.Array!, p.Offset, len);
+	}
 
-	static int strlen(byte* p) {
+	static int strlen(BytePtr p) {
 		int len = 0;
 		while (p[len] != 0)
 			len++;
 		return len;
 	}
 
-	static byte* strstr(byte* haystack, string needle) {
+	static BytePtr strstr(BytePtr haystack, string needle) {
 		int n = needle.Length;
-		for (byte* h = haystack; *h != 0; h++) {
+		for (BytePtr h = haystack; h[0] != 0; h++) {
 			int i = 0;
 			while (i < n && h[i] != 0 && h[i] == (byte)needle[i])
 				i++;
 			if (i == n)
 				return h;
 		}
-		return n == 0 ? haystack : null;
+		return n == 0 ? haystack : BytePtr.Null;
 	}
 
-	static int strnicmp(byte* a, string b, int n) {
+	static int strnicmp(BytePtr a, string b, int n) {
 		for (int i = 0; i < n; i++) {
 			int ca = char.ToLowerInvariant((char)a[i]);
 			int cb = i < b.Length ? char.ToLowerInvariant(b[i]) : 0;
@@ -172,7 +212,7 @@ public static unsafe class Vox
 		return 0;
 	}
 
-	static int stricmp(byte* a, string b) {
+	static int stricmp(BytePtr a, string b) {
 		int i = 0;
 		while (true) {
 			int ca = char.ToLowerInvariant((char)a[i]);
@@ -185,14 +225,14 @@ public static unsafe class Vox
 		}
 	}
 
-	static void strncpy(byte* dest, byte* src, int maxlen) {
+	static void strncpy(BytePtr dest, BytePtr src, int maxlen) {
 		int i = 0;
 		for (; i < maxlen - 1 && src[i] != 0; i++)
 			dest[i] = src[i];
 		dest[i] = 0;
 	}
 
-	static void strncpy(byte* dest, string src, int maxlen) {
+	static void strncpy(BytePtr dest, string src, int maxlen) {
 		int i = 0;
 		for (; i < maxlen - 1 && i < src.Length; i++)
 			dest[i] = (byte)src[i];
@@ -211,10 +251,8 @@ public static unsafe class Vox
 	public static void VOX_Init() {
 		VOX_InitAllEntnames();
 
-		if (g_SentenceFile != null) {
-			NativeMemory.Free(g_SentenceFile);
-			g_SentenceFile = null;
-		}
+		if (!g_SentenceFile.IsNull)
+			g_SentenceFile = BytePtr.Null;
 		g_GroupLRU = [];
 		g_Sentences.Clear();
 		g_Sentences.EnsureCapacity(MAX_EXPECTED_SENTENCES);
@@ -241,7 +279,7 @@ public static unsafe class Vox
 	//			scan -
 	// Output : char
 	//-----------------------------------------------------------------------------
-	static byte* ScanForwardUntil(byte* str, byte scan) {
+	static BytePtr ScanForwardUntil(BytePtr str, byte scan) {
 		while (str[0] != 0) {
 			if (str[0] == scan)
 				return str;
@@ -257,17 +295,17 @@ public static unsafe class Vox
 	// pointers to each word stored in rgpparseword
 	// note: this code actually alters the passed in string!
 
-	public static byte** VOX_ParseString(byte* psz) {
+	public static BytePtr[]? VOX_ParseString(BytePtr psz) {
 		int i;
 		int fdone = 0;
-		byte* pszscan = psz;
+		BytePtr pszscan = psz;
 		byte c;
 		const string nextWord = " ,.({";
 		const string skip = "., ";
 
-		NativeMemory.Clear(rgpparseword, (nuint)(sizeof(byte*) * CVOXWORDMAX));
+		Array.Clear(rgpparseword);
 
-		if (psz == null)
+		if (psz.IsNull)
 			return null;
 
 		i = 0;
@@ -275,9 +313,9 @@ public static unsafe class Vox
 
 		while (fdone == 0 && i < CVOXWORDMAX) {
 			// scan up to next word
-			c = *pszscan;
+			c = pszscan[0];
 			while (c != 0 && !IN_CHARACTERSET(nextWord, c))
-				c = *(++pszscan);
+				c = (++pszscan)[0];
 
 			// if '(' then scan for matching ')'
 			if (c == '(' || c == '{') {
@@ -286,7 +324,7 @@ public static unsafe class Vox
 				else if (c == '{')
 					pszscan = ScanForwardUntil(pszscan, (byte)'}');
 
-				c = *(++pszscan);
+				c = (++pszscan)[0];
 				if (c == 0)
 					fdone = 1;
 			}
@@ -296,8 +334,8 @@ public static unsafe class Vox
 			else {
 				// if . or , insert pause into rgpparseword,
 				// unless this is the last character
-				if ((c == '.' || c == ',') && *(pszscan + 1) != '\n' && *(pszscan + 1) != '\r'
-						&& *(pszscan + 1) != 0) {
+				if ((c == '.' || c == ',') && (pszscan + 1)[0] != '\n' && (pszscan + 1)[0] != '\r'
+						&& (pszscan + 1)[0] != 0) {
 					if (c == '.')
 						rgpparseword[i++] = voxperiod;
 					else
@@ -308,12 +346,13 @@ public static unsafe class Vox
 				}
 
 				// null terminate substring
-				*pszscan++ = 0;
+				pszscan[0] = 0;
+				pszscan++;
 
 				// skip whitespace
-				c = *pszscan;
+				c = pszscan[0];
 				while (c != 0 && IN_CHARACTERSET(skip, c))
-					c = *(++pszscan);
+					c = (++pszscan)[0];
 
 				if (c == 0)
 					fdone = 1;
@@ -328,15 +367,15 @@ public static unsafe class Vox
 	// return substring in szpath null terminated
 	// if '/' not found, return 'vox/'
 
-	static byte* VOX_GetDirectory(byte* szpath, int maxpath, byte* psz) {
+	static BytePtr VOX_GetDirectory(BytePtr szpath, int maxpath, BytePtr psz) {
 		byte c;
 		int cb = 0;
-		byte* pszscan = psz + strlen(psz) - 1;
+		BytePtr pszscan = psz + strlen(psz) - 1;
 
 		// scan backwards until first '/' or start of string
-		c = *pszscan;
+		c = pszscan[0];
 		while (pszscan > psz && c != '/') {
-			c = *(--pszscan);
+			c = (--pszscan)[0];
 			cb++;
 		}
 
@@ -351,7 +390,7 @@ public static unsafe class Vox
 		cb = Math.Clamp(cb, 0, maxpath - 1);
 
 		// FIXME:  Is this safe?
-		Buffer.MemoryCopy(psz, szpath, maxpath, cb);
+		psz.Array.AsSpan(psz.Offset, cb).CopyTo(szpath.Array.AsSpan(szpath.Offset, maxpath));
 		szpath[cb] = 0;
 		return pszscan + 1;
 	}
@@ -411,11 +450,11 @@ public static unsafe class Vox
 	//
 	//===============================================================================
 
-	public static int VOX_ParseWordParams(byte* psz, ref VoxWord pvoxword, bool fFirst) {
-		byte* pszsave = psz;
+	public static int VOX_ParseWordParams(BytePtr psz, ref VoxWord pvoxword, bool fFirst) {
+		BytePtr pszsave = psz;
 		byte c;
 		byte ct;
-		byte* sznum = stackalloc byte[8];
+		BytePtr sznum = AllocBuffer(8);
 		int i;
 		const string commandSet = "vpset)";
 		const string delimitSet = "()";
@@ -435,37 +474,37 @@ public static unsafe class Vox
 		// look at next to last char to see if we have a
 		// valid format:
 
-		c = *(psz + strlen(psz) - 1);
+		c = (psz + strlen(psz) - 1)[0];
 
 		if (c != ')')
 			return 1;       // no formatting, return
 
 		// scan forward to first '('
-		c = *psz;
+		c = psz[0];
 		while (!IN_CHARACTERSET(delimitSet, c))
-			c = *(++psz);
+			c = (++psz)[0];
 
 		if (c == ')')
 			return 0;       // bogus formatting
 
 		// null terminate
 
-		*psz = 0;
-		ct = *(++psz);
+		psz[0] = 0;
+		ct = (++psz)[0];
 
 		while (true) {
 			// scan until we hit a character in the commandSet
 
 			while (ct != 0 && !IN_CHARACTERSET(commandSet, ct))
-				ct = *(++psz);
+				ct = (++psz)[0];
 
 			if (ct == ')')
 				break;
 
-			NativeMemory.Clear(sznum, 8);
+			sznum.Array.AsSpan(sznum.Offset, 8).Clear();
 			i = 0;
 
-			c = *(++psz);
+			c = (++psz)[0];
 
 			if (!isdigit(c))
 				break;
@@ -473,7 +512,7 @@ public static unsafe class Vox
 			// read number
 			while (isdigit(c) && i < 8 - 1) {
 				sznum[i++] = c;
-				c = *(++psz);
+				c = (++psz)[0];
 			}
 
 			// get value of number
@@ -517,16 +556,34 @@ public static unsafe class Vox
 		public int type;
 
 		public int soundsource;             // the enity emitting the sentence
-		public byte* pszname;                   // a custom name for the entity (this is a word name)
-		public byte* psznum;                    // a custom number for the entity (this is a word name)
-		public fixed long pszglobal[CVOXGLOBMAX];   // 1 global word, shared by this type of entity, picked randomly, expires after 5min
-		public fixed long pszglobalseq[CVOXGLOBMAX];    // 1 global word, shared by this type of entity, picked in sequence, expires after 5 min
+		public BytePtr pszname;                 // a custom name for the entity (this is a word name)
+		public BytePtr psznum;                  // a custom number for the entity (this is a word name)
+		public VoxGlobalPtrs pszglobal;         // 1 global word, shared by this type of entity, picked randomly, expires after 5min
+		public VoxGlobalPtrs pszglobalseq;      // 1 global word, shared by this type of entity, picked in sequence, expires after 5 min
 		public bool fdied;                      // true if ent died (don't clear, we need its name)
-		public fixed int iseq[CVOXGLOBMAX];         // sequence index, for global sequential lookups
-		public fixed float timestamp[CVOXGLOBMAX];      // latest update to this ent global timestamp
-		public fixed float timestampseq[CVOXGLOBMAX];       // latest update to this ent global sequential timestamp
+		public VoxGlobalInts iseq;              // sequence index, for global sequential lookups
+		public VoxGlobalFloats timestamp;       // latest update to this ent global timestamp
+		public VoxGlobalFloats timestampseq;    // latest update to this ent global sequential timestamp
 		public float timedied;                  // timestamp of death
 
+	}
+
+	[InlineArray(CVOXGLOBMAX)]
+	struct VoxGlobalPtrs
+	{
+		BytePtr element;
+	}
+
+	[InlineArray(CVOXGLOBMAX)]
+	struct VoxGlobalInts
+	{
+		int element;
+	}
+
+	[InlineArray(CVOXGLOBMAX)]
+	struct VoxGlobalFloats
+	{
+		float element;
 	}
 
 	const int CENTNAMESMAX = 64;
@@ -540,7 +597,7 @@ public static unsafe class Vox
 	static void VOX_InitAllEntnames() {
 		g_entnamelastsaved = 0;
 		Array.Clear(g_entnames);
-		NativeMemory.Clear(g_rgmapnames, (nuint)(sizeof(byte*) * CVOXMAPNAMESMAX));
+		Array.Clear(g_rgmapnames);
 		g_cmapnames = 0;
 	}
 
@@ -582,15 +639,15 @@ public static unsafe class Vox
 		g_entnames[inew].soundsource = soundsource;
 		g_entnames[inew].timedied = 0;
 		g_entnames[inew].fdied = false;
-		g_entnames[inew].pszname = null;
-		g_entnames[inew].psznum = null;
+		g_entnames[inew].pszname = BytePtr.Null;
+		g_entnames[inew].psznum = BytePtr.Null;
 
 		for (i = 0; i < CVOXGLOBMAX; i++) {
-			g_entnames[inew].pszglobal[i] = 0;
+			g_entnames[inew].pszglobal[i] = BytePtr.Null;
 			g_entnames[inew].timestamp[i] = 0;
 			g_entnames[inew].iseq[i] = 0;
 			g_entnames[inew].timestampseq[i] = 0;
-			g_entnames[inew].pszglobalseq[i] = 0;
+			g_entnames[inew].pszglobalseq[i] = BytePtr.Null;
 		}
 
 		return inew;
@@ -599,33 +656,33 @@ public static unsafe class Vox
 	// lookup random first word from this named group,
 	// return static, null terminated string
 
-	static byte* VOX_LookupRndVirtual(byte* pGroupName) {
+	static BytePtr VOX_LookupRndVirtual(BytePtr pGroupName) {
 		// get group index
 
 		int isentenceg = VOX_GroupIndexFromName(Str(pGroupName));
 
 		if (isentenceg < 0)
-			return null;
+			return BytePtr.Null;
 
 		// get pointer to sentence name within group, using lru
 
 		int isentence = VOX_GroupPick(isentenceg, out string szsentencename, 32 - 1);
 
 		if (isentence < 0)
-			return null;
+			return BytePtr.Null;
 
 		// get pointer to sentence data
 
-		byte* psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, null);
+		BytePtr psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, default);
 
 		// strip trailing whitespace
 
-		if (psz == null)
-			return null;
+		if (psz.IsNull)
+			return BytePtr.Null;
 
-		byte* pend = strstr(psz, " ");
-		if (pend != null)
-			*pend = 0;
+		BytePtr pend = strstr(psz, " ");
+		if (!pend.IsNull)
+			pend[0] = 0;
 
 		// return pointer to first (and only) word
 
@@ -634,33 +691,33 @@ public static unsafe class Vox
 
 	// given groupname, get pointer to first word of n'th sentence in group
 
-	static byte* VOX_LookupSentenceByIndex(string pGroupname, int ipick, int* pipicknext) {
+	static BytePtr VOX_LookupSentenceByIndex(string pGroupname, int ipick, Span<int> pipicknext) {
 		// get group index
 
 		int isentenceg = VOX_GroupIndexFromName(pGroupname);
 
 		if (isentenceg < 0)
-			return null;
+			return BytePtr.Null;
 
 		// get pointer to sentence name within group, using lru
 
 		int isentence = VOX_GroupPickSequential(isentenceg, out string szsentencename, 32 - 1, ipick, true);
 
 		if (isentence < 0)
-			return null;
+			return BytePtr.Null;
 
 		// get pointer to sentence data
 
-		byte* psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, null);
+		BytePtr psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, default);
 
 		// strip trailing whitespace
 
-		byte* pend = strstr(psz, " ");
-		if (pend != null)
-			*pend = 0;
+		BytePtr pend = strstr(psz, " ");
+		if (!pend.IsNull)
+			pend[0] = 0;
 
-		if (pipicknext != null)
-			*pipicknext = isentence;
+		if (!pipicknext.IsEmpty)
+			pipicknext[0] = isentence;
 
 		// return pointer to first (and only) word
 		return psz;
@@ -669,7 +726,7 @@ public static unsafe class Vox
 	// lookup first word from this named group, group entry 'ipick',
 	// return static, null terminated string
 
-	static byte* VOX_LookupNumber(byte* pGroupName, int ipick) {
+	static BytePtr VOX_LookupNumber(BytePtr pGroupName, int ipick) {
 		// construct group name from V_NUMBERS + TYPE
 
 		int glen = strlen(pGroupName);
@@ -677,15 +734,15 @@ public static unsafe class Vox
 		// insert type character
 		string sznumbers = "V_NUMBERS" + (char)pGroupName[glen - 1];
 
-		return VOX_LookupSentenceByIndex(sznumbers, ipick, null);
+		return VOX_LookupSentenceByIndex(sznumbers, ipick, default);
 	}
 
 	// lookup ent & type, return static, null terminated string
 	// if no saved string, create one.
 	// UNDONE: init ent/type/string array, wrap when saving
 
-	static byte* VOX_LookupMyVirtual(int iname, byte* pGroupName, byte chtype, int soundsource) {
-		byte* psz = null;
+	static BytePtr VOX_LookupMyVirtual(int iname, BytePtr pGroupName, byte chtype, int soundsource) {
+		BytePtr psz = BytePtr.Null;
 
 		// get existing ent index, or index to new slot
 
@@ -704,7 +761,7 @@ public static unsafe class Vox
 
 		// if none found for this ent - pick one and save it
 
-		if (psz == null) {
+		if (psz.IsNull) {
 			// get new string
 			psz = VOX_LookupRndVirtual(pGroupName);
 
@@ -723,11 +780,11 @@ public static unsafe class Vox
 	// store count of words in pcnew
 	// if fsimple is true, return numeric sequence based on ten digit max
 
-	static void VOX_LookupRangeHeadingOrGrid(int irhg, byte* pGroupName, Channel pChannel, int soundsource, ref byte* ppszNew, ref byte* ppszNew1, ref byte* ppszNew2, ref int pcnew, bool fsimple) {
+	static void VOX_LookupRangeHeadingOrGrid(int irhg, BytePtr pGroupName, Channel pChannel, int soundsource, ref BytePtr ppszNew, ref BytePtr ppszNew1, ref BytePtr ppszNew2, ref int pcnew, bool fsimple) {
 		Vector3 SL;             // sound -> listener vector
-		byte* phundreds = null;
-		byte* ptens = null;
-		byte* pones = null;
+		BytePtr phundreds = BytePtr.Null;
+		BytePtr ptens = BytePtr.Null;
+		BytePtr pones = BytePtr.Null;
 		int cnew = 0;
 		float dist;
 		int dmeters = 0;
@@ -857,21 +914,21 @@ public static unsafe class Vox
 		// return
 		switch (cnew) {
 			default:
-				ppszNew = null;
+				ppszNew = BytePtr.Null;
 				return;
 			case 1: // 1..19,20,30,40,50,60,70,80,90,100,200,300
-				ppszNew = pones != null ? pones : (ptens != null ? ptens : (phundreds != null ? phundreds : null));
+				ppszNew = !pones.IsNull ? pones : (!ptens.IsNull ? ptens : (!phundreds.IsNull ? phundreds : BytePtr.Null));
 				return;
 			case 2:
-				if (ptens != null && pones != null) {
+				if (!ptens.IsNull && !pones.IsNull) {
 					ppszNew = ptens;
 					ppszNew1 = pones;
 				}
-				else if (phundreds != null && pones != null) {
+				else if (!phundreds.IsNull && !pones.IsNull) {
 					ppszNew = phundreds;
 					ppszNew1 = pones;
 				}
-				else if (phundreds != null && ptens != null) {
+				else if (!phundreds.IsNull && !ptens.IsNull) {
 					ppszNew = phundreds;
 					ppszNew1 = ptens;
 				}
@@ -917,7 +974,7 @@ public static unsafe class Vox
 	static float g_vox_lastsectorupdate = 0;
 	static int g_vox_isector = -1;
 
-	static byte* VOX_LookupSectorVirtual(byte* pGroupname) {
+	static BytePtr VOX_LookupSectorVirtual(BytePtr pGroupname) {
 		float curtime = (float)soundServices.GetClientTime();
 
 		if (g_vox_isector == -1)
@@ -937,7 +994,7 @@ public static unsafe class Vox
 
 
 
-	static byte* VOX_LookupGlobalVirtual(int type, int soundsource, byte* pGroupName, int iglobal) {
+	static BytePtr VOX_LookupGlobalVirtual(int type, int soundsource, BytePtr pGroupName, int iglobal) {
 		int i;
 		float curtime = (float)soundServices.GetClientTime();
 
@@ -948,8 +1005,8 @@ public static unsafe class Vox
 				if (curtime - g_entnames[i].timestamp[iglobal] <= snd_vox_globaltimeout.GetInt()) {
 					// if this ent has an un-expired global, return it, otherwise break
 
-					if (g_entnames[i].pszglobal[iglobal] != 0)
-						return (byte*)g_entnames[i].pszglobal[iglobal];
+					if (!g_entnames[i].pszglobal[iglobal].IsNull)
+						return g_entnames[i].pszglobal[iglobal];
 					else
 						break;
 				}
@@ -960,14 +1017,14 @@ public static unsafe class Vox
 
 		// pick random word from groupname
 
-		byte* psz = VOX_LookupRndVirtual(pGroupName);
+		BytePtr psz = VOX_LookupRndVirtual(pGroupName);
 
 		// get existing ent index, or index to new slot
 
 		int ient = VOX_LookupEntIndex(type, soundsource, true);
 
 		g_entnames[ient].timestamp[iglobal] = curtime;
-		g_entnames[ient].pszglobal[iglobal] = (long)psz;
+		g_entnames[ient].pszglobal[iglobal] = psz;
 
 		return psz;
 	}
@@ -975,7 +1032,7 @@ public static unsafe class Vox
 	// lookup global values in group in sequence - get next value
 	// in sequence. sequence counter expires every 2.5 minutes.
 
-	static byte* VOX_LookupGlobalSeqVirtual(int type, int soundsource, byte* pGroupName, int iglobal) {
+	static BytePtr VOX_LookupGlobalSeqVirtual(int type, int soundsource, BytePtr pGroupName, int iglobal) {
 
 		int i;
 		int ient;
@@ -1011,20 +1068,20 @@ public static unsafe class Vox
 		int ipick = g_entnames[ient].iseq[iglobal];
 		int ipicknext = 0;
 
-		byte* psz = VOX_LookupSentenceByIndex(Str(pGroupName), ipick, &ipicknext);
+		BytePtr psz = VOX_LookupSentenceByIndex(Str(pGroupName), ipick, new Span<int>(ref ipicknext));
 		g_entnames[ient].iseq[iglobal] = ipicknext;
 
 		// get existing ent index, or index to new slot
 
 		g_entnames[ient].timestampseq[iglobal] = curtime;
-		g_entnames[ient].pszglobalseq[iglobal] = (long)psz;
+		g_entnames[ient].pszglobalseq[iglobal] = psz;
 
 		return psz;
 	}
 
 	// insert new words into rgpparseword at 'ireplace' slot
 
-	static void VOX_InsertWords(int ireplace, int cnew, byte* pszNew, byte* pszNew1, byte* pszNew2) {
+	static void VOX_InsertWords(int ireplace, int cnew, BytePtr pszNew, BytePtr pszNew1, BytePtr pszNew2) {
 		if (cnew != 0) {
 			// make space in rgpparseword for 'cnew - 1' new words
 			int ccopy = cnew - 1; // number of new slots we need
@@ -1053,7 +1110,7 @@ public static unsafe class Vox
 		if (iword < 0 || iword >= CVOXWORDMAX)
 			return;
 
-		rgpparseword[iword] = null;
+		rgpparseword[iword] = BytePtr.Null;
 
 		// slide all words > iword up into vacated slot
 
@@ -1069,15 +1126,15 @@ public static unsafe class Vox
 		// get group V_MAPNAMES
 
 		int i;
-		byte* psz;
+		BytePtr psz;
 		int inext = 0;
 
 		for (i = 0; i < CVOXMAPNAMESMAX; i++) {
 			// step sequentially through group - return ptr to 1st word in each group (map name)
 
-			psz = VOX_LookupSentenceByIndex("V_MAPNAME", i, &inext);
+			psz = VOX_LookupSentenceByIndex("V_MAPNAME", i, new Span<int>(ref inext));
 
-			if (psz == null)
+			if (psz.IsNull)
 				return;
 
 			g_rgmapnames[i] = psz;
@@ -1106,7 +1163,7 @@ public static unsafe class Vox
 
 	// replace any 'V_' values with actual string names in rgpparseword
 
-	static bool IsVirtualName(byte* pName) {
+	static bool IsVirtualName(BytePtr pName) {
 		return pName[0] == 'V' && pName[1] == '_';
 	}
 
@@ -1115,29 +1172,29 @@ public static unsafe class Vox
 		// replace virtual word with saved word or rnd word
 
 		int i = 0;
-		byte* pszNew = null;
-		byte* pszNew1 = null;
-		byte* pszNew2 = null;
+		BytePtr pszNew = BytePtr.Null;
+		BytePtr pszNew1 = BytePtr.Null;
+		BytePtr pszNew2 = BytePtr.Null;
 		int iname = -1;
 		int cnew = 0;
 		bool fbymap;
-		byte* pszmaptoken;
+		BytePtr pszmaptoken;
 		int soundsource = pchan != null ? pchan.SoundSource : 0;
 
 		ReadOnlySpan<char> pszmap = soundServices.GetHostMap();
 
-		byte* szparseword = stackalloc byte[256];
+		BytePtr szparseword = AllocBuffer(256);
 
 		// get global list of map names from sentences.txt
 
-		while (rgpparseword[i] != null) {
+		while (!rgpparseword[i].IsNull) {
 
 			if (IsVirtualName(rgpparseword[i])) {
 				iname = -1;
 				cnew = 0;
-				pszNew = null;
-				pszNew1 = null;
-				pszNew2 = null;
+				pszNew = BytePtr.Null;
+				pszNew1 = BytePtr.Null;
+				pszNew2 = BytePtr.Null;
 
 				int slen = strlen(rgpparseword[i]);
 				byte chtype = rgpparseword[i][slen - 1];
@@ -1150,7 +1207,7 @@ public static unsafe class Vox
 
 				pszmaptoken = strstr(szparseword, "_MAP__");
 
-				fbymap = pszmaptoken == null ? false : true;
+				fbymap = pszmaptoken.IsNull ? false : true;
 
 				if (fbymap) {
 					int imap = VOX_GetMapNameIndex(pszmap);
@@ -1169,9 +1226,9 @@ public static unsafe class Vox
 					}
 				}
 
-				if (strstr(szparseword, "V_MYNAME") != null)
+				if (!strstr(szparseword, "V_MYNAME").IsNull)
 					iname = 1;
-				else if (strstr(szparseword, "V_MYNUM") != null)
+				else if (!strstr(szparseword, "V_MYNUM").IsNull)
 					iname = 0;
 
 				if (iname >= 0) {
@@ -1183,29 +1240,29 @@ public static unsafe class Vox
 					cnew = 1;
 				}
 				else {
-					if (strstr(szparseword, "V_RND") != null) {
+					if (!strstr(szparseword, "V_RND").IsNull) {
 						// lookup random first word from this named group,
 						// return static, null terminated string
 
 						pszNew = VOX_LookupRndVirtual(szparseword);
 						cnew = 1;
 					}
-					else if (strstr(szparseword, "V_DIST") != null) {
+					else if (!strstr(szparseword, "V_DIST").IsNull) {
 						// get range from ent to player, return pointers to new words
 						VOX_LookupRangeHeadingOrGrid(0, szparseword, pchan!, soundsource, ref pszNew, ref pszNew1, ref pszNew2, ref cnew, true);
 					}
-					else if (strstr(szparseword, "V_DIR") != null) {
+					else if (!strstr(szparseword, "V_DIR").IsNull) {
 						// get heading from ent to player, return pointers to new words
 						VOX_LookupRangeHeadingOrGrid(1, szparseword, pchan!, soundsource, ref pszNew, ref pszNew1, ref pszNew2, ref cnew, false);
 					}
-					else if (strstr(szparseword, "V_IDIED") != null) {
+					else if (!strstr(szparseword, "V_IDIED").IsNull) {
 						// SILENT MARKER - this ent died - mark as dead and timestamp
 
 						int ient = VOX_LookupEntIndex(chtype, soundsource, false);
 						if (ient < 0) {
 							// if not found, allocate new ent, give him a name & number, mark as dead
-							byte* szgroup1 = stackalloc byte[32];
-							byte* szgroup2 = stackalloc byte[32];
+							BytePtr szgroup1 = AllocBuffer(32);
+							BytePtr szgroup2 = AllocBuffer(32);
 							strncpy(szgroup1, "V_MYNAME", 32);
 							szgroup1[8] = chtype;
 							szgroup1[9] = 0;
@@ -1227,7 +1284,7 @@ public static unsafe class Vox
 						VOX_DeleteWord(i);
 
 					}
-					else if (strstr(szparseword, "V_WHODIED") != null) {
+					else if (!strstr(szparseword, "V_WHODIED").IsNull) {
 						// get last dead unit of this type
 
 						int ient = VOX_LookupLastDeadIndex(chtype);
@@ -1238,7 +1295,7 @@ public static unsafe class Vox
 							cnew = 1;
 							pszNew = g_entnames[ient].pszname;
 							pszNew1 = g_entnames[ient].psznum;
-							if (pszNew1 != null)
+							if (!pszNew1.IsNull)
 								cnew++;
 						}
 						else {
@@ -1248,85 +1305,85 @@ public static unsafe class Vox
 						}
 
 					}
-					else if (strstr(szparseword, "V_SECTOR") != null) {
+					else if (!strstr(szparseword, "V_SECTOR").IsNull) {
 						// sectors are fictional - they simply
 						// increase sequentially and expire every 5 minutes
 
 						pszNew = VOX_LookupSectorVirtual(szparseword);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_GRIDX") != null) {
+					else if (!strstr(szparseword, "V_GRIDX").IsNull) {
 						// player x position in 10 meter increments
 						VOX_LookupRangeHeadingOrGrid(2, szparseword, pchan!, soundsource, ref pszNew, ref pszNew1, ref pszNew2, ref cnew, true);
 					}
-					else if (strstr(szparseword, "V_GRIDY") != null) {
+					else if (!strstr(szparseword, "V_GRIDY").IsNull) {
 						// player y position in 10 meter increments
 						VOX_LookupRangeHeadingOrGrid(3, szparseword, pchan!, soundsource, ref pszNew, ref pszNew1, ref pszNew2, ref cnew, true);
 
 					}
-					else if (strstr(szparseword, "V_G0_") != null) {
+					else if (!strstr(szparseword, "V_G0_").IsNull) {
 						// 4 rnd globals per type, globals expire after 5 minutes
 						// used for target designation, master sector code name etc.
 
 						pszNew = VOX_LookupGlobalVirtual(chtype, soundsource, szparseword, 0);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_G1_") != null) {
+					else if (!strstr(szparseword, "V_G1_").IsNull) {
 						// 4 rnd globals per type, globals expire after 5 minutes
 						// used for target designation, master sector code name etc.
 
 						pszNew = VOX_LookupGlobalVirtual(chtype, soundsource, szparseword, 1);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_G2_") != null) {
+					else if (!strstr(szparseword, "V_G2_").IsNull) {
 						// 4 rnd globals per type, globals expire after 5 minutes
 						// used for target designation, master sector code name etc.
 
 						pszNew = VOX_LookupGlobalVirtual(chtype, soundsource, szparseword, 2);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_G3_") != null) {
+					else if (!strstr(szparseword, "V_G3_").IsNull) {
 						// 4 rnd globals per type, globals expire after 5 minutes
 						// used for target designation, master sector code name etc.
 
 						pszNew = VOX_LookupGlobalVirtual(chtype, soundsource, szparseword, 3);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_SEQG0_") != null) {
+					else if (!strstr(szparseword, "V_SEQG0_").IsNull) {
 						// 4 sequential globals per type, selected sequentially in list
 						// used for total target hit count etc.
 
 						pszNew = VOX_LookupGlobalSeqVirtual(chtype, soundsource, szparseword, 0);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_SEQG1_") != null) {
+					else if (!strstr(szparseword, "V_SEQG1_").IsNull) {
 						// 4 sequential globals per type, selected sequentially in list
 						// used for total target hit count etc.
 
 						pszNew = VOX_LookupGlobalSeqVirtual(chtype, soundsource, szparseword, 1);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_SEQG2_") != null) {
+					else if (!strstr(szparseword, "V_SEQG2_").IsNull) {
 						// 4 sequential globals per type, selected sequentially in list
 						// used for total target hit count etc.
 
 						pszNew = VOX_LookupGlobalSeqVirtual(chtype, soundsource, szparseword, 2);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
-					else if (strstr(szparseword, "V_SEQG3_") != null) {
+					else if (!strstr(szparseword, "V_SEQG3_").IsNull) {
 						// 4 sequential globals per type, selected sequentially in list
 						// used for total target hit count etc.
 
 						pszNew = VOX_LookupGlobalSeqVirtual(chtype, soundsource, szparseword, 3);
-						if (pszNew != null)
+						if (!pszNew.IsNull)
 							cnew = 1;
 					}
 
@@ -1342,9 +1399,9 @@ public static unsafe class Vox
 
 	public static void VOX_Precache(IEngineSound pSoundSystem, int sentenceIndex, ReadOnlySpan<char> pPathOverride = default) {
 		VoxWord[] rgvoxword = new VoxWord[CVOXWORDMAX];
-		byte* buffer = stackalloc byte[512];
-		byte* szpath = stackalloc byte[MAX_PATH];
-		byte** pWords = stackalloc byte*[CVOXWORDMAX];   // array of pointers to parsed words
+		BytePtr buffer = AllocBuffer(512);
+		BytePtr szpath = AllocBuffer(MAX_PATH);
+		BytePtr[] pWords = new BytePtr[CVOXWORDMAX];   // array of pointers to parsed words
 
 		Sentence_t sentence = g_Sentences[sentenceIndex];
 		if (!IsVirtualName(sentence.pName)) {
@@ -1352,7 +1409,7 @@ public static unsafe class Vox
 			g_Sentences[sentenceIndex] = sentence;
 		}
 
-		byte* psz = sentence.pName + strlen(sentence.pName) + 1;
+		BytePtr psz = sentence.pName + strlen(sentence.pName) + 1;
 		// get directory from string, advance psz
 		psz = VOX_GetDirectory(szpath, MAX_PATH, psz);
 		strncpy(buffer, psz, 512);
@@ -1365,7 +1422,7 @@ public static unsafe class Vox
 		VOX_ParseString(psz);
 		int i = 0, count = 0;
 		// copy the parsed words out of the globals
-		for (i = 0; rgpparseword[i] != null; i++) {
+		for (i = 0; !rgpparseword[i].IsNull; i++) {
 			pWords[i] = rgpparseword[i];
 			count++;
 		}
@@ -1409,11 +1466,11 @@ public static unsafe class Vox
 	// link all sounds in sentence, start playing first word.
 	// return number of words loaded
 	public static void VOX_LoadSound(Channel pchan, ReadOnlySpan<char> pszin) {
-		byte* buffer = stackalloc byte[512];
+		BytePtr buffer = AllocBuffer(512);
 		int i, cword;
-		byte* szpath = stackalloc byte[MAX_PATH];
+		BytePtr szpath = AllocBuffer(MAX_PATH);
 		VoxWord[] rgvoxword = new VoxWord[CVOXWORDMAX];
-		byte* psz;
+		BytePtr psz;
 		bool emitcaption = false;
 		string? captionSymbol = null;
 		float duration = 0.0f;
@@ -1421,14 +1478,14 @@ public static unsafe class Vox
 		if (pszin.IsEmpty)
 			return;
 
-		NativeMemory.Clear(buffer, 512);
+		buffer.Array.AsSpan(0, 512).Clear();
 
 		// lookup actual string in g_Sentences,
 		// set pointer to string data
 
-		psz = VOX_LookupString(pszin, null, &emitcaption, ref captionSymbol, &duration);
+		psz = VOX_LookupString(pszin, default, new Span<bool>(ref emitcaption), ref captionSymbol, new Span<float>(ref duration));
 
-		if (psz == null) {
+		if (psz.IsNull) {
 			DevMsg($"VOX_LoadSound: no sentence named {pszin}\n");
 			return;
 		}
@@ -1474,7 +1531,7 @@ public static unsafe class Vox
 
 		string path = Str(szpath);
 
-		while (rgpparseword[i] != null) {
+		while (!rgpparseword[i].IsNull) {
 			// Get any pitch, volume, start, end params into voxword
 
 			if (VOX_ParseWordParams(rgpparseword[i], ref rgvoxword[cword], i == 0) != 0) {
@@ -1483,8 +1540,8 @@ public static unsafe class Vox
 
 				// find name, if already in cache, mark voxword
 				// so we don't discard when word is done playing
-				int keepCached;
-				rgvoxword[cword].Sfx = S_FindName(pathbuffer, &keepCached);
+				int keepCached = 0;
+				rgvoxword[cword].Sfx = S_FindName(pathbuffer, new Span<int>(ref keepCached));
 				rgvoxword[cword].KeepCached = keepCached;
 				// JAY: HACKHACK: Keep all sentences cached for now
 				rgvoxword[cword].KeepCached = 1;
@@ -1539,7 +1596,7 @@ public static unsafe class Vox
 		return string.Compare(lhs.token.word, rhs.token.word, StringComparison.OrdinalIgnoreCase);
 	}
 
-	static void VOX_AddNumbers(byte* pGroupName, List<WordBuf> list) {
+	static void VOX_AddNumbers(BytePtr pGroupName, List<WordBuf> list) {
 		// construct group name from V_NUMBERS + TYPE
 		for (int i = 0; i <= 30; ++i) {
 			int glen = strlen(pGroupName);
@@ -1549,12 +1606,12 @@ public static unsafe class Vox
 
 			WordBuf w = new();
 			// w.Set( VOX_LookupString( VOX_LookupSentenceByIndex( sznumbers, i, NULL ), NULL ) );
-			w.Set(VOX_LookupSentenceByIndex(sznumbers, i, null));
+			w.Set(VOX_LookupSentenceByIndex(sznumbers, i, default));
 			list.Add(w);
 		}
 	}
 
-	static void VOX_AddRndVirtual(byte* pGroupName, List<WordBuf> list) {
+	static void VOX_AddRndVirtual(BytePtr pGroupName, List<WordBuf> list) {
 		// get group index
 
 		int isentenceg = VOX_GroupIndexFromName(Str(pGroupName));
@@ -1570,9 +1627,9 @@ public static unsafe class Vox
 			if (szsentencename.Length > 31)
 				szsentencename = szsentencename[..31];
 
-			byte* psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, null);
+			BytePtr psz = VOX_LookupString(szsentencename[0] == '!' ? szsentencename[1..] : szsentencename, default);
 
-			if (psz != null) {
+			if (!psz.IsNull) {
 				WordBuf w = new();
 				w.Set(psz);
 				list.Add(w);
@@ -1580,20 +1637,20 @@ public static unsafe class Vox
 		}
 	}
 
-	static void VOX_AddMyVirtualWords(int iname, byte* pGroupName, byte chtype, List<WordBuf> list) {
+	static void VOX_AddMyVirtualWords(int iname, BytePtr pGroupName, byte chtype, List<WordBuf> list) {
 		VOX_AddRndVirtual(pGroupName, list);
 	}
 
-	static void VOX_BuildVirtualNameList(byte* word, List<WordBuf> list) {
+	static void VOX_BuildVirtualNameList(BytePtr word, List<WordBuf> list) {
 		// for each word in the sentence, check for V_, if found
 		// replace virtual word with saved word or rnd word
 
 		int iname = -1;
 		bool fbymap;
-		byte* pszmaptoken;
+		BytePtr pszmaptoken;
 
 
-		byte* szparseword = stackalloc byte[256];
+		BytePtr szparseword = AllocBuffer(256);
 
 		int slen = strlen(word);
 		byte chtype = word[slen - 1];
@@ -1606,7 +1663,7 @@ public static unsafe class Vox
 
 		pszmaptoken = strstr(szparseword, "_MAP__");
 
-		fbymap = pszmaptoken == null ? false : true;
+		fbymap = pszmaptoken.IsNull ? false : true;
 
 		if (fbymap) {
 			for (int imap = 0; imap < g_cmapnames; ++imap) {
@@ -1627,9 +1684,9 @@ public static unsafe class Vox
 			return;
 		}
 
-		if (strstr(szparseword, "V_MYNAME") != null)
+		if (!strstr(szparseword, "V_MYNAME").IsNull)
 			iname = 1;
-		else if (strstr(szparseword, "V_MYNUM") != null)
+		else if (!strstr(szparseword, "V_MYNUM").IsNull)
 			iname = 0;
 
 		if (iname >= 0) {
@@ -1640,21 +1697,21 @@ public static unsafe class Vox
 			VOX_AddMyVirtualWords(iname, szparseword, chtype, list);
 		}
 		else {
-			if (strstr(szparseword, "V_RND") != null) {
+			if (!strstr(szparseword, "V_RND").IsNull) {
 				// lookup random first word from this named group,
 				// return static, null terminated string
 				VOX_AddRndVirtual(szparseword, list);
 			}
-			else if (strstr(szparseword, "V_DIST") != null)
+			else if (!strstr(szparseword, "V_DIST").IsNull)
 				VOX_AddNumbers(szparseword, list);
-			else if (strstr(szparseword, "V_DIR") != null)
+			else if (!strstr(szparseword, "V_DIR").IsNull)
 				VOX_AddNumbers(szparseword, list);
-			else if (strstr(szparseword, "V_IDIED") != null) {
+			else if (!strstr(szparseword, "V_IDIED").IsNull) {
 				// SILENT MARKER - this ent died - mark as dead and timestamp
 
 				// if not found, allocate new ent, give him a name & number, mark as dead
-				byte* szgroup1 = stackalloc byte[32];
-				byte* szgroup2 = stackalloc byte[32];
+				BytePtr szgroup1 = AllocBuffer(32);
+				BytePtr szgroup2 = AllocBuffer(32);
 				strncpy(szgroup1, "V_MYNAME", 32);
 				szgroup1[8] = chtype;
 				szgroup1[9] = 0;
@@ -1668,7 +1725,7 @@ public static unsafe class Vox
 				return;
 
 			}
-			else if (strstr(szparseword, "V_WHODIED") != null) {
+			else if (!strstr(szparseword, "V_WHODIED").IsNull) {
 				// get last dead unit of this type
 				/*
 
@@ -1693,27 +1750,27 @@ public static unsafe class Vox
 				*/
 
 			}
-			else if (strstr(szparseword, "V_SECTOR") != null)
+			else if (!strstr(szparseword, "V_SECTOR").IsNull)
 				VOX_AddNumbers(szparseword, list);
-			else if (strstr(szparseword, "V_GRIDX") != null)
+			else if (!strstr(szparseword, "V_GRIDX").IsNull)
 				VOX_AddNumbers(szparseword, list);
-			else if (strstr(szparseword, "V_GRIDY") != null)
+			else if (!strstr(szparseword, "V_GRIDY").IsNull)
 				VOX_AddNumbers(szparseword, list);
-			else if (strstr(szparseword, "V_G0_") != null)
+			else if (!strstr(szparseword, "V_G0_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_G1_") != null)
+			else if (!strstr(szparseword, "V_G1_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_G2_") != null)
+			else if (!strstr(szparseword, "V_G2_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_G3_") != null)
+			else if (!strstr(szparseword, "V_G3_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_SEQG0_") != null)
+			else if (!strstr(szparseword, "V_SEQG0_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_SEQG1_") != null)
+			else if (!strstr(szparseword, "V_SEQG1_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_SEQG2_") != null)
+			else if (!strstr(szparseword, "V_SEQG2_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
-			else if (strstr(szparseword, "V_SEQG3_") != null)
+			else if (!strstr(szparseword, "V_SEQG3_").IsNull)
 				VOX_AddRndVirtual(szparseword, list);
 
 		}
@@ -1772,23 +1829,23 @@ public static unsafe class Vox
 	// link all sounds in sentence, start playing first word.
 	// return number of words loaded
 	static void VOX_TouchSound(ReadOnlySpan<char> pszin, SortedSet<string> filelist, List<CCPair> ccpairs, bool spewsentences) {
-		byte* buffer = stackalloc byte[512];
+		BytePtr buffer = AllocBuffer(512);
 		int i, cword;
-		byte* szpath = stackalloc byte[MAX_PATH];
+		BytePtr szpath = AllocBuffer(MAX_PATH);
 		VoxWord[] rgvoxword = new VoxWord[CVOXWORDMAX];
-		byte* psz;
+		BytePtr psz;
 
 		if (pszin.IsEmpty)
 			return;
 
-		NativeMemory.Clear(buffer, 512);
+		buffer.Array.AsSpan(0, 512).Clear();
 
 		// lookup actual string in g_Sentences,
 		// set pointer to string data
 
-		psz = VOX_LookupString(pszin, null);
+		psz = VOX_LookupString(pszin, default);
 
-		if (psz == null) {
+		if (psz.IsNull) {
 			DevMsg($"VOX_TouchSound: no sentence named {pszin}\n");
 			return;
 		}
@@ -1818,7 +1875,7 @@ public static unsafe class Vox
 		List<WordBuf> rep = [];
 		string path = Str(szpath);
 
-		while (rgpparseword[i] != null) {
+		while (!rgpparseword[i].IsNull) {
 			// Get any pitch, volume, start, end params into voxword
 
 			if (VOX_ParseWordParams(rgpparseword[i], ref rgvoxword[cword], i == 0) != 0) {
@@ -1914,29 +1971,29 @@ public static unsafe class Vox
 	//			sentenceIndex - global sentence table index for any data that is
 	//							parsed out
 	//-----------------------------------------------------------------------------
-	static void VOX_ParseLineCommands(byte* pSentenceData, int sentenceIndex) {
-		byte* tempBuffer = stackalloc byte[512];
-		byte* pNext, pStart;
+	static void VOX_ParseLineCommands(BytePtr pSentenceData, int sentenceIndex) {
+		BytePtr tempBuffer = AllocBuffer(512);
+		BytePtr pNext, pStart;
 		int length, tempBufferPos = 0;
 		Span<char> com_token = stackalloc char[1024];
 
-		if (pSentenceData == null)
+		if (pSentenceData.IsNull)
 			return;
 
 		pStart = pSentenceData;
 
-		while (*pSentenceData != 0) {
+		while (pSentenceData[0] != 0) {
 			pNext = ScanForwardUntil(pSentenceData, (byte)'{');
 
 			// Find length of "good" portion of the string (not a {} command)
-			length = (int)(pNext - pSentenceData);
+			length = pNext - pSentenceData;
 			if (tempBufferPos + length > 512) {
 				DevMsg("Error! sentence too long!\n");
 				return;
 			}
 
 			// Copy good string to temp buffer
-			Buffer.MemoryCopy(pSentenceData, tempBuffer + tempBufferPos, 512 - tempBufferPos, length);
+			pSentenceData.Array.AsSpan(pSentenceData.Offset, length).CopyTo(tempBuffer.Array.AsSpan(tempBuffer.Offset + tempBufferPos, 512 - tempBufferPos));
 
 			// Move the copy position
 			tempBufferPos += length;
@@ -1944,16 +2001,16 @@ public static unsafe class Vox
 			pSentenceData = pNext;
 
 			// Skip ahead of the opening brace
-			if (*pSentenceData != 0)
+			if (pSentenceData[0] != 0)
 				pSentenceData++;
 
 			while (true) {
 				// Skip whitespace
-				while (*pSentenceData != 0 && *pSentenceData <= 32)
+				while (pSentenceData[0] != 0 && pSentenceData[0] <= 32)
 					pSentenceData++;
 
 				// Simple comparison of string commands:
-				switch (char.ToLowerInvariant((char)*pSentenceData)) {
+				switch (char.ToLowerInvariant((char)pSentenceData[0])) {
 					case 'l':
 						// All commands starting with the letter 'l' here
 						if (strnicmp(pSentenceData, "len", 3) == 0) {
@@ -1965,7 +2022,7 @@ public static unsafe class Vox
 							pSentenceData += 4;
 
 							// Skip until next } or whitespace character
-							while (*pSentenceData != 0 && (*pSentenceData != '}' && !(*pSentenceData <= 32)))
+							while (pSentenceData[0] != 0 && (pSentenceData[0] != '}' && !(pSentenceData[0] <= 32)))
 								pSentenceData++;
 						}
 						break;
@@ -1982,7 +2039,7 @@ public static unsafe class Vox
 							pSentenceData += remaining.Length - rest.Length;
 
 							// Skip until next } or whitespace character
-							while (*pSentenceData != 0 && (*pSentenceData != '}' && !(*pSentenceData <= 32)))
+							while (pSentenceData[0] != 0 && (pSentenceData[0] != '}' && !(pSentenceData[0] <= 32)))
 								pSentenceData++;
 
 							if (com_token[0] != '\0')
@@ -1995,25 +2052,25 @@ public static unsafe class Vox
 					case '\0':
 					default: {
 							// Skip until next } or whitespace character
-							while (*pSentenceData != 0 && (*pSentenceData != '}' && !(*pSentenceData <= 32)))
+							while (pSentenceData[0] != 0 && (pSentenceData[0] != '}' && !(pSentenceData[0] <= 32)))
 								pSentenceData++;
 						}
 						break;
 				}
 
 				// Done?
-				if (*pSentenceData == 0 || *pSentenceData == '}')
+				if (pSentenceData[0] == 0 || pSentenceData[0] == '}')
 					break;
 			}
 
 			// pSentenceData = ScanForwardUntil( pSentenceData, '}' );
 
 			// Skip the closing brace
-			if (*pSentenceData != 0)
+			if (pSentenceData[0] != 0)
 				pSentenceData++;
 
 			// Skip trailing whitespace
-			while (*pSentenceData != 0 && *pSentenceData <= 32)
+			while (pSentenceData[0] != 0 && pSentenceData[0] <= 32)
 				pSentenceData++;
 		}
 
@@ -2022,7 +2079,7 @@ public static unsafe class Vox
 			tempBuffer[tempBufferPos] = 0;
 
 			// Copy it over the original data
-			Buffer.MemoryCopy(tempBuffer, pStart, tempBufferPos + 1, tempBufferPos + 1);
+			tempBuffer.Array.AsSpan(tempBuffer.Offset, tempBufferPos + 1).CopyTo(pStart.Array.AsSpan(pStart.Offset, tempBufferPos + 1));
 		}
 	}
 
@@ -2030,7 +2087,7 @@ public static unsafe class Vox
 	// Purpose: Add a new group or increment count of the existing one
 	// Input  : *pSentenceName - text of the sentence name
 	//-----------------------------------------------------------------------------
-	static int VOX_GroupAdd(byte* pSentenceName) {
+	static int VOX_GroupAdd(BytePtr pSentenceName) {
 		int len = strlen(pSentenceName) - 1;
 
 		// group members end in a number
@@ -2138,8 +2195,8 @@ public static unsafe class Vox
 				continue;
 
 			if (spewsentences) {
-				byte* psz = VOX_LookupString(Str(pSentence.pName), null);
-				if (psz != null)
+				BytePtr psz = VOX_LookupString(Str(pSentence.pName), default);
+				if (!psz.IsNull)
 					Msg($"{Str(pSentence.pName)} : {Str(psz)}\n");
 			}
 
@@ -2313,25 +2370,23 @@ public static unsafe class Vox
 		int i;
 		for (i = 0; i < g_Sentences.Count; i++) {
 			int len = strlen(g_Sentences[i].pName) + 1;
-			byte* pData = g_Sentences[i].pName + len;
+			BytePtr pData = g_Sentences[i].pName + len;
 			int dataLen = strlen(pData) + 1;
 			totalMem += len + dataLen;
 		}
-		byte* newFile = (byte*)NativeMemory.AllocZeroed((nuint)Math.Max(totalMem, 1));
+		BytePtr newFile = AllocBuffer(Math.Max(totalMem, 1));
 		totalMem = 0;
 		for (i = 0; i < g_Sentences.Count; i++) {
 			Sentence_t sentence = g_Sentences[i];
 			int len = strlen(sentence.pName) + 1;
-			byte* pData = sentence.pName + len;
+			BytePtr pData = sentence.pName + len;
 			int dataLen = strlen(pData) + 1;
-			byte* pDest = &newFile[totalMem];
-			Buffer.MemoryCopy(sentence.pName, pDest, len + dataLen, len + dataLen);
+			BytePtr pDest = newFile + totalMem;
+			sentence.pName.Array.AsSpan(sentence.pName.Offset, len + dataLen).CopyTo(pDest.Array.AsSpan(pDest.Offset, len + dataLen));
 			sentence.pName = pDest;
 			g_Sentences[i] = sentence;
 			totalMem += len + dataLen;
 		}
-		if (g_SentenceFile != null)
-			NativeMemory.Free(g_SentenceFile);
 		g_SentenceFile = newFile;
 	}
 
@@ -2340,11 +2395,11 @@ public static unsafe class Vox
 	// sentence name so we can search later.
 
 	public static void VOX_ReadSentenceFile(string psentenceFileName) {
-		byte* pch;
-		byte* pFileData;
+		BytePtr pch;
+		BytePtr pFileData;
 		int fileSize;
 		byte c;
-		byte* pchlast, pSentenceData;
+		BytePtr pchlast, pSentenceData;
 		const string whitespace = "\n\r\t ";
 
 		// Have we already loaded this file?
@@ -2371,15 +2426,10 @@ public static unsafe class Vox
 			return;
 		}
 
-		pFileData = (byte*)NativeMemory.Alloc((nuint)(fileSize + 1));
-		if (pFileData == null) {
-			DevMsg($"VOX_ReadSentenceFile: {psentenceFileName} couldn't allocate {fileSize} bytes for data\n");
-			file.Dispose();
-			return;
-		}
+		pFileData = AllocBuffer(fileSize + 1);
 
 		// Read the data and close the file
-		file.Stream.ReadExactly(new Span<byte>(pFileData, fileSize));
+		file.Stream.ReadExactly(pFileData.Array.AsSpan(0, fileSize));
 		file.Dispose();
 
 		// Make sure we end with a null terminator
@@ -2387,23 +2437,23 @@ public static unsafe class Vox
 
 		pch = pFileData;
 		pchlast = pch + fileSize;
-		byte* pName = null;
+		BytePtr pName = BytePtr.Null;
 		while (pch < pchlast) {
 			// Only process this pass on sentences
-			pSentenceData = null;
+			pSentenceData = BytePtr.Null;
 
 			// skip newline, cr, tab, space
 
-			c = *pch;
+			c = pch[0];
 			while (pch < pchlast && IN_CHARACTERSET(whitespace, c))
-				c = *(++pch);
+				c = (++pch)[0];
 
 			// YWB:  Fix possible crashes reading past end of file if the last line has only whitespace on it...
-			if (*pch == 0)
+			if (pch[0] == 0)
 				break;
 
 			// skip entire line if first char is /
-			if (*pch != '/') {
+			if (pch[0] != '/') {
 				Sentence_t pSentence = new();
 				pName = pch;
 				pSentence.pName = pch;
@@ -2416,12 +2466,14 @@ public static unsafe class Vox
 				// scan forward to first space, insert null terminator
 				// after sentence name
 
-				c = *pch;
+				c = pch[0];
 				while (pch < pchlast && c != ' ')
-					c = *(++pch);
+					c = (++pch)[0];
 
-				if (pch < pchlast)
-					*pch++ = 0;
+				if (pch < pchlast) {
+					pch[0] = 0;
+					pch++;
+				}
 
 				// A sentence may have some line commands, make an extra pass
 				pSentenceData = pch;
@@ -2431,11 +2483,13 @@ public static unsafe class Vox
 				pch++;
 
 			// insert null terminator
-			if (pch < pchlast)
-				*pch++ = 0;
+			if (pch < pchlast) {
+				pch[0] = 0;
+				pch++;
+			}
 
 			// If we have some sentence data, parse out any line commands
-			if (pSentenceData != null && pSentenceData < pchlast) {
+			if (!pSentenceData.IsNull && pSentenceData < pchlast) {
 				// Add a new group or increment count of the existing one
 				VOX_GroupAdd(pName);
 				int index = g_Sentences.Count - 1;
@@ -2446,7 +2500,6 @@ public static unsafe class Vox
 		}
 		// now compact the file data in memory
 		VOX_CompactSentenceFile();
-		NativeMemory.Free(pFileData);
 
 		VOX_GroupInitAllLRUs();
 
@@ -2477,50 +2530,50 @@ public static unsafe class Vox
 	// return pointer to sentence data if found, null if not
 	// CONSIDER: if we have a large number of sentences, should
 	// CONSIDER: sort strings in g_Sentences and do binary search.
-	public static byte* VOX_LookupString(ReadOnlySpan<char> pSentenceName, int* psentencenum) {
+	public static BytePtr VOX_LookupString(ReadOnlySpan<char> pSentenceName, Span<int> psentencenum) {
 		string? caption = null;
-		return VOX_LookupString(pSentenceName, psentencenum, null, ref caption, null);
+		return VOX_LookupString(pSentenceName, psentencenum, default, ref caption, default);
 	}
 
-	public static byte* VOX_LookupString(ReadOnlySpan<char> pSentenceName, int* psentencenum, bool* pbEmitCaption, ref string? pCaptionSymbol, float* pflDuration) {
-		if (pbEmitCaption != null)
-			*pbEmitCaption = false;
+	public static BytePtr VOX_LookupString(ReadOnlySpan<char> pSentenceName, Span<int> psentencenum, Span<bool> pbEmitCaption, ref string? pCaptionSymbol, Span<float> pflDuration) {
+		if (!pbEmitCaption.IsEmpty)
+			pbEmitCaption[0] = false;
 
 		pCaptionSymbol = null;
 
-		if (pflDuration != null)
-			*pflDuration = 0.0f;
+		if (!pflDuration.IsEmpty)
+			pflDuration[0] = 0.0f;
 
 		string sentenceName = new(pSentenceName.SliceNullTerminatedString());
 
 		int i;
 		int c = g_Sentences.Count;
 		for (i = 0; i < c; i++) {
-			byte* name = g_Sentences[i].pName;
+			BytePtr name = g_Sentences[i].pName;
 
 			if (stricmp(name, sentenceName) == 0) {
-				if (psentencenum != null)
-					*psentencenum = i;
+				if (!psentencenum.IsEmpty)
+					psentencenum[0] = i;
 
-				if (pbEmitCaption != null)
-					*pbEmitCaption = g_Sentences[i].closecaption;
+				if (!pbEmitCaption.IsEmpty)
+					pbEmitCaption[0] = g_Sentences[i].closecaption;
 
 				pCaptionSymbol = g_Sentences[i].caption;
 
-				if (pflDuration != null)
-					*pflDuration = g_Sentences[i].length;
+				if (!pflDuration.IsEmpty)
+					pflDuration[0] = g_Sentences[i].length;
 
 				return name + strlen(name) + 1;
 			}
 		}
-		return null;
+		return BytePtr.Null;
 	}
 
 	public static string? VOX_LookupStringManaged(ReadOnlySpan<char> pSentenceName, out int sentencenum) {
 		int num = -1;
-		byte* psz = VOX_LookupString(pSentenceName, &num);
+		BytePtr psz = VOX_LookupString(pSentenceName, new Span<int>(ref num));
 		sentencenum = num;
-		return psz == null ? null : Str(psz);
+		return psz.IsNull ? null : Str(psz);
 	}
 
 
@@ -2532,7 +2585,7 @@ public static unsafe class Vox
 	}
 
 	internal static void VOX_AddTempSentence(string name, string text) {
-		byte* p = (byte*)NativeMemory.AllocZeroed((nuint)(name.Length + 1 + text.Length + 1));
+		BytePtr p = AllocBuffer(name.Length + 1 + text.Length + 1);
 		for (int i = 0; i < name.Length; i++)
 			p[i] = (byte)name[i];
 		for (int i = 0; i < text.Length; i++)
@@ -2547,6 +2600,5 @@ public static unsafe class Vox
 	internal static void VOX_RemoveLastSentence() {
 		Sentence_t last = g_Sentences[^1];
 		g_Sentences.RemoveAt(g_Sentences.Count - 1);
-		NativeMemory.Free(last.pName);
 	}
 }

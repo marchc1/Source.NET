@@ -102,11 +102,10 @@ public struct AsyncWaveParams
 //-----------------------------------------------------------------------------
 // Purpose: Builds a cache of the data bytes for a specific .wav file
 //-----------------------------------------------------------------------------
-public unsafe class AsyncWaveData
+public class AsyncWaveData
 {
 	public int DataSize;            // bytes requested
 	public int ReadSize;            // bytes actually read
-	public byte* Data;              // target buffer
 	public byte[]? Alloc;           // memory of buffer (base may not match)
 	public int AsyncOffset;
 	public int AsyncBytes;
@@ -126,7 +125,6 @@ public unsafe class AsyncWaveData
 	public AsyncWaveData() {
 		DataSize = 0;
 		ReadSize = 0;
-		Data = null;
 		Alloc = null;
 		AsyncPending = false;
 		Start = 0.0f;
@@ -146,8 +144,9 @@ public unsafe class AsyncWaveData
 
 		// delete buffers
 		Alloc = null;
-		Data = null;
 	}
+
+	public Span<byte> Data => Alloc == null ? default : Alloc.AsSpan(AsyncOffset);
 
 	//-----------------------------------------------------------------------------
 	// Purpose:
@@ -169,7 +168,7 @@ public unsafe class AsyncWaveData
 	// Output : unsigned int
 	//-----------------------------------------------------------------------------
 	public nuint Size() {
-		nuint size = (nuint)sizeof(nint) * 16;
+		nuint size = (nuint)IntPtr.Size * 16;
 
 		size += (nuint)DataSize;
 
@@ -193,7 +192,7 @@ public unsafe class AsyncWaveData
 	// Output : static unsigned int
 	//-----------------------------------------------------------------------------
 	public static nuint EstimatedSize(in AsyncWaveParams parms) {
-		nuint size = (nuint)sizeof(nint) * 16;
+		nuint size = (nuint)IntPtr.Size * 16;
 
 		size += (nuint)parms.DataSize;
 
@@ -216,7 +215,6 @@ public unsafe class AsyncWaveData
 			Alloc = data;
 			AsyncOffset = AsyncBytes - DataSize;
 			AsyncBytes -= AsyncOffset;
-			Data = Alloc == null ? null : (byte*)Unsafe.AsPointer(ref Alloc[0]) + AsyncOffset;
 			ReadSize = numReadBytes - AsyncOffset;
 
 			// Needs to be post-processed
@@ -251,7 +249,7 @@ public unsafe class AsyncWaveData
 
 		using (file) {
 			int bytes = (int)Math.Min(AsyncBytes, Math.Max(0, file.Stream.Length - AsyncOffset));
-			byte[] data = GC.AllocateUninitializedArray<byte>(Math.Max(AsyncBytes, 1), pinned: true);
+			byte[] data = GC.AllocateUninitializedArray<byte>(Math.Max(AsyncBytes, 1));
 			file.Stream.Seek(AsyncOffset, SeekOrigin.Begin);
 			int numRead = 0;
 			while (numRead < bytes) {
@@ -272,7 +270,7 @@ public unsafe class AsyncWaveData
 	//			count -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
-	public bool BlockingCopyData(byte* destbuffer, int destbufsize, int startoffset, int count) {
+	public bool BlockingCopyData(Span<byte> destbuffer, int destbufsize, int startoffset, int count) {
 		if (!Loaded) {
 			// Force it to finish
 			// It could finish between the above line and here, but the AsyncFinish call will just have a bogus id, not a big deal
@@ -317,7 +315,7 @@ public unsafe class AsyncWaveData
 		}
 
 		// Copy data from stream buffer
-		Unsafe.CopyBlock(destbuffer, Data + (startoffset - AsyncOffset), (uint)count);
+		Data.Slice(startoffset - AsyncOffset, count).CopyTo(destbuffer);
 
 		return true;
 	}
@@ -335,8 +333,8 @@ public unsafe class AsyncWaveData
 	// Input  : **ppData -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
-	public bool BlockingGetDataPointer(out byte* data) {
-		data = null;
+	public bool BlockingGetDataPointer(out Span<byte> data) {
+		data = default;
 		if (!Loaded) {
 			// Force it to finish
 			// It could finish between the above line and here, but the AsyncFinish call will just have a bogus id, not a big deal
@@ -431,7 +429,7 @@ public unsafe class AsyncWaveData
 //-----------------------------------------------------------------------------
 // Purpose: Implements a cache of .wav / .mp3 data based on filename
 //-----------------------------------------------------------------------------
-public unsafe class AsyncWavDataCache
+public class AsyncWavDataCache
 {
 	class CacheItem
 	{
@@ -601,7 +599,7 @@ public unsafe class AsyncWavDataCache
 	//			bytestocopy -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
-	public bool CopyDataIntoMemory(ReadOnlySpan<char> filename, int datasize, int startpos, byte* buffer, int bufsize, int copystartpos, int bytestocopy, out bool postProcessed) {
+	public bool CopyDataIntoMemory(ReadOnlySpan<char> filename, int datasize, int startpos, Span<byte> buffer, int bufsize, int copystartpos, int bytestocopy, out bool postProcessed) {
 		postProcessed = false;
 		bool bret = false;
 
@@ -634,7 +632,7 @@ public unsafe class AsyncWavDataCache
 	//			bytestocopy -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
-	public bool CopyDataIntoMemory(ref memhandle_t handle, ReadOnlySpan<char> filename, int datasize, int startpos, byte* buffer, int bufsize, int copystartpos, int bytestocopy, out bool postProcessed) {
+	public bool CopyDataIntoMemory(ref memhandle_t handle, ReadOnlySpan<char> filename, int datasize, int startpos, Span<byte> buffer, int bufsize, int copystartpos, int bytestocopy, out bool postProcessed) {
 		postProcessed = false;
 
 		bool bret = false;
@@ -702,11 +700,11 @@ public unsafe class AsyncWavDataCache
 	//			*pbPostProcessed -
 	// Output : Returns true on success, false on failure.
 	//-----------------------------------------------------------------------------
-	public bool GetDataPointer(ref memhandle_t handle, ReadOnlySpan<char> filename, int datasize, int startpos, out byte* data, int copystartpos, out bool postProcessed) {
+	public bool GetDataPointer(ref memhandle_t handle, ReadOnlySpan<char> filename, int datasize, int startpos, out Span<byte> data, int copystartpos, out bool postProcessed) {
 		postProcessed = false;
 
 		bool bret = false;
-		data = null;
+		data = default;
 
 		AsyncWaveData? waveData = CacheLock(handle);
 		if (waveData == null) {
@@ -740,7 +738,7 @@ public unsafe class AsyncWavDataCache
 			}
 			else if (copystartpos < waveData.DataSize) {
 				if (waveData.BlockingGetDataPointer(out data)) {
-					data += copystartpos;
+					data = data[copystartpos..];
 					bret = true;
 				}
 			}
@@ -889,7 +887,7 @@ public unsafe class AsyncWavDataCache
 //			The mixer doesn't know the file is streaming.  The IWaveData
 //			abstracts the data access.  The mixer abstracts data encoding/format
 //-----------------------------------------------------------------------------
-public unsafe class WaveDataStreamAsync : IWaveData
+public class WaveDataStreamAsync : IWaveData
 {
 	readonly AudioSourceBase source;                // wave source
 	readonly IWaveStreamSource streamSource;        // streaming
@@ -898,7 +896,6 @@ public unsafe class WaveDataStreamAsync : IWaveData
 
 	int bufferSize;                                 // size of buffer in samples
 	byte[]? buffer;
-	byte* bufferPtr;
 	int sampleIndex;
 	int bufferCount;
 	readonly int dataStart;
@@ -928,8 +925,7 @@ public unsafe class WaveDataStreamAsync : IWaveData
 		sampleIndex = 0;
 		bufferCount = 0;
 
-		buffer = GC.AllocateArray<byte>(SINGLE_BUFFER_SIZE, pinned: true);
-		bufferPtr = (byte*)Unsafe.AsPointer(ref buffer[0]);
+		buffer = new byte[SINGLE_BUFFER_SIZE];
 
 		cachedDataSize = 0;
 
@@ -959,7 +955,6 @@ public unsafe class WaveDataStreamAsync : IWaveData
 		}
 
 		buffer = null;
-		bufferPtr = null;
 		GC.SuppressFinalize(this);
 	}
 
@@ -1007,8 +1002,8 @@ public unsafe class WaveDataStreamAsync : IWaveData
 	//			copyBuf[AUDIOSOURCE_COPYBUF_SIZE] -
 	// Output : int
 	//-----------------------------------------------------------------------------
-	public int ReadSourceData(out byte* data, int sampleIndex, int sampleCount, byte* copyBuf) {
-		data = null;
+	public int ReadSourceData(out ReadOnlySpan<byte> data, int sampleIndex, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 
 		// Current file position
 		int seekpos = dataStart + this.sampleIndex * sampleSize;
@@ -1112,7 +1107,7 @@ public unsafe class WaveDataStreamAsync : IWaveData
 					GetFileName(),
 					dataSize,
 					dataStart,
-					bufferPtr,
+					buffer,
 					bufferSize * sampleSize,
 					seekpos,
 					bufferCount * sampleSize,
@@ -1124,7 +1119,7 @@ public unsafe class WaveDataStreamAsync : IWaveData
 				if (!postprocessed) {
 					// Note that we don't set the postprocessed flag on the underlying data, since for streaming we're copying the
 					//  original data into this buffer instead.
-					streamSource.UpdateSamples(bufferPtr, bufferCount);
+					streamSource.UpdateSamples(buffer, bufferCount);
 				}
 			}
 		}
@@ -1134,7 +1129,7 @@ public unsafe class WaveDataStreamAsync : IWaveData
 		// will be treated as out of range.
 		if ((uint)sampleIndex < (uint)bufferCount) {
 			// Get the desired starting sample
-			data = &bufferPtr[sampleIndex * sampleSize];
+			data = buffer.AsSpan(sampleIndex * sampleSize);
 
 			// max available
 			int available = bufferCount - sampleIndex;
@@ -1152,7 +1147,7 @@ public unsafe class WaveDataStreamAsync : IWaveData
 //-----------------------------------------------------------------------------
 // Purpose: Iterator for wave data (this is to abstract streaming/buffering)
 //-----------------------------------------------------------------------------
-public unsafe class WaveDataMemoryAsync : IWaveData
+public class WaveDataMemoryAsync : IWaveData
 {
 	readonly AudioSourceBase source;    // pointer to source
 
@@ -1178,7 +1173,7 @@ public unsafe class WaveDataMemoryAsync : IWaveData
 	//			copyBuf[AUDIOSOURCE_COPYBUF_SIZE] -
 	// Output : int
 	//-----------------------------------------------------------------------------
-	public int ReadSourceData(out byte* data, int sampleIndex, int sampleCount, byte* copyBuf) {
+	public int ReadSourceData(out ReadOnlySpan<byte> data, int sampleIndex, int sampleCount, Span<byte> copyBuf) {
 		return source.GetOutputData(out data, sampleIndex, sampleCount, copyBuf);
 	}
 

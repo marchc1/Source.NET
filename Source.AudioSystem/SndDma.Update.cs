@@ -4,11 +4,12 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
 
+using System.Buffers.Binary;
 using System.Numerics;
 
 namespace Source.AudioSystem;
 
-public static unsafe partial class SndDma
+public static partial class SndDma
 {
 	// If this is nonzero, we will only spatialize some of the static
 	// channels each frame. The round robin will spatialize 1 / (2 ^ x)
@@ -423,7 +424,7 @@ public static unsafe partial class SndDma
 
 		int cparam = Math.Min(args.ArgC() - 4, 16);
 
-		float* parms = stackalloc float[16];
+		Span<float> parms = stackalloc float[16];
 		for (int i = 0; i < 16; i++)
 			parms[i] = 0;
 
@@ -444,14 +445,14 @@ public static unsafe partial class SndDma
 	static void dsp_parm(in TokenizedCommand args) => S_DspParms(in args);
 
 	static void S_Play(ReadOnlySpan<char> pszName, bool flush = false) {
-		int inCache;
+		int inCache = 0;
 		SfxTable pSfx;
 
 		string szName = new(pszName);
 		if (pszName.LastIndexOf('.') == -1)
 			szName += ".wav";
 
-		pSfx = S_FindName(szName, &inCache);
+		pSfx = S_FindName(szName, new Span<int>(ref inCache));
 		if (inCache != 0 && flush)
 			pSfx.Source!.CacheUnload();
 
@@ -788,15 +789,13 @@ public static unsafe partial class SndDma
 		int mix_sample_size = pMixer.GetMixSampleSize();
 		int nNumChannels = bStereo ? 2 : 1;
 
-		byte* pData = null;
-
 		int pos = 0;
 		int remaining = totalsamples;
-		byte* copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
+		Span<byte> copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
 		while (remaining > 0) {
 			int blockSize = Math.Min(remaining, 1000);
 
-			int copied = pWave.GetOutputData(out pData, pos, blockSize, copyBuf);
+			int copied = pWave.GetOutputData(out ReadOnlySpan<byte> pData, pos, blockSize, copyBuf);
 			if (copied == 0)
 				break;
 
@@ -812,17 +811,17 @@ public static unsafe partial class SndDma
 
 							short sample = 0;
 							if (mix_sample_size == 1) {
-								sbyte s = *(sbyte*)(pData + offset);
+								sbyte s = (sbyte)pData[offset];
 								// Upscale it to fit into a short
 								sample = (short)(s << 8);
 							}
 							else if (mix_sample_size == 2)
-								sample = *(short*)(pData + offset);
+								sample = BinaryPrimitives.ReadInt16LittleEndian(pData[offset..]);
 							else if (mix_sample_size == 4) {
 								// Not likely to have 4 bytes mono!!!
 								Assert(false);
 
-								int s = *(int*)(pData + offset);
+								int s = BinaryPrimitives.ReadInt32LittleEndian(pData[offset..]);
 								sample = (short)(s >> 16);
 							}
 							else
@@ -844,18 +843,18 @@ public static unsafe partial class SndDma
 								// Not possible!!!, must be at least 2 bytes!!!
 								Assert(false);
 
-								sbyte v = *(sbyte*)(pData + offset);
+								sbyte v = (sbyte)pData[offset];
 								left = right = (short)(v << 8);
 							}
 							else if (mix_sample_size == 2) {
 								// One byte per channel
-								left = (short)((*(sbyte*)(pData + offset)) << 8);
-								right = (short)((*(sbyte*)(pData + offset + 1)) << 8);
+								left = (short)(((sbyte)pData[offset]) << 8);
+								right = (short)(((sbyte)pData[offset + 1]) << 8);
 							}
 							else if (mix_sample_size == 4) {
 								// 2 bytes per channel
-								left = *(short*)(pData + offset);
-								right = *(short*)(pData + offset + 2);
+								left = BinaryPrimitives.ReadInt16LittleEndian(pData[offset..]);
+								right = BinaryPrimitives.ReadInt16LittleEndian(pData[(offset + 2)..]);
 							}
 							else
 								Assert(false);

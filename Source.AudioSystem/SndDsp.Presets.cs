@@ -13,9 +13,15 @@ public struct PrcArray
 	Prc element;
 }
 
+[InlineArray(SndDsp.CPSET_STATES)]
+public struct PsetStates
+{
+	int element;
+}
+
 // NOTE: do not reorder members of pset_t - g_psettemplates relies on it!!!
 
-public unsafe struct Pset
+public class Pset
 {
 	public int type;                        // preset configuration type
 	public int cprcs;                       // number of processors for this preset
@@ -31,19 +37,50 @@ public unsafe struct Pset
 
 	public int csamp_duration;              // duration counter # samples
 
-	public fixed int w[SndDsp.CPSET_STATES];    // internal states
+	public PsetStates w;                    // internal states
 	public int fused;
+
+	public void Clear() {
+		type = 0;
+		cprcs = 0;
+		prcs = default;
+		mix_min = mix_max = db_min = db_mixdrop = duration = fade = 0;
+		csamp_duration = 0;
+		w = default;
+		fused = 0;
+	}
+
+	public void CopyFrom(Pset src) {
+		type = src.type;
+		cprcs = src.cprcs;
+		prcs = src.prcs;
+		mix_min = src.mix_min;
+		mix_max = src.mix_max;
+		db_min = src.db_min;
+		db_mixdrop = src.db_mixdrop;
+		duration = src.duration;
+		fade = src.fade;
+		csamp_duration = src.csamp_duration;
+		w = src.w;
+		fused = src.fused;
+	}
 }
 
-public unsafe struct Dsp
+[InlineArray(SndDsp.DSPCHANMAX)]
+public struct DspPsets
+{
+	Pset? element;
+}
+
+public class Dsp
 {
 	public bool fused;
 	public int cchan;                       // 1-5 channels, ie: mono, FrontLeft, FrontRight, RearLeft, RearRight, FrontCenter
 
-	public fixed long ppset[SndDsp.DSPCHANMAX];     // current preset (1-5 channels)
+	public DspPsets ppset;                  // current preset (1-5 channels)
 	public int ipset;                       // current ipreset
 
-	public fixed long ppsetprev[SndDsp.DSPCHANMAX]; // previous preset (1-5 channels)
+	public DspPsets ppsetprev;              // previous preset (1-5 channels)
 	public int ipsetprev;                   // previous ipreset
 
 	public float xfade;                     // crossfade time between previous preset and new
@@ -54,15 +91,34 @@ public unsafe struct Dsp
 
 	public Rmp xramp;                       // crossfade ramp
 
-	public Pset* GetPset(int i) => (Pset*)ppset[i];
-	public void SetPset(int i, Pset* p) => ppset[i] = (long)p;
-	public Pset* GetPsetPrev(int i) => (Pset*)ppsetprev[i];
-	public void SetPsetPrev(int i, Pset* p) => ppsetprev[i] = (long)p;
+	public Pset GetPset(int i) => ppset[i]!;
+	public void SetPset(int i, Pset? p) => ppset[i] = p;
+	public Pset GetPsetPrev(int i) => ppsetprev[i]!;
+	public void SetPsetPrev(int i, Pset? p) => ppsetprev[i] = p;
+
+	public void Clear() {
+		fused = false;
+		cchan = 0;
+		ppset = default;
+		ipset = 0;
+		ppsetprev = default;
+		ipsetprev = 0;
+		xfade = xfade_default = 0;
+		bexpfade = false;
+		ipsetsav_oneshot = 0;
+		xramp = default;
+	}
+}
+
+[InlineArray(6)]
+public struct SurfaceReflArray
+{
+	float element;
 }
 
 // parameter batch
 
-public unsafe struct AutoParams
+public struct AutoParams
 {
 	// passed in params
 
@@ -72,7 +128,7 @@ public unsafe struct AutoParams
 	public int height;              // max height of room in inches
 	public float fdiffusion;        // diffusion of room 0..1.0
 	public float freflectivity;     // average reflectivity of all surfaces in room 0..1.0
-	public fixed float surface_refl[6]; // reflectivity for left,right,front,back,ceiling,floor surfaces 0.0 for open surface (sky or no hit)
+	public SurfaceReflArray surface_refl; // reflectivity for left,right,front,back,ceiling,floor surfaces 0.0 for open surface (sky or no hit)
 
 	// derived params
 
@@ -85,7 +141,7 @@ public unsafe struct AutoParams
 	public int diffusion;           // ADSP_EMPTY, etc 0...3
 }
 
-public static unsafe partial class SndDsp
+public static partial class SndDsp
 {
 	// DSP presets
 
@@ -172,37 +228,37 @@ public static unsafe partial class SndDsp
 	public const int CPSET_PRCS = 5;            // max # of processors per dsp preset
 	public const int CPSET_STATES = CPSET_PRCS + 3; // # of internal states
 
-	static readonly Pset* psets = (Pset*)NativeMemory.AllocZeroed((nuint)(CPSETS * sizeof(Pset)));
+	static readonly Pset[] psets = CreatePool<Pset>(CPSETS);
 
-	static Pset* g_psettemplates = null;
+	static Pset[]? g_psettemplates = null;
 	static int g_cpsettemplates = 0;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static Prc* Prcs(Pset* ppset) => (Prc*)&ppset->prcs;
+	static Span<Prc> Prcs(Pset ppset) => ppset.prcs;
 
 	// returns true if preset will expire after duration
 
-	static bool PSET_IsOneShot(Pset* ppset) {
-		return ppset->duration > 0.0;
+	static bool PSET_IsOneShot(Pset ppset) {
+		return ppset.duration > 0.0;
 	}
 
 	// return true if preset is no longer active - duration has expired
 
-	static bool PSET_HasExpired(Pset* ppset) {
+	static bool PSET_HasExpired(Pset ppset) {
 		if (!PSET_IsOneShot(ppset))
 			return false;
 
-		return ppset->csamp_duration <= 0;
+		return ppset.csamp_duration <= 0;
 	}
 
 	// if preset is oneshot, update duration counter by SampleCount samples
 
-	static void PSET_UpdateDuration(Pset* ppset, int SampleCount) {
+	static void PSET_UpdateDuration(Pset ppset, int SampleCount) {
 		if (PSET_IsOneShot(ppset)) {
 			// if oneshot preset and not expired, decrement sample count
 
-			if (ppset->csamp_duration > 0)
-				ppset->csamp_duration -= SampleCount;
+			if (ppset.csamp_duration > 0)
+				ppset.csamp_duration -= SampleCount;
 		}
 	}
 
@@ -211,41 +267,41 @@ public static unsafe partial class SndDsp
 
 	// init a preset - just clear state array
 
-	static void PSET_Init(Pset* ppset) {
+	static void PSET_Init(Pset? ppset) {
 		// clear state array
 
 		if (ppset != null)
-			Unsafe.InitBlock(ppset->w, 0, (uint)(sizeof(int) * CPSET_STATES));
+			ppset.w = default;
 	}
 
 	// clear runtime slots
 
 	static void PSET_InitAll() {
 		for (int i = 0; i < CPSETS; i++)
-			Unsafe.InitBlock(&psets[i], 0, (uint)sizeof(Pset));
+			psets[i].Clear();
 	}
 
 	// free the preset - free all processors
 
-	static void PSET_Free(Pset* ppset) {
+	static void PSET_Free(Pset? ppset) {
 		if (ppset != null) {
 			// free processors
 
-			PRC_FreeAll(Prcs(ppset), ppset->cprcs);
+			PRC_FreeAll(Prcs(ppset), ppset.cprcs);
 
 			// clear
 
-			Unsafe.InitBlock(ppset, 0, (uint)sizeof(Pset));
+			ppset.Clear();
 		}
 	}
 
-	static void PSET_FreeAll() { for (int i = 0; i < CPSETS; i++) PSET_Free(&psets[i]); }
+	static void PSET_FreeAll() { for (int i = 0; i < CPSETS; i++) PSET_Free(psets[i]); }
 
 	// return preset struct, given index into preset template array
 	// NOTE: should not ever be more than 2 or 3 of these active simultaneously
 
-	static Pset* PSET_Alloc(int ipsettemplate) {
-		Pset* ppset;
+	static Pset? PSET_Alloc(int ipsettemplate) {
+		Pset ppset;
 		bool fok;
 
 		// don't excede array bounds
@@ -273,17 +329,17 @@ public static unsafe partial class SndDsp
 		}
 
 
-		ppset = &psets[i];
+		ppset = psets[i];
 
 		// clear preset
 
-		Unsafe.InitBlock(ppset, 0, (uint)sizeof(Pset));
+		ppset.Clear();
 
 		// copy template into preset
 
-		*ppset = g_psettemplates[ipsettemplate];
+		ppset.CopyFrom(g_psettemplates![ipsettemplate]);
 
-		ppset->fused = 1;
+		ppset.fused = 1;
 
 		// clear state array
 
@@ -291,19 +347,19 @@ public static unsafe partial class SndDsp
 
 		// init all processors, set up processor function pointers
 
-		fok = PRC_InitAll(Prcs(ppset), ppset->cprcs);
+		fok = PRC_InitAll(Prcs(ppset), ppset.cprcs);
 
 		if (!fok) {
 			// failed to init one or more processors
 			Warning("Sound DSP: preset failed to init.\n");
-			PRC_FreeAll(Prcs(ppset), ppset->cprcs);
+			PRC_FreeAll(Prcs(ppset), ppset.cprcs);
 			return null;
 		}
 
 		// if preset has duration, setup duration sample counter
 
 		if (PSET_IsOneShot(ppset))
-			ppset->csamp_duration = SEC_TO_SAMPS(ppset->duration);
+			ppset.csamp_duration = SEC_TO_SAMPS(ppset.duration);
 
 		return ppset;
 	}
@@ -317,17 +373,18 @@ public static unsafe partial class SndDsp
 	//		OP_RIGHT			- process right channel in place
 	//		OP_LEFT_DUPLICATe	- process left channel, duplicate into right
 
-	static void PSET_GetNextN(Pset* ppset, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		PortableSamplePair* pbf = pbuffer;
-		Prc* pprc;
-		int count = ppset->cprcs;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void PSET_GetNextN(Pset ppset, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pbf = pbuffer;
+		Span<Prc> pprc;
+		int count = ppset.cprcs;
 
-		switch (ppset->type) {
+		switch (ppset.type) {
 			default:
 			case PSET_SIMPLE: {
 					// x(n)--->P(0)--->y(n)
 
-					Prcs(ppset)[0].pfnGetNextN(Prcs(ppset)[0].pdata, pbf, SampleCount, op);
+					Prcs(ppset)[0].pdata!.GetNextN(pbf, SampleCount, op);
 					return;
 				}
 			case PSET_LINEAR: {
@@ -342,12 +399,10 @@ public static unsafe partial class SndDsp
 
 					// point to first processor
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
-					for (int i = 0; i < count; i++) {
-						pprc->pfnGetNextN(pprc->pdata, pbf, SampleCount, op);
-						pprc++;
-					}
+					for (int i = 0; i < count; i++)
+						pprc[i].pdata!.GetNextN(pbf, SampleCount, op);
 
 					return;
 				}
@@ -359,21 +414,22 @@ public static unsafe partial class SndDsp
 	// ppset is pointer to preset
 	// x is input sample
 
-	static int PSET_GetNext(Pset* ppset, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static int PSET_GetNext(Pset ppset, int x) {
 
 		// pset_simple and pset_linear have no internal state:
 		// this is REQUIRED for all presets that have a batch getnextN equivalent!
 
-		if (ppset->type == PSET_SIMPLE) {
+		if (ppset.type == PSET_SIMPLE) {
 			// x(n)--->P(0)--->y(n)
 
-			return Prcs(ppset)[0].pfnGetNext(Prcs(ppset)[0].pdata, x);
+			return Prcs(ppset)[0].pdata!.GetNext(x);
 		}
 
-		Prc* pprc;
-		int count = ppset->cprcs;
+		Span<Prc> pprc;
+		int count = ppset.cprcs;
 
-		if (ppset->type == PSET_LINEAR) {
+		if (ppset.type == PSET_LINEAR) {
 			int y = x;
 
 			//      w0     w1     w2
@@ -392,29 +448,30 @@ public static unsafe partial class SndDsp
 
 			// point to first processor, update sequentially, no state preserved
 
-			pprc = &Prcs(ppset)[0];
+			pprc = Prcs(ppset);
+			int ip = 0;
 
 			switch (count) {
 				default:
 				case 5:
-					y = pprc->pfnGetNext(pprc->pdata, y);
-					pprc++;
+					y = pprc[ip].pdata!.GetNext(y);
+					ip++;
 					goto case 4;
 				case 4:
-					y = pprc->pfnGetNext(pprc->pdata, y);
-					pprc++;
+					y = pprc[ip].pdata!.GetNext(y);
+					ip++;
 					goto case 3;
 				case 3:
-					y = pprc->pfnGetNext(pprc->pdata, y);
-					pprc++;
+					y = pprc[ip].pdata!.GetNext(y);
+					ip++;
 					goto case 2;
 				case 2:
-					y = pprc->pfnGetNext(pprc->pdata, y);
-					pprc++;
+					y = pprc[ip].pdata!.GetNext(y);
+					ip++;
 					goto case 1;
 				case 1:
 				case 0:
-					y = pprc->pfnGetNext(pprc->pdata, y);
+					y = pprc[ip].pdata!.GetNext(y);
 					break;
 			}
 
@@ -425,10 +482,10 @@ public static unsafe partial class SndDsp
 
 		// initialize 0'th element of state array
 
-		int* w = ppset->w;
+		Span<int> w = ppset.w;
 		w[0] = x;
 
-		switch (ppset->type) {
+		switch (ppset.type) {
 			default:
 
 			case PSET_PARALLEL2: {   //     w0      w1    w3
@@ -437,13 +494,13 @@ public static unsafe partial class SndDsp
 									 //	   w0      w2  |
 									 // x(n)--->P(1)-----
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					w[3] = w[1] + w[2];
 
-					w[1] = pprc->pfnGetNext(pprc->pdata, w[0]);
-					pprc++;
-					w[2] = pprc->pfnGetNext(pprc->pdata, w[0]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
+					pprc = pprc[1..];
+					w[2] = pprc[0].pdata!.GetNext(w[0]);
 
 					return w[3];
 				}
@@ -455,15 +512,15 @@ public static unsafe partial class SndDsp
 									 // x(n)--->P(2)-->P(3)-----
 
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					w[5] = w[2] + w[4];
 
-					w[2] = pprc[1].pfnGetNext(pprc[1].pdata, w[1]);
-					w[4] = pprc[3].pfnGetNext(pprc[3].pdata, w[3]);
+					w[2] = pprc[1].pdata!.GetNext(w[1]);
+					w[4] = pprc[3].pdata!.GetNext(w[3]);
 
-					w[1] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
-					w[3] = pprc[2].pfnGetNext(pprc[2].pdata, w[0]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
+					w[3] = pprc[2].pdata!.GetNext(w[0]);
 
 					return w[5];
 				}
@@ -474,17 +531,17 @@ public static unsafe partial class SndDsp
 									 //	   w0      w3     w4  |
 									 // x(n)--->P(2)-->P(3)-----
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					w[5] = w[2] + w[4];
 
-					w[2] = pprc[1].pfnGetNext(pprc[1].pdata, w[1]);
-					w[4] = pprc[3].pfnGetNext(pprc[3].pdata, w[3]);
+					w[2] = pprc[1].pdata!.GetNext(w[1]);
+					w[4] = pprc[3].pdata!.GetNext(w[3]);
 
-					w[1] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
-					w[3] = pprc[2].pfnGetNext(pprc[2].pdata, w[0]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
+					w[3] = pprc[2].pdata!.GetNext(w[0]);
 
-					return pprc[4].pfnGetNext(pprc[4].pdata, w[5]);
+					return pprc[4].pdata!.GetNext(w[5]);
 				}
 
 			case PSET_FEEDBACK: {
@@ -494,7 +551,7 @@ public static unsafe partial class SndDsp
 					//             |  w6     w5     v
 					//		       -----P(4)<--P(3)--
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					// start with adders
 
@@ -502,12 +559,12 @@ public static unsafe partial class SndDsp
 
 					// evaluate in reverse order
 
-					w[6] = pprc[4].pfnGetNext(pprc[4].pdata, w[5]);
-					w[5] = pprc[3].pfnGetNext(pprc[3].pdata, w[4]);
+					w[6] = pprc[4].pdata!.GetNext(w[5]);
+					w[5] = pprc[3].pdata!.GetNext(w[4]);
 
-					w[4] = pprc[2].pfnGetNext(pprc[2].pdata, w[3]);
-					w[3] = pprc[1].pfnGetNext(pprc[1].pdata, w[2]);
-					w[1] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
+					w[4] = pprc[2].pdata!.GetNext(w[3]);
+					w[3] = pprc[1].pdata!.GetNext(w[2]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
 
 					return w[4];
 				}
@@ -518,7 +575,7 @@ public static unsafe partial class SndDsp
 					//         |  w4     w3     v
 					//		   -----P(2)<--P(1)--
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					// start with adders
 
@@ -526,9 +583,9 @@ public static unsafe partial class SndDsp
 
 					// evaluate in reverse order
 
-					w[4] = pprc[2].pfnGetNext(pprc[2].pdata, w[3]);
-					w[3] = pprc[1].pfnGetNext(pprc[1].pdata, w[2]);
-					w[2] = pprc[0].pfnGetNext(pprc[0].pdata, w[1]);
+					w[4] = pprc[2].pdata!.GetNext(w[3]);
+					w[3] = pprc[1].pdata!.GetNext(w[2]);
+					w[2] = pprc[0].pdata!.GetNext(w[1]);
 
 					return w[2];
 				}
@@ -539,7 +596,7 @@ public static unsafe partial class SndDsp
 					//         | w4     w3    v
 					//		   ---P(2)<--P(1)--
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					// start with adders
 
@@ -547,10 +604,10 @@ public static unsafe partial class SndDsp
 
 					// evaluate in reverse order
 
-					w[5] = pprc[3].pfnGetNext(pprc[3].pdata, w[2]);
-					w[4] = pprc[2].pfnGetNext(pprc[2].pdata, w[3]);
-					w[3] = pprc[1].pfnGetNext(pprc[1].pdata, w[2]);
-					w[2] = pprc[0].pfnGetNext(pprc[0].pdata, w[1]);
+					w[5] = pprc[3].pdata!.GetNext(w[2]);
+					w[4] = pprc[2].pdata!.GetNext(w[3]);
+					w[3] = pprc[1].pdata!.GetNext(w[2]);
+					w[2] = pprc[0].pdata!.GetNext(w[1]);
 
 					return w[2];
 				}
@@ -560,21 +617,21 @@ public static unsafe partial class SndDsp
 					//      w0        w2  ^
 					// x(n)------>P(0)....:
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
-					w[4] = pprc[3].pfnGetNext(pprc[3].pdata, w[3]);
+					w[4] = pprc[3].pdata!.GetNext(w[3]);
 
-					w[3] = pprc[2].pfnGetNext(pprc[2].pdata, w[1]);
+					w[3] = pprc[2].pdata!.GetNext(w[1]);
 
 					// modulate processor 2
 
-					pprc[2].pfnMod(pprc[2].pdata, (float)w[2] / (float)PMAX);
+					pprc[2].pdata!.Mod((float)w[2] / (float)PMAX);
 
 					// get modulator output
 
-					w[2] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
+					w[2] = pprc[0].pdata!.GetNext(w[0]);
 
-					w[1] = pprc[1].pfnGetNext(pprc[1].pdata, w[0]);
+					w[1] = pprc[1].pdata!.GetNext(w[0]);
 
 					return w[4];
 				}
@@ -584,17 +641,17 @@ public static unsafe partial class SndDsp
 					//      w0    w1  ^
 					// x(n)-->P(0)....:
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
 					// modulate processor 1
 
-					pprc[1].pfnMod(pprc[1].pdata, (float)w[1] / (float)PMAX);
+					pprc[1].pdata!.Mod((float)w[1] / (float)PMAX);
 
 					// get modulator output
 
-					w[1] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
 
-					w[2] = pprc[1].pfnGetNext(pprc[1].pdata, w[0]);
+					w[2] = pprc[1].pdata!.GetNext(w[0]);
 
 					return w[2];
 
@@ -605,19 +662,19 @@ public static unsafe partial class SndDsp
 					//      w0    w1   ^
 					// x(n)-->P(0).....:
 
-					pprc = &Prcs(ppset)[0];
+					pprc = Prcs(ppset);
 
-					w[3] = pprc[2].pfnGetNext(pprc[2].pdata, w[2]);
+					w[3] = pprc[2].pdata!.GetNext(w[2]);
 
 					// modulate processor 1
 
-					pprc[1].pfnMod(pprc[1].pdata, (float)w[1] / (float)PMAX);
+					pprc[1].pdata!.Mod((float)w[1] / (float)PMAX);
 
 					// get modulator output
 
-					w[1] = pprc[0].pfnGetNext(pprc[0].pdata, w[0]);
+					w[1] = pprc[0].pdata!.GetNext(w[0]);
 
-					w[2] = pprc[1].pfnGetNext(pprc[1].pdata, w[0]);
+					w[2] = pprc[1].pdata!.GetNext(w[0]);
 
 					return w[2];
 				}
@@ -701,40 +758,40 @@ public static unsafe partial class SndDsp
 	public const int CDSPS = 32;                // max number dsp executors active
 	public const int DSPCHANMAX = 5;            // max number of channels dsp can process (allocs a separte processor for each chan)
 
-	static readonly Dsp* dsps = (Dsp*)NativeMemory.AllocZeroed((nuint)(CDSPS * sizeof(Dsp)));
+	static readonly Dsp[] dsps = CreatePool<Dsp>(CDSPS);
 
 	static void DSP_Init(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		Assert(idsp < CDSPS);
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
-		Unsafe.InitBlock(pdsp, 0, (uint)sizeof(Dsp));
+		pdsp.Clear();
 	}
 
 	public static void DSP_Free(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		Assert(idsp < CDSPS);
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
-		for (int i = 0; i < pdsp->cchan; i++) {
-			if (pdsp->GetPset(i) != null)
-				PSET_Free(pdsp->GetPset(i));
+		for (int i = 0; i < pdsp.cchan; i++) {
+			if (pdsp.GetPset(i) != null)
+				PSET_Free(pdsp.GetPset(i));
 
-			if (pdsp->GetPsetPrev(i) != null)
-				PSET_Free(pdsp->GetPsetPrev(i));
+			if (pdsp.GetPsetPrev(i) != null)
+				PSET_Free(pdsp.GetPsetPrev(i));
 		}
 
-		Unsafe.InitBlock(pdsp, 0, (uint)sizeof(Dsp));
+		pdsp.Clear();
 	}
 
 	// Init all dsp processors - called once, during engine startup
@@ -796,7 +853,7 @@ public static unsafe partial class SndDsp
 	// return index to new dsp
 
 	public static int DSP_Alloc(int ipset, float xfade, int cchan) {
-		Dsp* pdsp;
+		Dsp pdsp;
 		int i;
 		int idsp;
 		int cchans = Math.Clamp(cchan, 1, DSPCHANMAX);
@@ -811,31 +868,31 @@ public static unsafe partial class SndDsp
 		if (idsp >= CDSPS)
 			return -1;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		DSP_Init(idsp);
 
-		pdsp->fused = true;
+		pdsp.fused = true;
 
-		pdsp->cchan = cchans;
+		pdsp.cchan = cchans;
 
 		// allocate a preset processor for each channel
 
-		pdsp->ipset = ipset;
-		pdsp->ipsetprev = 0;
-		pdsp->ipsetsav_oneshot = 0;
+		pdsp.ipset = ipset;
+		pdsp.ipsetprev = 0;
+		pdsp.ipsetsav_oneshot = 0;
 
-		for (i = 0; i < pdsp->cchan; i++) {
-			pdsp->SetPset(i, PSET_Alloc(ipset));
-			pdsp->SetPsetPrev(i, null);
+		for (i = 0; i < pdsp.cchan; i++) {
+			pdsp.SetPset(i, PSET_Alloc(ipset));
+			pdsp.SetPsetPrev(i, null);
 		}
 
 		// set up crossfade time in seconds
 
-		pdsp->xfade = xfade / 1000.0F;
-		pdsp->xfade_default = pdsp->xfade;
+		pdsp.xfade = xfade / 1000.0F;
+		pdsp.xfade_default = pdsp.xfade;
 
-		RMP_SetEnd(&pdsp->xramp);
+		RMP_SetEnd(ref pdsp.xramp);
 
 		return idsp;
 	}
@@ -851,9 +908,9 @@ public static unsafe partial class SndDsp
 
 	public static void DSP_ChangePresetValue(int idsp, int channel, int iproc, float value) {
 
-		Dsp* pdsp;
-		Pset* ppset;        // preset
-		delegate*<void*, float, void> pfnMod;   // modulation function
+		Dsp pdsp;
+		Pset? ppset;        // preset
+		DspProcessor? pfnMod;   // modulation function
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return;
@@ -866,27 +923,27 @@ public static unsafe partial class SndDsp
 
 		// get ptr to processor preset
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		// assert that this dsp processor has enough separate channels
 
-		Assert(channel <= pdsp->cchan);
+		Assert(channel <= pdsp.cchan);
 
-		ppset = pdsp->GetPset(channel);
+		ppset = pdsp.GetPset(channel);
 
 		if (ppset == null)
 			return;
 
 		// get ptr to modulation function
 
-		pfnMod = Prcs(ppset)[iproc].pfnMod;
+		pfnMod = Prcs(ppset)[iproc].pdata;
 
 		if (pfnMod == null)
 			return;
 
 		// call modulation function with new value
 
-		pfnMod(Prcs(ppset)[iproc].pdata, value);
+		pfnMod.Mod(value);
 	}
 
 
@@ -939,18 +996,18 @@ public static unsafe partial class SndDsp
 
 	// free previous preset if not 0
 
-	static void DSP_FreePrevPreset(Dsp* pdsp) {
+	static void DSP_FreePrevPreset(Dsp pdsp) {
 		// free previous presets if non-null - ie: rapid change of preset just kills old without xfade
 
-		if (pdsp->ipsetprev != 0) {
-			for (int i = 0; i < pdsp->cchan; i++) {
-				if (pdsp->GetPsetPrev(i) != null) {
-					PSET_Free(pdsp->GetPsetPrev(i));
-					pdsp->SetPsetPrev(i, null);
+		if (pdsp.ipsetprev != 0) {
+			for (int i = 0; i < pdsp.cchan; i++) {
+				if (pdsp.GetPsetPrev(i) != null) {
+					PSET_Free(pdsp.GetPsetPrev(i));
+					pdsp.SetPsetPrev(i, null);
 				}
 			}
 
-			pdsp->ipsetprev = 0;
+			pdsp.ipsetprev = 0;
 		}
 
 	}
@@ -960,12 +1017,12 @@ public static unsafe partial class SndDsp
 	//		free previous preset, copy current into previous, set up xfade from previous to new
 
 	public static void DSP_SetPreset(int idsp, int ipsetnew) {
-		Dsp* pdsp;
-		Pset** ppsetnew = stackalloc Pset*[DSPCHANMAX];
+		Dsp pdsp;
+		Pset?[] ppsetnew = new Pset?[DSPCHANMAX];
 
 		Assert(idsp >= 0 && idsp < CDSPS);
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		// validate new preset range
 
@@ -974,14 +1031,14 @@ public static unsafe partial class SndDsp
 
 		// ignore if new preset is same as current preset
 
-		if (ipsetnew == pdsp->ipset)
+		if (ipsetnew == pdsp.ipset)
 			return;
 
 		// alloc new presets (each channel is a duplicate preset)
 
-		Assert(pdsp->cchan <= DSPCHANMAX);
+		Assert(pdsp.cchan <= DSPCHANMAX);
 
-		for (int i = 0; i < pdsp->cchan; i++) {
+		for (int i = 0; i < pdsp.cchan; i++) {
 			ppsetnew[i] = PSET_Alloc(ipsetnew);
 			if (ppsetnew[i] == null) {
 				DevMsg("WARNING: DSP preset failed to allocate.\n");
@@ -995,18 +1052,18 @@ public static unsafe partial class SndDsp
 
 		DSP_FreePrevPreset(pdsp);
 
-		for (int i = 0; i < pdsp->cchan; i++) {
+		for (int i = 0; i < pdsp.cchan; i++) {
 			// current becomes previous
 
-			pdsp->SetPsetPrev(i, pdsp->GetPset(i));
+			pdsp.SetPsetPrev(i, pdsp.GetPset(i));
 
 			// new becomes current
 
-			pdsp->SetPset(i, ppsetnew[i]);
+			pdsp.SetPset(i, ppsetnew[i]);
 		}
 
-		pdsp->ipsetprev = pdsp->ipset;
-		pdsp->ipset = ipsetnew;
+		pdsp.ipsetprev = pdsp.ipset;
+		pdsp.ipset = ipsetnew;
 
 		if (idsp == idsp_room || idsp == idsp_automatic) {
 			// set up new dsp mix min & max, db_min & db_drop params so that new channels get new mix values
@@ -1015,10 +1072,10 @@ public static unsafe partial class SndDsp
 			// NOTE: so - no crossfade is needed between dspmix and dspmix prev, but this also means
 			// NOTE: that currently playing ambients will not see changes to dspmix at all.
 
-			float mix_min = pdsp->GetPset(0)->mix_min;
-			float mix_max = pdsp->GetPset(0)->mix_max;
-			float db_min = pdsp->GetPset(0)->db_min;
-			float db_mixdrop = pdsp->GetPset(0)->db_mixdrop;
+			float mix_min = pdsp.GetPset(0).mix_min;
+			float mix_max = pdsp.GetPset(0).mix_max;
+			float db_min = pdsp.GetPset(0).db_min;
+			float db_mixdrop = pdsp.GetPset(0).db_mixdrop;
 
 			dsp_mix_min.SetValue(mix_min);
 			dsp_mix_max.SetValue(mix_max);
@@ -1026,38 +1083,38 @@ public static unsafe partial class SndDsp
 			dsp_db_mixdrop.SetValue(db_mixdrop);
 		}
 
-		RMP_SetEnd(&pdsp->xramp);
+		RMP_SetEnd(ref pdsp.xramp);
 
 		// make sure previous dsp preset has data
 
-		Assert(pdsp->GetPsetPrev(0) != null);
+		Assert(pdsp.GetPsetPrev(0) != null);
 
 		// shouldn't be crossfading if current dsp preset == previous dsp preset
 
-		Assert(pdsp->ipset != pdsp->ipsetprev);
+		Assert(pdsp.ipset != pdsp.ipsetprev);
 
 		// if new preset is one-shot, keep previous preset to restore when one-shot times out
 		// but: don't restore previous one-shots!
 
-		pdsp->ipsetsav_oneshot = 0;
+		pdsp.ipsetsav_oneshot = 0;
 
-		if (PSET_IsOneShot(pdsp->GetPset(0)) && !PSET_IsOneShot(pdsp->GetPsetPrev(0)))
-			pdsp->ipsetsav_oneshot = pdsp->ipsetprev;
+		if (PSET_IsOneShot(pdsp.GetPset(0)) && !PSET_IsOneShot(pdsp.GetPsetPrev(0)))
+			pdsp.ipsetsav_oneshot = pdsp.ipsetprev;
 
 		// get new xfade time from previous preset (ie: fade out time). if 0 use default. if < 0, use exponential xfade
 
-		if (MathF.Abs(pdsp->GetPsetPrev(0)->fade) > 0.0F) {
-			pdsp->xfade = MathF.Abs(pdsp->GetPsetPrev(0)->fade);
-			pdsp->bexpfade = pdsp->GetPsetPrev(0)->fade < 0;
+		if (MathF.Abs(pdsp.GetPsetPrev(0).fade) > 0.0F) {
+			pdsp.xfade = MathF.Abs(pdsp.GetPsetPrev(0).fade);
+			pdsp.bexpfade = pdsp.GetPsetPrev(0).fade < 0;
 		}
 		else {
 			// no previous preset - use defauts, set in DSP_Alloc
 
-			pdsp->xfade = pdsp->xfade_default;
-			pdsp->bexpfade = false;
+			pdsp.xfade = pdsp.xfade_default;
+			pdsp.bexpfade = false;
 		}
 
-		RMP_Init(&pdsp->xramp, pdsp->xfade, 0, PMAX, false);
+		RMP_Init(ref pdsp.xramp, pdsp.xfade, 0, PMAX, false);
 	}
 
 
@@ -1112,41 +1169,41 @@ public static unsafe partial class SndDsp
 
 	static bool BETWEEN(double a, double b, double c) => (a > b) && (a <= c);
 
-	static bool ADSP_IsShaft(AutoParams* pa) => pa->height > (3.0 * pa->length);
-	static bool ADSP_IsRoom(AutoParams* pa) => pa->length <= (2.5 * pa->width);
-	static bool ADSP_IsHall(AutoParams* pa) => (pa->length > (2.5 * pa->width)) && BETWEEN(pa->width, AROOM_DUCT_WIDTH, AROOM_HALL_WIDTH);
-	static bool ADSP_IsTunnel(AutoParams* pa) => (pa->length > (4.0 * pa->width)) && (pa->width > AROOM_HALL_WIDTH);
-	static bool ADSP_IsDuct(AutoParams* pa) => (pa->length > (4.0 * pa->width)) && (pa->width <= AROOM_DUCT_WIDTH);
+	static bool ADSP_IsShaft(in AutoParams pa) => pa.height > (3.0 * pa.length);
+	static bool ADSP_IsRoom(in AutoParams pa) => pa.length <= (2.5 * pa.width);
+	static bool ADSP_IsHall(in AutoParams pa) => (pa.length > (2.5 * pa.width)) && BETWEEN(pa.width, AROOM_DUCT_WIDTH, AROOM_HALL_WIDTH);
+	static bool ADSP_IsTunnel(in AutoParams pa) => (pa.length > (4.0 * pa.width)) && (pa.width > AROOM_HALL_WIDTH);
+	static bool ADSP_IsDuct(in AutoParams pa) => (pa.length > (4.0 * pa.width)) && (pa.width <= AROOM_DUCT_WIDTH);
 
-	static bool ADSP_IsCourtyard(AutoParams* pa) => pa->length <= (2.5 * pa->width);
-	static bool ADSP_IsAlley(AutoParams* pa) => (pa->length > (2.5 * pa->width)) && (pa->width <= AROOM_STREET_WIDTH);
-	static bool ADSP_IsStreet(AutoParams* pa) => (pa->length > (2.5 * pa->width)) && (pa->width > AROOM_STREET_WIDTH);
+	static bool ADSP_IsCourtyard(in AutoParams pa) => pa.length <= (2.5 * pa.width);
+	static bool ADSP_IsAlley(in AutoParams pa) => (pa.length > (2.5 * pa.width)) && (pa.width <= AROOM_STREET_WIDTH);
+	static bool ADSP_IsStreet(in AutoParams pa) => (pa.length > (2.5 * pa.width)) && (pa.width > AROOM_STREET_WIDTH);
 
-	static bool ADSP_IsSmallRoom(AutoParams* pa) => pa->length <= AROOM_SMALL;
-	static bool ADSP_IsMediumRoom(AutoParams* pa) => BETWEEN(pa->length, AROOM_SMALL, AROOM_MEDIUM); // && (BETWEEN(pa->width, AROOM_SMALL, AROOM_MEDIUM)))
-	static bool ADSP_IsLargeRoom(AutoParams* pa) => BETWEEN(pa->length, AROOM_MEDIUM, AROOM_LARGE); // && BETWEEN(pa->width, AROOM_MEDIUM, AROOM_LARGE))
-	static bool ADSP_IsHugeRoom(AutoParams* pa) => BETWEEN(pa->length, AROOM_LARGE, AROOM_HUGE); // && BETWEEN(pa->width, AROOM_LARGE, AROOM_HUGE))
-	static bool ADSP_IsGiganticRoom(AutoParams* pa) => pa->length > AROOM_HUGE; // && (pa->width > AROOM_HUGE))
+	static bool ADSP_IsSmallRoom(in AutoParams pa) => pa.length <= AROOM_SMALL;
+	static bool ADSP_IsMediumRoom(in AutoParams pa) => BETWEEN(pa.length, AROOM_SMALL, AROOM_MEDIUM); // && (BETWEEN(pa->width, AROOM_SMALL, AROOM_MEDIUM)))
+	static bool ADSP_IsLargeRoom(in AutoParams pa) => BETWEEN(pa.length, AROOM_MEDIUM, AROOM_LARGE); // && BETWEEN(pa->width, AROOM_MEDIUM, AROOM_LARGE))
+	static bool ADSP_IsHugeRoom(in AutoParams pa) => BETWEEN(pa.length, AROOM_LARGE, AROOM_HUGE); // && BETWEEN(pa->width, AROOM_LARGE, AROOM_HUGE))
+	static bool ADSP_IsGiganticRoom(in AutoParams pa) => pa.length > AROOM_HUGE; // && (pa->width > AROOM_HUGE))
 
-	static bool ADSP_IsShortLength(AutoParams* pa) => pa->length <= AROOM_SHORT_LENGTH;
-	static bool ADSP_IsMediumLength(AutoParams* pa) => BETWEEN(pa->length, AROOM_SHORT_LENGTH, AROOM_MEDIUM_LENGTH);
-	static bool ADSP_IsLongLength(AutoParams* pa) => BETWEEN(pa->length, AROOM_MEDIUM_LENGTH, AROOM_LONG_LENGTH);
-	static bool ADSP_IsVLongLength(AutoParams* pa) => BETWEEN(pa->length, AROOM_LONG_LENGTH, AROOM_VLONG_LENGTH);
-	static bool ADSP_IsXLongLength(AutoParams* pa) => pa->length > AROOM_VLONG_LENGTH;
+	static bool ADSP_IsShortLength(in AutoParams pa) => pa.length <= AROOM_SHORT_LENGTH;
+	static bool ADSP_IsMediumLength(in AutoParams pa) => BETWEEN(pa.length, AROOM_SHORT_LENGTH, AROOM_MEDIUM_LENGTH);
+	static bool ADSP_IsLongLength(in AutoParams pa) => BETWEEN(pa.length, AROOM_MEDIUM_LENGTH, AROOM_LONG_LENGTH);
+	static bool ADSP_IsVLongLength(in AutoParams pa) => BETWEEN(pa.length, AROOM_LONG_LENGTH, AROOM_VLONG_LENGTH);
+	static bool ADSP_IsXLongLength(in AutoParams pa) => pa.length > AROOM_VLONG_LENGTH;
 
-	static bool ADSP_IsLowHeight(AutoParams* pa) => pa->height <= AROOM_LOW_HEIGHT;
-	static bool ADSP_IsMediumHeight(AutoParams* pa) => BETWEEN(pa->height, AROOM_LOW_HEIGHT, AROOM_MEDIUM_HEIGHT);
-	static bool ADSP_IsTallHeight(AutoParams* pa) => BETWEEN(pa->height, AROOM_MEDIUM_HEIGHT, AROOM_TALL_HEIGHT);
-	static bool ADSP_IsVTallHeight(AutoParams* pa) => BETWEEN(pa->height, AROOM_TALL_HEIGHT, AROOM_VTALL_HEIGHT);
-	static bool ADSP_IsXTallHeight(AutoParams* pa) => pa->height > AROOM_VTALL_HEIGHT;
+	static bool ADSP_IsLowHeight(in AutoParams pa) => pa.height <= AROOM_LOW_HEIGHT;
+	static bool ADSP_IsMediumHeight(in AutoParams pa) => BETWEEN(pa.height, AROOM_LOW_HEIGHT, AROOM_MEDIUM_HEIGHT);
+	static bool ADSP_IsTallHeight(in AutoParams pa) => BETWEEN(pa.height, AROOM_MEDIUM_HEIGHT, AROOM_TALL_HEIGHT);
+	static bool ADSP_IsVTallHeight(in AutoParams pa) => BETWEEN(pa.height, AROOM_TALL_HEIGHT, AROOM_VTALL_HEIGHT);
+	static bool ADSP_IsXTallHeight(in AutoParams pa) => pa.height > AROOM_VTALL_HEIGHT;
 
-	static bool ADSP_IsNarrowWidth(AutoParams* pa) => pa->width <= AROOM_NARROW_WIDTH;
-	static bool ADSP_IsMediumWidth(AutoParams* pa) => BETWEEN(pa->width, AROOM_NARROW_WIDTH, AROOM_MEDIUM_WIDTH);
-	static bool ADSP_IsWideWidth(AutoParams* pa) => BETWEEN(pa->width, AROOM_MEDIUM_WIDTH, AROOM_WIDE_WIDTH);
-	static bool ADSP_IsVWideWidth(AutoParams* pa) => BETWEEN(pa->width, AROOM_WIDE_WIDTH, AROOM_VWIDE_WIDTH);
-	static bool ADSP_IsXWideWidth(AutoParams* pa) => pa->width > AROOM_VWIDE_WIDTH;
+	static bool ADSP_IsNarrowWidth(in AutoParams pa) => pa.width <= AROOM_NARROW_WIDTH;
+	static bool ADSP_IsMediumWidth(in AutoParams pa) => BETWEEN(pa.width, AROOM_NARROW_WIDTH, AROOM_MEDIUM_WIDTH);
+	static bool ADSP_IsWideWidth(in AutoParams pa) => BETWEEN(pa.width, AROOM_MEDIUM_WIDTH, AROOM_WIDE_WIDTH);
+	static bool ADSP_IsVWideWidth(in AutoParams pa) => BETWEEN(pa.width, AROOM_WIDE_WIDTH, AROOM_VWIDE_WIDTH);
+	static bool ADSP_IsXWideWidth(in AutoParams pa) => pa.width > AROOM_VWIDE_WIDTH;
 
-	static bool ADSP_IsInside(AutoParams* pa) => !pa->bskyabove;
+	static bool ADSP_IsInside(in AutoParams pa) => !pa.bskyabove;
 
 	// room diffusion
 
@@ -1161,12 +1218,12 @@ public static unsafe partial class SndDsp
 	const double AROOM_DIF_CLUTTERED = 0.3; // 30% "
 	const double AROOM_DIF_FULL = 0.5;      // 50% "
 
-	static bool ADSP_IsEmpty(AutoParams* pa) => pa->fdiffusion <= AROOM_DIF_EMPTY;
-	static bool ADSP_IsSparse(AutoParams* pa) => BETWEEN(pa->fdiffusion, AROOM_DIF_EMPTY, AROOM_DIF_SPARSE);
-	static bool ADSP_IsCluttered(AutoParams* pa) => BETWEEN(pa->fdiffusion, AROOM_DIF_SPARSE, AROOM_DIF_CLUTTERED);
-	static bool ADSP_IsFull(AutoParams* pa) => pa->fdiffusion > AROOM_DIF_CLUTTERED;
+	static bool ADSP_IsEmpty(in AutoParams pa) => pa.fdiffusion <= AROOM_DIF_EMPTY;
+	static bool ADSP_IsSparse(in AutoParams pa) => BETWEEN(pa.fdiffusion, AROOM_DIF_EMPTY, AROOM_DIF_SPARSE);
+	static bool ADSP_IsCluttered(in AutoParams pa) => BETWEEN(pa.fdiffusion, AROOM_DIF_SPARSE, AROOM_DIF_CLUTTERED);
+	static bool ADSP_IsFull(in AutoParams pa) => pa.fdiffusion > AROOM_DIF_CLUTTERED;
 
-	static bool ADSP_IsDiffuse(AutoParams* pa) => pa->diffusion > ADSP_SPARSE;
+	static bool ADSP_IsDiffuse(in AutoParams pa) => pa.diffusion > ADSP_SPARSE;
 
 	// room acoustic reflectivity
 
@@ -1187,12 +1244,12 @@ public static unsafe partial class SndDsp
 	const double AROOM_REF_REFLECTIVE = 0.80;
 	const double AROOM_REF_BRIGHT = 0.99;
 
-	static bool ADSP_IsDull(AutoParams* pa) => pa->freflectivity <= AROOM_REF_DULL;
-	static bool ADSP_IsFlat(AutoParams* pa) => BETWEEN(pa->freflectivity, AROOM_REF_DULL, AROOM_REF_FLAT);
-	static bool ADSP_IsReflective(AutoParams* pa) => BETWEEN(pa->freflectivity, AROOM_REF_FLAT, AROOM_REF_REFLECTIVE);
-	static bool ADSP_IsBright(AutoParams* pa) => pa->freflectivity > AROOM_REF_REFLECTIVE;
+	static bool ADSP_IsDull(in AutoParams pa) => pa.freflectivity <= AROOM_REF_DULL;
+	static bool ADSP_IsFlat(in AutoParams pa) => BETWEEN(pa.freflectivity, AROOM_REF_DULL, AROOM_REF_FLAT);
+	static bool ADSP_IsReflective(in AutoParams pa) => BETWEEN(pa.freflectivity, AROOM_REF_FLAT, AROOM_REF_REFLECTIVE);
+	static bool ADSP_IsBright(in AutoParams pa) => pa.freflectivity > AROOM_REF_REFLECTIVE;
 
-	static bool ADSP_IsRefl(AutoParams* pa) => pa->reflectivity > ADSP_FLAT;
+	static bool ADSP_IsRefl(in AutoParams pa) => pa.reflectivity > ADSP_FLAT;
 
 	// room shapes
 
@@ -1241,75 +1298,75 @@ public static unsafe partial class SndDsp
 
 	// convert numeric size params to #defined size params
 
-	static void ADSP_GetSize(AutoParams* pa) {
-		pa->size = ((ADSP_IsSmallRoom(pa) ? 1 : 0) * ADSP_SIZE_SMALL) +
+	static void ADSP_GetSize(ref AutoParams pa) {
+		pa.size = ((ADSP_IsSmallRoom(pa) ? 1 : 0) * ADSP_SIZE_SMALL) +
 					((ADSP_IsMediumRoom(pa) ? 1 : 0) * ADSP_SIZE_MEDIUM) +
 					((ADSP_IsLargeRoom(pa) ? 1 : 0) * ADSP_SIZE_LARGE) +
 					((ADSP_IsHugeRoom(pa) ? 1 : 0) * ADSP_SIZE_HUGE) +
 					((ADSP_IsGiganticRoom(pa) ? 1 : 0) * ADSP_SIZE_GIGANTIC);
 
-		pa->len = ((ADSP_IsShortLength(pa) ? 1 : 0) * ADSP_LENGTH_SHORT) +
+		pa.len = ((ADSP_IsShortLength(pa) ? 1 : 0) * ADSP_LENGTH_SHORT) +
 					((ADSP_IsMediumLength(pa) ? 1 : 0) * ADSP_LENGTH_MEDIUM) +
 					((ADSP_IsLongLength(pa) ? 1 : 0) * ADSP_LENGTH_LONG) +
 					((ADSP_IsVLongLength(pa) ? 1 : 0) * ADSP_LENGTH_VLONG) +
 					((ADSP_IsXLongLength(pa) ? 1 : 0) * ADSP_LENGTH_XLONG);
 
-		pa->wid = ((ADSP_IsNarrowWidth(pa) ? 1 : 0) * ADSP_WIDTH_NARROW) +
+		pa.wid = ((ADSP_IsNarrowWidth(pa) ? 1 : 0) * ADSP_WIDTH_NARROW) +
 					((ADSP_IsMediumWidth(pa) ? 1 : 0) * ADSP_WIDTH_MEDIUM) +
 					((ADSP_IsWideWidth(pa) ? 1 : 0) * ADSP_WIDTH_WIDE) +
 					((ADSP_IsVWideWidth(pa) ? 1 : 0) * ADSP_WIDTH_VWIDE) +
 					((ADSP_IsXWideWidth(pa) ? 1 : 0) * ADSP_WIDTH_XWIDE);
 
-		pa->ht = ((ADSP_IsLowHeight(pa) ? 1 : 0) * ADSP_HEIGHT_LOW) +
+		pa.ht = ((ADSP_IsLowHeight(pa) ? 1 : 0) * ADSP_HEIGHT_LOW) +
 					((ADSP_IsMediumHeight(pa) ? 1 : 0) * ADSP_HEIGTH_MEDIUM) +
 					((ADSP_IsTallHeight(pa) ? 1 : 0) * ADSP_HEIGHT_TALL) +
 					((ADSP_IsVTallHeight(pa) ? 1 : 0) * ADSP_HEIGHT_VTALL) +
 					((ADSP_IsXTallHeight(pa) ? 1 : 0) * ADSP_HEIGHT_XTALL);
 
-		pa->reflectivity =
+		pa.reflectivity =
 					((ADSP_IsDull(pa) ? 1 : 0) * ADSP_DULL) +
 					((ADSP_IsFlat(pa) ? 1 : 0) * ADSP_FLAT) +
 					((ADSP_IsReflective(pa) ? 1 : 0) * ADSP_REFLECTIVE) +
 					((ADSP_IsBright(pa) ? 1 : 0) * ADSP_BRIGHT);
 
-		pa->diffusion =
+		pa.diffusion =
 					((ADSP_IsEmpty(pa) ? 1 : 0) * ADSP_EMPTY) +
 					((ADSP_IsSparse(pa) ? 1 : 0) * ADSP_SPARSE) +
 					((ADSP_IsCluttered(pa) ? 1 : 0) * ADSP_CLUTTERED) +
 					((ADSP_IsFull(pa) ? 1 : 0) * ADSP_FULL);
 
-		Assert(pa->size < ADSP_SIZE_MAX);
-		Assert(pa->len < ADSP_LENGTH_MAX);
-		Assert(pa->wid < ADSP_WIDTH_MAX);
-		Assert(pa->ht < ADSP_HEIGHT_MAX);
-		Assert(pa->reflectivity < ADSP_REFLECTIVITY_MAX);
-		Assert(pa->diffusion < ADSP_DIFFUSION_MAX);
+		Assert(pa.size < ADSP_SIZE_MAX);
+		Assert(pa.len < ADSP_LENGTH_MAX);
+		Assert(pa.wid < ADSP_WIDTH_MAX);
+		Assert(pa.ht < ADSP_HEIGHT_MAX);
+		Assert(pa.reflectivity < ADSP_REFLECTIVITY_MAX);
+		Assert(pa.diffusion < ADSP_DIFFUSION_MAX);
 
-		if (pa->shape != ADSP_COURTYARD && pa->shape != ADSP_OPEN_COURTYARD) {
+		if (pa.shape != ADSP_COURTYARD && pa.shape != ADSP_OPEN_COURTYARD) {
 			// fix up size for streets, alleys, halls, ducts, tunnelsy
 
-			if (pa->shape == ADSP_STREET || pa->shape == ADSP_ALLEY)
-				pa->size = pa->wid;
+			if (pa.shape == ADSP_STREET || pa.shape == ADSP_ALLEY)
+				pa.size = pa.wid;
 			else
-				pa->size = (pa->len + pa->wid) / 2;
+				pa.size = (pa.len + pa.wid) / 2;
 
 		}
 
 	}
 
-	static void ADSP_GetOutsideSize(AutoParams* pa) {
-		ADSP_GetSize(pa);
+	static void ADSP_GetOutsideSize(ref AutoParams pa) {
+		ADSP_GetSize(ref pa);
 	}
 
 	// return # of sides that had max length or sky hits (out of 6 sides).
 
-	static int ADSP_COpenSides(AutoParams* pa) {
+	static int ADSP_COpenSides(in AutoParams pa) {
 		int count = 0;
 
 		// only look at left,right,front,back walls - ignore floor, ceiling
 
 		for (int i = 0; i < 4; i++) {
-			if (pa->surface_refl[i] == 0.0)
+			if (pa.surface_refl[i] == 0.0)
 				count++;
 		}
 
@@ -1318,7 +1375,7 @@ public static unsafe partial class SndDsp
 
 	// given auto params, return shape and size of room
 
-	static void ADSP_GetAutoShape(AutoParams* pa) {
+	static void ADSP_GetAutoShape(ref AutoParams pa) {
 
 		// INSIDE:
 		// shapes: duct, hall, tunnel, shaft (vertical duct, hall or tunnel)
@@ -1343,9 +1400,9 @@ public static unsafe partial class SndDsp
 				// temp swap height and length
 
 				bshaft = true;
-				t = pa->height;
-				pa->height = pa->length;
-				pa->length = t;
+				t = pa.height;
+				pa.height = pa.length;
+				pa.length = t;
 				if (das_debug.GetInt() > 1)
 					DevMsg("VERTICAL SHAFT Detected \n");
 			}
@@ -1353,8 +1410,8 @@ public static unsafe partial class SndDsp
 			// get shape
 
 			if (ADSP_IsDuct(pa)) {
-				pa->shape = ADSP_DUCT;
-				ADSP_GetSize(pa);
+				pa.shape = ADSP_DUCT;
+				ADSP_GetSize(ref pa);
 				if (das_debug.GetInt() > 1)
 					DevMsg("DUCT Detected \n");
 				goto autoshape_exit;
@@ -1362,8 +1419,8 @@ public static unsafe partial class SndDsp
 
 			if (ADSP_IsHall(pa)) {
 				// get size
-				pa->shape = ADSP_HALL;
-				ADSP_GetSize(pa);
+				pa.shape = ADSP_HALL;
+				ADSP_GetSize(ref pa);
 
 				if (das_debug.GetInt() > 1)
 					DevMsg("HALL Detected \n");
@@ -1373,8 +1430,8 @@ public static unsafe partial class SndDsp
 
 			if (ADSP_IsTunnel(pa)) {
 				// get size
-				pa->shape = ADSP_TUNNEL;
-				ADSP_GetSize(pa);
+				pa.shape = ADSP_TUNNEL;
+				ADSP_GetSize(ref pa);
 
 				if (das_debug.GetInt() > 1)
 					DevMsg("TUNNEL Detected \n");
@@ -1386,8 +1443,8 @@ public static unsafe partial class SndDsp
 			// (ADSP_IsRoom(pa))
 			{
 				// get size
-				pa->shape = ADSP_ROOM;
-				ADSP_GetSize(pa);
+				pa.shape = ADSP_ROOM;
+				ADSP_GetSize(ref pa);
 
 				if (das_debug.GetInt() > 1)
 					DevMsg("ROOM Detected \n");
@@ -1402,8 +1459,8 @@ public static unsafe partial class SndDsp
 		{
 			// get shape - courtyard, street, wall or open space
 			// 10..7
-			pa->shape = ADSP_OPEN_COURTYARD - (ADSP_COpenSides(pa) - 1);
-			ADSP_GetOutsideSize(pa);
+			pa.shape = ADSP_OPEN_COURTYARD - (ADSP_COpenSides(pa) - 1);
+			ADSP_GetOutsideSize(ref pa);
 
 			if (das_debug.GetInt() > 1)
 				DevMsg("OPEN SIDED OUTDOOR AREA Detected \n");
@@ -1416,8 +1473,8 @@ public static unsafe partial class SndDsp
 		// get shape - closed street or alley or courtyard
 
 		if (ADSP_IsCourtyard(pa)) {
-			pa->shape = ADSP_COURTYARD;
-			ADSP_GetOutsideSize(pa);
+			pa.shape = ADSP_COURTYARD;
+			ADSP_GetOutsideSize(ref pa);
 
 			if (das_debug.GetInt() > 1)
 				DevMsg("OUTSIDE COURTYARD Detected \n");
@@ -1426,8 +1483,8 @@ public static unsafe partial class SndDsp
 		}
 
 		if (ADSP_IsAlley(pa)) {
-			pa->shape = ADSP_ALLEY;
-			ADSP_GetOutsideSize(pa);
+			pa.shape = ADSP_ALLEY;
+			ADSP_GetOutsideSize(ref pa);
 
 			if (das_debug.GetInt() > 1)
 				DevMsg("OUTSIDE ALLEY Detected \n");
@@ -1438,8 +1495,8 @@ public static unsafe partial class SndDsp
 
 		// if (ADSP_IsStreet(pa))
 		{
-			pa->shape = ADSP_STREET;
-			ADSP_GetOutsideSize(pa);
+			pa.shape = ADSP_STREET;
+			ADSP_GetOutsideSize(ref pa);
 			if (das_debug.GetInt() > 1)
 				DevMsg("OUTSIDE STREET Detected \n");
 			goto autoshape_exit;
@@ -1450,9 +1507,9 @@ public static unsafe partial class SndDsp
 		// swap height & length if needed
 
 		if (bshaft) {
-			t = pa->height;
-			pa->height = pa->length;
-			pa->length = t;
+			t = pa.height;
+			pa.height = pa.length;
+			pa.length = t;
 		}
 	}
 
@@ -1471,7 +1528,7 @@ public static unsafe partial class SndDsp
 		0.5f, // 0.2,	// GIGANTIC
 	];
 
-	static void ADSP_SetupAutoDelay(Prc* pprc_dly, AutoParams* pa) {
+	static void ADSP_SetupAutoDelay(ref Prc pprc_dly, in AutoParams pa) {
 		// shapes:
 		// inside: duct, long hall, long tunnel, large room
 		// outside: open courtyard, street wall, space
@@ -1488,46 +1545,46 @@ public static unsafe partial class SndDsp
 		// feedback: feedback 0-1.0
 		// gain: final gain of output stage, 0-1.0
 
-		int size = pa->length * 2;
+		int size = pa.length * 2;
 
-		if (pa->shape == ADSP_ALLEY || pa->shape == ADSP_STREET || pa->shape == ADSP_OPEN_STREET)
-			size = pa->width * 2;
+		if (pa.shape == ADSP_ALLEY || pa.shape == ADSP_STREET || pa.shape == ADSP_OPEN_STREET)
+			size = pa.width * 2;
 
-		pprc_dly->type = PRC_DLY;
+		pprc_dly.type = PRC_DLY;
 
-		pprc_dly->prm[dly_idtype] = DLY_LOWPASS;        // delay with feedback
+		pprc_dly.prm[dly_idtype] = DLY_LOWPASS;        // delay with feedback
 
-		pprc_dly->prm[dly_idelay] = Math.Clamp(size / 12.0F, 5.0F, 500.0F);
+		pprc_dly.prm[dly_idelay] = Math.Clamp(size / 12.0F, 5.0F, 500.0F);
 
-		pprc_dly->prm[dly_ifeedback] = MapSizeToDLYFeedback[pa->len];
+		pprc_dly.prm[dly_ifeedback] = MapSizeToDLYFeedback[pa.len];
 
 		// reduce gain based on distance reflection travels
 		//	float g = 1.0 - ( clamp(pprc_dly->prm[dly_idelay], 10.0, 1000.0) / (1000.0 - 10.0) );
 		//	pprc_dly->prm[dly_igain]		= g;
 
-		pprc_dly->prm[dly_iftype] = FLT_LP;
+		pprc_dly.prm[dly_iftype] = FLT_LP;
 		if (ADSP_IsInside(pa))
-			pprc_dly->prm[dly_icutoff] = MapReflectivityToDLYCutoff[pa->reflectivity];
+			pprc_dly.prm[dly_icutoff] = MapReflectivityToDLYCutoff[pa.reflectivity];
 		else
-			pprc_dly->prm[dly_icutoff] = (int)((float)MapReflectivityToDLYCutoff[pa->reflectivity] * 0.75);
+			pprc_dly.prm[dly_icutoff] = (int)((float)MapReflectivityToDLYCutoff[pa.reflectivity] * 0.75);
 
-		pprc_dly->prm[dly_iqwidth] = 0;
+		pprc_dly.prm[dly_iqwidth] = 0;
 
-		pprc_dly->prm[dly_iquality] = QUA_LO;
+		pprc_dly.prm[dly_iquality] = QUA_LO;
 
-		float l = Math.Clamp(pa->length * 2.0F / 12.0F, 14.0F, 500.0F);
-		float w = Math.Clamp(pa->width * 2.0F / 12.0F, 14.0F, 500.0F);
+		float l = Math.Clamp(pa.length * 2.0F / 12.0F, 14.0F, 500.0F);
+		float w = Math.Clamp(pa.width * 2.0F / 12.0F, 14.0F, 500.0F);
 
 		// convert to multitap delay
 
-		pprc_dly->prm[dly_idtype] = DLY_LOWPASS_4TAP;
+		pprc_dly.prm[dly_idtype] = DLY_LOWPASS_4TAP;
 
-		pprc_dly->prm[dly_idelay] = l;
-		pprc_dly->prm[dly_itap1] = w;
-		pprc_dly->prm[dly_itap2] = l; // max(7, l * 0.7 );
-		pprc_dly->prm[dly_itap3] = l; // max(7, w * 0.7 );
+		pprc_dly.prm[dly_idelay] = l;
+		pprc_dly.prm[dly_itap1] = w;
+		pprc_dly.prm[dly_itap2] = l; // max(7, l * 0.7 );
+		pprc_dly.prm[dly_itap3] = l; // max(7, w * 0.7 );
 
-		pprc_dly->prm[dly_igain] = 1.0f;
+		pprc_dly.prm[dly_igain] = 1.0f;
 	}
 
 	static readonly int[] MapReflectivityToRVACutoff = [
@@ -1553,7 +1610,7 @@ public static unsafe partial class SndDsp
 		0.98f,  // GIGANTIC
 	];
 
-	static void ADSP_SetupAutoReverb(Prc* pprc_rva, AutoParams* pa) {
+	static void ADSP_SetupAutoReverb(ref Prc pprc_rva, in AutoParams pa) {
 		// shape: hall, tunnel or room
 		// size 0..4
 		// reflectivity: 0..3
@@ -1566,72 +1623,72 @@ public static unsafe partial class SndDsp
 		// fmoddly: if true, all delays are modulating delays
 		float gain = 1.0f;
 
-		pprc_rva->type = PRC_RVA;
+		pprc_rva.type = PRC_RVA;
 
-		pprc_rva->prm[rva_size_max] = 50.0f;
-		pprc_rva->prm[rva_size_min] = 30.0f;
+		pprc_rva.prm[rva_size_max] = 50.0f;
+		pprc_rva.prm[rva_size_min] = 30.0f;
 
 		if (ADSP_IsRoom(pa))
-			pprc_rva->prm[rva_inumdelays] = MapSizeToRVANumDelays[pa->size];
+			pprc_rva.prm[rva_inumdelays] = MapSizeToRVANumDelays[pa.size];
 		else
-			pprc_rva->prm[rva_inumdelays] = MapSizeToRVANumDelays[pa->len];
+			pprc_rva.prm[rva_inumdelays] = MapSizeToRVANumDelays[pa.len];
 
-		pprc_rva->prm[rva_ifeedback] = 0.9f;
+		pprc_rva.prm[rva_ifeedback] = 0.9f;
 
-		pprc_rva->prm[rva_icutoff] = MapReflectivityToRVACutoff[pa->reflectivity];
+		pprc_rva.prm[rva_icutoff] = MapReflectivityToRVACutoff[pa.reflectivity];
 
-		pprc_rva->prm[rva_ifparallel] = 1;
-		pprc_rva->prm[rva_imoddly] = ADSP_IsEmpty(pa) ? 0 : 4;
-		pprc_rva->prm[rva_imodrate] = 3.48f;
+		pprc_rva.prm[rva_ifparallel] = 1;
+		pprc_rva.prm[rva_imoddly] = ADSP_IsEmpty(pa) ? 0 : 4;
+		pprc_rva.prm[rva_imodrate] = 3.48f;
 
-		pprc_rva->prm[rva_iftaps] = 0;  // 0.1 // use extra delay taps to increase density
+		pprc_rva.prm[rva_iftaps] = 0;  // 0.1 // use extra delay taps to increase density
 
-		pprc_rva->prm[rva_width] = Math.Clamp((float)pa->width / 12.0F, 6.0F, 500.0F);    // in feet
-		pprc_rva->prm[rva_depth] = Math.Clamp((float)pa->length / 12.0F, 6.0F, 500.0F);
-		pprc_rva->prm[rva_height] = Math.Clamp((float)pa->height / 12.0F, 6.0F, 500.0F);
+		pprc_rva.prm[rva_width] = Math.Clamp((float)pa.width / 12.0F, 6.0F, 500.0F);    // in feet
+		pprc_rva.prm[rva_depth] = Math.Clamp((float)pa.length / 12.0F, 6.0F, 500.0F);
+		pprc_rva.prm[rva_height] = Math.Clamp((float)pa.height / 12.0F, 6.0F, 500.0F);
 
 		// room
-		pprc_rva->prm[rva_fbwidth] = 0.9f; // MapSizeToRVAFeedback[pa->size];	// larger size = more feedback
-		pprc_rva->prm[rva_fbdepth] = 0.9f; // MapSizeToRVAFeedback[pa->size];
-		pprc_rva->prm[rva_fbheight] = 0.5f; // MapSizeToRVAFeedback[pa->size];
+		pprc_rva.prm[rva_fbwidth] = 0.9f; // MapSizeToRVAFeedback[pa->size];	// larger size = more feedback
+		pprc_rva.prm[rva_fbdepth] = 0.9f; // MapSizeToRVAFeedback[pa->size];
+		pprc_rva.prm[rva_fbheight] = 0.5f; // MapSizeToRVAFeedback[pa->size];
 
 		// feedback is based on size of room:
 
 		if (ADSP_IsInside(pa)) {
-			if (pa->shape == ADSP_HALL) {
-				pprc_rva->prm[rva_fbwidth] = 0.7f; //MapSizeToRVAFeedback[pa->wid];
-				pprc_rva->prm[rva_fbdepth] = -0.5f; //MapSizeToRVAFeedback[pa->len];
-				pprc_rva->prm[rva_fbheight] = 0.3f; //MapSizeToRVAFeedback[pa->ht];
+			if (pa.shape == ADSP_HALL) {
+				pprc_rva.prm[rva_fbwidth] = 0.7f; //MapSizeToRVAFeedback[pa->wid];
+				pprc_rva.prm[rva_fbdepth] = -0.5f; //MapSizeToRVAFeedback[pa->len];
+				pprc_rva.prm[rva_fbheight] = 0.3f; //MapSizeToRVAFeedback[pa->ht];
 			}
 
-			if (pa->shape == ADSP_TUNNEL) {
-				pprc_rva->prm[rva_fbwidth] = 0.9f;
-				pprc_rva->prm[rva_fbdepth] = -0.8f; // fixed pre-delay, no feedback
-				pprc_rva->prm[rva_fbheight] = 0.3f;
+			if (pa.shape == ADSP_TUNNEL) {
+				pprc_rva.prm[rva_fbwidth] = 0.9f;
+				pprc_rva.prm[rva_fbdepth] = -0.8f; // fixed pre-delay, no feedback
+				pprc_rva.prm[rva_fbheight] = 0.3f;
 			}
 		}
 		else {
-			if (pa->shape == ADSP_ALLEY) {
-				pprc_rva->prm[rva_fbwidth] = 0.9f;
-				pprc_rva->prm[rva_fbdepth] = -0.8f; // fixed pre-delay, no feedback
-				pprc_rva->prm[rva_fbheight] = 0.0f;
+			if (pa.shape == ADSP_ALLEY) {
+				pprc_rva.prm[rva_fbwidth] = 0.9f;
+				pprc_rva.prm[rva_fbdepth] = -0.8f; // fixed pre-delay, no feedback
+				pprc_rva.prm[rva_fbheight] = 0.0f;
 			}
 		}
 
 		if (!ADSP_IsInside(pa))
-			pprc_rva->prm[rva_fbheight] = 0.0f;
+			pprc_rva.prm[rva_fbheight] = 0.0f;
 
-		pprc_rva->prm[rva_igain] = gain;
+		pprc_rva.prm[rva_igain] = gain;
 	}
 
 	// return index to processor given processor type and preset
 	// skips N processors of similar type
 	// returns -1 if type not found
 
-	static int ADSP_FindProc(Pset* ppset, int proc_type, int skip) {
+	static int ADSP_FindProc(Pset ppset, int proc_type, int skip) {
 		int skipcount = skip;
 
-		for (int i = 0; i < ppset->cprcs; i++) {
+		for (int i = 0; i < ppset.cprcs; i++) {
 			// look for match on processor type
 
 			if (Prcs(ppset)[i].type == proc_type) {
@@ -1663,7 +1720,7 @@ public static unsafe partial class SndDsp
 
 	// NOTE: returns with no result if processor type is not found in all presets.
 
-	static void ADSP_InterpParam(Pset* pnew, Pset* pmin, Pset* pmax, int proc_type, int skipprocs, int iparam, int index, int index_max, bool bexp) {
+	static void ADSP_InterpParam(Pset pnew, Pset pmin, Pset pmax, int proc_type, int skipprocs, int iparam, int index, int index_max, bool bexp) {
 		// find processor index in pnew
 		int iproc_new = ADSP_FindProc(pnew, proc_type, skipprocs);
 		int iproc_min = ADSP_FindProc(pmin, proc_type, skipprocs);
@@ -1693,7 +1750,7 @@ public static unsafe partial class SndDsp
 
 	// directly set parameter
 
-	static void ADSP_SetParam(Pset* pnew, int proc_type, int skipprocs, int iparam, float value) {
+	static void ADSP_SetParam(Pset pnew, int proc_type, int skipprocs, int iparam, float value) {
 		int iproc_new = ADSP_FindProc(pnew, proc_type, skipprocs);
 
 		if (iproc_new >= 0)
@@ -1702,7 +1759,7 @@ public static unsafe partial class SndDsp
 
 	// directly set parameter if min or max is negative
 
-	static void ADSP_SetParamIfNegative(Pset* pnew, Pset* pmin, Pset* pmax, int proc_type, int skipprocs, int iparam, int index, int index_max, bool bexp, float value) {
+	static void ADSP_SetParamIfNegative(Pset pnew, Pset pmin, Pset pmax, int proc_type, int skipprocs, int iparam, int index, int index_max, bool bexp, float value) {
 		// find processor index in pnew
 		int iproc_new = ADSP_FindProc(pnew, proc_type, skipprocs);
 		int iproc_min = ADSP_FindProc(pmin, proc_type, skipprocs);
@@ -1727,7 +1784,7 @@ public static unsafe partial class SndDsp
 	// given min and max preset and auto parameters, create new preset
 	// NOTE: the # and type of processors making up pmin and pmax presets must be identical!
 
-	static void ADSP_InterpolatePreset(Pset* pnew, Pset* pmin, Pset* pmax, AutoParams* pa, int iskip) {
+	static void ADSP_InterpolatePreset(Pset pnew, Pset pmin, Pset pmax, ref AutoParams pa, int iskip) {
 		int i;
 
 		// if size > mid size, then copy basic processors from MAX preset,
@@ -1736,10 +1793,10 @@ public static unsafe partial class SndDsp
 		if (iskip == 0) {
 			// only copy on 1st call
 
-			if (pa->size > ADSP_SIZE_MEDIUM)
-				*pnew = *pmax;
+			if (pa.size > ADSP_SIZE_MEDIUM)
+				pnew.CopyFrom(pmax);
 			else
-				*pnew = *pmin;
+				pnew.CopyFrom(pmin);
 		}
 
 		// DFR
@@ -1747,41 +1804,41 @@ public static unsafe partial class SndDsp
 		// interpolate all DFR params on size
 
 		for (i = 0; i < dfr_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_DFR, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_DFR, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		// RVA
 
 		// interpolate size_max, size_min, feedback, #delays, moddly, imodrate, based on ap size
 
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_ifeedback, pa->size, ADSP_SIZE_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_size_min, pa->size, ADSP_SIZE_MAX, true);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_size_max, pa->size, ADSP_SIZE_MAX, true);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_igain, pa->size, ADSP_SIZE_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_inumdelays, pa->size, ADSP_SIZE_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_imoddly, pa->size, ADSP_SIZE_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_imodrate, pa->size, ADSP_SIZE_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_ifeedback, pa.size, ADSP_SIZE_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_size_min, pa.size, ADSP_SIZE_MAX, true);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_size_max, pa.size, ADSP_SIZE_MAX, true);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_igain, pa.size, ADSP_SIZE_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_inumdelays, pa.size, ADSP_SIZE_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_imoddly, pa.size, ADSP_SIZE_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_imodrate, pa.size, ADSP_SIZE_MAX, false);
 
 		// interpolate width,depth,height based on ap width length & height - exponential interpolation
 		// if pmin or pmax parameters are < 0, directly set value from w/l/h
 
-		float w = Math.Clamp((float)pa->width / 12.0F, 6.0F, 500.0F);   // in feet
-		float l = Math.Clamp((float)pa->length / 12.0F, 6.0F, 500.0F);
-		float h = Math.Clamp((float)pa->height / 12.0F, 6.0F, 500.0F);
+		float w = Math.Clamp((float)pa.width / 12.0F, 6.0F, 500.0F);   // in feet
+		float l = Math.Clamp((float)pa.length / 12.0F, 6.0F, 500.0F);
+		float h = Math.Clamp((float)pa.height / 12.0F, 6.0F, 500.0F);
 
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_width, pa->wid, ADSP_WIDTH_MAX, true, w);
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_depth, pa->len, ADSP_LENGTH_MAX, true, l);
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_height, pa->ht, ADSP_HEIGHT_MAX, true, h);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_width, pa.wid, ADSP_WIDTH_MAX, true, w);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_depth, pa.len, ADSP_LENGTH_MAX, true, l);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_RVA, iskip, rva_height, pa.ht, ADSP_HEIGHT_MAX, true, h);
 
 		// interpolate w/d/h feedback based on ap w/d/f
 
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbwidth, pa->wid, ADSP_WIDTH_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbdepth, pa->len, ADSP_LENGTH_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbheight, pa->ht, ADSP_HEIGHT_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbwidth, pa.wid, ADSP_WIDTH_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbdepth, pa.len, ADSP_LENGTH_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_RVA, iskip, rva_fbheight, pa.ht, ADSP_HEIGHT_MAX, false);
 
 		// interpolate cutoff based on ap reflectivity
 		// NOTE: cutoff goes from max to min! ie: small bright - large dull
 
-		ADSP_InterpParam(pnew, pmax, pmin, PRC_RVA, iskip, rva_icutoff, pa->reflectivity, ADSP_REFLECTIVITY_MAX, false);
+		ADSP_InterpParam(pnew, pmax, pmin, PRC_RVA, iskip, rva_icutoff, pa.reflectivity, ADSP_REFLECTIVITY_MAX, false);
 
 		// don't interpolate: fparallel, ftaps
 
@@ -1789,55 +1846,55 @@ public static unsafe partial class SndDsp
 
 		// directly set delay value from pa->length if pmin or pmax value is < 0
 
-		l = Math.Clamp(pa->length * 2.0F / 12.0F, 14.0F, 500.0F);
-		w = Math.Clamp(pa->width * 2.0F / 12.0F, 14.0F, 500.0F);
+		l = Math.Clamp(pa.length * 2.0F / 12.0F, 14.0F, 500.0F);
+		w = Math.Clamp(pa.width * 2.0F / 12.0F, 14.0F, 500.0F);
 
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_idelay, pa->len, ADSP_LENGTH_MAX, true, l);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_idelay, pa.len, ADSP_LENGTH_MAX, true, l);
 
 		// interpolate feedback, gain, based on max size (length)
 
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_DLY, iskip, dly_ifeedback, pa->len, ADSP_LENGTH_MAX, false);
-		ADSP_InterpParam(pnew, pmin, pmax, PRC_DLY, iskip, dly_igain, pa->len, ADSP_LENGTH_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_DLY, iskip, dly_ifeedback, pa.len, ADSP_LENGTH_MAX, false);
+		ADSP_InterpParam(pnew, pmin, pmax, PRC_DLY, iskip, dly_igain, pa.len, ADSP_LENGTH_MAX, false);
 
 		// directly set tap value from pa->width if pmin or pmax value is < 0
 
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap1, pa->len, ADSP_LENGTH_MAX, true, w);
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap2, pa->len, ADSP_LENGTH_MAX, true, l);
-		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap3, pa->len, ADSP_LENGTH_MAX, true, l);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap1, pa.len, ADSP_LENGTH_MAX, true, w);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap2, pa.len, ADSP_LENGTH_MAX, true, l);
+		ADSP_SetParamIfNegative(pnew, pmin, pmax, PRC_DLY, iskip, dly_itap3, pa.len, ADSP_LENGTH_MAX, true, l);
 
 		// interpolate cutoff and qwidth based on reflectivity NOTE: this can affect gain!
 		// NOTE: cutoff goes from max to min! ie: small bright - large dull
 
-		ADSP_InterpParam(pnew, pmax, pmin, PRC_DLY, iskip, dly_icutoff, pa->len, ADSP_LENGTH_MAX, false);
-		ADSP_InterpParam(pnew, pmax, pmin, PRC_DLY, iskip, dly_iqwidth, pa->len, ADSP_LENGTH_MAX, false);
+		ADSP_InterpParam(pnew, pmax, pmin, PRC_DLY, iskip, dly_icutoff, pa.len, ADSP_LENGTH_MAX, false);
+		ADSP_InterpParam(pnew, pmax, pmin, PRC_DLY, iskip, dly_iqwidth, pa.len, ADSP_LENGTH_MAX, false);
 
 		// interpolate all other parameters for all other processor types based on size
 
 		// PRC_MDY, PRC_AMP, PRC_FLT, PTC, CRS, ENV, EFO, LFO
 
 		for (i = 0; i < mdy_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_MDY, iskip, i, pa->len, ADSP_LENGTH_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_MDY, iskip, i, pa.len, ADSP_LENGTH_MAX, false);
 
 		for (i = 0; i < amp_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_AMP, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_AMP, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < flt_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_FLT, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_FLT, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < ptc_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_PTC, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_PTC, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < crs_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_CRS, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_CRS, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < env_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_ENV, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_ENV, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < efo_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_EFO, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_EFO, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 		for (i = 0; i < lfo_cparam; i++)
-			ADSP_InterpParam(pnew, pmin, pmax, PRC_LFO, iskip, i, pa->size, ADSP_SIZE_MAX, false);
+			ADSP_InterpParam(pnew, pmin, pmax, PRC_LFO, iskip, i, pa.size, ADSP_SIZE_MAX, false);
 
 	}
 
@@ -1862,9 +1919,8 @@ public static unsafe partial class SndDsp
 	// cnode should always = DSP_CAUTO_PRESETS
 	// returns idsp preset.
 
-	public static int DSP_ConstructPreset(bool bskyabove, int width, int length, int height, float fdiffusion, float freflectivity, float* psurf_refl, int inode, int cnodes) {
+	public static int DSP_ConstructPreset(bool bskyabove, int width, int length, int height, float fdiffusion, float freflectivity, ReadOnlySpan<float> psurf_refl, int inode, int cnodes) {
 		AutoParams ap;
-		AutoParams* pa;
 
 		Pset new_pset;  // preset
 		Pset pset_min;
@@ -1897,7 +1953,7 @@ public static unsafe partial class SndDsp
 
 		// select shape, size based on params
 
-		ADSP_GetAutoShape(&ap);
+		ADSP_GetAutoShape(ref ap);
 
 		// set up min/max presets based on shape
 
@@ -1922,25 +1978,24 @@ public static unsafe partial class SndDsp
 		// <shape><empty><max>
 		// <shape><diffuse><min>
 		// <shape><diffuse><max>
-		pa = &ap;
-		if (ADSP_IsDiffuse(pa))
+		if (ADSP_IsDiffuse(ap))
 			ipset_min += 2;
 
 		ipset_max = ipset_min + 1;
 
-		pset_min = g_psettemplates[ipset_min];
+		pset_min = g_psettemplates![ipset_min];
 		pset_max = g_psettemplates[ipset_max];
 
 		// given min and max preset and auto parameters, create new preset
 
 		// interpolate between 1st instances of each processor type (ie: PRC_DLY) appearing in preset
 
-		new_pset = default;
-		ADSP_InterpolatePreset(&new_pset, &pset_min, &pset_max, &ap, 0);
+		new_pset = new();
+		ADSP_InterpolatePreset(new_pset, pset_min, pset_max, ref ap, 0);
 
 		// interpolate between 2nd instances of each processor type (ie: PRC_DLY) appearing in preset
 
-		ADSP_InterpolatePreset(&new_pset, &pset_min, &pset_max, &ap, 1);
+		ADSP_InterpolatePreset(new_pset, pset_min, pset_max, ref ap, 1);
 
 		// copy constructed preset back into node's template location
 
@@ -1958,9 +2013,9 @@ public static unsafe partial class SndDsp
 
 	// return true if batch processing version of preset exists
 
-	static bool FBatchPreset(Pset* ppset) {
+	static bool FBatchPreset(Pset ppset) {
 
-		switch (ppset->type) {
+		switch (ppset.type) {
 			case PSET_LINEAR:
 				return true;
 			case PSET_SIMPLE:
@@ -1973,38 +2028,40 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// mix front stereo buffer to mono buffer, apply dsp fx
 
-	static void DSP_ProcessStereoToMono(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_ProcessStereoToMono(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int av;
 		int x;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
-			if (FBatchPreset(pdsp->GetPset(0))) {
+			if (FBatchPreset(pdsp.GetPset(0))) {
 				// convert Stereo to Mono in place, then batch process fx: perf KDB
 
 				// front->left + front->right / 2 into front->left, front->right duplicated.
 
 				while (count-- != 0) {
-					pbf->Left = (pbf->Left + pbf->Right) >> 1;
-					pbf++;
+					pbf[ib].Left = (pbf[ib].Left + pbf[ib].Right) >> 1;
+					ib++;
 				}
 
 				// process left (mono), duplicate output into right
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
 			}
 			else {
 				// avg left and right -> mono fx -> duplcate out left and right
 				while (count-- != 0) {
-					av = (pbf->Left + pbf->Right) >> 1;
-					x = PSET_GetNext(pdsp->GetPset(0), av);
+					av = (pbf[ib].Left + pbf[ib].Right) >> 1;
+					x = PSET_GetNext(pdsp.GetPset(0), av);
 					x = CLIP_DSP(x);
-					pbf->Left = pbf->Right = x;
-					pbf++;
+					pbf[ib].Left = pbf[ib].Right = x;
+					ib++;
 				}
 			}
 			return;
@@ -2020,9 +2077,9 @@ public static unsafe partial class SndDsp
 			int frp;
 			int xf_fl;
 			int xf_fr;
-			bool bexp = pdsp->bexpfade;
-			bool bfadetostereo = pdsp->ipset == 0;
-			bool bfadefromstereo = pdsp->ipsetprev == 0;
+			bool bexp = pdsp.bexpfade;
+			bool bfadetostereo = pdsp.ipset == 0;
+			bool bfadefromstereo = pdsp.ipsetprev == 0;
 
 			Assert(!(bfadetostereo && bfadefromstereo));    // don't call if ipset & ipsetprev both 0!
 
@@ -2030,24 +2087,24 @@ public static unsafe partial class SndDsp
 				// special case if fading to or from preset 0, stereo passthrough
 
 				while (count-- != 0) {
-					av = (pbf->Left + pbf->Right) >> 1;
+					av = (pbf[ib].Left + pbf[ib].Right) >> 1;
 
 					// get current preset values
 
-					if (pdsp->ipset != 0)
-						fl = fr = PSET_GetNext(pdsp->GetPset(0), av);
+					if (pdsp.ipset != 0)
+						fl = fr = PSET_GetNext(pdsp.GetPset(0), av);
 					else {
-						fl = pbf->Left;
-						fr = pbf->Right;
+						fl = pbf[ib].Left;
+						fr = pbf[ib].Right;
 					}
 
 					// get previous preset values
 
-					if (pdsp->ipsetprev != 0)
-						frp = flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+					if (pdsp.ipsetprev != 0)
+						frp = flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 					else {
-						flp = pbf->Left;
-						frp = pbf->Right;
+						flp = pbf[ib].Left;
+						frp = pbf[ib].Right;
 					}
 
 					fl = CLIP_DSP(fl);
@@ -2057,7 +2114,7 @@ public static unsafe partial class SndDsp
 
 					// get current ramp value
 
-					r = RMP_GetNext(&pdsp->xramp);
+					r = RMP_GetNext(ref pdsp.xramp);
 
 					// crossfade from previous to current preset
 
@@ -2070,10 +2127,10 @@ public static unsafe partial class SndDsp
 						xf_fr = XFADE_EXP(fr, frp, r);  // crossfade front left previous to front left
 					}
 
-					pbf->Left = xf_fl;          // crossfaded front left, duplicate in right channel
-					pbf->Right = xf_fr;
+					pbf[ib].Left = xf_fl;          // crossfaded front left, duplicate in right channel
+					pbf[ib].Right = xf_fr;
 
-					pbf++;
+					ib++;
 				}
 
 				return;
@@ -2082,22 +2139,22 @@ public static unsafe partial class SndDsp
 			// crossfade mono to mono preset
 
 			while (count-- != 0) {
-				av = (pbf->Left + pbf->Right) >> 1;
+				av = (pbf[ib].Left + pbf[ib].Right) >> 1;
 
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), av);
+				fl = PSET_GetNext(pdsp.GetPset(0), av);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 
 				fl = CLIP_DSP(fl);
 				flp = CLIP_DSP(flp);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				// crossfade from previous to current preset
 
@@ -2106,10 +2163,10 @@ public static unsafe partial class SndDsp
 				else
 					xf_fl = XFADE_EXP(fl, flp, r);  // crossfade front left previous to front left
 
-				pbf->Left = xf_fl;          // crossfaded front left, duplicate in right channel
-				pbf->Right = xf_fl;
+				pbf[ib].Left = xf_fl;          // crossfaded front left, duplicate in right channel
+				pbf[ib].Right = xf_fl;
 
-				pbf++;
+				ib++;
 			}
 		}
 	}
@@ -2117,35 +2174,37 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process stereo in to stereo out (if more than 2 procs, ignore them)
 
-	static void DSP_ProcessStereoToStereo(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_ProcessStereoToStereo(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int fl, fr;
 
 		if (!bcrossfading) {
 
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
-			if (FBatchPreset(pdsp->GetPset(0)) && FBatchPreset(pdsp->GetPset(1))) {
+			if (FBatchPreset(pdsp.GetPset(0)) && FBatchPreset(pdsp.GetPset(1))) {
 
 				// process left & right
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(1), pbfront, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(1), pbfront, sampleCount, OP_RIGHT);
 			}
 			else {
 				// left -> left fx, right -> right fx
 				while (count-- != 0) {
-					fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-					fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
+					fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+					fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
 
 					fl = CLIP_DSP(fl);
 					fr = CLIP_DSP(fr);
 
-					pbf->Left = fl;
-					pbf->Right = fr;
-					pbf++;
+					pbf[ib].Left = fl;
+					pbf[ib].Right = fr;
+					ib++;
 				}
 			}
 			return;
@@ -2157,22 +2216,22 @@ public static unsafe partial class SndDsp
 			int r;
 			int flp, frp;
 			int xf_fl, xf_fr;
-			bool bexp = pdsp->bexpfade;
+			bool bexp = pdsp.bexpfade;
 
 			while (count-- != 0) {
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-				fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
+				fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+				fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), pbf->Left);
-				frp = PSET_GetNext(pdsp->GetPsetPrev(1), pbf->Right);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), pbf[ib].Left);
+				frp = PSET_GetNext(pdsp.GetPsetPrev(1), pbf[ib].Right);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				fl = CLIP_DSP(fl);
 				fr = CLIP_DSP(fr);
@@ -2189,10 +2248,10 @@ public static unsafe partial class SndDsp
 					xf_fr = XFADE_EXP(fr, frp, r);
 				}
 
-				pbf->Left = xf_fl;          // crossfaded front left
-				pbf->Right = xf_fr;
+				pbf[ib].Left = xf_fl;          // crossfaded front left
+				pbf[ib].Right = xf_fr;
 
-				pbf++;
+				ib++;
 			}
 		}
 	}
@@ -2200,56 +2259,54 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process quad in to mono out (front left = front right)
 
-	static void DSP_ProcessQuadToMono(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
-		PortableSamplePair* pbr = pbrear;       // pointer to buffer of rear stereo samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_ProcessQuadToMono(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
+		Span<PortableSamplePair> pbr = pbrear;       // pointer to buffer of rear stereo samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int x;
 		int av;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
-			if (FBatchPreset(pdsp->GetPset(0))) {
+			if (FBatchPreset(pdsp.GetPset(0))) {
 
 				// convert Quad to Mono in place, then batch process fx: perf KDB
 
 				// left front + rear -> left, right front + rear -> right
 				while (count-- != 0) {
-					pbf->Left = (pbf->Left + pbf->Right + pbr->Left + pbr->Right) >> 2;
-					pbf++;
-					pbr++;
+					pbf[ib].Left = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right) >> 2;
+					ib++;
 				}
 
 				// process left (mono), duplicate into right
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
 
 				// copy processed front to rear
 
 				count = sampleCount;
 
-				pbf = pbfront;
-				pbr = pbrear;
+				ib = 0;
 
 				while (count-- != 0) {
-					pbr->Left = pbf->Left;
-					pbr->Right = pbf->Right;
-					pbf++;
-					pbr++;
+					pbr[ib].Left = pbf[ib].Left;
+					pbr[ib].Right = pbf[ib].Right;
+					ib++;
 				}
 
 			}
 			else {
 				// avg fl,fr,rl,rr into mono fx, duplicate on all channels
 				while (count-- != 0) {
-					av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right) >> 2;
-					x = PSET_GetNext(pdsp->GetPset(0), av);
+					av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right) >> 2;
+					x = PSET_GetNext(pdsp.GetPset(0), av);
 					x = CLIP_DSP(x);
-					pbr->Left = pbr->Right = pbf->Left = pbf->Right = x;
-					pbf++;
-					pbr++;
+					pbr[ib].Left = pbr[ib].Right = pbf[ib].Left = pbf[ib].Right = x;
+					ib++;
 				}
 			}
 			return;
@@ -2260,39 +2317,39 @@ public static unsafe partial class SndDsp
 			int fl, fr, rl, rr;
 			int flp, frp, rlp, rrp;
 			int xf_fl, xf_fr, xf_rl, xf_rr;
-			bool bexp = pdsp->bexpfade;
-			bool bfadetoquad = pdsp->ipset == 0;
-			bool bfadefromquad = pdsp->ipsetprev == 0;
+			bool bexp = pdsp.bexpfade;
+			bool bfadetoquad = pdsp.ipset == 0;
+			bool bfadefromquad = pdsp.ipsetprev == 0;
 
 			if (bfadetoquad || bfadefromquad) {
 				// special case if previous or current preset is 0 (quad passthrough)
 
 				while (count-- != 0) {
-					av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right) >> 2;
+					av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right) >> 2;
 
 					// get current preset values
 
 					// current preset is 0, which implies fading to passthrough quad output
 					// need to fade from mono to quad
 
-					if (pdsp->ipset != 0)
-						rl = rr = fl = fr = PSET_GetNext(pdsp->GetPset(0), av);
+					if (pdsp.ipset != 0)
+						rl = rr = fl = fr = PSET_GetNext(pdsp.GetPset(0), av);
 					else {
-						fl = pbf->Left;
-						fr = pbf->Right;
-						rl = pbr->Left;
-						rr = pbr->Right;
+						fl = pbf[ib].Left;
+						fr = pbf[ib].Right;
+						rl = pbr[ib].Left;
+						rr = pbr[ib].Right;
 					}
 
 					// get previous preset values
 
-					if (pdsp->ipsetprev != 0)
-						rrp = rlp = frp = flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+					if (pdsp.ipsetprev != 0)
+						rrp = rlp = frp = flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 					else {
-						flp = pbf->Left;
-						frp = pbf->Right;
-						rlp = pbr->Left;
-						rrp = pbr->Right;
+						flp = pbf[ib].Left;
+						frp = pbf[ib].Right;
+						rlp = pbr[ib].Left;
+						rrp = pbr[ib].Right;
 					}
 
 					fl = CLIP_DSP(fl);
@@ -2306,7 +2363,7 @@ public static unsafe partial class SndDsp
 
 					// get current ramp value
 
-					r = RMP_GetNext(&pdsp->xramp);
+					r = RMP_GetNext(ref pdsp.xramp);
 
 					// crossfade from previous to current preset
 
@@ -2323,13 +2380,12 @@ public static unsafe partial class SndDsp
 						xf_rr = XFADE_EXP(rr, rrp, r);  // crossfade front left previous to front left
 					}
 
-					pbf->Left = xf_fl;
-					pbf->Right = xf_fr;
-					pbr->Left = xf_rl;
-					pbr->Right = xf_rr;
+					pbf[ib].Left = xf_fl;
+					pbf[ib].Right = xf_fr;
+					pbr[ib].Left = xf_rl;
+					pbr[ib].Right = xf_rr;
 
-					pbf++;
-					pbr++;
+					ib++;
 				}
 
 				return;
@@ -2337,19 +2393,19 @@ public static unsafe partial class SndDsp
 
 			while (count-- != 0) {
 
-				av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right) >> 2;
+				av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right) >> 2;
 
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), av);
+				fl = PSET_GetNext(pdsp.GetPset(0), av);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				fl = CLIP_DSP(fl);
 				flp = CLIP_DSP(flp);
@@ -2360,13 +2416,12 @@ public static unsafe partial class SndDsp
 				else
 					xf_fl = XFADE_EXP(fl, flp, r);  // crossfade front left previous to front left
 
-				pbf->Left = xf_fl;          // crossfaded front left, duplicated to all channels
-				pbf->Right = xf_fl;
-				pbr->Left = xf_fl;
-				pbr->Right = xf_fl;
+				pbf[ib].Left = xf_fl;          // crossfaded front left, duplicated to all channels
+				pbf[ib].Right = xf_fl;
+				pbr[ib].Left = xf_fl;
+				pbr[ib].Right = xf_fl;
 
-				pbf++;
-				pbr++;
+				ib++;
 			}
 		}
 	}
@@ -2374,61 +2429,59 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process quad in to stereo out (preserve stereo spatialization, throw away front/rear)
 
-	static void DSP_ProcessQuadToStereo(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
-		PortableSamplePair* pbr = pbrear;       // pointer to buffer of rear stereo samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_ProcessQuadToStereo(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
+		Span<PortableSamplePair> pbr = pbrear;       // pointer to buffer of rear stereo samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int fl, fr;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
-			if (FBatchPreset(pdsp->GetPset(0)) && FBatchPreset(pdsp->GetPset(1))) {
+			if (FBatchPreset(pdsp.GetPset(0)) && FBatchPreset(pdsp.GetPset(1))) {
 
 				// convert Quad to Stereo in place, then batch process fx: perf KDB
 
 				// left front + rear -> left, right front + rear -> right
 
 				while (count-- != 0) {
-					pbf->Left = (pbf->Left + pbr->Left) >> 1;
-					pbf->Right = (pbf->Right + pbr->Right) >> 1;
-					pbf++;
-					pbr++;
+					pbf[ib].Left = (pbf[ib].Left + pbr[ib].Left) >> 1;
+					pbf[ib].Right = (pbf[ib].Right + pbr[ib].Right) >> 1;
+					ib++;
 				}
 
 				// process left & right
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(1), pbfront, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(1), pbfront, sampleCount, OP_RIGHT);
 
 				// copy processed front to rear
 
 				count = sampleCount;
 
-				pbf = pbfront;
-				pbr = pbrear;
+				ib = 0;
 
 				while (count-- != 0) {
-					pbr->Left = pbf->Left;
-					pbr->Right = pbf->Right;
-					pbf++;
-					pbr++;
+					pbr[ib].Left = pbf[ib].Left;
+					pbr[ib].Right = pbf[ib].Right;
+					ib++;
 				}
 
 			}
 			else {
 				// left front + rear -> left fx, right front + rear -> right fx
 				while (count-- != 0) {
-					fl = PSET_GetNext(pdsp->GetPset(0), (pbf->Left + pbr->Left) >> 1);
-					fr = PSET_GetNext(pdsp->GetPset(1), (pbf->Right + pbr->Right) >> 1);
+					fl = PSET_GetNext(pdsp.GetPset(0), (pbf[ib].Left + pbr[ib].Left) >> 1);
+					fr = PSET_GetNext(pdsp.GetPset(1), (pbf[ib].Right + pbr[ib].Right) >> 1);
 					fl = CLIP_DSP(fl);
 					fr = CLIP_DSP(fr);
 
-					pbr->Left = pbf->Left = fl;
-					pbr->Right = pbf->Right = fr;
-					pbf++;
-					pbr++;
+					pbr[ib].Left = pbf[ib].Left = fl;
+					pbr[ib].Right = pbf[ib].Right = fr;
+					ib++;
 				}
 			}
 			return;
@@ -2442,44 +2495,44 @@ public static unsafe partial class SndDsp
 			int flp, frp, rlp, rrp;
 			int xf_fl, xf_fr, xf_rl, xf_rr;
 			int avl, avr;
-			bool bexp = pdsp->bexpfade;
-			bool bfadetoquad = pdsp->ipset == 0;
-			bool bfadefromquad = pdsp->ipsetprev == 0;
+			bool bexp = pdsp.bexpfade;
+			bool bfadetoquad = pdsp.ipset == 0;
+			bool bfadefromquad = pdsp.ipsetprev == 0;
 
 			if (bfadetoquad || bfadefromquad) {
 				// special case if previous or current preset is 0 (quad passthrough)
 
 				while (count-- != 0) {
-					avl = (pbf->Left + pbr->Left) >> 1;
-					avr = (pbf->Right + pbr->Right) >> 1;
+					avl = (pbf[ib].Left + pbr[ib].Left) >> 1;
+					avr = (pbf[ib].Right + pbr[ib].Right) >> 1;
 
 					// get current preset values
 
 					// current preset is 0, which implies fading to passthrough quad output
 					// need to fade from stereo to quad
 
-					if (pdsp->ipset != 0) {
-						rl = fl = PSET_GetNext(pdsp->GetPset(0), avl);
-						rr = fr = PSET_GetNext(pdsp->GetPset(0), avr);
+					if (pdsp.ipset != 0) {
+						rl = fl = PSET_GetNext(pdsp.GetPset(0), avl);
+						rr = fr = PSET_GetNext(pdsp.GetPset(0), avr);
 					}
 					else {
-						fl = pbf->Left;
-						fr = pbf->Right;
-						rl = pbr->Left;
-						rr = pbr->Right;
+						fl = pbf[ib].Left;
+						fr = pbf[ib].Right;
+						rl = pbr[ib].Left;
+						rr = pbr[ib].Right;
 					}
 
 					// get previous preset values
 
-					if (pdsp->ipsetprev != 0) {
-						rlp = flp = PSET_GetNext(pdsp->GetPsetPrev(0), avl);
-						rrp = frp = PSET_GetNext(pdsp->GetPsetPrev(0), avr);
+					if (pdsp.ipsetprev != 0) {
+						rlp = flp = PSET_GetNext(pdsp.GetPsetPrev(0), avl);
+						rrp = frp = PSET_GetNext(pdsp.GetPsetPrev(0), avr);
 					}
 					else {
-						flp = pbf->Left;
-						frp = pbf->Right;
-						rlp = pbr->Left;
-						rrp = pbr->Right;
+						flp = pbf[ib].Left;
+						frp = pbf[ib].Right;
+						rlp = pbr[ib].Left;
+						rrp = pbr[ib].Right;
 					}
 
 					fl = CLIP_DSP(fl);
@@ -2493,7 +2546,7 @@ public static unsafe partial class SndDsp
 
 					// get current ramp value
 
-					r = RMP_GetNext(&pdsp->xramp);
+					r = RMP_GetNext(ref pdsp.xramp);
 
 					// crossfade from previous to current preset
 
@@ -2510,31 +2563,30 @@ public static unsafe partial class SndDsp
 						xf_rr = XFADE_EXP(rr, rrp, r);  // crossfade front left previous to front left
 					}
 
-					pbf->Left = xf_fl;
-					pbf->Right = xf_fr;
-					pbr->Left = xf_rl;
-					pbr->Right = xf_rr;
+					pbf[ib].Left = xf_fl;
+					pbf[ib].Right = xf_fr;
+					pbr[ib].Left = xf_rl;
+					pbr[ib].Right = xf_rr;
 
-					pbf++;
-					pbr++;
+					ib++;
 				}
 
 				return;
 			}
 
 			while (count-- != 0) {
-				avl = (pbf->Left + pbr->Left) >> 1;
-				avr = (pbf->Right + pbr->Right) >> 1;
+				avl = (pbf[ib].Left + pbr[ib].Left) >> 1;
+				avr = (pbf[ib].Right + pbr[ib].Right) >> 1;
 
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), avl);
-				fr = PSET_GetNext(pdsp->GetPset(1), avr);
+				fl = PSET_GetNext(pdsp.GetPset(0), avl);
+				fr = PSET_GetNext(pdsp.GetPset(1), avr);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), avl);
-				frp = PSET_GetNext(pdsp->GetPsetPrev(1), avr);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), avl);
+				frp = PSET_GetNext(pdsp.GetPsetPrev(1), avr);
 
 
 				fl = CLIP_DSP(fl);
@@ -2547,7 +2599,7 @@ public static unsafe partial class SndDsp
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				// crossfade from previous to current preset
 				if (!bexp) {
@@ -2559,14 +2611,13 @@ public static unsafe partial class SndDsp
 					xf_fr = XFADE_EXP(fr, frp, r);
 				}
 
-				pbf->Left = xf_fl;          // crossfaded front left
-				pbf->Right = xf_fr;
+				pbf[ib].Left = xf_fl;          // crossfaded front left
+				pbf[ib].Right = xf_fr;
 
-				pbr->Left = xf_fl;          // duplicate front channel to rear channel
-				pbr->Right = xf_fr;
+				pbr[ib].Left = xf_fl;          // duplicate front channel to rear channel
+				pbr[ib].Right = xf_fr;
 
-				pbf++;
-				pbr++;
+				ib++;
 			}
 		}
 	}
@@ -2574,40 +2625,41 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process quad in to quad out
 
-	static void DSP_ProcessQuadToQuad(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
-		PortableSamplePair* pbr = pbrear;       // pointer to buffer of rear stereo samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_ProcessQuadToQuad(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
+		Span<PortableSamplePair> pbr = pbrear;       // pointer to buffer of rear stereo samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int fl, fr, rl, rr;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
 			// each channel gets its own processor
 
-			if (FBatchPreset(pdsp->GetPset(0)) && FBatchPreset(pdsp->GetPset(1)) && FBatchPreset(pdsp->GetPset(2)) && FBatchPreset(pdsp->GetPset(3))) {
+			if (FBatchPreset(pdsp.GetPset(0)) && FBatchPreset(pdsp.GetPset(1)) && FBatchPreset(pdsp.GetPset(2)) && FBatchPreset(pdsp.GetPset(3))) {
 				// batch process fx front & rear, left & right: perf KDB
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(1), pbfront, sampleCount, OP_RIGHT);
-				PSET_GetNextN(pdsp->GetPset(2), pbrear, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(3), pbrear, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(1), pbfront, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(2), pbrear, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(3), pbrear, sampleCount, OP_RIGHT);
 			}
 			else {
 				while (count-- != 0) {
-					fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-					fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
-					rl = PSET_GetNext(pdsp->GetPset(2), pbr->Left);
-					rr = PSET_GetNext(pdsp->GetPset(3), pbr->Right);
+					fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+					fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
+					rl = PSET_GetNext(pdsp.GetPset(2), pbr[ib].Left);
+					rr = PSET_GetNext(pdsp.GetPset(3), pbr[ib].Right);
 
-					pbf->Left = CLIP_DSP(fl);
-					pbf->Right = CLIP_DSP(fr);
-					pbr->Left = CLIP_DSP(rl);
-					pbr->Right = CLIP_DSP(rr);
+					pbf[ib].Left = CLIP_DSP(fl);
+					pbf[ib].Right = CLIP_DSP(fr);
+					pbr[ib].Left = CLIP_DSP(rl);
+					pbr[ib].Right = CLIP_DSP(rr);
 
-					pbf++;
-					pbr++;
+					ib++;
 				}
 			}
 			return;
@@ -2619,26 +2671,26 @@ public static unsafe partial class SndDsp
 			int r;
 			int flp, frp, rlp, rrp;
 			int xf_fl, xf_fr, xf_rl, xf_rr;
-			bool bexp = pdsp->bexpfade;
+			bool bexp = pdsp.bexpfade;
 
 			while (count-- != 0) {
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-				fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
-				rl = PSET_GetNext(pdsp->GetPset(2), pbr->Left);
-				rr = PSET_GetNext(pdsp->GetPset(3), pbr->Right);
+				fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+				fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
+				rl = PSET_GetNext(pdsp.GetPset(2), pbr[ib].Left);
+				rr = PSET_GetNext(pdsp.GetPset(3), pbr[ib].Right);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), pbf->Left);
-				frp = PSET_GetNext(pdsp->GetPsetPrev(1), pbf->Right);
-				rlp = PSET_GetNext(pdsp->GetPsetPrev(2), pbr->Left);
-				rrp = PSET_GetNext(pdsp->GetPsetPrev(3), pbr->Right);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), pbf[ib].Left);
+				frp = PSET_GetNext(pdsp.GetPsetPrev(1), pbf[ib].Right);
+				rlp = PSET_GetNext(pdsp.GetPsetPrev(2), pbr[ib].Left);
+				rrp = PSET_GetNext(pdsp.GetPsetPrev(3), pbr[ib].Right);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				// crossfade from previous to current preset
 				if (!bexp) {
@@ -2654,13 +2706,12 @@ public static unsafe partial class SndDsp
 					xf_rr = XFADE_EXP(rr, rrp, r);
 				}
 
-				pbf->Left = CLIP_DSP(xf_fl);            // crossfaded front left
-				pbf->Right = CLIP_DSP(xf_fr);
-				pbr->Left = CLIP_DSP(xf_rl);
-				pbr->Right = CLIP_DSP(xf_rr);
+				pbf[ib].Left = CLIP_DSP(xf_fl);            // crossfaded front left
+				pbf[ib].Right = CLIP_DSP(xf_fr);
+				pbr[ib].Left = CLIP_DSP(xf_rl);
+				pbr[ib].Right = CLIP_DSP(xf_rr);
 
-				pbf++;
-				pbr++;
+				ib++;
 			}
 		}
 	}
@@ -2669,19 +2720,21 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process quad + center in to mono out (front left = front right)
 
-	static void DSP_Process5To1(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, PortableSamplePair* pbcenter, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
-		PortableSamplePair* pbr = pbrear;       // pointer to buffer of rear stereo samples to process
-		PortableSamplePair* pbc = pbcenter;     // pointer to buffer of center mono samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_Process5To1(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, Span<PortableSamplePair> pbcenter, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
+		Span<PortableSamplePair> pbr = pbrear;       // pointer to buffer of rear stereo samples to process
+		Span<PortableSamplePair> pbc = pbcenter;     // pointer to buffer of center mono samples to process
 		int count = sampleCount;
+		int ib = 0;
 		int x;
 		int av;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
-			if (FBatchPreset(pdsp->GetPset(0))) {
+			if (FBatchPreset(pdsp.GetPset(0))) {
 
 				// convert Quad + Center to Mono in place, then batch process fx: perf KDB
 
@@ -2689,33 +2742,27 @@ public static unsafe partial class SndDsp
 				while (count-- != 0) {
 					// pbf->left = ((pbf->left + pbf->right + pbr->left + pbr->right + pbc->left) / 5);
 
-					av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right + pbc->Left) * 51;  // 51/255 = 1/5
+					av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right + pbc[ib].Left) * 51;  // 51/255 = 1/5
 					av >>= 8;
-					pbf->Left = av;
-					pbf++;
-					pbr++;
-					pbc++;
+					pbf[ib].Left = av;
+					ib++;
 				}
 
 				// process left (mono), duplicate into right
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT_DUPLICATE);
 
 				// copy processed front to rear & center
 
 				count = sampleCount;
 
-				pbf = pbfront;
-				pbr = pbrear;
-				pbc = pbcenter;
+				ib = 0;
 
 				while (count-- != 0) {
-					pbr->Left = pbf->Left;
-					pbr->Right = pbf->Right;
-					pbc->Left = pbf->Left;
-					pbf++;
-					pbr++;
-					pbc++;
+					pbr[ib].Left = pbf[ib].Left;
+					pbr[ib].Right = pbf[ib].Right;
+					pbc[ib].Left = pbf[ib].Left;
+					ib++;
 				}
 
 			}
@@ -2723,14 +2770,12 @@ public static unsafe partial class SndDsp
 				// avg fl,fr,rl,rr,fc into mono fx, duplicate on all channels
 				while (count-- != 0) {
 					// av = ((pbf->left + pbf->right + pbr->left + pbr->right + pbc->left) / 5);
-					av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right + pbc->Left) * 51;  // 51/255 = 1/5
+					av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right + pbc[ib].Left) * 51;  // 51/255 = 1/5
 					av >>= 8;
-					x = PSET_GetNext(pdsp->GetPset(0), av);
+					x = PSET_GetNext(pdsp.GetPset(0), av);
 					x = CLIP_DSP(x);
-					pbr->Left = pbr->Right = pbf->Left = pbf->Right = pbc->Left = x;
-					pbf++;
-					pbr++;
-					pbc++;
+					pbr[ib].Left = pbr[ib].Right = pbf[ib].Left = pbf[ib].Right = pbc[ib].Left = x;
+					ib++;
 				}
 			}
 			return;
@@ -2741,9 +2786,9 @@ public static unsafe partial class SndDsp
 			int fl, fr, rl, rr, fc;
 			int flp, frp, rlp, rrp, fcp;
 			int xf_fl, xf_fr, xf_rl, xf_rr, xf_fc;
-			bool bexp = pdsp->bexpfade;
-			bool bfadetoquad = pdsp->ipset == 0;
-			bool bfadefromquad = pdsp->ipsetprev == 0;
+			bool bexp = pdsp.bexpfade;
+			bool bfadetoquad = pdsp.ipset == 0;
+			bool bfadefromquad = pdsp.ipsetprev == 0;
 
 			if (bfadetoquad || bfadefromquad) {
 				// special case if previous or current preset is 0 (quad passthrough)
@@ -2751,7 +2796,7 @@ public static unsafe partial class SndDsp
 				while (count-- != 0) {
 					// av = ((pbf->left + pbf->right + pbr->left + pbr->right) >> 2);
 
-					av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right + pbc->Left) * 51;  // 51/255 = 1/5
+					av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right + pbc[ib].Left) * 51;  // 51/255 = 1/5
 					av >>= 8;
 
 					// get current preset values
@@ -2759,26 +2804,26 @@ public static unsafe partial class SndDsp
 					// current preset is 0, which implies fading to passthrough quad output
 					// need to fade from mono to quad
 
-					if (pdsp->ipset != 0)
-						fc = rl = rr = fl = fr = PSET_GetNext(pdsp->GetPset(0), av);
+					if (pdsp.ipset != 0)
+						fc = rl = rr = fl = fr = PSET_GetNext(pdsp.GetPset(0), av);
 					else {
-						fl = pbf->Left;
-						fr = pbf->Right;
-						rl = pbr->Left;
-						rr = pbr->Right;
-						fc = pbc->Left;
+						fl = pbf[ib].Left;
+						fr = pbf[ib].Right;
+						rl = pbr[ib].Left;
+						rr = pbr[ib].Right;
+						fc = pbc[ib].Left;
 					}
 
 					// get previous preset values
 
-					if (pdsp->ipsetprev != 0)
-						fcp = rrp = rlp = frp = flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+					if (pdsp.ipsetprev != 0)
+						fcp = rrp = rlp = frp = flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 					else {
-						flp = pbf->Left;
-						frp = pbf->Right;
-						rlp = pbr->Left;
-						rrp = pbr->Right;
-						fcp = pbc->Left;
+						flp = pbf[ib].Left;
+						frp = pbf[ib].Right;
+						rlp = pbr[ib].Left;
+						rrp = pbr[ib].Right;
+						fcp = pbc[ib].Left;
 					}
 
 					fl = CLIP_DSP(fl);
@@ -2794,7 +2839,7 @@ public static unsafe partial class SndDsp
 
 					// get current ramp value
 
-					r = RMP_GetNext(&pdsp->xramp);
+					r = RMP_GetNext(ref pdsp.xramp);
 
 					// crossfade from previous to current preset
 
@@ -2813,15 +2858,13 @@ public static unsafe partial class SndDsp
 						xf_fc = XFADE_EXP(fc, fcp, r);  // crossfade front left previous to front left
 					}
 
-					pbf->Left = xf_fl;
-					pbf->Right = xf_fr;
-					pbr->Left = xf_rl;
-					pbr->Right = xf_rr;
-					pbc->Left = xf_fc;
+					pbf[ib].Left = xf_fl;
+					pbf[ib].Right = xf_fr;
+					pbr[ib].Left = xf_rl;
+					pbr[ib].Right = xf_rr;
+					pbc[ib].Left = xf_fc;
 
-					pbf++;
-					pbr++;
-					pbc++;
+					ib++;
 				}
 
 				return;
@@ -2830,20 +2873,20 @@ public static unsafe partial class SndDsp
 			while (count-- != 0) {
 
 				// av = ((pbf->left + pbf->right + pbr->left + pbr->right) >> 2);
-				av = (pbf->Left + pbf->Right + pbr->Left + pbr->Right + pbc->Left) * 51;  // 51/255 = 1/5
+				av = (pbf[ib].Left + pbf[ib].Right + pbr[ib].Left + pbr[ib].Right + pbc[ib].Left) * 51;  // 51/255 = 1/5
 				av >>= 8;
 
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), av);
+				fl = PSET_GetNext(pdsp.GetPset(0), av);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), av);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), av);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				fl = CLIP_DSP(fl);
 				flp = CLIP_DSP(flp);
@@ -2854,15 +2897,13 @@ public static unsafe partial class SndDsp
 				else
 					xf_fl = XFADE_EXP(fl, flp, r);  // crossfade front left previous to front left
 
-				pbf->Left = xf_fl;          // crossfaded front left, duplicated to all channels
-				pbf->Right = xf_fl;
-				pbr->Left = xf_fl;
-				pbr->Right = xf_fl;
-				pbc->Left = xf_fl;
+				pbf[ib].Left = xf_fl;          // crossfaded front left, duplicated to all channels
+				pbf[ib].Right = xf_fl;
+				pbr[ib].Left = xf_fl;
+				pbr[ib].Right = xf_fl;
+				pbc[ib].Left = xf_fl;
 
-				pbf++;
-				pbr++;
-				pbc++;
+				ib++;
 			}
 		}
 	}
@@ -2870,46 +2911,46 @@ public static unsafe partial class SndDsp
 	// Helper: called only from DSP_Process
 	// DSP_Process quad + center in to quad + center out
 
-	static void DSP_Process5To5(Dsp* pdsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, PortableSamplePair* pbcenter, int sampleCount, bool bcrossfading) {
-		PortableSamplePair* pbf = pbfront;      // pointer to buffer of front stereo samples to process
-		PortableSamplePair* pbr = pbrear;       // pointer to buffer of rear stereo samples to process
-		PortableSamplePair* pbc = pbcenter;     // pointer to buffer of center mono samples to process
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static void DSP_Process5To5(Dsp pdsp, Span<PortableSamplePair> pbfront, Span<PortableSamplePair> pbrear, Span<PortableSamplePair> pbcenter, int sampleCount, bool bcrossfading) {
+		Span<PortableSamplePair> pbf = pbfront;      // pointer to buffer of front stereo samples to process
+		Span<PortableSamplePair> pbr = pbrear;       // pointer to buffer of rear stereo samples to process
+		Span<PortableSamplePair> pbc = pbcenter;     // pointer to buffer of center mono samples to process
 
 		int count = sampleCount;
+		int ib = 0;
 		int fl, fr, rl, rr, fc;
 
 		if (!bcrossfading) {
-			if (pdsp->ipset == 0)
+			if (pdsp.ipset == 0)
 				return;
 
 			// each channel gets its own processor
 
-			if (FBatchPreset(pdsp->GetPset(0)) && FBatchPreset(pdsp->GetPset(1)) && FBatchPreset(pdsp->GetPset(2)) && FBatchPreset(pdsp->GetPset(3))) {
+			if (FBatchPreset(pdsp.GetPset(0)) && FBatchPreset(pdsp.GetPset(1)) && FBatchPreset(pdsp.GetPset(2)) && FBatchPreset(pdsp.GetPset(3))) {
 				// batch process fx front & rear, left & right: perf KDB
 
-				PSET_GetNextN(pdsp->GetPset(0), pbfront, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(1), pbfront, sampleCount, OP_RIGHT);
-				PSET_GetNextN(pdsp->GetPset(2), pbrear, sampleCount, OP_LEFT);
-				PSET_GetNextN(pdsp->GetPset(3), pbrear, sampleCount, OP_RIGHT);
-				PSET_GetNextN(pdsp->GetPset(4), pbcenter, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(0), pbfront, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(1), pbfront, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(2), pbrear, sampleCount, OP_LEFT);
+				PSET_GetNextN(pdsp.GetPset(3), pbrear, sampleCount, OP_RIGHT);
+				PSET_GetNextN(pdsp.GetPset(4), pbcenter, sampleCount, OP_LEFT);
 			}
 			else {
 				while (count-- != 0) {
-					fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-					fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
-					rl = PSET_GetNext(pdsp->GetPset(2), pbr->Left);
-					rr = PSET_GetNext(pdsp->GetPset(3), pbr->Right);
-					fc = PSET_GetNext(pdsp->GetPset(4), pbc->Left);
+					fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+					fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
+					rl = PSET_GetNext(pdsp.GetPset(2), pbr[ib].Left);
+					rr = PSET_GetNext(pdsp.GetPset(3), pbr[ib].Right);
+					fc = PSET_GetNext(pdsp.GetPset(4), pbc[ib].Left);
 
-					pbf->Left = CLIP_DSP(fl);
-					pbf->Right = CLIP_DSP(fr);
-					pbr->Left = CLIP_DSP(rl);
-					pbr->Right = CLIP_DSP(rr);
-					pbc->Left = CLIP_DSP(fc);
+					pbf[ib].Left = CLIP_DSP(fl);
+					pbf[ib].Right = CLIP_DSP(fr);
+					pbr[ib].Left = CLIP_DSP(rl);
+					pbr[ib].Right = CLIP_DSP(rr);
+					pbc[ib].Left = CLIP_DSP(fc);
 
-					pbf++;
-					pbr++;
-					pbc++;
+					ib++;
 				}
 			}
 			return;
@@ -2921,28 +2962,28 @@ public static unsafe partial class SndDsp
 			int r;
 			int flp, frp, rlp, rrp, fcp;
 			int xf_fl, xf_fr, xf_rl, xf_rr, xf_fc;
-			bool bexp = pdsp->bexpfade;
+			bool bexp = pdsp.bexpfade;
 
 			while (count-- != 0) {
 				// get current preset values
 
-				fl = PSET_GetNext(pdsp->GetPset(0), pbf->Left);
-				fr = PSET_GetNext(pdsp->GetPset(1), pbf->Right);
-				rl = PSET_GetNext(pdsp->GetPset(2), pbr->Left);
-				rr = PSET_GetNext(pdsp->GetPset(3), pbr->Right);
-				fc = PSET_GetNext(pdsp->GetPset(4), pbc->Left);
+				fl = PSET_GetNext(pdsp.GetPset(0), pbf[ib].Left);
+				fr = PSET_GetNext(pdsp.GetPset(1), pbf[ib].Right);
+				rl = PSET_GetNext(pdsp.GetPset(2), pbr[ib].Left);
+				rr = PSET_GetNext(pdsp.GetPset(3), pbr[ib].Right);
+				fc = PSET_GetNext(pdsp.GetPset(4), pbc[ib].Left);
 
 				// get previous preset values
 
-				flp = PSET_GetNext(pdsp->GetPsetPrev(0), pbf->Left);
-				frp = PSET_GetNext(pdsp->GetPsetPrev(1), pbf->Right);
-				rlp = PSET_GetNext(pdsp->GetPsetPrev(2), pbr->Left);
-				rrp = PSET_GetNext(pdsp->GetPsetPrev(3), pbr->Right);
-				fcp = PSET_GetNext(pdsp->GetPsetPrev(4), pbc->Left);
+				flp = PSET_GetNext(pdsp.GetPsetPrev(0), pbf[ib].Left);
+				frp = PSET_GetNext(pdsp.GetPsetPrev(1), pbf[ib].Right);
+				rlp = PSET_GetNext(pdsp.GetPsetPrev(2), pbr[ib].Left);
+				rrp = PSET_GetNext(pdsp.GetPsetPrev(3), pbr[ib].Right);
+				fcp = PSET_GetNext(pdsp.GetPsetPrev(4), pbc[ib].Left);
 
 				// get current ramp value
 
-				r = RMP_GetNext(&pdsp->xramp);
+				r = RMP_GetNext(ref pdsp.xramp);
 
 				// crossfade from previous to current preset
 				if (!bexp) {
@@ -2960,15 +3001,13 @@ public static unsafe partial class SndDsp
 					xf_fc = XFADE_EXP(fc, fcp, r);
 				}
 
-				pbf->Left = CLIP_DSP(xf_fl);            // crossfaded front left
-				pbf->Right = CLIP_DSP(xf_fr);
-				pbr->Left = CLIP_DSP(xf_rl);
-				pbr->Right = CLIP_DSP(xf_rr);
-				pbc->Left = CLIP_DSP(xf_fc);
+				pbf[ib].Left = CLIP_DSP(xf_fl);            // crossfaded front left
+				pbf[ib].Right = CLIP_DSP(xf_fr);
+				pbr[ib].Left = CLIP_DSP(xf_rl);
+				pbr[ib].Right = CLIP_DSP(xf_rr);
+				pbc[ib].Left = CLIP_DSP(xf_fc);
 
-				pbf++;
-				pbr++;
-				pbc++;
+				ib++;
 			}
 		}
 	}
@@ -3065,19 +3104,19 @@ public static unsafe partial class SndDsp
 	// return true if dsp's preset is one-shot and it has expired
 
 	static bool DSP_HasExpired(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		Assert(idsp < CDSPS);
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return false;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		// if first preset has expired, dsp has expired
 
-		if (PSET_IsOneShot(pdsp->GetPset(0)))
-			return PSET_HasExpired(pdsp->GetPset(0));
+		if (PSET_IsOneShot(pdsp.GetPset(0)))
+			return PSET_HasExpired(pdsp.GetPset(0));
 		else
 			return false;
 	}
@@ -3085,23 +3124,23 @@ public static unsafe partial class SndDsp
 	// returns true if dsp is crossfading from previous dsp preset
 
 	static bool DSP_IsCrossfading(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		Assert(idsp < CDSPS);
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return false;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
-		return !RMP_HitEnd(&pdsp->xramp);
+		return !RMP_HitEnd(ref pdsp.xramp);
 
 	}
 
 	// returns previous preset # before oneshot preset was set
 
 	static int DSP_OneShotPrevious(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 		int idsp_prev;
 
 		Assert(idsp < CDSPS);
@@ -3109,9 +3148,9 @@ public static unsafe partial class SndDsp
 		if (idsp < 0 || idsp >= CDSPS)
 			return 0;
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
-		idsp_prev = pdsp->ipsetsav_oneshot;
+		idsp_prev = pdsp.ipsetsav_oneshot;
 
 		return idsp_prev;
 	}
@@ -3120,18 +3159,18 @@ public static unsafe partial class SndDsp
 	// both current and previous presets are 0 for this processor
 
 	static bool DSP_PresetIsOff(int idsp) {
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return true;
 
 		Assert(idsp < CDSPS);                   // make sure idsp is valid
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		// if current and previous preset 0, return - preset 0 is 'off'
 
-		return pdsp->ipset == 0 && pdsp->ipsetprev == 0;
+		return pdsp.ipset == 0 && pdsp.ipsetprev == 0;
 	}
 
 	// returns true if dsp is off for room effects
@@ -3151,11 +3190,12 @@ public static unsafe partial class SndDsp
 	// supplied.  ie: if the pdsp has 4 channels and pbfront and pbrear are both non-null, the channels
 	// map 1:1 through the processors.
 
-	public static void DSP_Process(int idsp, PortableSamplePair* pbfront, PortableSamplePair* pbrear, PortableSamplePair* pbcenter, int sampleCount) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static void DSP_Process(int idsp, PortableSamplePair[] pbfront, PortableSamplePair[]? pbrear, PortableSamplePair[]? pbcenter, int sampleCount) {
 		bool bcrossfading;
 		int cchan_in;                               // input channels (2,4 or 5)
 		int cprocs;                                 // output cannels (1, 2 or 4)
-		Dsp* pdsp;
+		Dsp pdsp;
 
 		if (idsp < 0 || idsp >= CDSPS)
 			return;
@@ -3166,7 +3206,7 @@ public static unsafe partial class SndDsp
 
 		Assert(idsp < CDSPS);                   // make sure idsp is valid
 
-		pdsp = &dsps[idsp];
+		pdsp = dsps[idsp];
 
 		Assert(pbfront != null);
 
@@ -3177,13 +3217,13 @@ public static unsafe partial class SndDsp
 
 		// if current and previous preset 0, return - preset 0 is 'off'
 
-		if (pdsp->ipset == 0 && pdsp->ipsetprev == 0)
+		if (pdsp.ipset == 0 && pdsp.ipsetprev == 0)
 			return;
 
 		if (sampleCount < 0)
 			return;
 
-		bcrossfading = !RMP_HitEnd(&pdsp->xramp);
+		bcrossfading = !RMP_HitEnd(ref pdsp.xramp);
 
 		// if not crossfading, and previous channel is not null, free previous
 
@@ -3192,17 +3232,17 @@ public static unsafe partial class SndDsp
 
 		// if current and previous preset 0 (ie: just freed previous), return - preset 0 is 'off'
 
-		if (pdsp->ipset == 0 && pdsp->ipsetprev == 0)
+		if (pdsp.ipset == 0 && pdsp.ipsetprev == 0)
 			return;
 
 		cchan_in = (pbrear != null ? 4 : 2) + (pbcenter != null ? 1 : 0);
-		cprocs = pdsp->cchan;
+		cprocs = pdsp.cchan;
 
 		Assert(cchan_in == 2 || cchan_in == 4 || cchan_in == 5);
 
 		// if oneshot preset, update the duration counter (only update front left counter)
 
-		PSET_UpdateDuration(pdsp->GetPset(0), sampleCount);
+		PSET_UpdateDuration(pdsp.GetPset(0), sampleCount);
 
 		// NOTE: when mixing between different channel sizes,
 		// always AVERAGE down to fewer channels and DUPLICATE up more channels.
@@ -3546,10 +3586,8 @@ public static unsafe partial class SndDsp
 	// free preset template memory
 
 	static void DSP_ReleaseMemory() {
-		if (g_psettemplates != null) {
-			NativeMemory.Free(g_psettemplates);
+		if (g_psettemplates != null)
 			g_psettemplates = null;
-		}
 	}
 
 	static bool DSP_LoadPresetFile() {
@@ -3590,7 +3628,7 @@ public static unsafe partial class SndDsp
 
 		g_cpsettemplates = cpresets;
 
-		g_psettemplates = (Pset*)NativeMemory.AllocZeroed((nuint)(cpresets * sizeof(Pset)));
+		g_psettemplates = CreatePool<Pset>(cpresets);
 		if (g_psettemplates == null) {
 			Warning("DSP Preset Loader: Out of memory.\n");
 			goto load_exit;
@@ -3685,7 +3723,7 @@ public static unsafe partial class SndDsp
 				// get processor type
 
 				pstart = SndParse.COM_Parse(pstart, com_token);
-				Prcs(&g_psettemplates[ipreset])[cproc].type = (int)DSP_LookupStringToken(com_token, ipreset);
+				Prcs(g_psettemplates[ipreset])[cproc].type = (int)DSP_LookupStringToken(com_token, ipreset);
 
 				// get param 0..n or stop when hit closing CHAR_RIGHT_PAREN
 
@@ -3700,7 +3738,7 @@ public static unsafe partial class SndDsp
 					if (com_token[0] == CHAR_RIGHT_PAREN)
 						break;
 
-					Prcs(&g_psettemplates[ipreset])[cproc].prm[ip++] = DSP_LookupStringToken(com_token, ipreset);
+					Prcs(g_psettemplates[ipreset])[cproc].prm[ip++] = DSP_LookupStringToken(com_token, ipreset);
 
 					// cap at max params
 
@@ -3854,23 +3892,23 @@ public static unsafe partial class SndDsp
 
 	// USED FOR DEBUG ONLY.
 
-	public static void DSP_DEBUGSetParams(int ipreset, int iproc, float* pvalues, int cparams) {
+	public static void DSP_DEBUGSetParams(int ipreset, int iproc, ReadOnlySpan<float> pvalues, int cparams) {
 		Pset new_pset;  // preset
 		int cparam = Math.Clamp(cparams, 0, CPRCPARAMS);
-		Prc* pprct;
 
 		// copy template preset from template array
 
-		new_pset = g_psettemplates[ipreset];
+		new_pset = new();
+		new_pset.CopyFrom(g_psettemplates![ipreset]);
 
 		// get iproc processor
 
-		pprct = &Prcs(&new_pset)[iproc];
+		ref Prc pprct = ref Prcs(new_pset)[iproc];
 
 		// copy parameters in to processor
 
 		for (int i = 0; i < cparam; i++)
-			pprct->prm[i] = pvalues[i];
+			pprct.prm[i] = pvalues[i];
 
 		// copy constructed preset back into template location
 

@@ -24,20 +24,48 @@ namespace Source.AudioSystem;
 // on a 1Ghz CPU (mid-low end CPU) 3ms provides roughly 3,000,000 cycles.
 // Thus we have 3e6 / 1840 = 1630 cycles per sample.
 
-public unsafe struct Flt
+public abstract class DspProcessor
+{
+	public abstract int GetNext(int x);
+	public abstract void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op);
+	public abstract void Free();
+	public abstract void Mod(float v);
+}
+
+[InlineArray(SndDsp.FLT_M + 1)]
+public struct FltCoefs
+{
+	int element;
+}
+
+public sealed class Flt : DspProcessor
 {
 	public bool fused;              // true if slot in use
 
-	public fixed int b[SndDsp.FLT_M + 1];   // filter numerator parameters  (convert 0.0-1.0 to 0-PMAX representation)
-	public fixed int a[SndDsp.FLT_M + 1];   // filter denominator parameters (convert 0.0-1.0 to 0-PMAX representation)
-	public fixed int w[SndDsp.FLT_M + 1];   // filter state - samples (dimension of max (M, L))
+	public FltCoefs b;              // filter numerator parameters  (convert 0.0-1.0 to 0-PMAX representation)
+	public FltCoefs a;              // filter denominator parameters (convert 0.0-1.0 to 0-PMAX representation)
+	public FltCoefs w;              // filter state - samples (dimension of max (M, L))
 	public int L;                   // filter order numerator (dimension of a[M+1])
 	public int M;                   // filter order denominator (dimension of b[L+1])
 	public int N;                   // # of series sections - 1 (0 = 1 section, 1 = 2 sections etc)
 
-	public Flt* pf1;                // series cascaded versions of filter
-	public Flt* pf2;
-	public Flt* pf3;
+	public Flt? pf1;                // series cascaded versions of filter
+	public Flt? pf2;
+	public Flt? pf3;
+
+	public void Clear() {
+		fused = false;
+		b = default;
+		a = default;
+		w = default;
+		L = M = N = 0;
+		pf1 = pf2 = pf3 = null;
+	}
+
+	public override int GetNext(int x) => SndDsp.FLT_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.FLT_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.FLT_Free(this);
+	public override void Mod(float v) => SndDsp.FLT_Mod(this, v);
 }
 
 // looping position within a wav, with integer and fractional parts
@@ -63,7 +91,7 @@ public struct PosOne
 
 // delay line
 
-public unsafe struct Dly
+public sealed class Dly : DspProcessor
 {
 	public bool fused;          // true if dly is in use
 	public int type;            // delay type
@@ -75,13 +103,29 @@ public unsafe struct Dly
 	public int t1, t2, t3;      // additional taps for multi-tap delays
 	public int a1, a2, a3;      // feedback values for taps
 	public int D0;              // original delay size (only relevant if calling DLY_ChangeVal)
-	public int* p;              // circular buffer pointer
-	public int* w;              // array of samples
+	public int p;               // circular buffer pointer
+	public int[]? w;            // array of samples
 
 	public int a;               // feedback value 0..PMAX,normalized to 0-1.0
 	public int b;               // gain value 0..PMAX, normalized to 0-1.0
 
-	public Flt* pflt;           // pointer to filter, if type DLY_LOWPASS
+	public Flt? pflt;           // pointer to filter, if type DLY_LOWPASS
+
+	public void Clear() {
+		fused = false;
+		type = D = t = tnew = xf = 0;
+		t1 = t2 = t3 = 0;
+		a1 = a2 = a3 = 0;
+		D0 = p = 0;
+		w = null;
+		a = b = 0;
+		pflt = null;
+	}
+
+	public override int GetNext(int x) => SndDsp.DLY_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.DLY_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.DLY_Free(this);
+	public override void Mod(float v) => SndDsp.DLY_Mod(this, v);
 }
 
 public struct Rmp
@@ -97,13 +141,13 @@ public struct Rmp
 	public PosOne ps;           // current ramp output
 }
 
-public unsafe struct Mdy
+public sealed class Mdy : DspProcessor
 {
 	public bool fused;
 
 	public bool fchanging;      // true if modulating to new delay value
 
-	public Dly* pdly;           // delay
+	public Dly? pdly;           // delay
 
 	public float ramptime;      // ramp 'glide' time - time in seconds to change between values
 
@@ -117,61 +161,129 @@ public unsafe struct Mdy
 
 	public bool bPhaseInvert;   // if true, invert phase of output
 
+	public void Clear() {
+		fused = false;
+		fchanging = false;
+		pdly = null;
+		ramptime = 0;
+		mtime = mtimecur = 0;
+		depth = 0;
+		mix = 0;
+		rmp_interp = default;
+		bPhaseInvert = false;
+	}
+
+	public override int GetNext(int x) => SndDsp.MDY_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.MDY_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.MDY_Free(this);
+	public override void Mod(float v) => SndDsp.MDY_Mod(this, v);
 }
 
-public unsafe struct Rva
+[InlineArray(SndDsp.CRVA_DLYS)]
+public struct RvaDlys
+{
+	Dly? element;
+}
+
+[InlineArray(SndDsp.CRVA_DLYS)]
+public struct RvaMdys
+{
+	Mdy? element;
+}
+
+public sealed class Rva : DspProcessor
 {
 	public bool fused;
 	public int m;               // number of parallel plain or lowpass delays
 	public int fparallel;       // true if filters in parallel with delays, otherwise single output filter
-	public Flt* pflt;           // series filters
+	public Flt? pflt;           // series filters
 
-	public fixed long pdlys[SndDsp.CRVA_DLYS];  // array of pointers to delays
-	public fixed long pmdlys[SndDsp.CRVA_DLYS]; // array of pointers to mod delays
+	public RvaDlys pdlys;       // array of pointers to delays
+	public RvaMdys pmdlys;      // array of pointers to mod delays
 
 	public bool fmoddly;        // true if using mod delays
 
-	public Dly* GetDly(int i) => (Dly*)pdlys[i];
-	public void SetDly(int i, Dly* dly) => pdlys[i] = (long)dly;
-	public Mdy* GetMdy(int i) => (Mdy*)pmdlys[i];
-	public void SetMdy(int i, Mdy* mdy) => pmdlys[i] = (long)mdy;
+	public Dly? GetDly(int i) => pdlys[i];
+	public void SetDly(int i, Dly? dly) => pdlys[i] = dly;
+	public Mdy? GetMdy(int i) => pmdlys[i];
+	public void SetMdy(int i, Mdy? mdy) => pmdlys[i] = mdy;
+
+	public void Clear() {
+		fused = false;
+		m = 0;
+		fparallel = 0;
+		pflt = null;
+		pdlys = default;
+		pmdlys = default;
+		fmoddly = false;
+	}
+
+	public override int GetNext(int x) => SndDsp.RVA_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.RVA_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.RVA_Free(this);
+	public override void Mod(float v) => SndDsp.RVA_Mod(this, v);
 }
 
-public unsafe struct Dfr
+[InlineArray(SndDsp.CDFR_DLYS)]
+public struct DfrDlys
+{
+	Dly? element;
+}
+
+public sealed class Dfr : DspProcessor
 {
 	public bool fused;
 	public int n;                               // series allpass delays
-	public fixed int w[SndDsp.CDFR_DLYS];       // internal state array for series allpass filters
+	public readonly int[] w = new int[SndDsp.CDFR_DLYS];       // internal state array for series allpass filters
 
-	public fixed long pdlys[SndDsp.CDFR_DLYS];  // array of pointers to delays
+	public DfrDlys pdlys;                       // array of pointers to delays
 
-	public Dly* GetDly(int i) => (Dly*)pdlys[i];
-	public void SetDly(int i, Dly* dly) => pdlys[i] = (long)dly;
+	public Dly? GetDly(int i) => pdlys[i];
+	public void SetDly(int i, Dly? dly) => pdlys[i] = dly;
+
+	public void Clear() {
+		fused = false;
+		n = 0;
+		Array.Clear(w);
+		pdlys = default;
+	}
+
+	public override int GetNext(int x) => SndDsp.DFR_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.DFR_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.DFR_Free(this);
+	public override void Mod(float v) => SndDsp.DFR_Mod(this, v);
 }
 
 // processor parameter ranges - for validating parameters during allocation of new processor
 
 public record struct PrmRng(int iprm, float lo, float hi);
 
+[InlineArray(SndDsp.CPRCPARAMS)]
+public struct PrcParams
+{
+	float element;
+}
+
 // processor definition - one for each running instance of a dsp processor
 
-public unsafe struct Prc
+public struct Prc
 {
 	public int type;                        // PRC type
 
-	public fixed float prm[SndDsp.CPRCPARAMS];  // dsp processor parameters - array of floats
+	public PrcParams prm;                   // dsp processor parameters - array of floats
 
-	public delegate*<void*, void*> pfnParam;                            // allocation function - takes ptr to prc, returns ptr to specialized data struct for proc type
-	public delegate*<void*, int, int> pfnGetNext;                       // get next function
-	public delegate*<void*, PortableSamplePair*, int, int, void> pfnGetNextN;   // batch version of get next
-	public delegate*<void*, void> pfnFree;                              // free function
-	public delegate*<void*, float, void> pfnMod;                        // modulation function
-
-	public void* pdata;                     // processor state data - ie: pdly, pflt etc.
+	public DspProcessor? pdata;             // processor state data - ie: pdly, pflt etc.
 }
 
-public static unsafe partial class SndDsp
+public static partial class SndDsp
 {
+	static T[] CreatePool<T>(int count) where T : new() {
+		T[] pool = new T[count];
+		for (int i = 0; i < count; i++)
+			pool[i] = new T();
+		return pool;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] static int SIGN(int d) => d < 0 ? -1 : 1;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] static int ABS(int a) => Math.Abs(a);
@@ -204,21 +316,21 @@ public static unsafe partial class SndDsp
 	// reverse delay pointer
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void DlyPtrReverse(int dlysize, int* psamps, int** ppsamp) {
+	static void DlyPtrReverse(int dlysize, int[] psamps, ref int ppsamp) {
 		// when *ppsamp = psamps - 1, it wraps around to *ppsamp = psamps + dlysize
 
-		if (*ppsamp < psamps)
-			*ppsamp += dlysize + 1;
+		if (ppsamp < 0)
+			ppsamp += dlysize + 1;
 	}
 
 	// advance delay pointer
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void DlyPtrForward(int dlysize, int* psamps, int** ppsamp) {
+	static void DlyPtrForward(int dlysize, int[] psamps, ref int ppsamp) {
 		// when *ppsamp = psamps + dlysize + 1, it wraps around to *ppsamp = psamps
 
-		if (*ppsamp > psamps + dlysize)
-			*ppsamp -= dlysize + 1;
+		if (ppsamp > dlysize)
+			ppsamp -= dlysize + 1;
 	}
 
 	// Infinite Impulse Response (feedback) filter, cannonical form
@@ -259,7 +371,7 @@ public static unsafe partial class SndDsp
 	//			out = numer0*psamp0 + numer1*psamp1 + ...
 	//			psampi = psampi-1, i = cmax, cmax-1, ..., 1
 
-	static int IIRFilter_Update_OrderN(int cdenom, int* denom, int cnumer, int* numer, int* psamp, int @in) {
+	static int IIRFilter_Update_OrderN(int cdenom, ref FltCoefs denom, int cnumer, ref FltCoefs numer, ref FltCoefs psamp, int @in) {
 		int cmax, i;
 		int @out;
 		int in0;
@@ -300,7 +412,7 @@ public static unsafe partial class SndDsp
 	// 1st order filter - faster version
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int IIRFilter_Update_Order1(int* denom, int cnumer, int* numer, int* psamp, int @in) {
+	static int IIRFilter_Update_Order1(ref FltCoefs denom, int cnumer, ref FltCoefs numer, ref FltCoefs psamp, int @in) {
 		int @out;
 
 		if (psamp[0] == 0 && psamp[1] == 0 && @in == 0)
@@ -322,15 +434,15 @@ public static unsafe partial class SndDsp
 	// sdly:		0...dlysize
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int GetDly(int dlysize, int* psamps, int* psamp, int tdelay) {
-		int* pout;
+	static int GetDly(int dlysize, int[] psamps, int psamp, int tdelay) {
+		int pout;
 
 		pout = psamp + tdelay;
 
-		if (pout <= (psamps + dlysize))
-			return *pout;
-		else
-			return *(pout - dlysize - 1);
+		if (pout > dlysize)
+			pout -= dlysize + 1;
+
+		return psamps[pout];
 	}
 
 	// update the delay buffer pointer
@@ -339,13 +451,13 @@ public static unsafe partial class SndDsp
 	// ppsamp:		data pointer
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void DlyUpdate(int dlysize, int* psamps, int** ppsamp) {
+	static void DlyUpdate(int dlysize, int[] psamps, ref int ppsamp) {
 		// decrement pointer and fix up on buffer boundary
 
 		// when *ppsamp = psamps-1, it wraps around to *ppsamp = psamps+dlysize
 
-		(*ppsamp)--;
-		DlyPtrReverse(dlysize, psamps, ppsamp);
+		ppsamp--;
+		DlyPtrReverse(dlysize, psamps, ref ppsamp);
 	}
 
 	// simple delay with feedback, no filter in feedback line.
@@ -366,12 +478,12 @@ public static unsafe partial class SndDsp
 	//			 ----(*)---.
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int ReverbSimple(int delaysize, int tdelay, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int ReverbSimple(int delaysize, int tdelay, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int @out, sD;
 
 		// get current delay output
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
 
 		// calculate output + delay * gain
 
@@ -379,29 +491,29 @@ public static unsafe partial class SndDsp
 
 		// write to delay
 
-		**ppsamp = @out;
+		psamps[ppsamp] = @out;
 
 		// advance internal delay pointers
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return (@out * outgain) >> PBITS;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int ReverbSimple_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int ReverbSimple_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int @out, sD;
 		int sDnew;
 
 		// crossfade from tdelay to tdelaynew samples. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 		sD = sD + (((sDnew - sD) * xf) >> PBITS);
 
 		@out = @in + ((fbgain * sD) >> PBITS);
-		**ppsamp = @out;
-		DlyUpdate(delaysize, psamps, ppsamp);
+		psamps[ppsamp] = @out;
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return (@out * outgain) >> PBITS;
 	}
@@ -412,23 +524,23 @@ public static unsafe partial class SndDsp
 	// NOTE: fbgain * 4 < 1!
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int ReverbSimple_multitap(int delaysize, int tdelay0, int tdelay1, int tdelay2, int tdelay3, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int ReverbSimple_multitap(int delaysize, int tdelay0, int tdelay1, int tdelay2, int tdelay3, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int s1, s2, s3, s4, sum;
 
-		s1 = GetDly(delaysize, psamps, *ppsamp, tdelay0);
-		s2 = GetDly(delaysize, psamps, *ppsamp, tdelay1);
-		s3 = GetDly(delaysize, psamps, *ppsamp, tdelay2);
-		s4 = GetDly(delaysize, psamps, *ppsamp, tdelay3);
+		s1 = GetDly(delaysize, psamps, ppsamp, tdelay0);
+		s2 = GetDly(delaysize, psamps, ppsamp, tdelay1);
+		s3 = GetDly(delaysize, psamps, ppsamp, tdelay2);
+		s4 = GetDly(delaysize, psamps, ppsamp, tdelay3);
 
 		sum = s1 + s2 + s3 + s4;
 
 		// write to delay
 
-		**ppsamp = @in + ((s4 * fbgain) >> PBITS);
+		psamps[ppsamp] = @in + ((s4 * fbgain) >> PBITS);
 
 		// update delay pointers
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return ((sum + @in) * outgain) >> PBITS;
 	}
@@ -436,30 +548,30 @@ public static unsafe partial class SndDsp
 	// modulate smallest tap delay only
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int ReverbSimple_multitap_xfade(int delaysize, int tdelay0, int tdelaynew, int xf, int tdelay1, int tdelay2, int tdelay3, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int ReverbSimple_multitap_xfade(int delaysize, int tdelay0, int tdelaynew, int xf, int tdelay1, int tdelay2, int tdelay3, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int s1, s2, s3, s4, sum;
 		int sD, sDnew;
 
 		// crossfade from tdelay to tdelaynew tap. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay3);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay3);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 
 		s4 = sD + (((sDnew - sD) * xf) >> PBITS);
 
-		s1 = GetDly(delaysize, psamps, *ppsamp, tdelay0);
-		s2 = GetDly(delaysize, psamps, *ppsamp, tdelay1);
-		s3 = GetDly(delaysize, psamps, *ppsamp, tdelay2);
+		s1 = GetDly(delaysize, psamps, ppsamp, tdelay0);
+		s2 = GetDly(delaysize, psamps, ppsamp, tdelay1);
+		s3 = GetDly(delaysize, psamps, ppsamp, tdelay2);
 
 		sum = s1 + s2 + s3 + s4;
 
 		// write to delay
 
-		**ppsamp = @in + ((s4 * fbgain) >> PBITS);
+		psamps[ppsamp] = @in + ((s4 * fbgain) >> PBITS);
 
 		// update delay pointers
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return ((sum + @in) * outgain) >> PBITS;
 	}
@@ -476,14 +588,14 @@ public static unsafe partial class SndDsp
 	//
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLinear(int delaysize, int tdelay, int* psamps, int** ppsamp, int @in) {
+	static int DelayLinear(int delaysize, int tdelay, int[] psamps, ref int ppsamp, int @in) {
 		int @out;
 
-		@out = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		@out = GetDly(delaysize, psamps, ppsamp, tdelay);
 
-		**ppsamp = @in;
+		psamps[ppsamp] = @in;
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return @out;
 	}
@@ -491,19 +603,19 @@ public static unsafe partial class SndDsp
 	// crossfade delay values from tdelay to tdelaynew, with xfade1 for tdelay and xfade2 for tdelaynew. xfade = 0...PMAX
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLinear_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int* psamps, int** ppsamp, int @in) {
+	static int DelayLinear_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int[] psamps, ref int ppsamp, int @in) {
 		int @out;
 		int outnew;
 
-		@out = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		@out = GetDly(delaysize, psamps, ppsamp, tdelay);
 
-		outnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		outnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 
 		@out = @out + (((outnew - @out) * xf) >> PBITS);
 
-		**ppsamp = @in;
+		psamps[ppsamp] = @in;
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return @out;
 	}
@@ -532,24 +644,24 @@ public static unsafe partial class SndDsp
 	//			 --(*)--[Filter])-
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLowpass(int delaysize, int tdelay, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int Ll, int* numer, int* pfsamps, int @in) {
+	static int DelayLowpass(int delaysize, int tdelay, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int Ll, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int @out, sD;
 
 		// delay output is filter input
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
 
 		// filter output, with feedback 'fbgain' baked into filter params
 
-		@out = @in + IIRFilter_Update_Order1(denom, Ll, numer, pfsamps, sD);
+		@out = @in + IIRFilter_Update_Order1(ref denom, Ll, ref numer, ref pfsamps, sD);
 
 		// write to delay
 
-		**ppsamp = @out;
+		psamps[ppsamp] = @out;
 
 		// update delay pointers
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		// output with gain
 
@@ -557,27 +669,27 @@ public static unsafe partial class SndDsp
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLowpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int Ll, int* numer, int* pfsamps, int @in) {
+	static int DelayLowpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int Ll, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int @out, sD;
 		int sDnew;
 
 		// crossfade from tdelay to tdelaynew tap. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 		sD = sD + (((sDnew - sD) * xf) >> PBITS);
 
 		// filter output with feedback 'fbgain' baked into filter params
 
-		@out = @in + IIRFilter_Update_Order1(denom, Ll, numer, pfsamps, sD);
+		@out = @in + IIRFilter_Update_Order1(ref denom, Ll, ref numer, ref pfsamps, sD);
 
 		// write to delay
 
-		**ppsamp = @out;
+		psamps[ppsamp] = @out;
 
 		// update delay ptrs
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		// output with gain
 
@@ -590,52 +702,52 @@ public static unsafe partial class SndDsp
 	// NOTE: fbgain * 4 < 1!
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLowpass_multitap(int delaysize, int tdelay0, int tdelay1, int tdelay2, int tdelay3, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int Ll, int* numer, int* pfsamps, int @in) {
+	static int DelayLowpass_multitap(int delaysize, int tdelay0, int tdelay1, int tdelay2, int tdelay3, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int Ll, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int s0, s1, s2, s3, s4, sum;
 
-		s1 = GetDly(delaysize, psamps, *ppsamp, tdelay0);
-		s2 = GetDly(delaysize, psamps, *ppsamp, tdelay1);
-		s3 = GetDly(delaysize, psamps, *ppsamp, tdelay2);
-		s4 = GetDly(delaysize, psamps, *ppsamp, tdelay3);
+		s1 = GetDly(delaysize, psamps, ppsamp, tdelay0);
+		s2 = GetDly(delaysize, psamps, ppsamp, tdelay1);
+		s3 = GetDly(delaysize, psamps, ppsamp, tdelay2);
+		s4 = GetDly(delaysize, psamps, ppsamp, tdelay3);
 
 		sum = s1 + s2 + s3 + s4;
 
-		s0 = @in + IIRFilter_Update_Order1(denom, Ll, numer, pfsamps, s4);
+		s0 = @in + IIRFilter_Update_Order1(ref denom, Ll, ref numer, ref pfsamps, s4);
 
 		// write to delay
 
-		**ppsamp = s0;
+		psamps[ppsamp] = s0;
 
 		// update delay ptrs
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return ((sum + @in) * outgain) >> PBITS;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLowpass_multitap_xfade(int delaysize, int tdelay0, int tdelaynew, int xf, int tdelay1, int tdelay2, int tdelay3, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int Ll, int* numer, int* pfsamps, int @in) {
+	static int DelayLowpass_multitap_xfade(int delaysize, int tdelay0, int tdelaynew, int xf, int tdelay1, int tdelay2, int tdelay3, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int Ll, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int s0, s1, s2, s3, s4, sum;
 
 		int sD, sDnew;
 
 		// crossfade from tdelay to tdelaynew tap. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay3);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay3);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 
 		s4 = sD + (((sDnew - sD) * xf) >> PBITS);
 
-		s1 = GetDly(delaysize, psamps, *ppsamp, tdelay0);
-		s2 = GetDly(delaysize, psamps, *ppsamp, tdelay1);
-		s3 = GetDly(delaysize, psamps, *ppsamp, tdelay2);
+		s1 = GetDly(delaysize, psamps, ppsamp, tdelay0);
+		s2 = GetDly(delaysize, psamps, ppsamp, tdelay1);
+		s3 = GetDly(delaysize, psamps, ppsamp, tdelay2);
 
 		sum = s1 + s2 + s3 + s4;
 
-		s0 = @in + IIRFilter_Update_Order1(denom, Ll, numer, pfsamps, s4);
+		s0 = @in + IIRFilter_Update_Order1(ref denom, Ll, ref numer, ref pfsamps, s4);
 
-		**ppsamp = s0;
-		DlyUpdate(delaysize, psamps, ppsamp);
+		psamps[ppsamp] = s0;
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return ((sum + @in) * outgain) >> PBITS;
 	}
@@ -656,24 +768,24 @@ public static unsafe partial class SndDsp
 	//  in(n)--->[Delay d]--->[Filter]-->(*outgain)---> out(n)
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLinear_lowpass(int delaysize, int tdelay, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int cnumer, int* numer, int* pfsamps, int @in) {
+	static int DelayLinear_lowpass(int delaysize, int tdelay, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int cnumer, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int @out, sD;
 
 		// delay output is filter input
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
 
 		// calc filter output
 
-		@out = IIRFilter_Update_Order1(denom, cnumer, numer, pfsamps, sD);
+		@out = IIRFilter_Update_Order1(ref denom, cnumer, ref numer, ref pfsamps, sD);
 
 		// input sample to delay input
 
-		**ppsamp = @in;
+		psamps[ppsamp] = @in;
 
 		// update delay pointers
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		// output with gain
 
@@ -681,21 +793,21 @@ public static unsafe partial class SndDsp
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayLinear_lowpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int* psamps, int** ppsamp, int fbgain, int outgain, int* denom, int cnumer, int* numer, int* pfsamps, int @in) {
+	static int DelayLinear_lowpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int[] psamps, ref int ppsamp, int fbgain, int outgain, ref FltCoefs denom, int cnumer, ref FltCoefs numer, ref FltCoefs pfsamps, int @in) {
 		int @out, sD;
 		int sDnew;
 
 		// crossfade from tdelay to tdelaynew tap. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 		sD = sD + (((sDnew - sD) * xf) >> PBITS);
 
-		@out = IIRFilter_Update_Order1(denom, cnumer, numer, pfsamps, sD);
+		@out = IIRFilter_Update_Order1(ref denom, cnumer, ref numer, ref pfsamps, sD);
 
-		**ppsamp = @in;
+		psamps[ppsamp] = @in;
 
-		DlyUpdate(delaysize, psamps, ppsamp);
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return (@out * outgain) >> PBITS;
 	}
@@ -731,36 +843,36 @@ public static unsafe partial class SndDsp
 	//		DlyUpdate(delaysize, psamps, &ppsamp)
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayAllpass(int delaysize, int tdelay, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int DelayAllpass(int delaysize, int tdelay, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int @out, s0, sD;
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
 		s0 = @in + ((fbgain * sD) >> PBITS);
 
 		@out = ((-fbgain * s0) >> PBITS) + sD;
-		**ppsamp = s0;
-		DlyUpdate(delaysize, psamps, ppsamp);
+		psamps[ppsamp] = s0;
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return (@out * outgain) >> PBITS;
 	}
 
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DelayAllpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int* psamps, int** ppsamp, int fbgain, int outgain, int @in) {
+	static int DelayAllpass_xfade(int delaysize, int tdelay, int tdelaynew, int xf, int[] psamps, ref int ppsamp, int fbgain, int outgain, int @in) {
 		int @out, s0, sD;
 		int sDnew;
 
 		// crossfade from t to tnew tap. xfade is 0..PMAX
 
-		sD = GetDly(delaysize, psamps, *ppsamp, tdelay);
-		sDnew = GetDly(delaysize, psamps, *ppsamp, tdelaynew);
+		sD = GetDly(delaysize, psamps, ppsamp, tdelay);
+		sDnew = GetDly(delaysize, psamps, ppsamp, tdelaynew);
 		sD = sD + (((sDnew - sD) * xf) >> PBITS);
 
 		s0 = @in + ((fbgain * sD) >> PBITS);
 
 		@out = ((-fbgain * s0) >> PBITS) + sD;
-		**ppsamp = s0;
-		DlyUpdate(delaysize, psamps, ppsamp);
+		psamps[ppsamp] = s0;
+		DlyUpdate(delaysize, psamps, ref ppsamp);
 
 		return (@out * outgain) >> PBITS;
 	}
@@ -827,27 +939,27 @@ public static unsafe partial class SndDsp
 
 	// flt flts
 
-	static readonly Flt* flts = (Flt*)NativeMemory.AllocZeroed((nuint)(CFLTS * sizeof(Flt)));
+	static readonly Flt[] flts = CreatePool<Flt>(CFLTS);
 
-	static void FLT_Init(Flt* pf) { if (pf != null) Unsafe.InitBlock(pf, 0, (uint)sizeof(Flt)); }
-	static void FLT_InitAll() { for (int i = 0; i < CFLTS; i++) FLT_Init(&flts[i]); }
+	static void FLT_Init(Flt? pf) { if (pf != null) pf.Clear(); }
+	static void FLT_InitAll() { for (int i = 0; i < CFLTS; i++) FLT_Init(flts[i]); }
 
-	static void FLT_Free(Flt* pf) {
+	internal static void FLT_Free(Flt? pf) {
 		if (pf != null) {
-			if (pf->pf1 != null)
-				Unsafe.InitBlock(pf->pf1, 0, (uint)sizeof(Flt));
+			if (pf.pf1 != null)
+				pf.pf1.Clear();
 
-			if (pf->pf2 != null)
-				Unsafe.InitBlock(pf->pf2, 0, (uint)sizeof(Flt));
+			if (pf.pf2 != null)
+				pf.pf2.Clear();
 
-			if (pf->pf3 != null)
-				Unsafe.InitBlock(pf->pf3, 0, (uint)sizeof(Flt));
+			if (pf.pf3 != null)
+				pf.pf3.Clear();
 
-			Unsafe.InitBlock(pf, 0, (uint)sizeof(Flt));
+			pf.Clear();
 		}
 	}
 
-	static void FLT_FreeAll() { for (int i = 0; i < CFLTS; i++) FLT_Free(&flts[i]); }
+	static void FLT_FreeAll() { for (int i = 0; i < CFLTS; i++) FLT_Free(flts[i]); }
 
 
 	// find a free filter from the filter pool
@@ -855,30 +967,30 @@ public static unsafe partial class SndDsp
 	// gain scales filter numerator
 	// N is # of series sections - 1
 
-	static Flt* FLT_Alloc(int N, int M, int L, int* a, int* b, float gain) {
+	static Flt? FLT_Alloc(int N, int M, int L, ReadOnlySpan<int> a, ReadOnlySpan<int> b, float gain) {
 		int i, j;
-		Flt* pf = null;
+		Flt? pf = null;
 
 		for (i = 0; i < CFLTS; i++) {
 			if (!flts[i].fused) {
-				pf = &flts[i];
+				pf = flts[i];
 
 				// transfer filter params into filter struct
-				pf->M = M;
-				pf->L = L;
-				pf->N = N;
+				pf.M = M;
+				pf.L = L;
+				pf.N = N;
 
 				for (j = 0; j <= M; j++)
-					pf->a[j] = a[j];
+					pf.a[j] = a[j];
 
 				for (j = 0; j <= L; j++)
-					pf->b[j] = (int)((float)b[j] * gain);
+					pf.b[j] = (int)((float)b[j] * gain);
 
-				pf->pf1 = null;
-				pf->pf2 = null;
-				pf->pf3 = null;
+				pf.pf1 = null;
+				pf.pf2 = null;
+				pf.pf3 = null;
 
-				pf->fused = true;
+				pf.fused = true;
 				break;
 			}
 		}
@@ -896,7 +1008,7 @@ public static unsafe partial class SndDsp
 
 	// design cutoff filter at 3db (.5 gain) p579
 
-	static void FLT_Design_3db_IIR(float cutoff, float ftype, int* pM, int* pL, int* a, int* b) {
+	static void FLT_Design_3db_IIR(float cutoff, float ftype, out int pM, out int pL, Span<int> a, Span<int> b) {
 		// ftype: FLT_LP, FLT_HP, FLT_BP
 
 		double Wc = 2.0 * Math.PI * cutoff / SOUND_DMA_SPEED;           // radians per sample
@@ -929,7 +1041,7 @@ public static unsafe partial class SndDsp
 		if (ftype == FLT_HP)
 			b[1] = -b[1];
 
-		*pM = *pL = 1;
+		pM = pL = 1;
 
 		return;
 	}
@@ -961,24 +1073,24 @@ public static unsafe partial class SndDsp
 	// convert prc float params to iir filter params, alloc filter and return ptr to it
 	// filter quality set by prc quality - 0,1,2
 
-	static Flt* FLT_Params(Prc* pprc) {
-		float qual = pprc->prm[flt_iquality];
-		float cutoff = pprc->prm[flt_icutoff];
-		float ftype = pprc->prm[flt_iftype];
-		float qwidth = pprc->prm[flt_iqwidth];
-		float gain = pprc->prm[flt_igain];
+	static Flt? FLT_Params(ref Prc pprc) {
+		float qual = pprc.prm[flt_iquality];
+		float cutoff = pprc.prm[flt_icutoff];
+		float ftype = pprc.prm[flt_iftype];
+		float qwidth = pprc.prm[flt_iqwidth];
+		float gain = pprc.prm[flt_igain];
 
 		int L = 0;                  // numerator order
 		int M = 0;                  // denominator order
-		int* b = stackalloc int[FLT_M + 1];             // numerator params	 0..PMAX
-		int* b_scaled = stackalloc int[FLT_M + 1];      // gain scaled numerator
-		int* a = stackalloc int[FLT_M + 1];             // denominator params 0..PMAX
+		Span<int> b = stackalloc int[FLT_M + 1];             // numerator params	 0..PMAX
+		Span<int> b_scaled = stackalloc int[FLT_M + 1];      // gain scaled numerator
+		Span<int> a = stackalloc int[FLT_M + 1];             // denominator params 0..PMAX
 
 		int L_bp = 0;               // bandpass numerator order
 		int M_bp = 0;               // bandpass denominator order
-		int* b_bp = stackalloc int[FLT_M + 1];          // bandpass numerator params	 0..PMAX
-		int* b_bp_scaled = stackalloc int[FLT_M + 1];   // gain scaled numerator
-		int* a_bp = stackalloc int[FLT_M + 1];          // bandpass denominator params 0..PMAX
+		Span<int> b_bp = stackalloc int[FLT_M + 1];          // bandpass numerator params	 0..PMAX
+		Span<int> b_bp_scaled = stackalloc int[FLT_M + 1];   // gain scaled numerator
+		Span<int> a_bp = stackalloc int[FLT_M + 1];          // bandpass denominator params 0..PMAX
 
 		int N;                      // # of series sections
 		bool bpass = false;
@@ -998,7 +1110,7 @@ public static unsafe partial class SndDsp
 		if (bpass) {
 			// highpass section
 
-			FLT_Design_3db_IIR(cutoff, FLT_HP, &M_bp, &L_bp, a_bp, b_bp);
+			FLT_Design_3db_IIR(cutoff, FLT_HP, out M_bp, out L_bp, a_bp, b_bp);
 			M_bp = Math.Clamp(M_bp, 1, FLT_M);
 			L_bp = Math.Clamp(L_bp, 1, FLT_M);
 			cutoff += qwidth;
@@ -1006,7 +1118,7 @@ public static unsafe partial class SndDsp
 
 		// lowpass section
 
-		FLT_Design_3db_IIR(cutoff, (int)ftype, &M, &L, a, b);
+		FLT_Design_3db_IIR(cutoff, (int)ftype, out M, out L, a, b);
 
 		M = Math.Clamp(M, 1, FLT_M);
 		L = Math.Clamp(L, 1, FLT_M);
@@ -1020,10 +1132,10 @@ public static unsafe partial class SndDsp
 		if (bpass)
 			N = Math.Max(N, 1);
 
-		Flt* pf0 = null;
-		Flt* pf1 = null;
-		Flt* pf2 = null;
-		Flt* pf3 = null;
+		Flt? pf0 = null;
+		Flt? pf1 = null;
+		Flt? pf2 = null;
+		Flt? pf3 = null;
 
 		// scale b numerators with gain - only scale for first filter if series filters
 
@@ -1061,85 +1173,78 @@ public static unsafe partial class SndDsp
 					break;
 			}
 
-			pf0->pf1 = pf1;
-			pf0->pf2 = pf2;
-			pf0->pf3 = pf3;
+			pf0.pf1 = pf1;
+			pf0.pf2 = pf2;
+			pf0.pf3 = pf3;
 		}
 
 		return pf0;
 	}
 
-	static void* FLT_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, flt_rng);
-		return FLT_Params((Prc*)p);
+	static DspProcessor? FLT_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, flt_rng);
+		return FLT_Params(ref p);
 	}
 
-	static void FLT_Mod(void* p, float v) { return; }
+	internal static void FLT_Mod(Flt p, float v) { return; }
 
 	// get next filter value for filter pf and input x
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int FLT_GetNext(Flt* pf, int x) {
-		Flt* pf1;
-		Flt* pf2;
-		Flt* pf3;
+	internal static int FLT_GetNext(Flt pf, int x) {
+		Flt pf1;
+		Flt pf2;
+		Flt pf3;
 		int y;
 
-		switch (pf->N) {
+		switch (pf.N) {
 			default:
 			case 0:
-				return IIRFilter_Update_Order1(pf->a, pf->L, pf->b, pf->w, x);
+				return IIRFilter_Update_Order1(ref pf.a, pf.L, ref pf.b, ref pf.w, x);
 			case 1:
-				pf1 = pf->pf1;
+				pf1 = pf.pf1!;
 
-				y = IIRFilter_Update_Order1(pf->a, pf->L, pf->b, pf->w, x);
-				return IIRFilter_Update_Order1(pf1->a, pf1->L, pf1->b, pf1->w, y);
+				y = IIRFilter_Update_Order1(ref pf.a, pf.L, ref pf.b, ref pf.w, x);
+				return IIRFilter_Update_Order1(ref pf1.a, pf1.L, ref pf1.b, ref pf1.w, y);
 			case 2:
-				pf1 = pf->pf1;
-				pf2 = pf->pf2;
+				pf1 = pf.pf1!;
+				pf2 = pf.pf2!;
 
-				y = IIRFilter_Update_Order1(pf->a, pf->L, pf->b, pf->w, x);
-				y = IIRFilter_Update_Order1(pf1->a, pf1->L, pf1->b, pf1->w, y);
-				return IIRFilter_Update_Order1(pf2->a, pf2->L, pf2->b, pf2->w, y);
+				y = IIRFilter_Update_Order1(ref pf.a, pf.L, ref pf.b, ref pf.w, x);
+				y = IIRFilter_Update_Order1(ref pf1.a, pf1.L, ref pf1.b, ref pf1.w, y);
+				return IIRFilter_Update_Order1(ref pf2.a, pf2.L, ref pf2.b, ref pf2.w, y);
 			case 3:
-				pf1 = pf->pf1;
-				pf2 = pf->pf2;
-				pf3 = pf->pf3;
+				pf1 = pf.pf1!;
+				pf2 = pf.pf2!;
+				pf3 = pf.pf3!;
 
-				y = IIRFilter_Update_Order1(pf->a, pf->L, pf->b, pf->w, x);
-				y = IIRFilter_Update_Order1(pf1->a, pf1->L, pf1->b, pf1->w, y);
-				y = IIRFilter_Update_Order1(pf2->a, pf2->L, pf2->b, pf2->w, y);
-				return IIRFilter_Update_Order1(pf3->a, pf3->L, pf3->b, pf3->w, y);
+				y = IIRFilter_Update_Order1(ref pf.a, pf.L, ref pf.b, ref pf.w, x);
+				y = IIRFilter_Update_Order1(ref pf1.a, pf1.L, ref pf1.b, ref pf1.w, y);
+				y = IIRFilter_Update_Order1(ref pf2.a, pf2.L, ref pf2.b, ref pf2.w, y);
+				return IIRFilter_Update_Order1(ref pf3.a, pf3.L, ref pf3.b, ref pf3.w, y);
 		}
 	}
 
-	static int FLT_GetNextV(void* pf, int x) => FLT_GetNext((Flt*)pf, x);
 
 	// batch version for performance
 
-	static void FLT_GetNextN(void* pflt, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void FLT_GetNextN(Flt pflt, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = FLT_GetNext((Flt*)pflt, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = FLT_GetNext(pflt, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = FLT_GetNext((Flt*)pflt, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = FLT_GetNext(pflt, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = FLT_GetNext((Flt*)pflt, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = FLT_GetNext(pflt, pb[i].Left);
 				return;
 		}
 	}
@@ -1153,12 +1258,12 @@ public static unsafe partial class SndDsp
 	// i circular index
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void POS_Wrap(int D, int* i) {
-		if (*i > D)
-			*i -= D + 1;        // when *pi = D + 1, it wraps around to *pi = 0
+	static void POS_Wrap(int D, ref int i) {
+		if (i > D)
+			i -= D + 1;        // when *pi = D + 1, it wraps around to *pi = 0
 
-		if (*i < 0)
-			*i += D + 1;        // when *pi = - 1, it wraps around to *pi = D
+		if (i < 0)
+			i += D + 1;        // when *pi = - 1, it wraps around to *pi = D
 	}
 
 	// set initial update value - fstep can have no more than 8 bits of integer and 20 bits of fract
@@ -1166,7 +1271,7 @@ public static unsafe partial class SndDsp
 	// w is ptr to array
 	// p is ptr to pos_t to initialize
 
-	static void POS_Init(Pos* p, int D, float fstep) {
+	static void POS_Init(ref Pos p, int D, float fstep) {
 		float step = fstep;
 
 		// make sure int part of step is capped at fix20_intmax
@@ -1174,82 +1279,81 @@ public static unsafe partial class SndDsp
 		if ((int)step > FIX20_INTMAX)
 			step = (step - (int)step) + FIX20_INTMAX;
 
-		p->step = FLOAT_TO_FIX20(step); // convert fstep to fixed point
-		p->cstep = 0;
-		p->pos = 0;                         // current update value
+		p.step = FLOAT_TO_FIX20(step); // convert fstep to fixed point
+		p.cstep = 0;
+		p.pos = 0;                         // current update value
 
-		p->D = D;                           // always init to end value, in case we're stepping backwards
+		p.D = D;                           // always init to end value, in case we're stepping backwards
 	}
 
 	// change step value - this is an instantaneous change, not smoothed.
 
-	static void POS_ChangeVal(Pos* p, float fstepnew) {
-		p->step = FLOAT_TO_FIX20(fstepnew); // convert fstep to fixed point
+	static void POS_ChangeVal(ref Pos p, float fstepnew) {
+		p.step = FLOAT_TO_FIX20(fstepnew); // convert fstep to fixed point
 	}
 
 	// return current integer position, then update internal position value
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int POS_GetNext(Pos* p) {
+	static int POS_GetNext(ref Pos p) {
 
 		//float f = FIX20_TO_FLOAT(p->cstep);
 		//int i1 = FIX20_INTPART(p->cstep);
 		//float f1 = FIX20_TO_FLOAT(FIX20_FRACPART(p->cstep));
 		//float f2 = FIX20_TO_FLOAT(p->step);
 
-		p->cstep += p->step;                        // update accumulated fraction step value (fixed point)
-		p->pos += FIX20_INTPART(p->cstep);          // update pos with integer part of accumulated step
-		p->cstep = FIX20_FRACPART(p->cstep);        // throw away the integer part of accumulated step
+		p.cstep += p.step;                        // update accumulated fraction step value (fixed point)
+		p.pos += FIX20_INTPART(p.cstep);          // update pos with integer part of accumulated step
+		p.cstep = FIX20_FRACPART(p.cstep);        // throw away the integer part of accumulated step
 
 		// wrap pos around either end of buffer if needed
 
-		POS_Wrap(p->D, &p->pos);
+		POS_Wrap(p.D, ref p.pos);
 
 		// make sure returned position is within array bounds
 
-		Assert(p->pos <= p->D);
+		Assert(p.pos <= p.D);
 
-		return p->pos;
+		return p.pos;
 	}
 
 	// set initial update value - fstep can have no more than 8 bits of integer and 20 bits of fract
 	// one shot position - play only once, don't wrap, when hit end of buffer, return last position
 
-	static void POS_ONE_Init(PosOne* p1, int D, float fstep) {
-		POS_Init(&p1->p, D, fstep);
+	static void POS_ONE_Init(ref PosOne p1, int D, float fstep) {
+		POS_Init(ref p1.p, D, fstep);
 
-		p1->fhitend = false;
+		p1.fhitend = false;
 	}
 
 	// return current integer position, then update internal position value
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int POS_ONE_GetNext(PosOne* p1) {
+	static int POS_ONE_GetNext(ref PosOne p1) {
 		int pos;
-		Pos* p0;
 
-		pos = p1->p.pos;                            // return current position
+		pos = p1.p.pos;                            // return current position
 
-		if (p1->fhitend)
+		if (p1.fhitend)
 			return pos;
 
-		p0 = &p1->p;
-		p0->cstep += p0->step;                      // update accumulated fraction step value (fixed point)
-		p0->pos += FIX20_INTPART(p0->cstep);        // update pos with integer part of accumulated step
+		ref Pos p0 = ref p1.p;
+		p0.cstep += p0.step;                      // update accumulated fraction step value (fixed point)
+		p0.pos += FIX20_INTPART(p0.cstep);        // update pos with integer part of accumulated step
 													//p0->cstep = SIGN(p0->cstep) * FIX20_FRACPART( p0->cstep );
-		p0->cstep = FIX20_FRACPART(p0->cstep);      // throw away the integer part of accumulated step
+		p0.cstep = FIX20_FRACPART(p0.cstep);      // throw away the integer part of accumulated step
 
 		// if we wrapped, stop updating, always return last position
 		// if step value is 0, return hit end
 
-		if (p0->step == 0 || p0->pos < 0 || p0->pos >= p0->D)
-			p1->fhitend = true;
+		if (p0.step == 0 || p0.pos < 0 || p0.pos >= p0.D)
+			p1.fhitend = true;
 		else
-			pos = p0->pos;
+			pos = p0.pos;
 
 		// make sure returned value is within array bounds
 
-		Assert(pos <= p0->D);
+		Assert(pos <= p0.D);
 
 		return pos;
 	}
@@ -1278,26 +1382,26 @@ public static unsafe partial class SndDsp
 
 	const float DLY_NORMALIZING_REDUCTION_MAX = 0.25f;  // don't reduce gain (due to feedback) below N% of original gain
 
-	static readonly Dly* dlys = (Dly*)NativeMemory.AllocZeroed((nuint)(CDLYS * sizeof(Dly)));  // delay lines
+	static readonly Dly[] dlys = CreatePool<Dly>(CDLYS);  // delay lines
 
-	static void DLY_Init(Dly* pdly) { if (pdly != null) Unsafe.InitBlock(pdly, 0, (uint)sizeof(Dly)); }
-	static void DLY_InitAll() { for (int i = 0; i < CDLYS; i++) DLY_Init(&dlys[i]); }
-	static void DLY_Free(Dly* pdly) {
+	static void DLY_Init(Dly? pdly) { if (pdly != null) pdly.Clear(); }
+	static void DLY_InitAll() { for (int i = 0; i < CDLYS; i++) DLY_Init(dlys[i]); }
+	internal static void DLY_Free(Dly? pdly) {
 		// free memory buffer
 
 		if (pdly != null) {
-			FLT_Free(pdly->pflt);
+			FLT_Free(pdly.pflt);
 
-			NativeMemory.Free(pdly->w);
+			pdly.w = null;
 
 			// free dly slot
 
-			Unsafe.InitBlock(pdly, 0, (uint)sizeof(Dly));
+			pdly.Clear();
 		}
 	}
 
 
-	static void DLY_FreeAll() { for (int i = 0; i < CDLYS; i++) DLY_Free(&dlys[i]); }
+	static void DLY_FreeAll() { for (int i = 0; i < CDLYS; i++) DLY_Free(dlys[i]); }
 
 	// return adjusted feedback value for given dly
 	// such that decay time is same as that for dmin and fbmin
@@ -1335,7 +1439,7 @@ public static unsafe partial class SndDsp
 	// set up 'b' gain parameter of feedback delay to
 	// compensate for gain caused by feedback 'fb'.
 
-	static void DLY_SetNormalizingGain(Dly* pdly, int feedback) {
+	static void DLY_SetNormalizingGain(Dly pdly, int feedback) {
 		// compute normalized gain, set as output gain
 
 		// calculate gain of delay line with feedback, and use it to
@@ -1359,7 +1463,7 @@ public static unsafe partial class SndDsp
 
 		// if b is 0, set b to PMAX (1)
 
-		b = pdly->b != 0 ? pdly->b : PMAX;
+		b = pdly.b != 0 ? pdly.b : PMAX;
 
 		fgain = 1.0F / (1.0F - fb);
 
@@ -1376,7 +1480,7 @@ public static unsafe partial class SndDsp
 
 		gain = ((float)b / (float)PMAX) * gain; // scale final gain by pdly->b.
 
-		pdly->b = (int)gain;
+		pdly.b = (int)gain;
 	}
 
 	// allocate a new delay line
@@ -1389,17 +1493,17 @@ public static unsafe partial class SndDsp
 	//		fb - numerator params, M+1
 	//		fa - denominator params, L+1
 
-	static Dly* DLY_AllocLP(int D, int a, int b, int type, int M, int L, int* fa, int* fb) {
-		int* w;
+	static Dly? DLY_AllocLP(int D, int a, int b, int type, int M, int L, ReadOnlySpan<int> fa, ReadOnlySpan<int> fb) {
+		int[] w;
 		int i;
-		Dly* pdly = null;
+		Dly? pdly = null;
 		int feedback;
 
 		// find open slot
 
 		for (i = 0; i < CDLYS; i++) {
 			if (!dlys[i].fused) {
-				pdly = &dlys[i];
+				pdly = dlys[i];
 				DLY_Init(pdly);
 				break;
 			}
@@ -1428,44 +1532,35 @@ public static unsafe partial class SndDsp
 
 			float gain = (float)a / (float)PMAX;
 
-			pdly->pflt = FLT_Alloc(0, M, L, fa, fb, gain);
-			if (pdly->pflt == null) {
+			pdly.pflt = FLT_Alloc(0, M, L, fa, fb, gain);
+			if (pdly.pflt == null) {
 				DevMsg("DSP: Warning, failed to allocate filter for delay line.\n");
 				return null;
 			}
 		}
 
 		// alloc delay memory
-		w = (int*)NativeMemory.Alloc((nuint)(sizeof(int) * (D + 1)));
-		if (w == null) {
-			Warning("Sound DSP: Failed to lock.\n");
-			FLT_Free(pdly->pflt);
-			return null;
-		}
-
-		// clear delay array
-
-		Unsafe.InitBlock(w, 0, (uint)(sizeof(int) * (D + 1)));
+		w = new int[D + 1];
 
 		// init values
 
-		pdly->type = type;
-		pdly->D = D;
-		pdly->t = D;        // set delay tap to full delay
-		pdly->tnew = D;
-		pdly->xf = 0;
-		pdly->D0 = D;
-		pdly->p = w;        // init circular pointer to head of buffer
-		pdly->w = w;
-		pdly->a = Math.Min(a, PMAX - 1);        // do not allow 100% feedback
-		pdly->b = b;
-		pdly->fused = true;
+		pdly.type = type;
+		pdly.D = D;
+		pdly.t = D;        // set delay tap to full delay
+		pdly.tnew = D;
+		pdly.xf = 0;
+		pdly.D0 = D;
+		pdly.p = 0;        // init circular pointer to head of buffer
+		pdly.w = w;
+		pdly.a = Math.Min(a, PMAX - 1);        // do not allow 100% feedback
+		pdly.b = b;
+		pdly.fused = true;
 
 		if (type == DLY_LINEAR || type == DLY_FLINEAR) {
 			// linear delay has no feedback and unity gain
 
-			pdly->a = 0;
-			pdly->b = PMAX;
+			pdly.a = 0;
+			pdly.b = PMAX;
 		}
 		else {
 			// adjust b to compensate for feedback gain of steady state max input
@@ -1484,8 +1579,8 @@ public static unsafe partial class SndDsp
 
 	// allocate lowpass or allpass delay
 
-	static Dly* DLY_Alloc(int D, int a, int b, int type) {
-		return DLY_AllocLP(D, a, b, type, 0, 0, null, null);
+	static Dly? DLY_Alloc(int D, int a, int b, int type) {
+		return DLY_AllocLP(D, a, b, type, 0, 0, default, default);
 	}
 
 
@@ -1536,23 +1631,23 @@ public static unsafe partial class SndDsp
 		new(dly_itap3, -1.0f, 1000.0f),         // delay in milliseconds
 	];
 
-	static Dly* DLY_Params(Prc* pprc) {
-		Dly* pdly = null;
+	static Dly? DLY_Params(ref Prc pprc) {
+		Dly? pdly = null;
 		int D, a, b;
 
-		float delay = MathF.Abs(pprc->prm[dly_idelay]);
-		float feedback = pprc->prm[dly_ifeedback];
-		float gain = pprc->prm[dly_igain];
-		int type = (int)pprc->prm[dly_idtype];
+		float delay = MathF.Abs(pprc.prm[dly_idelay]);
+		float feedback = pprc.prm[dly_ifeedback];
+		float gain = pprc.prm[dly_igain];
+		int type = (int)pprc.prm[dly_idtype];
 
-		float ftype = pprc->prm[dly_iftype];
-		float cutoff = pprc->prm[dly_icutoff];
-		float qwidth = pprc->prm[dly_iqwidth];
-		float qual = pprc->prm[dly_iquality];
+		float ftype = pprc.prm[dly_iftype];
+		float cutoff = pprc.prm[dly_icutoff];
+		float qwidth = pprc.prm[dly_iqwidth];
+		float qual = pprc.prm[dly_iquality];
 
-		float t1 = MathF.Abs(pprc->prm[dly_itap1]);
-		float t2 = MathF.Abs(pprc->prm[dly_itap2]);
-		float t3 = MathF.Abs(pprc->prm[dly_itap3]);
+		float t1 = MathF.Abs(pprc.prm[dly_itap1]);
+		float t2 = MathF.Abs(pprc.prm[dly_itap2]);
+		float t3 = MathF.Abs(pprc.prm[dly_itap3]);
 
 		D = MSEC_TO_SAMPS(delay);                   // delay samples
 		a = (int)(feedback * PMAX);                     // feedback
@@ -1579,14 +1674,14 @@ public static unsafe partial class SndDsp
 					prcf.prm[flt_iqwidth] = qwidth;
 					prcf.prm[flt_igain] = 1.0f;
 
-					Flt* pflt = FLT_Params(&prcf);
+					Flt? pflt = FLT_Params(ref prcf);
 
 					if (pflt == null) {
 						DevMsg("DSP: Warning, failed to allocate filter.\n");
 						return null;
 					}
 
-					pdly = DLY_AllocLP(D, a, b, type, pflt->M, pflt->L, pflt->a, pflt->b);
+					pdly = DLY_AllocLP(D, a, b, type, pflt.M, pflt.L, pflt.a, pflt.b);
 
 					FLT_Free(pflt);
 					break;
@@ -1601,55 +1696,54 @@ public static unsafe partial class SndDsp
 		return pdly;
 	}
 
-	static void* DLY_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, dly_rng);
-		return DLY_Params((Prc*)p);
+	static DspProcessor? DLY_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, dly_rng);
+		return DLY_Params(ref p);
 	}
 
 	// get next value from delay line, move x into delay line
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DLY_GetNext(Dly* pdly, int x) {
-		switch (pdly->type) {
+	internal static int DLY_GetNext(Dly pdly, int x) {
+		switch (pdly.type) {
 			default:
 			case DLY_PLAIN:
-				return ReverbSimple(pdly->D, pdly->t, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return ReverbSimple(pdly.D, pdly.t, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_ALLPASS:
-				return DelayAllpass(pdly->D, pdly->t, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return DelayAllpass(pdly.D, pdly.t, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_LOWPASS:
-				return DelayLowpass(pdly->D, pdly->t, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLowpass(pdly.D, pdly.t, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 			case DLY_LINEAR:
-				return DelayLinear(pdly->D, pdly->t, pdly->w, &pdly->p, x);
+				return DelayLinear(pdly.D, pdly.t, pdly.w!, ref pdly.p, x);
 			case DLY_FLINEAR:
-				return DelayLinear_lowpass(pdly->D, pdly->t, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLinear_lowpass(pdly.D, pdly.t, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 			case DLY_PLAIN_4TAP:
-				return ReverbSimple_multitap(pdly->D, pdly->t, pdly->t1, pdly->t2, pdly->t3, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return ReverbSimple_multitap(pdly.D, pdly.t, pdly.t1, pdly.t2, pdly.t3, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_LOWPASS_4TAP:
-				return DelayLowpass_multitap(pdly->D, pdly->t, pdly->t1, pdly->t2, pdly->t3, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLowpass_multitap(pdly.D, pdly.t, pdly.t1, pdly.t2, pdly.t3, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 		}
 	}
 
-	static int DLY_GetNextV(void* pdly, int x) => DLY_GetNext((Dly*)pdly, x);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DLY_GetNextXfade(Dly* pdly, int x) {
+	static int DLY_GetNextXfade(Dly pdly, int x) {
 
-		switch (pdly->type) {
+		switch (pdly.type) {
 			default:
 			case DLY_PLAIN:
-				return ReverbSimple_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return ReverbSimple_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_ALLPASS:
-				return DelayAllpass_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return DelayAllpass_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_LOWPASS:
-				return DelayLowpass_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLowpass_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 			case DLY_LINEAR:
-				return DelayLinear_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->w, &pdly->p, x);
+				return DelayLinear_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.w!, ref pdly.p, x);
 			case DLY_FLINEAR:
-				return DelayLinear_lowpass_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLinear_lowpass_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 			case DLY_PLAIN_4TAP:
-				return ReverbSimple_multitap_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->t1, pdly->t2, pdly->t3, pdly->w, &pdly->p, pdly->a, pdly->b, x);
+				return ReverbSimple_multitap_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.t1, pdly.t2, pdly.t3, pdly.w!, ref pdly.p, pdly.a, pdly.b, x);
 			case DLY_LOWPASS_4TAP:
-				return DelayLowpass_multitap_xfade(pdly->D, pdly->t, pdly->tnew, pdly->xf, pdly->t1, pdly->t2, pdly->t3, pdly->w, &pdly->p, pdly->a, pdly->b, pdly->pflt->a, pdly->pflt->L, pdly->pflt->b, pdly->pflt->w, x);
+				return DelayLowpass_multitap_xfade(pdly.D, pdly.t, pdly.tnew, pdly.xf, pdly.t1, pdly.t2, pdly.t3, pdly.w!, ref pdly.p, pdly.a, pdly.b, ref pdly.pflt!.a, pdly.pflt.L, ref pdly.pflt.b, ref pdly.pflt.w, x);
 		}
 	}
 
@@ -1658,29 +1752,23 @@ public static unsafe partial class SndDsp
 	// UNDONE: b) all filter and delay params are dereferenced outside of DLY_GetNext and passed as register values
 	// UNDONE: c) pull case statement in dly_getnext out, so loop directly calls the inline dly_*() routine.
 
-	static void DLY_GetNextN(void* pdly, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void DLY_GetNextN(Dly pdly, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = DLY_GetNext((Dly*)pdly, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = DLY_GetNext(pdly, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = DLY_GetNext((Dly*)pdly, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = DLY_GetNext(pdly, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = DLY_GetNext((Dly*)pdly, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = DLY_GetNext(pdly, pb[i].Left);
 				return;
 		}
 	}
@@ -1689,15 +1777,15 @@ public static unsafe partial class SndDsp
 	// Only valid for DLY_LINEAR.
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int DLY_GetTap(Dly* pdly, int t) {
-		return GetDly(pdly->D, pdly->w, pdly->p, t);
+	static int DLY_GetTap(Dly pdly, int t) {
+		return GetDly(pdly.D, pdly.w!, pdly.p, t);
 	}
 
 	// make instantaneous change to tap values t0..t3
 	// all values of t must be less than original delay D
 	// only processed for DLY_LOWPASS_4TAP & DLY_PLAIN_4TAP
 	// NOTE: pdly->a feedback must have been set before this call!
-	static void DLY_ChangeTaps(Dly* pdly, int t0, int t1, int t2, int t3) {
+	static void DLY_ChangeTaps(Dly? pdly, int t0, int t1, int t2, int t3) {
 		if (pdly == null)
 			return;
 
@@ -1709,25 +1797,25 @@ public static unsafe partial class SndDsp
 			if (t2 > t3) (t2, t3) = (t3, t2);
 		}
 
-		pdly->t = Math.Min(t0, pdly->D0);
-		pdly->t1 = Math.Min(t1, pdly->D0);
-		pdly->t2 = Math.Min(t2, pdly->D0);
-		pdly->t3 = Math.Min(t3, pdly->D0);
+		pdly.t = Math.Min(t0, pdly.D0);
+		pdly.t1 = Math.Min(t1, pdly.D0);
+		pdly.t2 = Math.Min(t2, pdly.D0);
+		pdly.t3 = Math.Min(t3, pdly.D0);
 
 	}
 
 	// make instantaneous change for first delay tap 't' to new delay value.
 	// t tap value must be <= original D (ie: we don't do any reallocation here)
 
-	static void DLY_ChangeVal(Dly* pdly, int t) {
+	static void DLY_ChangeVal(Dly pdly, int t) {
 		// never set delay > original delay
 
-		pdly->t = Math.Min(t, pdly->D0);
+		pdly.t = Math.Min(t, pdly.D0);
 	}
 
 	// ignored - use MDY_ for modulatable delay
 
-	static void DLY_Mod(void* p, float v) { return; }
+	internal static void DLY_Mod(Dly p, float v) { return; }
 
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -1745,14 +1833,11 @@ public static unsafe partial class SndDsp
 	// if bEndAtTime is true, then RMP_HitEnd returns true when ramp time is reached, EVEN IF TARGETVAL IS NOT REACHED
 	// if bEndAtTime is false, then RMP_HitEnd returns true when targetval is reached, EVEN IF DELTA IN RAMP VALUES IS > +/- 1
 
-	static void RMP_Init(Rmp* prmp, float ramptime, int initval, int targetval, bool bEndAtTime) {
+	static void RMP_Init(ref Rmp prmp, float ramptime, int initval, int targetval, bool bEndAtTime) {
 		int rise;
 		int run;
 
-		if (prmp != null)
-			Unsafe.InitBlock(prmp, 0, (uint)sizeof(Rmp));
-		else
-			return;
+		prmp = default;
 
 		run = (int)(ramptime * SOUND_DMA_SPEED);        // 'samples' in ramp
 		rise = targetval - initval;                     // height of ramp
@@ -1760,80 +1845,80 @@ public static unsafe partial class SndDsp
 		// init fixed point iterator to iterate along the height of the ramp 'rise'
 		// always iterates from 0..'rise', increasing in value
 
-		POS_ONE_Init(&prmp->ps, ABS(rise), MathF.Abs((float)rise) / ((float)run));
+		POS_ONE_Init(ref prmp.ps, ABS(rise), MathF.Abs((float)rise) / ((float)run));
 
-		prmp->yprev = initval;
-		prmp->initval = initval;
-		prmp->target = targetval;
-		prmp->sign = SIGN(rise);
-		prmp->bEndAtTime = bEndAtTime;
+		prmp.yprev = initval;
+		prmp.initval = initval;
+		prmp.target = targetval;
+		prmp.sign = SIGN(rise);
+		prmp.bEndAtTime = bEndAtTime;
 
 	}
 
 	// continues from current position to new target position
 
-	static void RMP_SetNext(Rmp* prmp, float ramptime, int targetval) {
-		RMP_Init(prmp, ramptime, prmp->yprev, targetval, prmp->bEndAtTime);
+	static void RMP_SetNext(ref Rmp prmp, float ramptime, int targetval) {
+		RMP_Init(ref prmp, ramptime, prmp.yprev, targetval, prmp.bEndAtTime);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static bool RMP_HitEnd(Rmp* prmp) {
-		return prmp->fhitend;
+	static bool RMP_HitEnd(ref Rmp prmp) {
+		return prmp.fhitend;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void RMP_SetEnd(Rmp* prmp) {
-		prmp->fhitend = true;
+	static void RMP_SetEnd(ref Rmp prmp) {
+		prmp.fhitend = true;
 	}
 
 	// get next ramp value & update ramp, if bEndAtTime is true, never varies by more than +1 or -1 between calls
 	// when ramp hits target value, it thereafter always returns last value
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int RMP_GetNext(Rmp* prmp) {
+	static int RMP_GetNext(ref Rmp prmp) {
 		int y;
 		int d;
 
 		// if we hit ramp end, return last value
 
-		if (prmp->fhitend)
-			return prmp->yprev;
+		if (prmp.fhitend)
+			return prmp.yprev;
 
 		// get next integer position in ramp height.
 
-		d = POS_ONE_GetNext(&prmp->ps);
+		d = POS_ONE_GetNext(ref prmp.ps);
 
-		if (prmp->ps.fhitend)
-			prmp->fhitend = true;
+		if (prmp.ps.fhitend)
+			prmp.fhitend = true;
 
 		// increase or decrease from initval, depending on ramp sign
 
-		if (prmp->sign > 0)
-			y = prmp->initval + d;
+		if (prmp.sign > 0)
+			y = prmp.initval + d;
 		else
-			y = prmp->initval - d;
+			y = prmp.initval - d;
 
 		// if bEndAtTime is true, only update current height by a max of +1 or -1
 		// this also means that for short ramp times, we may not hit target
 
-		if (prmp->bEndAtTime) {
-			if (ABS(y - prmp->yprev) >= 1)
-				prmp->yprev += prmp->sign;
+		if (prmp.bEndAtTime) {
+			if (ABS(y - prmp.yprev) >= 1)
+				prmp.yprev += prmp.sign;
 		}
 		else {
 			// always hits target - but varies by more than +/- 1
 
-			prmp->yprev = y;
+			prmp.yprev = y;
 		}
 
-		return prmp->yprev;
+		return prmp.yprev;
 	}
 
 	// get current ramp value, don't update ramp
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static int RMP_GetCurrent(Rmp* prmp) {
-		return prmp->yprev;
+	static int RMP_GetCurrent(ref Rmp prmp) {
+		return prmp.yprev;
 	}
 
 
@@ -1845,12 +1930,12 @@ public static unsafe partial class SndDsp
 
 	public const int CMDYS = 64;                // max # of mod delays active (steals from delays)
 
-	static readonly Mdy* mdys = (Mdy*)NativeMemory.AllocZeroed((nuint)(CMDYS * sizeof(Mdy)));
+	static readonly Mdy[] mdys = CreatePool<Mdy>(CMDYS);
 
-	static void MDY_Init(Mdy* pmdy) { if (pmdy != null) Unsafe.InitBlock(pmdy, 0, (uint)sizeof(Mdy)); }
-	static void MDY_Free(Mdy* pmdy) { if (pmdy != null) { DLY_Free(pmdy->pdly); Unsafe.InitBlock(pmdy, 0, (uint)sizeof(Mdy)); } }
-	static void MDY_InitAll() { for (int i = 0; i < CMDYS; i++) MDY_Init(&mdys[i]); }
-	static void MDY_FreeAll() { for (int i = 0; i < CMDYS; i++) MDY_Free(&mdys[i]); }
+	static void MDY_Init(Mdy? pmdy) { if (pmdy != null) pmdy.Clear(); }
+	internal static void MDY_Free(Mdy? pmdy) { if (pmdy != null) { DLY_Free(pmdy.pdly); pmdy.Clear(); } }
+	static void MDY_InitAll() { for (int i = 0; i < CMDYS; i++) MDY_Init(mdys[i]); }
+	static void MDY_FreeAll() { for (int i = 0; i < CMDYS; i++) MDY_Free(mdys[i]); }
 
 
 	// allocate mod delay, given previously allocated dly (NOTE: mod delay only sweeps tap 0, not t1,t2 or t3)
@@ -1859,27 +1944,27 @@ public static unsafe partial class SndDsp
 	// depth is 0-1.0 multiplier, new delay values when modulating are Dnew = randomlong (D - D*depth, D)
 	// mix - 0-1.0, default 1.0 for 100% fx mix - pans between input signal and fx signal
 
-	static Mdy* MDY_Alloc(Dly* pdly, float ramptime, float modtime, float depth, float mix) {
+	static Mdy? MDY_Alloc(Dly? pdly, float ramptime, float modtime, float depth, float mix) {
 		int i;
-		Mdy* pmdy;
+		Mdy pmdy;
 
 		if (pdly == null)
 			return null;
 
 		for (i = 0; i < CMDYS; i++) {
 			if (!mdys[i].fused) {
-				pmdy = &mdys[i];
+				pmdy = mdys[i];
 
 				MDY_Init(pmdy);
 
-				pmdy->pdly = pdly;
-				pmdy->fused = true;
-				pmdy->ramptime = ramptime;
-				pmdy->mtime = SEC_TO_SAMPS(modtime);
-				pmdy->mtimecur = pmdy->mtime;
-				pmdy->depth = depth;
-				pmdy->mix = (int)(PMAX * mix);
-				pmdy->bPhaseInvert = false;
+				pmdy.pdly = pdly;
+				pmdy.fused = true;
+				pmdy.ramptime = ramptime;
+				pmdy.mtime = SEC_TO_SAMPS(modtime);
+				pmdy.mtimecur = pmdy.mtime;
+				pmdy.depth = depth;
+				pmdy.mix = (int)(PMAX * mix);
+				pmdy.bPhaseInvert = false;
 
 				return pmdy;
 			}
@@ -1891,34 +1976,35 @@ public static unsafe partial class SndDsp
 
 	// change to new delay tap value t samples, ramp linearly over ramptime seconds
 
-	static void MDY_ChangeVal(Mdy* pmdy, int t) {
+	static void MDY_ChangeVal(Mdy pmdy, int t) {
 		// if D > original delay value, cap at original value
 
-		t = Math.Min(pmdy->pdly->D0, t);
+		t = Math.Min(pmdy.pdly!.D0, t);
 
-		pmdy->fchanging = true;
+		pmdy.fchanging = true;
 
 		// init interpolation ramp - always hit target
 
-		RMP_Init(&pmdy->rmp_interp, pmdy->ramptime, 0, PMAX, false);
+		RMP_Init(ref pmdy.rmp_interp, pmdy.ramptime, 0, PMAX, false);
 
 		// init delay xfade values
 
-		pmdy->pdly->tnew = t;
-		pmdy->pdly->xf = 0;
+		pmdy.pdly.tnew = t;
+		pmdy.pdly.xf = 0;
 	}
 
 	// interpolate between current and target delay values
 
-	static int MDY_GetNext(Mdy* pmdy, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int MDY_GetNext(Mdy pmdy, int x) {
 		int xout;
 
-		if (!pmdy->fchanging) {
+		if (!pmdy.fchanging) {
 			// not modulating...
 
-			xout = DLY_GetNext(pmdy->pdly, x);
+			xout = DLY_GetNext(pmdy.pdly!, x);
 
-			if (pmdy->mtime == 0) {
+			if (pmdy.mtime == 0) {
 				// return right away if not modulating (not changing and not self modulating)
 
 				goto mdy_return;
@@ -1927,35 +2013,35 @@ public static unsafe partial class SndDsp
 		else {
 			// modulating...
 
-			xout = DLY_GetNextXfade(pmdy->pdly, x);
+			xout = DLY_GetNextXfade(pmdy.pdly!, x);
 
 			// get xfade ramp & set up delay xfade value for next call to DLY_GetNextXfade()
 
-			pmdy->pdly->xf = RMP_GetNext(&pmdy->rmp_interp); // 0...PMAX
+			pmdy.pdly.xf = RMP_GetNext(ref pmdy.rmp_interp); // 0...PMAX
 
-			if (RMP_HitEnd(&pmdy->rmp_interp)) {
+			if (RMP_HitEnd(ref pmdy.rmp_interp)) {
 				// done. set delay tap & value = target
 
-				DLY_ChangeVal(pmdy->pdly, pmdy->pdly->tnew);
+				DLY_ChangeVal(pmdy.pdly, pmdy.pdly.tnew);
 
-				pmdy->pdly->t = pmdy->pdly->tnew;
+				pmdy.pdly.t = pmdy.pdly.tnew;
 
-				pmdy->fchanging = false;
+				pmdy.fchanging = false;
 			}
 		}
 
 		// if self-modulating and timer has expired, get next change
 
-		if (pmdy->mtime != 0 && pmdy->mtimecur-- == 0) {
-			pmdy->mtimecur = pmdy->mtime;
+		if (pmdy.mtime != 0 && pmdy.mtimecur-- == 0) {
+			pmdy.mtimecur = pmdy.mtime;
 
-			int D0 = pmdy->pdly->D0;
+			int D0 = pmdy.pdly!.D0;
 			int Dnew;
 			float D1;
 
 			// modulate between 0 and 100% of d0
 
-			D1 = (float)D0 * (1.0F - pmdy->depth);
+			D1 = (float)D0 * (1.0F - pmdy.depth);
 
 			Dnew = RandomInt((int)D1, D0);
 
@@ -1968,25 +2054,24 @@ public static unsafe partial class SndDsp
 
 		// reverse phase of output
 
-		if (pmdy->bPhaseInvert)
+		if (pmdy.bPhaseInvert)
 			xout = -xout;
 
 		// 100% fx mix
 
-		if (pmdy->mix == PMAX)
+		if (pmdy.mix == PMAX)
 			return xout;
 
 		// special case 50/50 mix
 
-		if (pmdy->mix == PMAX / 2)
+		if (pmdy.mix == PMAX / 2)
 			return (xout + x) >> 1;
 
 		// return mix of input and processed signal
 
-		return x + (((xout - x) * pmdy->mix) >> PBITS);
+		return x + (((xout - x) * pmdy.mix) >> PBITS);
 	}
 
-	static int MDY_GetNextV(void* pmdy, int x) => MDY_GetNext((Mdy*)pmdy, x);
 
 
 	// batch version for performance
@@ -1995,29 +2080,23 @@ public static unsafe partial class SndDsp
 	// UNDONE: b) if not currently modulating, figure out how many samples N until self-modulation timer kicks in again
 	//			  and stream out N samples just like DLY_GetNext
 
-	static void MDY_GetNextN(void* pmdy, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void MDY_GetNextN(Mdy pmdy, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = MDY_GetNext((Mdy*)pmdy, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = MDY_GetNext(pmdy, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = MDY_GetNext((Mdy*)pmdy, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = MDY_GetNext(pmdy, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = MDY_GetNext((Mdy*)pmdy, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = MDY_GetNext(pmdy, pb[i].Left);
 				return;
 		}
 	}
@@ -2073,20 +2152,20 @@ public static unsafe partial class SndDsp
 
 	// convert user parameters to internal parameters, allocate and return
 
-	static Mdy* MDY_Params(Prc* pprc) {
-		Mdy* pmdy;
-		Dly* pdly;
+	static Mdy? MDY_Params(ref Prc pprc) {
+		Mdy? pmdy;
+		Dly? pdly;
 
-		float ramptime = pprc->prm[mdy_imodglide] / 1000.0F;            // get ramp time in seconds
+		float ramptime = pprc.prm[mdy_imodglide] / 1000.0F;            // get ramp time in seconds
 		float modtime = 0.0f;
-		if (pprc->prm[mdy_imodrate] != 0.0f)
-			modtime = 1.0F / pprc->prm[mdy_imodrate];               // time between modulations in seconds
-		float depth = pprc->prm[mdy_imoddepth];                     // depth of modulations 0-1.0
-		float mix = pprc->prm[mdy_imix];
+		if (pprc.prm[mdy_imodrate] != 0.0f)
+			modtime = 1.0F / pprc.prm[mdy_imodrate];               // time between modulations in seconds
+		float depth = pprc.prm[mdy_imoddepth];                     // depth of modulations 0-1.0
+		float mix = pprc.prm[mdy_imix];
 
 		// alloc plain, allpass or lowpass delay
 
-		pdly = DLY_Params(pprc);
+		pdly = DLY_Params(ref pprc);
 
 		if (pdly == null)
 			return null;
@@ -2096,18 +2175,18 @@ public static unsafe partial class SndDsp
 		return pmdy;
 	}
 
-	static void* MDY_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, mdy_rng);
-		return MDY_Params((Prc*)p);
+	static DspProcessor? MDY_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, mdy_rng);
+		return MDY_Params(ref p);
 	}
 
 	// v is +/- 0-1.0
 	// change current delay value 0..D
 
-	static void MDY_Mod(void* p, float v) {
-		Mdy* pmdy = (Mdy*)p;
+	internal static void MDY_Mod(Mdy p, float v) {
+		Mdy pmdy = p;
 
-		int D0 = pmdy->pdly->D0;                // base delay value
+		int D0 = pmdy.pdly!.D0;                // base delay value
 		float v2;
 
 		// if v is < -2.0 then delay is v + 10.0
@@ -2115,10 +2194,10 @@ public static unsafe partial class SndDsp
 
 		if (v < -2.0F) {
 			v = v + 10.0F;
-			pmdy->bPhaseInvert = true;
+			pmdy.bPhaseInvert = true;
 		}
 		else
-			pmdy->bPhaseInvert = false;
+			pmdy.bPhaseInvert = false;
 
 		v2 = -(v + 1.0F) / 2.0F;                // v2 varies -1.0-0.0
 
@@ -2145,39 +2224,39 @@ public static unsafe partial class SndDsp
 
 	public const int CRVA_DLYS = 12;            // max number of delays making up reverb_a
 
-	static readonly Rva* rvas = (Rva*)NativeMemory.AllocZeroed((nuint)(CRVAS * sizeof(Rva)));
+	static readonly Rva[] rvas = CreatePool<Rva>(CRVAS);
 
-	static void RVA_Init(Rva* prva) { if (prva != null) Unsafe.InitBlock(prva, 0, (uint)sizeof(Rva)); }
-	static void RVA_InitAll() { for (int i = 0; i < CRVAS; i++) RVA_Init(&rvas[i]); }
+	static void RVA_Init(Rva? prva) { if (prva != null) prva.Clear(); }
+	static void RVA_InitAll() { for (int i = 0; i < CRVAS; i++) RVA_Init(rvas[i]); }
 
 	// free parallel series reverb
 
-	static void RVA_Free(Rva* prva) {
+	internal static void RVA_Free(Rva? prva) {
 		int i;
 
 		if (prva != null) {
 			// free all delays
 			for (i = 0; i < CRVA_DLYS; i++)
-				DLY_Free(prva->GetDly(i));
+				DLY_Free(prva.GetDly(i));
 
 			// zero all ptrs to delays in mdy array
 			for (i = 0; i < CRVA_DLYS; i++) {
-				if (prva->GetMdy(i) != null)
-					prva->GetMdy(i)->pdly = null;
+				if (prva.GetMdy(i) != null)
+					prva.GetMdy(i)!.pdly = null;
 			}
 
 			// free all mod delays
 			for (i = 0; i < CRVA_DLYS; i++)
-				MDY_Free(prva->GetMdy(i));
+				MDY_Free(prva.GetMdy(i));
 
-			FLT_Free(prva->pflt);
+			FLT_Free(prva.pflt);
 
-			Unsafe.InitBlock(prva, 0, (uint)sizeof(Rva));
+			prva.Clear();
 		}
 	}
 
 
-	static void RVA_FreeAll() { for (int i = 0; i < CRVAS; i++) RVA_Free(&rvas[i]); }
+	static void RVA_FreeAll() { for (int i = 0; i < CRVAS; i++) RVA_Free(rvas[i]); }
 
 	// create parallel reverb - m parallel reverbs summed
 
@@ -2192,12 +2271,12 @@ public static unsafe partial class SndDsp
 	// fmodrate - # of delay repetitions between changes to mod delay
 	// ftaps - if > 0, use 4 taps per reverb delay unit (increases density) tap = D - n*ftaps  n = 0,1,2,3
 
-	static Rva* RVA_Alloc(int* D, int* a, int* b, int m, Flt* pflt, int fparallel, float fmoddly, float fmodrate, float ftaps) {
+	static Rva? RVA_Alloc(ReadOnlySpan<int> D, ReadOnlySpan<int> a, ReadOnlySpan<int> b, int m, Flt? pflt, int fparallel, float fmoddly, float fmodrate, float ftaps) {
 
 		int i;
 		int dtype;
-		Rva* prva;
-		Flt* pflt2 = null;
+		Rva prva;
+		Flt? pflt2 = null;
 
 		bool btaps = ftaps > 0.0;
 
@@ -2215,22 +2294,22 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		prva = &rvas[i];
+		prva = rvas[i];
 
 		// if series filter specified, alloc two series filters
 
 		if (pflt != null && fparallel == 0) {
 			// use filter data as template for a filter on output (2 cascaded filters)
 
-			pflt2 = FLT_Alloc(0, pflt->M, pflt->L, pflt->a, pflt->b, 1.0f);
+			pflt2 = FLT_Alloc(0, pflt.M, pflt.L, pflt.a, pflt.b, 1.0f);
 
 			if (pflt2 == null) {
 				DevMsg("DSP: Warning, failed to allocate flt for reverb.\n");
 				return null;
 			}
 
-			pflt2->pf1 = FLT_Alloc(0, pflt->M, pflt->L, pflt->a, pflt->b, 1.0f);
-			pflt2->N = 1;
+			pflt2.pf1 = FLT_Alloc(0, pflt.M, pflt.L, pflt.a, pflt.b, 1.0f);
+			pflt2.N = 1;
 		}
 
 		// allocate parallel delays
@@ -2251,9 +2330,9 @@ public static unsafe partial class SndDsp
 			// if filter specified and parallel specified, alloc 1 filter per delay
 
 			if (DLY_HAS_FILTER(dtype))
-				prva->SetDly(i, DLY_AllocLP(D[i], Math.Abs(a[i]), b[i], dtype, pflt->M, pflt->L, pflt->a, pflt->b));
+				prva.SetDly(i, DLY_AllocLP(D[i], Math.Abs(a[i]), b[i], dtype, pflt!.M, pflt.L, pflt.a, pflt.b));
 			else
-				prva->SetDly(i, DLY_Alloc(D[i], Math.Abs(a[i]), b[i], dtype));
+				prva.SetDly(i, DLY_Alloc(D[i], Math.Abs(a[i]), b[i], dtype));
 
 			if (DLY_HAS_MULTITAP(dtype)) {
 				// set up delay taps to increase density around delay value.
@@ -2264,7 +2343,7 @@ public static unsafe partial class SndDsp
 				float t2 = Math.Max((float)MSEC_TO_SAMPS(7), D[i] * (1.0F - ftaps * 1.697043F));
 				float t3 = Math.Max((float)MSEC_TO_SAMPS(10), D[i] * (1.0F - ftaps * 0.96325F));
 
-				DLY_ChangeTaps(prva->GetDly(i), (int)t1, (int)t2, (int)t3, D[i]);
+				DLY_ChangeTaps(prva.GetDly(i), (int)t1, (int)t2, (int)t3, D[i]);
 			}
 		}
 
@@ -2281,7 +2360,7 @@ public static unsafe partial class SndDsp
 			float depth;
 
 			for (i = 0; i < m; i++) {
-				int Do = prva->GetDly(i)->D;
+				int Do = prva.GetDly(i)!.D;
 
 				modtime = (float)Do / (float)SOUND_DMA_SPEED;   // seconds per delay
 				depth = (fmoddly * 0.001f) / modtime;                               // convert milliseconds to 'depth' %
@@ -2290,16 +2369,16 @@ public static unsafe partial class SndDsp
 
 				ramptime = Math.Min(20.0f / 1000.0f, modtime / 2);                          // ramp between delay values in N ms
 
-				prva->SetMdy(i, MDY_Alloc(prva->GetDly(i), ramptime, modtime, depth, 1.0f));
+				prva.SetMdy(i, MDY_Alloc(prva.GetDly(i), ramptime, modtime, depth, 1.0f));
 			}
 
-			prva->fmoddly = true;
+			prva.fmoddly = true;
 		}
 
 		// if we failed to alloc any reverb, free all, return NULL
 
 		for (i = 0; i < m; i++) {
-			if (prva->GetDly(i) == null) {
+			if (prva.GetDly(i) == null) {
 				FLT_Free(pflt2);
 				RVA_Free(prva);
 				DevMsg("DSP: Warning, failed to allocate delay for reverb.\n");
@@ -2307,10 +2386,10 @@ public static unsafe partial class SndDsp
 			}
 		}
 
-		prva->fused = true;
-		prva->m = m;
-		prva->fparallel = fparallel;
-		prva->pflt = pflt2;
+		prva.fused = true;
+		prva.m = m;
+		prva.fparallel = fparallel;
+		prva.pflt = pflt2;
 		return prva;
 	}
 
@@ -2340,66 +2419,60 @@ public static unsafe partial class SndDsp
 		   PMAX/9, PMAX/10, PMAX/11,PMAX/12,PMAX/13,PMAX/14,PMAX/15,PMAX/16,
 	];
 
-	static int RVA_GetNext(Rva* prva, int x) {
-		int m = prva->m;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int RVA_GetNext(Rva prva, int x) {
+		int m = prva.m;
 		int y = 0;
 
-		if (prva->fmoddly) {
+		if (prva.fmoddly) {
 			// get output of parallel mod delays
 
 			for (int i = 0; i < m; i++)
-				y += MDY_GetNext(prva->GetMdy(i), x);
+				y += MDY_GetNext(prva.GetMdy(i)!, x);
 		}
 		else {
 			// get output of parallel delays
 
 			for (int i = 0; i < m; i++)
-				y += DLY_GetNext(prva->GetDly(i), x);
+				y += DLY_GetNext(prva.GetDly(i)!, x);
 		}
 
 		// PERFORMANCE: y/m is now baked into the 'b' gain params for each delay ( b = b/m )
 		// y = (y * g_MapIntoPBITSDivInt[m]) >> PBITS;
 
-		if (prva->fparallel != 0)
+		if (prva.fparallel != 0)
 			return y;
 
 		// run series filters if present
 
-		if (prva->pflt != null)
-			y = FLT_GetNext(prva->pflt, y);
+		if (prva.pflt != null)
+			y = FLT_GetNext(prva.pflt, y);
 
 		return y;
 	}
 
-	static int RVA_GetNextV(void* prva, int x) => RVA_GetNext((Rva*)prva, x);
 
 
 	// batch version for performance
 	// UNDONE: unwind RVA_GetNextN so that it directly calls DLY_GetNextN or MDY_GetNextN
 
-	static void RVA_GetNextN(void* prva, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void RVA_GetNextN(Rva prva, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = RVA_GetNext((Rva*)prva, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = RVA_GetNext(prva, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = RVA_GetNext((Rva*)prva, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = RVA_GetNext(prva, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = RVA_GetNext((Rva*)prva, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = RVA_GetNext(prva, pb[i].Left);
 				return;
 		}
 	}
@@ -2488,7 +2561,7 @@ public static unsafe partial class SndDsp
 	// gain - output gain
 	// feedback - default feedback if rgf members are 0
 
-	static void RVA_ConstructDelays(float* rgd, float* rgf, int m, int* D, int* a, int* b, float gain, float feedback) {
+	static void RVA_ConstructDelays(Span<float> rgd, Span<float> rgf, int m, Span<int> D, Span<int> a, Span<int> b, float gain, float feedback) {
 
 		int i;
 		float r;
@@ -2566,32 +2639,32 @@ public static unsafe partial class SndDsp
 		}
 	}
 
-	static Rva* RVA_Params(Prc* pprc) {
-		Rva* prva;
+	static Rva? RVA_Params(ref Prc pprc) {
+		Rva? prva;
 
-		float size_max = pprc->prm[rva_size_max];   // max delay size
-		float size_min = pprc->prm[rva_size_min];   // min delay size
+		float size_max = pprc.prm[rva_size_max];   // max delay size
+		float size_min = pprc.prm[rva_size_min];   // min delay size
 
-		float numdelays = pprc->prm[rva_inumdelays];    // controls # of parallel delays
-		float feedback = pprc->prm[rva_ifeedback];      // 0-1.0 controls feedback parameters
-		float gain = pprc->prm[rva_igain];          // 0-10.0 controls output gain
+		float numdelays = pprc.prm[rva_inumdelays];    // controls # of parallel delays
+		float feedback = pprc.prm[rva_ifeedback];      // 0-1.0 controls feedback parameters
+		float gain = pprc.prm[rva_igain];          // 0-10.0 controls output gain
 
-		float cutoff = pprc->prm[rva_icutoff];      // filter cutoff
+		float cutoff = pprc.prm[rva_icutoff];      // filter cutoff
 
-		float fparallel = pprc->prm[rva_ifparallel];    // if true, all filters are in delay feedback paths - otherwise single flt on output
+		float fparallel = pprc.prm[rva_ifparallel];    // if true, all filters are in delay feedback paths - otherwise single flt on output
 
-		float fmoddly = pprc->prm[rva_imoddly];     // if > 0, milliseconds of delay mod depth
-		float fmodrate = pprc->prm[rva_imodrate];       // if fmoddly > 0, # of delay repetitions between modulations
+		float fmoddly = pprc.prm[rva_imoddly];     // if > 0, milliseconds of delay mod depth
+		float fmodrate = pprc.prm[rva_imodrate];       // if fmoddly > 0, # of delay repetitions between modulations
 
-		float width = MathF.Abs(pprc->prm[rva_width]);          // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
-		float depth = MathF.Abs(pprc->prm[rva_depth]);          // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
-		float height = MathF.Abs(pprc->prm[rva_height]);        // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
+		float width = MathF.Abs(pprc.prm[rva_width]);          // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
+		float depth = MathF.Abs(pprc.prm[rva_depth]);          // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
+		float height = MathF.Abs(pprc.prm[rva_height]);        // 0-1000 controls size of 1/3 of delays - used instead of size if non-zero
 
-		float fbwidth = pprc->prm[rva_fbwidth];     // feedback parameter for walls	0..2
-		float fbdepth = pprc->prm[rva_fbdepth];     // feedback parameter for floor
-		float fbheight = pprc->prm[rva_fbheight];       // feedback parameter for ceiling
+		float fbwidth = pprc.prm[rva_fbwidth];     // feedback parameter for walls	0..2
+		float fbdepth = pprc.prm[rva_fbdepth];     // feedback parameter for floor
+		float fbheight = pprc.prm[rva_fbheight];       // feedback parameter for ceiling
 
-		float ftaps = pprc->prm[rva_iftaps];        // if > 0 increase reverb density using 3 extra taps d = (1.0 - ftaps * n) n = 0,1,2,3
+		float ftaps = pprc.prm[rva_iftaps];        // if > 0 increase reverb density using 3 extra taps d = (1.0 - ftaps * n) n = 0,1,2,3
 
 
 
@@ -2602,9 +2675,9 @@ public static unsafe partial class SndDsp
 		// b array of CRVB_P_DLYS - mix params for parallel reverbs
 		// m - number of parallel delays
 
-		int* D = stackalloc int[CRVA_DLYS];
-		int* a = stackalloc int[CRVA_DLYS];
-		int* b = stackalloc int[CRVA_DLYS];
+		Span<int> D = stackalloc int[CRVA_DLYS];
+		Span<int> a = stackalloc int[CRVA_DLYS];
+		Span<int> b = stackalloc int[CRVA_DLYS];
 		int m;
 
 		// limit # delays 1-12
@@ -2616,8 +2689,8 @@ public static unsafe partial class SndDsp
 		if ((int)width != 0 || (int)height != 0 || (int)depth != 0) {
 			// if width, height, depth given, use values as simple delays
 
-			float* rgd = stackalloc float[3];
-			float* rgfb = stackalloc float[3];
+			Span<float> rgd = stackalloc float[3];
+			Span<float> rgfb = stackalloc float[3];
 
 			// force m to 3, 6, 9 or 12
 
@@ -2659,7 +2732,7 @@ public static unsafe partial class SndDsp
 
 		// add filter
 
-		Flt* pflt = null;
+		Flt? pflt = null;
 
 		if (cutoff != 0) {
 
@@ -2673,7 +2746,7 @@ public static unsafe partial class SndDsp
 			prcf.prm[flt_iqwidth] = 0;
 			prcf.prm[flt_igain] = 1.0f;
 
-			pflt = FLT_Params(&prcf);
+			pflt = FLT_Params(ref prcf);
 		}
 
 		prva = RVA_Alloc(D, a, b, m, pflt, (int)fparallel, fmoddly, fmodrate, ftaps);
@@ -2684,12 +2757,12 @@ public static unsafe partial class SndDsp
 	}
 
 
-	static void* RVA_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, rva_rng);
-		return RVA_Params((Prc*)p);
+	static DspProcessor? RVA_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, rva_rng);
+		return RVA_Params(ref p);
 	}
 
-	static void RVA_Mod(void* p, float v) { return; }
+	internal static void RVA_Mod(Rva p, float v) { return; }
 
 
 
@@ -2703,26 +2776,26 @@ public static unsafe partial class SndDsp
 
 	public const int CDFR_DLYS = 16;            // max number of delays making up diffusor
 
-	static readonly Dfr* dfrs = (Dfr*)NativeMemory.AllocZeroed((nuint)(CDFRS * sizeof(Dfr)));
+	static readonly Dfr[] dfrs = CreatePool<Dfr>(CDFRS);
 
-	static void DFR_Init(Dfr* pdfr) { if (pdfr != null) Unsafe.InitBlock(pdfr, 0, (uint)sizeof(Dfr)); }
-	static void DFR_InitAll() { for (int i = 0; i < CDFRS; i++) DFR_Init(&dfrs[i]); }
+	static void DFR_Init(Dfr? pdfr) { if (pdfr != null) pdfr.Clear(); }
+	static void DFR_InitAll() { for (int i = 0; i < CDFRS; i++) DFR_Init(dfrs[i]); }
 
 	// free parallel series reverb
 
-	static void DFR_Free(Dfr* pdfr) {
+	internal static void DFR_Free(Dfr? pdfr) {
 		if (pdfr != null) {
 			// free all delays
 
 			for (int i = 0; i < CDFR_DLYS; i++)
-				DLY_Free(pdfr->GetDly(i));
+				DLY_Free(pdfr.GetDly(i));
 
-			Unsafe.InitBlock(pdfr, 0, (uint)sizeof(Dfr));
+			pdfr.Clear();
 		}
 	}
 
 
-	static void DFR_FreeAll() { for (int i = 0; i < CDFRS; i++) DFR_Free(&dfrs[i]); }
+	static void DFR_FreeAll() { for (int i = 0; i < CDFRS; i++) DFR_Free(dfrs[i]); }
 
 	// create n series allpass reverbs
 
@@ -2731,10 +2804,10 @@ public static unsafe partial class SndDsp
 	// b array of gain params for parallel reverbs
 	// n - number of series delays
 
-	static Dfr* DFR_Alloc(int* D, int* a, int* b, int n) {
+	static Dfr? DFR_Alloc(ReadOnlySpan<int> D, ReadOnlySpan<int> a, ReadOnlySpan<int> b, int n) {
 
 		int i;
-		Dfr* pdfr;
+		Dfr pdfr;
 
 		// find open slot
 
@@ -2750,27 +2823,27 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		pdfr = &dfrs[i];
+		pdfr = dfrs[i];
 
 		DFR_Init(pdfr);
 
 		// alloc reverbs
 
 		for (i = 0; i < n; i++)
-			pdfr->SetDly(i, DLY_Alloc(D[i], a[i], b[i], DLY_ALLPASS));
+			pdfr.SetDly(i, DLY_Alloc(D[i], a[i], b[i], DLY_ALLPASS));
 
 		// if we failed to alloc any reverb, free all, return NULL
 
 		for (i = 0; i < n; i++) {
-			if (pdfr->GetDly(i) == null) {
+			if (pdfr.GetDly(i) == null) {
 				DFR_Free(pdfr);
 				DevMsg("DSP: Warning, failed to allocate delay for diffusor.\n");
 				return null;
 			}
 		}
 
-		pdfr->fused = true;
-		pdfr->n = n;
+		pdfr.fused = true;
+		pdfr.n = n;
 
 		return pdfr;
 	}
@@ -2778,48 +2851,42 @@ public static unsafe partial class SndDsp
 
 	// series reverberator
 
-	static int DFR_GetNext(Dfr* pdfr, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int DFR_GetNext(Dfr pdfr, int x) {
 		int i;
 		int y;
-		Dly* pdly;
+		Dly? pdly;
 
 		y = x;
 
-		for (i = 0; i < pdfr->n; i++) {
-			pdly = pdfr->GetDly(i);
-			y = DelayAllpass(pdly->D, pdly->t, pdly->w, &pdly->p, pdly->a, pdly->b, y);
+		for (i = 0; i < pdfr.n; i++) {
+			pdly = pdfr.GetDly(i);
+			y = DelayAllpass(pdly.D, pdly.t, pdly.w!, ref pdly.p, pdly.a, pdly.b, y);
 		}
 
 		return y;
 	}
 
-	static int DFR_GetNextV(void* pdfr, int x) => DFR_GetNext((Dfr*)pdfr, x);
 
 	// batch version for performance
 
-	static void DFR_GetNextN(void* pdfr, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void DFR_GetNextN(Dfr pdfr, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = DFR_GetNext((Dfr*)pdfr, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = DFR_GetNext(pdfr, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = DFR_GetNext((Dfr*)pdfr, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = DFR_GetNext(pdfr, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = DFR_GetNext((Dfr*)pdfr, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = DFR_GetNext(pdfr, pb[i].Left);
 				return;
 		}
 	}
@@ -2856,23 +2923,23 @@ public static unsafe partial class SndDsp
 	];
 
 
-	static Dfr* DFR_Params(Prc* pprc) {
-		Dfr* pdfr;
+	static Dfr? DFR_Params(ref Prc pprc) {
+		Dfr? pdfr;
 		int i;
 		int s;
-		float size = pprc->prm[dfr_isize];          // 0-1.0 scales all delays
-		float numdelays = pprc->prm[dfr_inumdelays];        // 0-4.0 controls # of series delays
-		float feedback = pprc->prm[dfr_ifeedback];      // 0-1.0 scales all feedback parameters
-		float gain = pprc->prm[dfr_igain];          // 0-10.0 controls output gain
+		float size = pprc.prm[dfr_isize];          // 0-1.0 scales all delays
+		float numdelays = pprc.prm[dfr_inumdelays];        // 0-4.0 controls # of series delays
+		float feedback = pprc.prm[dfr_ifeedback];      // 0-1.0 scales all feedback parameters
+		float gain = pprc.prm[dfr_igain];          // 0-10.0 controls output gain
 
 		// D array of CRVB_DLYS reverb delay sizes max sample index w[0...D] (ie: D+1 samples)
 		// a array of reverb feedback parms for series delays (CRVB_S_DLYS)
 		// b gain of each reverb section
 		// n - number of series delays
 
-		int* D = stackalloc int[CDFR_DLYS];
-		int* a = stackalloc int[CDFR_DLYS];
-		int* b = stackalloc int[CDFR_DLYS];
+		Span<int> D = stackalloc int[CDFR_DLYS];
+		Span<int> a = stackalloc int[CDFR_DLYS];
+		Span<int> b = stackalloc int[CDFR_DLYS];
 		int n;
 
 		if (gain == 0.0)
@@ -2905,10 +2972,10 @@ public static unsafe partial class SndDsp
 		return pdfr;
 	}
 
-	static void* DFR_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, dfr_rng);
-		return DFR_Params((Prc*)p);
+	static DspProcessor? DFR_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, dfr_rng);
+		return DFR_Params(ref p);
 	}
 
-	static void DFR_Mod(void* p, float v) { return; }
+	internal static void DFR_Mod(Dfr p, float v) { return; }
 }

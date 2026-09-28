@@ -34,9 +34,8 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 	int partialWrite;
 
 	// Memory for the wave data
-	byte* buffer;
-	byte* callbackBuffer;
-	int callbackBufferSize;
+	byte[]? buffer;
+	byte[] callbackBuffer = [];
 
 	//-----------------------------------------------------------------------------
 	// Constructor (just lookup SDL entry points, real work happens in this->Init())
@@ -172,7 +171,7 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 	void AllocateOutputBuffers() {
 		// Allocate and lock memory for the waveform data.
 		const int nBufferSize = WAV_BUFFER_SIZE * WAV_BUFFERS;
-		buffer = (byte*)NativeMemory.AllocZeroed(nBufferSize);
+		buffer = new byte[nBufferSize];
 		readPos = 0;
 		partialWrite = 0;
 		deviceSampleCount = nBufferSize / DeviceSampleBytes();
@@ -182,11 +181,8 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 	// Free output buffers
 	//-----------------------------------------------------------------------------
 	void FreeOutputBuffers() {
-		NativeMemory.Free(buffer);
 		buffer = null;
-		NativeMemory.Free(callbackBuffer);
-		callbackBuffer = null;
-		callbackBufferSize = 0;
+		callbackBuffer = [];
 	}
 
 	//-----------------------------------------------------------------------------
@@ -221,17 +217,15 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 		if (self == null)
 			return;
 
-		if (self.callbackBufferSize < additional_amount) {
-			NativeMemory.Free(self.callbackBuffer);
-			self.callbackBuffer = (byte*)NativeMemory.Alloc((nuint)additional_amount);
-			self.callbackBufferSize = additional_amount;
-		}
+		if (self.callbackBuffer.Length < additional_amount)
+			self.callbackBuffer = new byte[additional_amount];
 
 		self.AudioCallback(self.callbackBuffer, additional_amount);
-		SDL3.SDL_PutAudioStreamData(stream, (nint)self.callbackBuffer, additional_amount);
+		fixed (byte* callbackBuffer = self.callbackBuffer)
+			SDL3.SDL_PutAudioStreamData(stream, (nint)callbackBuffer, additional_amount);
 	}
 
-	void AudioCallback(byte* stream, int len) {
+	void AudioCallback(Span<byte> stream, int len) {
 		if (this.stream == null)
 			return;  // can this even happen?
 
@@ -245,9 +239,9 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 			int writeLen = (len < spaceAvailable) ? len : spaceAvailable;
 
 			if (writeLen > 0) {
-				byte* buf = buffer + readPos;
-				Unsafe.CopyBlock(stream, buf, (uint)writeLen);
-				stream += writeLen;
+				ReadOnlySpan<byte> buf = buffer.AsSpan(readPos, writeLen);
+				buf.CopyTo(stream);
+				stream = stream[writeLen..];
 				len -= writeLen;
 				Assert(len >= 0);
 			}
@@ -308,7 +302,7 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 
 		clear = 0;
 
-		Unsafe.InitBlock(buffer, (byte)clear, (uint)(DeviceSampleCount() * DeviceSampleBytes()));
+		buffer.AsSpan(0, DeviceSampleCount() * DeviceSampleBytes()).Fill((byte)clear);
 	}
 
 	public override void MixBegin(int sampleCount) {
@@ -326,44 +320,44 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 		ppaint.IFilter++;
 	}
 
-	public override void Mix8Mono(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public override void Mix8Mono(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 		PaintBuffer ppaint = MIX_GetCurrentPaintbufferPtr();
 
 		if (!MIX_ScaleChannelVolume(ppaint, channel, volume, 1))
 			return;
 
-		Mix8MonoWavtype(channel, ppaint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+		Mix8MonoWavtype(channel, ppaint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
-	public override void Mix8Stereo(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public override void Mix8Stereo(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 		PaintBuffer ppaint = MIX_GetCurrentPaintbufferPtr();
 
 		if (!MIX_ScaleChannelVolume(ppaint, channel, volume, 2))
 			return;
 
-		Mix8StereoWavtype(channel, ppaint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+		Mix8StereoWavtype(channel, ppaint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
-	public override void Mix16Mono(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public override void Mix16Mono(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 		PaintBuffer ppaint = MIX_GetCurrentPaintbufferPtr();
 
 		if (!MIX_ScaleChannelVolume(ppaint, channel, volume, 1))
 			return;
 
-		Mix16MonoWavtype(channel, ppaint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+		Mix16MonoWavtype(channel, ppaint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
-	public override void Mix16Stereo(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public override void Mix16Stereo(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 		PaintBuffer ppaint = MIX_GetCurrentPaintbufferPtr();
 
 		if (!MIX_ScaleChannelVolume(ppaint, channel, volume, 2))
 			return;
 
-		Mix16StereoWavtype(channel, ppaint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+		Mix16StereoWavtype(channel, ppaint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
 	public override void ChannelReset(int entnum, int channelIndex, float distanceMod) {
@@ -376,13 +370,13 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase
 		// resumes playback...
 
 		if (buffer != null)
-			S_TransferStereo16(buffer, PAINTBUFFER, lpaintedtime, endtime);
+			S_TransferStereo16(MemoryMarshal.Cast<byte, short>(buffer.AsSpan()), PAINTBUFFER, lpaintedtime, endtime);
 	}
 
 	public override void StopAllSounds() {
 	}
 
-	public override void ApplyDSPEffects(int idsp, PortableSamplePair* pbuffront, PortableSamplePair* pbufrear, PortableSamplePair* pbufcenter, int samplecount) {
+	public override void ApplyDSPEffects(int idsp, PortableSamplePair[] pbuffront, PortableSamplePair[]? pbufrear, PortableSamplePair[]? pbufcenter, int samplecount) {
 		DSP_Process(idsp, pbuffront, pbufrear, pbufcenter, samplecount);
 	}
 

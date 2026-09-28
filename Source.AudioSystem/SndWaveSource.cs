@@ -9,6 +9,7 @@ using Source.Common.Utilities;
 
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using static Source.Common.Formats.RiffConstants;
 
@@ -213,7 +214,7 @@ public static class SndWaveSource
 	}
 }
 
-public unsafe class AudioSourceWave : AudioSourceBase
+public class AudioSourceWave : AudioSourceBase
 {
 	protected int bits;
 	protected int rate;
@@ -293,7 +294,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 		headerSize = 0;
 
 		if (info.HeaderData() != null) {
-			header = PinnedCopy(info.HeaderData().AsSpan(0, info.HeaderSize()));
+			header = ArrayCopy(info.HeaderData().AsSpan(0, info.HeaderSize()));
 			headerSize = info.HeaderSize();
 		}
 
@@ -330,8 +331,8 @@ public unsafe class AudioSourceWave : AudioSourceBase
 	}
 
 	public override AudioMixer? CreateMixer(int initialStreamPosition = 0) => null;
-	public override int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 		return 0;
 	}
 
@@ -344,7 +345,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 		if (GetStartupData(tempbuf, ref datalen) &&
 			 AudioSourceCachedInfo.s_bIsPrecacheSound &&
 			 datalen > 0) {
-			byte[] data = PinnedCopy(tempbuf.AsSpan(0, datalen));
+			byte[] data = ArrayCopy(tempbuf.AsSpan(0, datalen));
 			info.SetCachedDataSize(datalen);
 			info.SetCachedData(data);
 		}
@@ -369,7 +370,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 		}
 
 		if (header != null && headerSize > 0) {
-			byte[] data = PinnedCopy(header.AsSpan(0, headerSize));
+			byte[] data = ArrayCopy(header.AsSpan(0, headerSize));
 			info.SetHeaderSize(headerSize);
 			info.SetHeaderData(data);
 		}
@@ -431,7 +432,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 
 		if (format == WAVE_FORMAT_ADPCM) {
 			// For non-standard waves (like ADPCM) store the header, it has the decoding coefficients
-			header = PinnedCopy(headerBuffer[..headerSize]);
+			header = ArrayCopy(headerBuffer[..headerSize]);
 			this.headerSize = headerSize;
 
 			// treat ADPCM sources as a file of bytes.  They are decoded by the mixer
@@ -482,13 +483,11 @@ public unsafe class AudioSourceWave : AudioSourceBase
 	// Input  : *pData - pointer to sample data
 	//			sampleCount - number of samples
 	//-----------------------------------------------------------------------------
-	public void ConvertSamples(byte* data, int sampleCount) {
+	public void ConvertSamples(Span<byte> data, int sampleCount) {
 		if (format == WAVE_FORMAT_PCM) {
 			if (bits == 8) {
-				for (int i = 0; i < sampleCount * channels; i++) {
-					*data = (byte)((int)*data - 128);
-					data++;
-				}
+				for (int i = 0; i < sampleCount * channels; i++)
+					data[i] = (byte)((int)data[i] - 128);
 			}
 		}
 	}
@@ -678,8 +677,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 			g_pSndIO.Close(file);
 
 			// some samples need to be converted
-			fixed (byte* pDest = dest)
-				ConvertSamples(pDest, bytesCopied / sampleSize);
+			ConvertSamples(dest, bytesCopied / sampleSize);
 		}
 
 		return true;
@@ -822,14 +820,14 @@ public unsafe class AudioSourceWave : AudioSourceBase
 	public override int SampleToStreamPosition(int samplePosition) => 0;
 	public override int StreamToSamplePosition(int streamPosition) => 0;
 
-	protected byte* GetCachedDataPointer() {
+	protected byte[]? GetCachedDataPointer() {
 		AudioSourceCachedInfo? info = audioCacheHandle.Get(AudioSourceType.AUDIO_SOURCE_WAV, sfx!.IsPrecachedSound(), sfx, ref cachedDataSize);
 		if (info == null) {
 			AssertMsg(false, "CAudioSourceWave::GetCachedDataPointer info == NULL");
 			return null;
 		}
 
-		return PinnedPointer(info.CachedData());
+		return info.CachedData();
 	}
 
 	static readonly UtlSymbolTable wavErrors = new();
@@ -853,7 +851,7 @@ public unsafe class AudioSourceWave : AudioSourceBase
 // - call CAudioSourceWave::Init with a WAVEFORMATEX
 // - set m_sampleCount.
 // - implement GetDataPointer
-public unsafe class AudioSourceMemWave : AudioSourceWave
+public class AudioSourceMemWave : AudioSourceWave
 {
 	protected memhandle_t cache;
 
@@ -885,8 +883,8 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 	//			sampleCount - number of samples (not bytes)
 	// Output : int - number of samples available
 	//-----------------------------------------------------------------------------
-	public override int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 
 		// handle position looping
 		samplePosition = ConvertLoopedPosition(samplePosition);
@@ -922,8 +920,8 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 				data = GetCachedDataPointer();
 			}
 
-			if (data != null)
-				data = data + samplePosition;
+			if (!data.IsEmpty)
+				data = data[samplePosition..];
 			else {
 				// End of data or some other problem
 				sampleCount = 0;
@@ -943,55 +941,57 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 	// Output : position of zero crossing
 	//-----------------------------------------------------------------------------
 	public override int ZeroCrossingBefore(int sample) {
-		byte* waveData = GetDataPointer();
+		ReadOnlySpan<byte> waveData = GetDataPointer();
 
 		if (format == WAVE_FORMAT_PCM) {
 			if (bits == 8) {
-				sbyte* data = (sbyte*)(waveData + sample * sampleSize);
+				ReadOnlySpan<sbyte> data = MemoryMarshal.Cast<byte, sbyte>(waveData);
+				int index = sample * sampleSize;
 				bool zero = false;
 
 				if (channels == 1) {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_8(*data))
+					while (sample > 0 && !zero && (uint)index < (uint)data.Length) {
+						if (ZERO_X_8(data[index]))
 							zero = true;
 						else {
 							sample--;
-							data--;
+							index--;
 						}
 					}
 				}
 				else {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_8(*data) && ZERO_X_8(data[1]))
+					while (sample > 0 && !zero && (uint)(index + 1) < (uint)data.Length) {
+						if (ZERO_X_8(data[index]) && ZERO_X_8(data[index + 1]))
 							zero = true;
 						else {
 							sample--;
-							data--;
+							index--;
 						}
 					}
 				}
 			}
 			else {
-				short* data = (short*)(waveData + sample * sampleSize);
+				ReadOnlySpan<short> data = MemoryMarshal.Cast<byte, short>(waveData);
+				int index = sample * sampleSize / sizeof(short);
 				bool zero = false;
 
 				if (channels == 1) {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_16(*data))
+					while (sample > 0 && !zero && (uint)index < (uint)data.Length) {
+						if (ZERO_X_16(data[index]))
 							zero = true;
 						else {
-							data--;
+							index--;
 							sample--;
 						}
 					}
 				}
 				else {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_16(*data) && ZERO_X_16(data[1]))
+					while (sample > 0 && !zero && (uint)(index + 1) < (uint)data.Length) {
+						if (ZERO_X_16(data[index]) && ZERO_X_16(data[index + 1]))
 							zero = true;
 						else {
 							sample--;
-							data--;
+							index--;
 						}
 					}
 				}
@@ -1006,55 +1006,57 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 	// Output : position of found zero crossing
 	//-----------------------------------------------------------------------------
 	public override int ZeroCrossingAfter(int sample) {
-		byte* waveData = GetDataPointer();
+		ReadOnlySpan<byte> waveData = GetDataPointer();
 
 		if (format == WAVE_FORMAT_PCM) {
 			if (bits == 8) {
-				sbyte* data = (sbyte*)(waveData + sample * sampleSize);
+				ReadOnlySpan<sbyte> data = MemoryMarshal.Cast<byte, sbyte>(waveData);
+				int index = sample * sampleSize;
 				bool zero = false;
 
 				if (channels == 1) {
-					while (sample < SampleCount() && !zero) {
-						if (ZERO_X_8(*data))
+					while (sample < SampleCount() && !zero && (uint)index < (uint)data.Length) {
+						if (ZERO_X_8(data[index]))
 							zero = true;
 						else {
 							sample++;
-							data++;
+							index++;
 						}
 					}
 				}
 				else {
-					while (sample < SampleCount() && !zero) {
-						if (ZERO_X_8(*data) && ZERO_X_8(data[1]))
+					while (sample < SampleCount() && !zero && (uint)(index + 1) < (uint)data.Length) {
+						if (ZERO_X_8(data[index]) && ZERO_X_8(data[index + 1]))
 							zero = true;
 						else {
 							sample++;
-							data++;
+							index++;
 						}
 					}
 				}
 			}
 			else {
-				short* data = (short*)(waveData + sample * sampleSize);
+				ReadOnlySpan<short> data = MemoryMarshal.Cast<byte, short>(waveData);
+				int index = sample * sampleSize / sizeof(short);
 				bool zero = false;
 
 				if (channels == 1) {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_16(*data))
+					while (sample > 0 && !zero && (uint)index < (uint)data.Length) {
+						if (ZERO_X_16(data[index]))
 							zero = true;
 						else {
-							data++;
+							index++;
 							sample++;
 						}
 					}
 				}
 				else {
-					while (sample > 0 && !zero) {
-						if (ZERO_X_16(*data) && ZERO_X_16(data[1]))
+					while (sample > 0 && !zero && (uint)(index + 1) < (uint)data.Length) {
+						if (ZERO_X_16(data[index]) && ZERO_X_16(data[index + 1]))
 							zero = true;
 						else {
 							sample++;
-							data++;
+							index++;
 						}
 					}
 				}
@@ -1086,13 +1088,13 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 		dataSize = (int)walk.ChunkSize();
 
 		// 360 streaming model loads data later, but still needs critical member setup
-		byte* data = null;
+		Span<byte> data = default;
 		data = GetDataPointer();
-		if (data == null)
+		if (data.IsEmpty)
 			Error($"CAudioSourceMemWave ({(sfx != null ? sfx.GetFileName() : "m_pSfx = NULL")}): GetDataPointer() failed.");
 
 		// load them into memory (bad!!, this is a duplicate read of the data chunk)
-		walk.ChunkRead(new Span<byte>(data, dataSize));
+		walk.ChunkRead(data[..dataSize]);
 
 		if (format == WAVE_FORMAT_PCM) {
 			// number of samples loaded
@@ -1112,7 +1114,7 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 		}
 
 		// some samples need to be converted
-		if (data != null)
+		if (!data.IsEmpty)
 			ConvertSamples(data, sampleCount);
 	}
 
@@ -1163,8 +1165,8 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 	// Purpose:
 	// Output : char
 	//-----------------------------------------------------------------------------
-	protected virtual byte* GetDataPointer() {
-		byte* waveData = null;
+	protected virtual Span<byte> GetDataPointer() {
+		Span<byte> waveData = default;
 
 		if (cache == 0) {
 			// not in cache, start loading
@@ -1183,7 +1185,7 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 
 		// If we have reloaded data from disk (async) and we haven't converted the samples yet, do it now
 		// FIXME:  Is this correct for stereo wavs?
-		if (waveData != null && !samplesConverted) {
+		if (!waveData.IsEmpty && !samplesConverted) {
 			ConvertSamples(waveData, dataSize / sampleSize);
 			wavedatacache.SetPostProcessed(cache, true);
 		}
@@ -1196,7 +1198,7 @@ public unsafe class AudioSourceMemWave : AudioSourceWave
 // Purpose: Wave source for streaming wave files
 // UNDONE: Handle looping
 //-----------------------------------------------------------------------------
-public unsafe class AudioSourceStreamWave : AudioSourceWave, IWaveStreamSource
+public class AudioSourceStreamWave : AudioSourceWave, IWaveStreamSource
 {
 	//-----------------------------------------------------------------------------
 	// Purpose: Save a copy of the file name for instances to open later
@@ -1223,7 +1225,7 @@ public unsafe class AudioSourceStreamWave : AudioSourceWave, IWaveStreamSource
 	public int UpdateLoopingSamplePosition(int samplePosition) {
 		return ConvertLoopedPosition(samplePosition);
 	}
-	public void UpdateSamples(byte* data, int sampleCount) {
+	public void UpdateSamples(Span<byte> data, int sampleCount) {
 		ConvertSamples(data, sampleCount);
 	}
 	int IWaveStreamSource.GetLoopingInfo(out int loopBlock, out int numLeadingSamples, out int numTrailingSamples) {
@@ -1297,8 +1299,8 @@ public unsafe class AudioSourceStreamWave : AudioSourceWave, IWaveStreamSource
 	// Purpose: This is not implemented here.  This source has no data.  It is the
 	//			WaveData's responsibility to load/serve the data
 	//-----------------------------------------------------------------------------
-	public override int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 		return 0;
 	}
 

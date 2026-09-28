@@ -71,7 +71,7 @@ public struct DasNode
 	public DasRoom room;
 }
 
-public static unsafe partial class SndDma
+public static partial class SndDma
 {
 	// Dsp Automatic Selection:
 
@@ -1251,7 +1251,7 @@ public static unsafe partial class SndDma
 		int height = proom.height_max;
 		float fdiffusion = proom.diffusion;
 		float freflectivity = proom.refl_avg;
-		float* surf_refl = stackalloc float[6];
+		Span<float> surf_refl = stackalloc float[6];
 
 		// fill array of surface reflectivities - for left,right,front,back,ceiling,floor
 

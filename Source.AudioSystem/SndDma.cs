@@ -10,6 +10,7 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 using static Source.Common.Audio.SndGain;
 
@@ -18,7 +19,7 @@ namespace Source.AudioSystem;
 //-----------------------------------------------------------------------------
 // Purpose: Main control for any streaming sound output device.
 //-----------------------------------------------------------------------------
-public static unsafe partial class SndDma
+public static partial class SndDma
 {
 	public const int MAX_SFX = 2048;
 
@@ -437,7 +438,7 @@ public static unsafe partial class SndDma
 	// a new spot in name cache and return 0
 	// in pfInCache.
 	//-----------------------------------------------------------------------------
-	public static SfxTable S_FindName(ReadOnlySpan<char> szName, int* pfInCache) {
+	public static SfxTable S_FindName(ReadOnlySpan<char> szName, Span<int> pfInCache) {
 		SfxTable? sfx = null;
 
 		if (szName.IsEmpty)
@@ -449,9 +450,9 @@ public static unsafe partial class SndDma
 		FileNameHandle_t fnHandle = filesystem.FindOrAddFileName(pName);
 		if (s_Sounds.TryGetValue(fnHandle, out sfx)) {
 			Assert(sfx);
-			if (pfInCache != null) {
+			if (!pfInCache.IsEmpty) {
 				// indicate whether or not sound is currently in the cache.
-				*pfInCache = (sfx.Source != null && sfx.Source.IsCached()) ? 1 : 0;
+				pfInCache[0] = (sfx.Source != null && sfx.Source.IsCached()) ? 1 : 0;
 			}
 			return sfx;
 		}
@@ -463,8 +464,8 @@ public static unsafe partial class SndDma
 				sfx.SetNamePoolIndex(fnHandle);
 				sfx.Source = null;
 
-				if (pfInCache != null)
-					*pfInCache = 0;
+				if (!pfInCache.IsEmpty)
+					pfInCache[0] = 0;
 			}
 		}
 		return sfx;
@@ -681,7 +682,7 @@ public static unsafe partial class SndDma
 	=================
 	*/
 	static Channel? SND_StealDynamicChannel(int soundsource, int entchannel, in Vector3 origin, SfxTable sfx, float flDelay, bool bDoNotOverwriteExisting) {
-		int* canSteal = stackalloc int[MAX_DYNAMIC_CHANNELS];
+		Span<int> canSteal = stackalloc int[MAX_DYNAMIC_CHANNELS];
 		int canStealCount = 0;
 
 		int sameSoundCount = 0;
@@ -691,7 +692,7 @@ public static unsafe partial class SndDma
 		int availableChannel = -1;
 		bool bDelaySame = false;
 
-		int* nExactMatch = stackalloc int[MAX_DYNAMIC_CHANNELS];
+		Span<int> nExactMatch = stackalloc int[MAX_DYNAMIC_CHANNELS];
 		int nExactCount = 0;
 		// first pass to replace sounds on same ent/channel, and search for free or stealable channels otherwise
 		for (int ch_idx = 0; ch_idx < MAX_DYNAMIC_CHANNELS; ch_idx++) {
@@ -913,7 +914,7 @@ public static unsafe partial class SndDma
 	}
 
 
-	public static void S_SpatializeChannel(int* pVolume, int master_vol, in Vector3 psourceDir, float gain, float mono) {
+	public static void S_SpatializeChannel(Span<int> pVolume, int master_vol, in Vector3 psourceDir, float gain, float mono) {
 		float lscale, rscale, scale;
 		float dotRight;
 		Vector3 sourceDir = psourceDir;
@@ -1678,13 +1679,25 @@ public static unsafe partial class SndDma
 		return radius;
 	}
 
+	[InlineArray(5 * 3)]
+	struct SndSpatialDist
+	{
+		int element;
+	}
+
+	[InlineArray(5)]
+	struct SndSpatialValuePrev
+	{
+		float element;
+	}
+
 	struct SndSpatial
 	{
 		public int chan;            // 0..4 cycles through up to 5 channels
 		public int cycle;           // 0..2 cycles through 3 vectors per channel
-		public fixed int dist[5 * 3];       // stores last 3 channel distance values [channel][cycle]
+		public SndSpatialDist dist;         // stores last 3 channel distance values [channel][cycle]
 
-		public fixed float value_prev[5];   // previous value per channel
+		public SndSpatialValuePrev value_prev;  // previous value per channel
 
 		public double last_change;
 	}

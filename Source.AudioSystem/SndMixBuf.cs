@@ -37,20 +37,22 @@ public static class SndMixBuf
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int CLIP(int x) => x > 32767 ? 32767 : (x < -32767 ? -32767 : x);
 
-	public static unsafe PortableSamplePair* PAINTBUFFER => g_curpaintbuffer;
-	public static unsafe PortableSamplePair* REARPAINTBUFFER => g_currearpaintbuffer;
-	public static unsafe PortableSamplePair* CENTERPAINTBUFFER => g_curcenterpaintbuffer;
+	public static PortableSamplePair[] PAINTBUFFER => g_curpaintbuffer!;
+	public static PortableSamplePair[]? REARPAINTBUFFER => g_currearpaintbuffer;
+	public static PortableSamplePair[]? CENTERPAINTBUFFER => g_curcenterpaintbuffer;
 }
 
 // !!! if this is changed, it much be changed in native assembly too !!!
 [StructLayout(LayoutKind.Sequential)]
 public struct PortableSamplePair
 {
+	public const int SIZE = sizeof(int) * 2;
+
 	public int Left;
 	public int Right;
 }
 
-public unsafe class PaintBuffer
+public class PaintBuffer
 {
 	public bool Active;                     // if true, mix to this paintbuffer using flags
 	public bool Surround;                   // if true, mix to front and rear paintbuffers using flags
@@ -62,21 +64,21 @@ public unsafe class PaintBuffer
 
 	public int Flags;                       // SOUND_BUSS_ROOM, SOUND_BUSS_FACING, SOUND_BUSS_FACINGAWAY, SOUND_BUSS_SPEAKER, SOUND_BUSS_SPECIAL_DSP, SOUND_BUSS_DRY
 
-	public PortableSamplePair* Buf;         // front stereo mix buffer, for 2 or 4 channel mixing
-	public PortableSamplePair* BufRear;     // rear mix buffer, for 4 channel mixing
-	public PortableSamplePair* BufCenter;   // center mix buffer, for 5 channel mixing
+	public PortableSamplePair[] Buf = null!;    // front stereo mix buffer, for 2 or 4 channel mixing
+	public PortableSamplePair[]? BufRear;       // rear mix buffer, for 4 channel mixing
+	public PortableSamplePair[]? BufCenter;     // center mix buffer, for 5 channel mixing
 
 	public int IFilter;                     // current filter memory buffer to use for upsampling pass
 
-	public PortableSamplePair* FltMem;          // filter memory, for upsampling with linear or cubic interpolation
-	public PortableSamplePair* FltMemRear;      // filter memory, for upsampling with linear or cubic interpolation
-	public PortableSamplePair* FltMemCenter;    // filter memory, for upsampling with linear or cubic interpolation
-
 	public const int FILTER_MEM_COUNT = CPAINTFILTERS * CPAINTFILTERMEM;
 
-	public PortableSamplePair* GetFltMem(int ifilter) => FltMem + ifilter * CPAINTFILTERMEM;
-	public PortableSamplePair* GetFltMemRear(int ifilter) => FltMemRear + ifilter * CPAINTFILTERMEM;
-	public PortableSamplePair* GetFltMemCenter(int ifilter) => FltMemCenter + ifilter * CPAINTFILTERMEM;
+	public readonly PortableSamplePair[] FltMem = new PortableSamplePair[FILTER_MEM_COUNT];          // filter memory, for upsampling with linear or cubic interpolation
+	public readonly PortableSamplePair[] FltMemRear = new PortableSamplePair[FILTER_MEM_COUNT];      // filter memory, for upsampling with linear or cubic interpolation
+	public readonly PortableSamplePair[] FltMemCenter = new PortableSamplePair[FILTER_MEM_COUNT];    // filter memory, for upsampling with linear or cubic interpolation
+
+	public Span<PortableSamplePair> GetFltMem(int ifilter) => FltMem.AsSpan(ifilter * CPAINTFILTERMEM, CPAINTFILTERMEM);
+	public Span<PortableSamplePair> GetFltMemRear(int ifilter) => FltMemRear.AsSpan(ifilter * CPAINTFILTERMEM, CPAINTFILTERMEM);
+	public Span<PortableSamplePair> GetFltMemCenter(int ifilter) => FltMemCenter.AsSpan(ifilter * CPAINTFILTERMEM, CPAINTFILTERMEM);
 }
 
 // fixed point stuff for real-time resampling

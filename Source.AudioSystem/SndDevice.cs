@@ -39,7 +39,7 @@ public static class SndDevice
 }
 
 // General interface to an audio device
-public unsafe interface IAudioDevice
+public interface IAudioDevice
 {
 	// This is needed by some of the routines to avoid doing work when you've got a null device
 	bool IsActive();
@@ -67,11 +67,11 @@ public unsafe interface IAudioDevice
 	void PaintEnd();
 
 	// Called to set the volumes on a channel with the given gain & dot parameters
-	void SpatializeChannel(int* volume, int master_vol, in Vector3 sourceDir, float gain, float mono);
+	void SpatializeChannel(Span<int> volume, int master_vol, in Vector3 sourceDir, float gain, float mono);
 
 	// The device should apply DSP up to endtime in the current paint buffer
 	// this is called during painting
-	void ApplyDSPEffects(int idsp, PortableSamplePair* pbuffront, PortableSamplePair* pbufrear, PortableSamplePair* pbufcenter, int samplecount);
+	void ApplyDSPEffects(int idsp, PortableSamplePair[] pbuffront, PortableSamplePair[]? pbufrear, PortableSamplePair[]? pbufcenter, int samplecount);
 
 	// replaces SNDDMA_GetDMAPos, gets the output sample position for tracking
 	int GetOutputPosition();
@@ -87,10 +87,10 @@ public unsafe interface IAudioDevice
 	void MixUpsample(int sampleCount, int filtertype);
 
 	// sink sound data
-	void Mix8Mono(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
-	void Mix8Stereo(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
-	void Mix16Mono(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
-	void Mix16Stereo(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
+	void Mix8Mono(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
+	void Mix8Stereo(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
+	void Mix16Mono(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
+	void Mix16Stereo(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress);
 
 	// Reset a channel
 	void ChannelReset(int entnum, int channelIndex, float distanceMod);
@@ -109,7 +109,7 @@ public unsafe interface IAudioDevice
 	bool IsHeadphone();
 }
 
-public unsafe class AudioDeviceBase : IAudioDevice
+public class AudioDeviceBase : IAudioDevice
 {
 	const int ISPEAKER_RIGHT_FRONT = 0;
 	const int ISPEAKER_LEFT_FRONT = 1;
@@ -151,9 +151,9 @@ public unsafe class AudioDeviceBase : IAudioDevice
 	public bool SurroundCenter;
 	public bool Headphone;
 
-	static bool FVolumeFrontNonZero(int* pvol) => pvol[IFRONT_RIGHT] != 0 || pvol[IFRONT_LEFT] != 0;
-	static bool FVolumeRearNonZero(int* pvol) => pvol[IREAR_RIGHT] != 0 || pvol[IREAR_LEFT] != 0;
-	static bool FVolumeCenterNonZero(int* pvol) => pvol[IFRONT_CENTER] != 0;
+	static bool FVolumeFrontNonZero(ReadOnlySpan<int> pvol) => pvol[IFRONT_RIGHT] != 0 || pvol[IFRONT_LEFT] != 0;
+	static bool FVolumeRearNonZero(ReadOnlySpan<int> pvol) => pvol[IREAR_RIGHT] != 0 || pvol[IREAR_LEFT] != 0;
+	static bool FVolumeCenterNonZero(ReadOnlySpan<int> pvol) => pvol[IFRONT_CENTER] != 0;
 
 	// fade speaker volumes to mono, based on xfade value.
 	// ie: xfade 1.0 is full mono.
@@ -339,7 +339,7 @@ public unsafe class AudioDeviceBase : IAudioDevice
 	// determine proportion of volume for sound in FL, FC, FR, RL, RR quadrants
 	// Scale this proportion by the distance scalar 'gain'
 	// If sound has 'mono' radius, blend sound to mono over 50% of radius.
-	public virtual void SpatializeChannel(int* volume, int master_vol, in Vector3 sourceDir, float gain, float mono) {
+	public virtual void SpatializeChannel(Span<int> volume, int master_vol, in Vector3 sourceDir, float gain, float mono) {
 		float rfscale, rrscale, lfscale, lrscale, fcscale;
 
 		fcscale = rfscale = lfscale = rrscale = lrscale = 0.0f;
@@ -475,7 +475,7 @@ public unsafe class AudioDeviceBase : IAudioDevice
 		}
 	}
 
-	public virtual void ApplyDSPEffects(int idsp, PortableSamplePair* pbuffront, PortableSamplePair* pbufrear, PortableSamplePair* pbufcenter, int samplecount) {
+	public virtual void ApplyDSPEffects(int idsp, PortableSamplePair[] pbuffront, PortableSamplePair[]? pbufrear, PortableSamplePair[]? pbufcenter, int samplecount) {
 		DEBUG_StartSoundMeasure(1, samplecount);
 
 		DSP_Process(idsp, pbuffront, pbufrear, pbufcenter, samplecount);
@@ -497,11 +497,11 @@ public unsafe class AudioDeviceBase : IAudioDevice
 
 		if (paint.Surround) {
 			Assert(paint.BufRear != null);
-			S_MixBufferUpsample2x(sampleCount, paint.BufRear, paint.GetFltMemRear(ifilter), CPAINTFILTERMEM, filtertype);
+			S_MixBufferUpsample2x(sampleCount, paint.BufRear!, paint.GetFltMemRear(ifilter), CPAINTFILTERMEM, filtertype);
 
 			if (paint.SurroundCenter) {
 				Assert(paint.BufCenter != null);
-				S_MixBufferUpsample2x(sampleCount, paint.BufCenter, paint.GetFltMemCenter(ifilter), CPAINTFILTERMEM, filtertype);
+				S_MixBufferUpsample2x(sampleCount, paint.BufCenter!, paint.GetFltMemCenter(ifilter), CPAINTFILTERMEM, filtertype);
 			}
 		}
 
@@ -509,8 +509,8 @@ public unsafe class AudioDeviceBase : IAudioDevice
 		paint.IFilter++;
 	}
 
-	public virtual void Mix8Mono(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public virtual void Mix8Mono(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 
 		PaintBuffer paint = MIX_GetCurrentPaintbufferPtr();
 
@@ -518,23 +518,23 @@ public unsafe class AudioDeviceBase : IAudioDevice
 			return;
 
 		if (FVolumeFrontNonZero(volume))
-			Mix8MonoWavtype(channel, paint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+			Mix8MonoWavtype(channel, paint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 
 		if (paint.Surround) {
 			if (FVolumeRearNonZero(volume)) {
 				Assert(paint.BufRear != null);
-				Mix8MonoWavtype(channel, paint.BufRear + outputOffset, &volume[IREAR_LEFT], data, inputOffset, rateScaleFix, outCount);
+				Mix8MonoWavtype(channel, paint.BufRear!.AsSpan(outputOffset), volume[IREAR_LEFT..], data, inputOffset, rateScaleFix, outCount);
 			}
 
 			if (paint.SurroundCenter && FVolumeCenterNonZero(volume)) {
 				Assert(paint.BufCenter != null);
-				Mix8MonoWavtype(channel, paint.BufCenter + outputOffset, &volume[IFRONT_CENTER], data, inputOffset, rateScaleFix, outCount);
+				Mix8MonoWavtype(channel, paint.BufCenter!.AsSpan(outputOffset), volume[IFRONT_CENTER..], data, inputOffset, rateScaleFix, outCount);
 			}
 		}
 	}
 
-	public virtual void Mix8Stereo(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public virtual void Mix8Stereo(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 
 		PaintBuffer paint = MIX_GetCurrentPaintbufferPtr();
 
@@ -542,23 +542,23 @@ public unsafe class AudioDeviceBase : IAudioDevice
 			return;
 
 		if (FVolumeFrontNonZero(volume))
-			Mix8StereoWavtype(channel, paint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+			Mix8StereoWavtype(channel, paint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 
 		if (paint.Surround) {
 			if (FVolumeRearNonZero(volume)) {
 				Assert(paint.BufRear != null);
-				Mix8StereoWavtype(channel, paint.BufRear + outputOffset, &volume[IREAR_LEFT], data, inputOffset, rateScaleFix, outCount);
+				Mix8StereoWavtype(channel, paint.BufRear!.AsSpan(outputOffset), volume[IREAR_LEFT..], data, inputOffset, rateScaleFix, outCount);
 			}
 
 			if (paint.SurroundCenter && FVolumeCenterNonZero(volume)) {
 				Assert(paint.BufCenter != null);
-				Mix8StereoWavtype(channel, paint.BufCenter + outputOffset, &volume[IFRONT_CENTER], data, inputOffset, rateScaleFix, outCount);
+				Mix8StereoWavtype(channel, paint.BufCenter!.AsSpan(outputOffset), volume[IFRONT_CENTER..], data, inputOffset, rateScaleFix, outCount);
 			}
 		}
 	}
 
-	public virtual void Mix16Mono(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public virtual void Mix16Mono(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 
 		PaintBuffer paint = MIX_GetCurrentPaintbufferPtr();
 
@@ -566,23 +566,23 @@ public unsafe class AudioDeviceBase : IAudioDevice
 			return;
 
 		if (FVolumeFrontNonZero(volume))
-			Mix16MonoWavtype(channel, paint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+			Mix16MonoWavtype(channel, paint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 
 		if (paint.Surround) {
 			if (FVolumeRearNonZero(volume)) {
 				Assert(paint.BufRear != null);
-				Mix16MonoWavtype(channel, paint.BufRear + outputOffset, &volume[IREAR_LEFT], data, inputOffset, rateScaleFix, outCount);
+				Mix16MonoWavtype(channel, paint.BufRear!.AsSpan(outputOffset), volume[IREAR_LEFT..], data, inputOffset, rateScaleFix, outCount);
 			}
 
 			if (paint.SurroundCenter && FVolumeCenterNonZero(volume)) {
 				Assert(paint.BufCenter != null);
-				Mix16MonoWavtype(channel, paint.BufCenter + outputOffset, &volume[IFRONT_CENTER], data, inputOffset, rateScaleFix, outCount);
+				Mix16MonoWavtype(channel, paint.BufCenter!.AsSpan(outputOffset), volume[IFRONT_CENTER..], data, inputOffset, rateScaleFix, outCount);
 			}
 		}
 	}
 
-	public virtual void Mix16Stereo(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
-		int* volume = stackalloc int[CCHANVOLUMES];
+	public virtual void Mix16Stereo(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) {
+		Span<int> volume = stackalloc int[CCHANVOLUMES];
 
 		PaintBuffer paint = MIX_GetCurrentPaintbufferPtr();
 
@@ -590,24 +590,24 @@ public unsafe class AudioDeviceBase : IAudioDevice
 			return;
 
 		if (FVolumeFrontNonZero(volume))
-			Mix16StereoWavtype(channel, paint.Buf + outputOffset, volume, data, inputOffset, rateScaleFix, outCount);
+			Mix16StereoWavtype(channel, paint.Buf.AsSpan(outputOffset), volume, data, inputOffset, rateScaleFix, outCount);
 
 		if (paint.Surround) {
 			if (FVolumeRearNonZero(volume)) {
 				Assert(paint.BufRear != null);
-				Mix16StereoWavtype(channel, paint.BufRear + outputOffset, &volume[IREAR_LEFT], data, inputOffset, rateScaleFix, outCount);
+				Mix16StereoWavtype(channel, paint.BufRear!.AsSpan(outputOffset), volume[IREAR_LEFT..], data, inputOffset, rateScaleFix, outCount);
 			}
 
 			if (paint.SurroundCenter && FVolumeCenterNonZero(volume)) {
 				Assert(paint.BufCenter != null);
-				Mix16StereoWavtype(channel, paint.BufCenter + outputOffset, &volume[IFRONT_CENTER], data, inputOffset, rateScaleFix, outCount);
+				Mix16StereoWavtype(channel, paint.BufCenter!.AsSpan(outputOffset), volume[IFRONT_CENTER..], data, inputOffset, rateScaleFix, outCount);
 			}
 		}
 	}
 }
 
 // Null Audio Device
-public unsafe class AudioDeviceNull : AudioDeviceBase
+public class AudioDeviceNull : AudioDeviceBase
 {
 	public override bool IsActive() => false;
 	public override bool Init() => true;
@@ -621,8 +621,8 @@ public unsafe class AudioDeviceNull : AudioDeviceBase
 	public override int PaintBegin(float mixAheadTime, int soundtime, int paintedtime) => 0;
 	public override void PaintEnd() { }
 
-	public override void SpatializeChannel(int* volume, int master_vol, in Vector3 sourceDir, float gain, float mono) { }
-	public override void ApplyDSPEffects(int idsp, PortableSamplePair* pbuffront, PortableSamplePair* pbufrear, PortableSamplePair* pbufcenter, int samplecount) { }
+	public override void SpatializeChannel(Span<int> volume, int master_vol, in Vector3 sourceDir, float gain, float mono) { }
+	public override void ApplyDSPEffects(int idsp, PortableSamplePair[] pbuffront, PortableSamplePair[]? pbufrear, PortableSamplePair[]? pbufcenter, int samplecount) { }
 	public override int GetOutputPosition() => 0;
 	public override void ClearBuffer() { }
 	public override void UpdateListener(in Vector3 position, in Vector3 forward, in Vector3 right, in Vector3 up) { }
@@ -630,10 +630,10 @@ public unsafe class AudioDeviceNull : AudioDeviceBase
 	public override void MixBegin(int sampleCount) { }
 	public override void MixUpsample(int sampleCount, int filtertype) { }
 
-	public override void Mix8Mono(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
-	public override void Mix8Stereo(Channel channel, byte* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
-	public override void Mix16Mono(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
-	public override void Mix16Stereo(Channel channel, short* data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
+	public override void Mix8Mono(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
+	public override void Mix8Stereo(Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
+	public override void Mix16Mono(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
+	public override void Mix16Stereo(Channel channel, ReadOnlySpan<short> data, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress) { }
 
 	public override void ChannelReset(int entnum, int channelIndex, float distanceMod) { }
 	public override void TransferSamples(int end) { }

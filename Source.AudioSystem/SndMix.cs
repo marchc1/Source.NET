@@ -1,4 +1,4 @@
-global using static Source.AudioSystem.SndMix;
+﻿global using static Source.AudioSystem.SndMix;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace Source.AudioSystem;
 
-public static unsafe class SndMix
+public static class SndMix
 {
 	// NOTE: !!!!!! YOU MUST UPDATE SND_MIXA.S IF THIS VALUE IS CHANGED !!!!!
 	const int SND_SCALE_BITS = 7;
@@ -20,20 +20,20 @@ public static unsafe class SndMix
 	const int SND_SCALE_SHIFT16 = 8 - SND_SCALE_BITS16;
 	const int SND_SCALE_LEVELS16 = 1 << SND_SCALE_BITS16;
 
-	public static PortableSamplePair* g_paintbuffer;
+	public static PortableSamplePair[] g_paintbuffer = null!;
 
 	// temp paintbuffer - not included in main list of paintbuffers
 	// NOTE: this paintbuffer is also used as a copy buffer by interpolating pitch
 	// shift routines.  Decreasing TEMP_COPY_BUFFER_SIZE (or PAINTBUFFER_MEM_SIZE)
 	// will decrease the maximum pitch level (current 4.0)!
-	public static PortableSamplePair* g_temppaintbuffer = null;
+	public static PortableSamplePair[] g_temppaintbuffer = null!;
 
 	public static readonly List<PaintBuffer> g_paintBuffers = [];
 
 	// pointer to current paintbuffer (front and reare), used by all mixing, upsampling and dsp routines
-	public static PortableSamplePair* g_curpaintbuffer = null;
-	public static PortableSamplePair* g_currearpaintbuffer = null;
-	public static PortableSamplePair* g_curcenterpaintbuffer = null;
+	public static PortableSamplePair[]? g_curpaintbuffer = null;
+	public static PortableSamplePair[]? g_currearpaintbuffer = null;
+	public static PortableSamplePair[]? g_curcenterpaintbuffer = null;
 
 	public static bool g_bdirectionalfx;
 	public static bool g_bDspOff;
@@ -52,15 +52,13 @@ public static unsafe class SndMix
 	public const int FILTERTYPE_LINEAR = 1;
 	public const int FILTERTYPE_CUBIC = 2;
 
-	static readonly int* snd_scaletable = (int*)NativeMemory.AllocZeroed((nuint)(SND_SCALE_LEVELS * 256 * sizeof(int)));   // 32k*4 = 128K
+	static readonly int[] snd_scaletable = new int[SND_SCALE_LEVELS * 256];   // 32k*4 = 128K
 
-	static int* snd_p;
 	static int snd_linear_count;
 	static int snd_vol;
-	static short* snd_out;
 
-
-	static int* SndScaleTable(int level) => snd_scaletable + level * 256;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static ReadOnlySpan<int> SndScaleTable(int level) => new(snd_scaletable, level * 256, 256);
 
 	public static bool IsReplayRendering() {
 		return false;
@@ -71,31 +69,14 @@ public static unsafe class SndMix
 	//-----------------------------------------------------------------------------
 	public static void MIX_FreeAllPaintbuffers() {
 		if (g_paintBuffers.Count != 0) {
-			if (g_temppaintbuffer != null) {
-				NativeMemory.AlignedFree(g_temppaintbuffer);
-				g_temppaintbuffer = null;
-			}
-
-			for (int i = 0; i < g_paintBuffers.Count; i++) {
-				if (g_paintBuffers[i].Buf != null)
-					NativeMemory.AlignedFree(g_paintBuffers[i].Buf);
-				if (g_paintBuffers[i].BufRear != null)
-					NativeMemory.AlignedFree(g_paintBuffers[i].BufRear);
-				if (g_paintBuffers[i].BufCenter != null)
-					NativeMemory.AlignedFree(g_paintBuffers[i].BufCenter);
-				NativeMemory.Free(g_paintBuffers[i].FltMem);
-				NativeMemory.Free(g_paintBuffers[i].FltMemRear);
-				NativeMemory.Free(g_paintBuffers[i].FltMemCenter);
-			}
+			g_temppaintbuffer = null!;
 
 			g_paintBuffers.Clear();
 		}
 	}
 
-	static PortableSamplePair* AllocPaintbuffer(int count) {
-		PortableSamplePair* buffer = (PortableSamplePair*)NativeMemory.AlignedAlloc((nuint)(count * sizeof(PortableSamplePair)), 16);
-		Unsafe.InitBlock(buffer, 0, (uint)(count * sizeof(PortableSamplePair)));
-		return buffer;
+	static PortableSamplePair[] AllocPaintbuffer(int count) {
+		return new PortableSamplePair[count];
 	}
 
 	public static void MIX_InitializePaintbuffer(PaintBuffer paintBuffer, bool surround, bool surroundCenter) {
@@ -109,10 +90,6 @@ public static unsafe class SndMix
 		paintBuffer.BufRear = null;
 		paintBuffer.BufCenter = null;
 		paintBuffer.IFilter = 0;
-
-		paintBuffer.FltMem = (PortableSamplePair*)NativeMemory.AllocZeroed((nuint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
-		paintBuffer.FltMemRear = (PortableSamplePair*)NativeMemory.AllocZeroed((nuint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
-		paintBuffer.FltMemCenter = (PortableSamplePair*)NativeMemory.AllocZeroed((nuint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
 
 		paintBuffer.Buf = AllocPaintbuffer(PAINTBUFFER_MEM_SIZE);
 
@@ -187,7 +164,7 @@ public static unsafe class SndMix
 		// rate_max = copybuf_bytes /  (samples_max * samplesize_max )
 
 		double samplesize_max = 4.0; // stereo 16bit samples
-		double copybuf_bytes = (double)(TEMP_COPY_BUFFER_SIZE * sizeof(PortableSamplePair));
+		double copybuf_bytes = (double)(TEMP_COPY_BUFFER_SIZE * PortableSamplePair.SIZE);
 		double samples_max = (double)PAINTBUFFER_SIZE;
 
 		double rate_max = copybuf_bytes / (samples_max * samplesize_max);
@@ -204,13 +181,13 @@ public static unsafe class SndMix
 	// pfront - pointer to stereo paintbuffer - 32 bit samples, interleaved stereo
 	// lpaintedtime - total number of 32 bit stereo samples previously output to hardware
 	// endtime - total number of 32 bit stereo samples currently mixed in paintbuffer
-	public static void S_TransferStereo16(void* output, PortableSamplePair* front, int lpaintedtime, int endtime) {
+	public static void S_TransferStereo16(Span<short> output, PortableSamplePair[] front, int lpaintedtime, int endtime) {
 		int lpos;
 
-		Assert(output != null);
+		Assert(!output.IsEmpty);
 
 		snd_vol = (int)(S_GetMasterVolume() * 256);
-		snd_p = (int*)front;
+		ReadOnlySpan<int> snd_p = MemoryMarshal.Cast<PortableSamplePair, int>(front.AsSpan());
 
 		// get size of output buffer in full samples (LR pairs)
 		int samplePairCount = g_AudioDevice!.DeviceSampleCount() >> 1;
@@ -227,7 +204,7 @@ public static unsafe class SndMix
 			lpos = lpaintedtime & sampleMask;
 
 			// snd_out is L/R sample index into dma buffer.  First L sample from paintbuffer goes here.
-			snd_out = (short*)output + (lpos << 1);
+			Span<short> snd_out = output[(lpos << 1)..];
 
 			// snd_linear_count is number of samplepairs between end of dma buffer and xfer start index.
 			snd_linear_count = samplePairCount - lpos;
@@ -242,14 +219,14 @@ public static unsafe class SndMix
 			snd_linear_count <<= 1;
 
 			// write a linear blast of samples
-			SND_RecordBuffer();
+			SND_RecordBuffer(snd_p);
 			if (shouldPlaySound) {
 				// transfer 16bit samples from snd_p into snd_out, multiplying each sample by volume.
-				Snd_WriteLinearBlastStereo16();
+				Snd_WriteLinearBlastStereo16(snd_p, snd_out);
 			}
 
 			// advance paintbuffer pointer
-			snd_p += snd_linear_count;
+			snd_p = snd_p[snd_linear_count..];
 
 			// advance lpaintedtime by number of samplepairs just xfered.
 			lpaintedtime += snd_linear_count >> 1;
@@ -258,18 +235,19 @@ public static unsafe class SndMix
 
 	// Transfer contents of main paintbuffer pfront out to
 	// device.  Perform volume multiply on each sample.
-	public static void S_TransferPaintBuffer(void* output, PortableSamplePair* front, int lpaintedtime, int endtime) {
+	public static void S_TransferPaintBuffer(Span<byte> output, PortableSamplePair[] front, int lpaintedtime, int endtime) {
 		int out_idx;        // mono sample index
 		int count;          // number of mono samples to output
 		int out_mask;
 		int step;
 		int val;
 		int soundVol;
-		int* p;
+		int p;
 
-		Assert(output != null);
+		Assert(!output.IsEmpty);
 
-		p = (int*)front;
+		ReadOnlySpan<int> pfront = MemoryMarshal.Cast<PortableSamplePair, int>(front.AsSpan());
+		p = 0;
 
 		count = (endtime - lpaintedtime) * g_AudioDevice!.DeviceChannels();
 
@@ -284,9 +262,9 @@ public static unsafe class SndMix
 		soundVol = (int)(S_GetMasterVolume() * 256);
 
 		if (g_AudioDevice.DeviceSampleBits() == 16) {
-			short* @out = (short*)output;
+			Span<short> @out = MemoryMarshal.Cast<byte, short>(output);
 			while (count-- != 0) {
-				val = (*p * soundVol) >> 8;
+				val = (pfront[p] * soundVol) >> 8;
 				p += step;
 				val = CLIP(val);
 
@@ -295,9 +273,9 @@ public static unsafe class SndMix
 			}
 		}
 		else if (g_AudioDevice.DeviceSampleBits() == 8) {
-			byte* @out = (byte*)output;
+			Span<byte> @out = output;
 			while (count-- != 0) {
-				val = (*p * soundVol) >> 8;
+				val = (pfront[p] * soundVol) >> 8;
 				p += step;
 				val = CLIP(val);
 
@@ -460,19 +438,19 @@ public static unsafe class SndMix
 	}
 
 	// pass in index -1...count+2, return pointer to source sample in either paintbuffer or delay buffer
-	static PortableSamplePair* S_GetNextpFilter(int i, PortableSamplePair* buffer, PortableSamplePair* filtermem) {
+	static PortableSamplePair S_GetNextpFilter(int i, ReadOnlySpan<PortableSamplePair> buffer, ReadOnlySpan<PortableSamplePair> filtermem) {
 		// The delay buffer is assumed to precede the paintbuffer by 6 duplicated samples
 		if (i == -1)
-			return &filtermem[0];
+			return filtermem[0];
 		if (i == 0)
-			return &filtermem[1];
+			return filtermem[1];
 		if (i == 1)
-			return &filtermem[2];
+			return filtermem[2];
 
 		// return from paintbuffer, where samples are doubled.
 		// even samples are to be replaced with interpolated value.
 
-		return &buffer[(i - 2) * 2 + 1];
+		return buffer[(i - 2) * 2 + 1];
 	}
 
 	// pass forward over passed in buffer and cubic interpolate all odd samples
@@ -481,7 +459,7 @@ public static unsafe class SndMix
 	//				if NULL then perform no filtering. UNDONE: should have a filter memory array type
 	// count: how many samples to upsample. will become count*2 samples in buffer, in place.
 
-	public static void S_Interpolate2xCubic(PortableSamplePair* buffer, PortableSamplePair* filtermem, int cfltmem, int count) {
+	public static void S_Interpolate2xCubic(Span<PortableSamplePair> buffer, Span<PortableSamplePair> filtermem, int cfltmem, int count) {
 
 		// implement cubic interpolation on 2x upsampled buffer.   Effectively delays buffer contents by 2 samples.
 		// pbuffer: contains samples at 0, 2, 4, 6...
@@ -504,10 +482,10 @@ public static unsafe class SndMix
 		int i, upCount = count << 1;
 		int a, b, c;
 		int xm1, x0, x1, x2;
-		PortableSamplePair* psamp0;
-		PortableSamplePair* psamp1;
-		PortableSamplePair* psamp2;
-		PortableSamplePair* psamp3;
+		PortableSamplePair psamp0;
+		PortableSamplePair psamp1;
+		PortableSamplePair psamp2;
+		PortableSamplePair psamp3;
 		int outpos = 0;
 
 		Assert(upCount <= PAINTBUFFER_SIZE);
@@ -527,14 +505,14 @@ public static unsafe class SndMix
 
 			// write out original sample to interpolation buffer
 
-			g_temppaintbuffer[outpos++] = *psamp1;
+			g_temppaintbuffer[outpos++] = psamp1;
 
 			// get all left samples for interpolation window
 
-			xm1 = psamp0->Left;
-			x0 = psamp1->Left;
-			x1 = psamp2->Left;
-			x2 = psamp3->Left;
+			xm1 = psamp0.Left;
+			x0 = psamp1.Left;
+			x1 = psamp2.Left;
+			x2 = psamp3.Left;
 
 			// interpolate
 
@@ -548,10 +526,10 @@ public static unsafe class SndMix
 
 			// get all right samples for window
 
-			xm1 = psamp0->Right;
-			x0 = psamp1->Right;
-			x1 = psamp2->Right;
-			x2 = psamp3->Right;
+			xm1 = psamp0.Right;
+			x0 = psamp1.Right;
+			x1 = psamp2.Right;
+			x2 = psamp3.Right;
 
 			// interpolate
 
@@ -585,7 +563,7 @@ public static unsafe class SndMix
 	//				if NULL then perform no filtering.
 	// count: how many samples to upsample. will become count*2 samples in buffer, in place.
 
-	public static void S_Interpolate2xLinear(PortableSamplePair* buffer, PortableSamplePair* filtermem, int cfltmem, int count) {
+	public static void S_Interpolate2xLinear(Span<PortableSamplePair> buffer, Span<PortableSamplePair> filtermem, int cfltmem, int count) {
 		int i, upCount = count << 1;
 
 		Assert(upCount <= PAINTBUFFER_SIZE);
@@ -593,8 +571,8 @@ public static unsafe class SndMix
 
 		// use interpolation value from previous mix
 
-		buffer[0].Left = (filtermem->Left + buffer[0].Left) >> 1;
-		buffer[0].Right = (filtermem->Right + buffer[0].Right) >> 1;
+		buffer[0].Left = (filtermem[0].Left + buffer[0].Left) >> 1;
+		buffer[0].Right = (filtermem[0].Right + buffer[0].Right) >> 1;
 
 		for (i = 2; i < upCount; i += 2) {
 			// use linear interpolation for upsampling
@@ -605,77 +583,77 @@ public static unsafe class SndMix
 
 		// save last value to be played out in buffer
 
-		*filtermem = buffer[upCount - 1];
+		filtermem[0] = buffer[upCount - 1];
 	}
 
 	// Optimized routine.  2.27X faster than the above routine
-	public static void S_Interpolate2xLinear_2(int count, PortableSamplePair* buffer, PortableSamplePair* filtermem, int cfltmem) {
+	public static void S_Interpolate2xLinear_2(int count, Span<PortableSamplePair> buffer, Span<PortableSamplePair> filtermem, int cfltmem) {
 		Assert(cfltmem >= 1);
 
 		int sample = count - 1;
 		int end = (count * 2) - 1;
-		PortableSamplePair* write = &buffer[end];
-		PortableSamplePair* read = &buffer[sample];
-		PortableSamplePair last = read[0];
+		int write = end;
+		int read = sample;
+		PortableSamplePair last = buffer[read];
 		read--;
 
 		// PERFORMANCE: Unroll the loop 8 times.  This improves speed quite a bit
 		for (; sample >= 8; sample -= 8) {
-			write[0] = last;
-			write[-1].Left = (read[0].Left + last.Left) >> 1;
-			write[-1].Right = (read[0].Right + last.Right) >> 1;
-			last = read[0];
+			buffer[write] = last;
+			buffer[write - 1].Left = (buffer[read].Left + last.Left) >> 1;
+			buffer[write - 1].Right = (buffer[read].Right + last.Right) >> 1;
+			last = buffer[read];
 
-			write[-2] = last;
-			write[-3].Left = (read[-1].Left + last.Left) >> 1;
-			write[-3].Right = (read[-1].Right + last.Right) >> 1;
-			last = read[-1];
+			buffer[write - 2] = last;
+			buffer[write - 3].Left = (buffer[read - 1].Left + last.Left) >> 1;
+			buffer[write - 3].Right = (buffer[read - 1].Right + last.Right) >> 1;
+			last = buffer[read - 1];
 
-			write[-4] = last;
-			write[-5].Left = (read[-2].Left + last.Left) >> 1;
-			write[-5].Right = (read[-2].Right + last.Right) >> 1;
-			last = read[-2];
+			buffer[write - 4] = last;
+			buffer[write - 5].Left = (buffer[read - 2].Left + last.Left) >> 1;
+			buffer[write - 5].Right = (buffer[read - 2].Right + last.Right) >> 1;
+			last = buffer[read - 2];
 
-			write[-6] = last;
-			write[-7].Left = (read[-3].Left + last.Left) >> 1;
-			write[-7].Right = (read[-3].Right + last.Right) >> 1;
-			last = read[-3];
+			buffer[write - 6] = last;
+			buffer[write - 7].Left = (buffer[read - 3].Left + last.Left) >> 1;
+			buffer[write - 7].Right = (buffer[read - 3].Right + last.Right) >> 1;
+			last = buffer[read - 3];
 
-			write[-8] = last;
-			write[-9].Left = (read[-4].Left + last.Left) >> 1;
-			write[-9].Right = (read[-4].Right + last.Right) >> 1;
-			last = read[-4];
+			buffer[write - 8] = last;
+			buffer[write - 9].Left = (buffer[read - 4].Left + last.Left) >> 1;
+			buffer[write - 9].Right = (buffer[read - 4].Right + last.Right) >> 1;
+			last = buffer[read - 4];
 
-			write[-10] = last;
-			write[-11].Left = (read[-5].Left + last.Left) >> 1;
-			write[-11].Right = (read[-5].Right + last.Right) >> 1;
-			last = read[-5];
+			buffer[write - 10] = last;
+			buffer[write - 11].Left = (buffer[read - 5].Left + last.Left) >> 1;
+			buffer[write - 11].Right = (buffer[read - 5].Right + last.Right) >> 1;
+			last = buffer[read - 5];
 
-			write[-12] = last;
-			write[-13].Left = (read[-6].Left + last.Left) >> 1;
-			write[-13].Right = (read[-6].Right + last.Right) >> 1;
-			last = read[-6];
+			buffer[write - 12] = last;
+			buffer[write - 13].Left = (buffer[read - 6].Left + last.Left) >> 1;
+			buffer[write - 13].Right = (buffer[read - 6].Right + last.Right) >> 1;
+			last = buffer[read - 6];
 
-			write[-14] = last;
-			write[-15].Left = (read[-7].Left + last.Left) >> 1;
-			write[-15].Right = (read[-7].Right + last.Right) >> 1;
-			last = read[-7];
+			buffer[write - 14] = last;
+			buffer[write - 15].Left = (buffer[read - 7].Left + last.Left) >> 1;
+			buffer[write - 15].Right = (buffer[read - 7].Right + last.Right) >> 1;
+			last = buffer[read - 7];
 
 			read -= 8;
 			write -= 16;
 		}
-		while (read >= buffer) {
-			write[0] = last;
-			write[-1].Left = (read[0].Left + last.Left) >> 1;
-			write[-1].Right = (read[0].Right + last.Right) >> 1;
-			last = read[0];
+		while (read >= 0) {
+			buffer[write] = last;
+			buffer[write - 1].Left = (buffer[read].Left + last.Left) >> 1;
+			buffer[write - 1].Right = (buffer[read].Right + last.Right) >> 1;
+			last = buffer[read];
 			read--;
 			write -= 2;
 		}
 		buffer[1] = last;
-		buffer[0].Left = (filtermem->Left + last.Left) >> 1;
-		buffer[0].Right = (filtermem->Right + last.Right) >> 1;
-		*filtermem = buffer[end];
+		buffer[0].Left = (filtermem[0].Left + last.Left) >> 1;
+		buffer[0].Right = (filtermem[0].Right + last.Right) >> 1;
+		filtermem[0] = buffer[end];
 	}
 
 	// upsample by 2x, optionally using interpolation
@@ -685,7 +663,7 @@ public static unsafe class SndMix
 	//				if NULL then perform no filtering.
 	// cfltmem: max number of sample pairs filter can use
 	// filtertype: FILTERTYPE_NONE, _LINEAR, _CUBIC etc.  Must match prevfilter.
-	public static void S_MixBufferUpsample2x(int count, PortableSamplePair* buffer, PortableSamplePair* filtermem, int cfltmem, int filtertype) {
+	public static void S_MixBufferUpsample2x(int count, Span<PortableSamplePair> buffer, Span<PortableSamplePair> filtermem, int cfltmem, int filtertype) {
 		// JAY: Optimized this routine.  Test then remove old routine.
 		// NOTE: Has been proven equivalent by comparing output.
 		if (filtertype == FILTERTYPE_LINEAR) {
@@ -773,7 +751,7 @@ public static unsafe class SndMix
 
 	// return pointer to front paintbuffer pbuf, given index
 
-	public static PortableSamplePair* MIX_GetPFrontFromIPaint(int ipaintbuffer) {
+	public static PortableSamplePair[] MIX_GetPFrontFromIPaint(int ipaintbuffer) {
 		return g_paintBuffers[ipaintbuffer].Buf;
 	}
 
@@ -786,7 +764,7 @@ public static unsafe class SndMix
 	// return pointer to rear buffer, given index.
 	// returns null if fsurround is false;
 
-	public static PortableSamplePair* MIX_GetPRearFromIPaint(int ipaintbuffer) {
+	public static PortableSamplePair[]? MIX_GetPRearFromIPaint(int ipaintbuffer) {
 		if (g_paintBuffers[ipaintbuffer].Surround)
 			return g_paintBuffers[ipaintbuffer].BufRear;
 
@@ -796,7 +774,7 @@ public static unsafe class SndMix
 	// return pointer to center buffer, given index.
 	// returns null if fsurround_center is false;
 
-	public static PortableSamplePair* MIX_GetPCenterFromIPaint(int ipaintbuffer) {
+	public static PortableSamplePair[]? MIX_GetPCenterFromIPaint(int ipaintbuffer) {
 		if (g_paintBuffers[ipaintbuffer].SurroundCenter)
 			return g_paintBuffers[ipaintbuffer].BufCenter;
 
@@ -805,7 +783,7 @@ public static unsafe class SndMix
 
 	// return index to paintbuffer, given buffer pointer
 
-	public static int MIX_GetIPaintFromPFront(PortableSamplePair* buf) {
+	public static int MIX_GetIPaintFromPFront(PortableSamplePair[] buf) {
 		int i;
 
 		for (i = 0; i < g_paintBuffers.Count; i++) {
@@ -818,7 +796,7 @@ public static unsafe class SndMix
 
 	// return pointer to paintbuffer struct, given ptr to buffer data
 
-	public static PaintBuffer MIX_GetPPaintFromPFront(PortableSamplePair* buf) {
+	public static PaintBuffer MIX_GetPPaintFromPFront(PortableSamplePair[] buf) {
 		int i;
 		i = MIX_GetIPaintFromPFront(buf);
 
@@ -838,16 +816,16 @@ public static unsafe class SndMix
 			ppaint.Surround = g_AudioDevice.IsSurround();
 			ppaint.SurroundCenter = g_AudioDevice.IsSurroundCenter();
 
-			PortableSamplePair* front = MIX_GetPFrontFromIPaint(ipaintbuffer);
-			PortableSamplePair* rear = MIX_GetPRearFromIPaint(ipaintbuffer);
-			PortableSamplePair* center = MIX_GetPCenterFromIPaint(ipaintbuffer);
+			PortableSamplePair[] front = MIX_GetPFrontFromIPaint(ipaintbuffer);
+			PortableSamplePair[]? rear = MIX_GetPRearFromIPaint(ipaintbuffer);
+			PortableSamplePair[]? center = MIX_GetPCenterFromIPaint(ipaintbuffer);
 
 			// copy front to rear
-			Unsafe.CopyBlock(rear, front, (uint)(sizeof(PortableSamplePair) * PAINTBUFFER_SIZE));
+			front.AsSpan(0, PAINTBUFFER_SIZE).CopyTo(rear);
 
 			// copy front to center
 			if (g_AudioDevice.IsSurroundCenter())
-				Unsafe.CopyBlock(center, front, (uint)(sizeof(PortableSamplePair) * PAINTBUFFER_SIZE));
+				front.AsSpan(0, PAINTBUFFER_SIZE).CopyTo(center);
 		}
 	}
 
@@ -907,19 +885,16 @@ public static unsafe class SndMix
 		// zero out all paintbuffer data (ignore sampleCount)
 
 		for (i = 0; i < g_paintBuffers.Count; i++) {
-			if (g_paintBuffers[i].Buf != null)
-				Unsafe.InitBlock(g_paintBuffers[i].Buf, 0, (uint)((count + 1) * sizeof(PortableSamplePair)));
+			g_paintBuffers[i].Buf?.AsSpan(0, count + 1).Clear();
 
-			if (g_paintBuffers[i].BufRear != null)
-				Unsafe.InitBlock(g_paintBuffers[i].BufRear, 0, (uint)((count + 1) * sizeof(PortableSamplePair)));
+			g_paintBuffers[i].BufRear?.AsSpan(0, count + 1).Clear();
 
-			if (g_paintBuffers[i].BufCenter != null)
-				Unsafe.InitBlock(g_paintBuffers[i].BufCenter, 0, (uint)((count + 1) * sizeof(PortableSamplePair)));
+			g_paintBuffers[i].BufCenter?.AsSpan(0, count + 1).Clear();
 
 			if (clearFilters) {
-				Unsafe.InitBlock(g_paintBuffers[i].FltMem, 0, (uint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
-				Unsafe.InitBlock(g_paintBuffers[i].FltMemRear, 0, (uint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
-				Unsafe.InitBlock(g_paintBuffers[i].FltMemCenter, 0, (uint)(PaintBuffer.FILTER_MEM_COUNT * sizeof(PortableSamplePair)));
+				g_paintBuffers[i].FltMem.AsSpan().Clear();
+				g_paintBuffers[i].FltMemRear.AsSpan().Clear();
+				g_paintBuffers[i].FltMemCenter.AsSpan().Clear();
 			}
 		}
 
@@ -934,9 +909,9 @@ public static unsafe class SndMix
 	// Currently just averages, but could actually remove
 	// the center signal from the l/r channels...
 
-	static void MIX_CenterFromLeftRight(int* pl, int* pr, int* pc) {
-		int l = *pl;
-		int r = *pr;
+	static void MIX_CenterFromLeftRight(ref int pl, ref int pr, out int pc) {
+		int l = pl;
+		int r = pr;
 		int c = 0;
 
 
@@ -959,7 +934,7 @@ public static unsafe class SndMix
 				c += (-r);
 			}
 		*/
-		*pc = c;
+		pc = c;
 		//	*pl = l;
 		//	*pr = r;
 	}
@@ -989,9 +964,9 @@ public static unsafe class SndMix
 
 	public static void MIX_MixPaintbuffers(int ibuf1, int ibuf2, int ibuf3, int count, float fgain_out) {
 		int i;
-		PortableSamplePair* pbuf1, pbuf2, pbuf3;
-		PortableSamplePair* pbufrear1, pbufrear2, pbufrear3;
-		PortableSamplePair* pbufcenter1, pbufcenter2, pbufcenter3;
+		PortableSamplePair[] pbuf1, pbuf2, pbuf3;
+		PortableSamplePair[] pbufrear1, pbufrear2, pbufrear3;
+		PortableSamplePair[] pbufcenter1, pbufcenter2, pbufcenter3;
 		int cchan1, cchan2, cchan3;
 		int xl, xr;
 		int l, r, l2, r2, c, c2;
@@ -1008,13 +983,13 @@ public static unsafe class SndMix
 		pbuf2 = g_paintBuffers[ibuf2].Buf;
 		pbuf3 = g_paintBuffers[ibuf3].Buf;
 
-		pbufrear1 = g_paintBuffers[ibuf1].BufRear;
-		pbufrear2 = g_paintBuffers[ibuf2].BufRear;
-		pbufrear3 = g_paintBuffers[ibuf3].BufRear;
+		pbufrear1 = g_paintBuffers[ibuf1].BufRear!;
+		pbufrear2 = g_paintBuffers[ibuf2].BufRear!;
+		pbufrear3 = g_paintBuffers[ibuf3].BufRear!;
 
-		pbufcenter1 = g_paintBuffers[ibuf1].BufCenter;
-		pbufcenter2 = g_paintBuffers[ibuf2].BufCenter;
-		pbufcenter3 = g_paintBuffers[ibuf3].BufCenter;
+		pbufcenter1 = g_paintBuffers[ibuf1].BufCenter!;
+		pbufcenter2 = g_paintBuffers[ibuf2].BufCenter!;
+		pbufcenter3 = g_paintBuffers[ibuf3].BufCenter!;
 
 		cchan1 = 2 + (g_paintBuffers[ibuf1].Surround ? 2 : 0) + (g_paintBuffers[ibuf1].SurroundCenter ? 1 : 0);
 		cchan2 = 2 + (g_paintBuffers[ibuf2].Surround ? 2 : 0) + (g_paintBuffers[ibuf2].SurroundCenter ? 1 : 0);
@@ -1025,7 +1000,7 @@ public static unsafe class SndMix
 
 		if (cchan2 < cchan1) {
 			(cchan1, cchan2) = (cchan2, cchan1);
-			PortableSamplePair* pbuftemp = pbuf1;
+			PortableSamplePair[] pbuftemp = pbuf1;
 			pbuf1 = pbuf2;
 			pbuf2 = pbuftemp;
 			pbuftemp = pbufrear1;
@@ -1236,12 +1211,12 @@ public static unsafe class SndMix
 					l = pbuf1[i].Left;
 					r = pbuf1[i].Right;
 
-					MIX_CenterFromLeftRight(&l, &r, &c);
+					MIX_CenterFromLeftRight(ref l, ref r, out c);
 
 					l2 = pbuf2[i].Left;
 					r2 = pbuf2[i].Right;
 
-					MIX_CenterFromLeftRight(&l2, &r2, &c2);
+					MIX_CenterFromLeftRight(ref l2, ref r2, out c2);
 
 					pbuf3[i].Left = l + l2;
 					pbuf3[i].Right = r + r2;
@@ -1259,12 +1234,12 @@ public static unsafe class SndMix
 					l = pbuf1[i].Left;
 					r = pbuf1[i].Right;
 
-					MIX_CenterFromLeftRight(&l, &r, &c);
+					MIX_CenterFromLeftRight(ref l, ref r, out c);
 
 					l2 = pbuf2[i].Left;
 					r2 = pbuf2[i].Right;
 
-					MIX_CenterFromLeftRight(&l2, &r2, &c2);
+					MIX_CenterFromLeftRight(ref l2, ref r2, out c2);
 
 					pbuf3[i].Left = l + l2;
 					pbuf3[i].Right = r + r2;
@@ -1282,7 +1257,7 @@ public static unsafe class SndMix
 					l = pbuf1[i].Left;
 					r = pbuf1[i].Right;
 
-					MIX_CenterFromLeftRight(&l, &r, &c);
+					MIX_CenterFromLeftRight(ref l, ref r, out c);
 
 					pbuf3[i].Left = l + pbuf2[i].Left;
 					pbuf3[i].Right = r + pbuf2[i].Right;
@@ -1300,12 +1275,12 @@ public static unsafe class SndMix
 					l = pbuf1[i].Left;
 					r = pbuf1[i].Right;
 
-					MIX_CenterFromLeftRight(&l, &r, &c);
+					MIX_CenterFromLeftRight(ref l, ref r, out c);
 
 					l2 = pbuf2[i].Left;
 					r2 = pbuf2[i].Right;
 
-					MIX_CenterFromLeftRight(&l2, &r2, &c2);
+					MIX_CenterFromLeftRight(ref l2, ref r2, out c2);
 
 					pbuf3[i].Left = l + l2;
 					pbuf3[i].Right = r + r2;
@@ -1324,7 +1299,7 @@ public static unsafe class SndMix
 					l = pbuf1[i].Left;
 					r = pbuf1[i].Right;
 
-					MIX_CenterFromLeftRight(&l, &r, &c);
+					MIX_CenterFromLeftRight(ref l, ref r, out c);
 
 					pbuf3[i].Left = l + pbuf2[i].Left;
 					pbuf3[i].Right = r + pbuf2[i].Right;
@@ -1388,9 +1363,9 @@ public static unsafe class SndMix
 	// multiply all values in paintbuffer by fgain
 
 	public static void MIX_ScalePaintBuffer(int bufferIndex, int count, float fgain) {
-		PortableSamplePair* pbuf = g_paintBuffers[bufferIndex].Buf;
-		PortableSamplePair* pbufrear = g_paintBuffers[bufferIndex].BufRear;
-		PortableSamplePair* pbufcenter = g_paintBuffers[bufferIndex].BufCenter;
+		PortableSamplePair[] pbuf = g_paintBuffers[bufferIndex].Buf;
+		PortableSamplePair[] pbufrear = g_paintBuffers[bufferIndex].BufRear!;
+		PortableSamplePair[] pbufcenter = g_paintBuffers[bufferIndex].BufCenter!;
 
 		int gain = (int)(256 * fgain);
 		int i;
@@ -1432,22 +1407,22 @@ public static unsafe class SndMix
 	// DEBUG code - ibuf is buffer index, count is # samples to test, pppeakprev stores peak
 
 
-	static void SDEBUG_GetAvgValue(int ibuf, int count, float* pav) {
+	static void SDEBUG_GetAvgValue(int ibuf, int count, ref float pav) {
 		if (snd_showstart.GetInt() != 4)
 			return;
 
 		float av = 0.0F;
 
 		for (int i = 0; i < count; i++)
-			av += (Math.Abs(g_paintBuffers[ibuf].Buf->Left) + Math.Abs(g_paintBuffers[ibuf].Buf->Right)) / 2.0F;
+			av += (Math.Abs(g_paintBuffers[ibuf].Buf[0].Left) + Math.Abs(g_paintBuffers[ibuf].Buf[0].Right)) / 2.0F;
 
-		*pav = av / count;
+		pav = av / count;
 	}
 
 
 	static void SDEBUG_GetAvgIn(int ibuf, int count) {
 		float av = 0.0f;
-		SDEBUG_GetAvgValue(ibuf, count, &av);
+		SDEBUG_GetAvgValue(ibuf, count, ref av);
 
 		sdebug_avg_in = ((av * count) + (sdebug_avg_in * sdebug_in_count)) / (count + sdebug_in_count);
 		sdebug_in_count += count;
@@ -1455,7 +1430,7 @@ public static unsafe class SndMix
 
 	static void SDEBUG_GetAvgOut(int ibuf, int count) {
 		float av = 0.0f;
-		SDEBUG_GetAvgValue(ibuf, count, &av);
+		SDEBUG_GetAvgValue(ibuf, count, ref av);
 
 		sdebug_avg_out = ((av * count) + (sdebug_avg_out * sdebug_out_count)) / (count + sdebug_out_count);
 		sdebug_out_count += count;
@@ -1480,37 +1455,36 @@ public static unsafe class SndMix
 	public static void MIX_CompressPaintbuffer(int ipaint, int count) {
 		int i;
 		PaintBuffer ppaint = MIX_GetPPaintFromIPaint(ipaint);
-		PortableSamplePair* pbf;
-		PortableSamplePair* pbr;
-		PortableSamplePair* pbc;
+		Span<PortableSamplePair> pbf;
+		Span<PortableSamplePair> pbr;
+		Span<PortableSamplePair> pbc;
 
-		pbf = ppaint.Buf;
+		pbf = ppaint.Buf.AsSpan(0, count);
 		pbr = ppaint.BufRear;
 		pbc = ppaint.BufCenter;
 
-		for (i = 0; i < count; i++) {
-			pbf->Left = CLIP(pbf->Left);
-			pbf->Right = CLIP(pbf->Right);
-			pbf++;
+		for (i = 0; i < pbf.Length; i++) {
+			pbf[i].Left = CLIP(pbf[i].Left);
+			pbf[i].Right = CLIP(pbf[i].Right);
 		}
 
 		if (ppaint.Surround) {
-			Assert(pbr != null);
+			Assert(!pbr.IsEmpty);
 
-			for (i = 0; i < count; i++) {
-				pbr->Left = CLIP(pbr->Left);
-				pbr->Right = CLIP(pbr->Right);
-				pbr++;
+			pbr = pbr[..count];
+			for (i = 0; i < pbr.Length; i++) {
+				pbr[i].Left = CLIP(pbr[i].Left);
+				pbr[i].Right = CLIP(pbr[i].Right);
 			}
 		}
 
 		if (ppaint.SurroundCenter) {
-			Assert(pbc != null);
+			Assert(!pbc.IsEmpty);
 
-			for (i = 0; i < count; i++) {
-				pbc->Left = CLIP(pbc->Left);
+			pbc = pbc[..count];
+			for (i = 0; i < pbc.Length; i++) {
+				pbc[i].Left = CLIP(pbc[i].Left);
 				//pbc->right = CLIP(pbc->right); mono center channel
-				pbc++;
 			}
 		}
 	}
@@ -2120,7 +2094,7 @@ public static unsafe class SndMix
 
 	// returns false if channel is to be entirely skipped.
 
-	public static bool MIX_ScaleChannelVolume(PaintBuffer ppaint, Channel channel, int* volume, int mixchans) {
+	public static bool MIX_ScaleChannelVolume(PaintBuffer ppaint, Channel channel, Span<int> volume, int mixchans) {
 		int i;
 		int mixflag = ppaint.Flags;
 		float scale;
@@ -2274,7 +2248,7 @@ public static unsafe class SndMix
 	//===============================================================================
 	// Low level mixing routines
 	//===============================================================================
-	static void Snd_WriteLinearBlastStereo16() {
+	static void Snd_WriteLinearBlastStereo16(ReadOnlySpan<int> snd_p, Span<short> snd_out) {
 		for (int i = 0; i < snd_linear_count; i += 2) {
 			// scale and clamp left 16bit signed: [0x8000, 0x7FFF]
 			int val = (snd_p[i] * snd_vol) >> 8;
@@ -2291,14 +2265,16 @@ public static unsafe class SndMix
 
 		for (i = 0; i < SND_SCALE_LEVELS; i++)
 			for (j = 0; j < 256; j++)
-				SndScaleTable(i)[j] = ((sbyte)j) * i * (1 << SND_SCALE_SHIFT);
+				snd_scaletable[i * 256 + j] = ((sbyte)j) * i * (1 << SND_SCALE_SHIFT);
 	}
 
-	static void SND_PaintChannelFrom8(PortableSamplePair* output, int* volume, byte* data8, int count) {
-		int* lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
-		int* rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
+	static void SND_PaintChannelFrom8(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data8, int count) {
+		output = output[..count];
+		data8 = data8[..count];
+		ReadOnlySpan<int> lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
+		ReadOnlySpan<int> rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
-		for (int i = 0; i < count; i++) {
+		for (int i = 0; i < output.Length; i++) {
 			int data = data8[i];
 
 			output[i].Left += lscale[data];
@@ -2314,15 +2290,17 @@ public static unsafe class SndMix
 
 	// grab samples from left source channel only and mix as if mono.
 	// volume array contains appropriate spatialization volumes for doppler left (incoming sound)
-	static void SW_Mix8StereoDopplerLeft(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDopplerLeft(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
 			output[i].Left += lscale[data[sampleIndex]];
 			output[i].Right += rscale[data[sampleIndex]];
 			sampleFrac += rateScaleFix;
@@ -2333,17 +2311,20 @@ public static unsafe class SndMix
 
 	// grab samples from right source channel only and mix as if mono.
 	// volume array contains appropriate spatialization volumes for doppler right (outgoing sound)
-	static void SW_Mix8StereoDopplerRight(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDopplerRight(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
-		for (int i = 0; i < outCount; i++) {
-			output[i].Left += lscale[data[sampleIndex + 1]];
-			output[i].Right += rscale[data[sampleIndex + 1]];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice(sampleIndex, 2);
+			output[i].Left += lscale[sample[1]];
+			output[i].Right += rscale[sample[1]];
 			sampleFrac += rateScaleFix;
 			sampleIndex += FIX_INTPART(sampleFrac) << 1;
 			sampleFrac = FIX_FRACPART(sampleFrac);
@@ -2355,11 +2336,13 @@ public static unsafe class SndMix
 	// grab samples from left source channel only and mix as if mono.
 	// volume array contains appropriate spatialization volumes for doppler left (incoming sound)
 
-	static void SW_Mix16StereoDopplerLeft(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDopplerLeft(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
 			output[i].Left += (volume[0] * (int)data[sampleIndex]) >> 8;
 			output[i].Right += (volume[1] * (int)data[sampleIndex]) >> 8;
 
@@ -2373,13 +2356,16 @@ public static unsafe class SndMix
 	// grab samples from right source channel only and mix as if mono.
 	// volume array contains appropriate spatialization volumes for doppler right (outgoing sound)
 
-	static void SW_Mix16StereoDopplerRight(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDopplerRight(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 
-		for (int i = 0; i < outCount; i++) {
-			output[i].Left += (volume[0] * (int)data[sampleIndex + 1]) >> 8;
-			output[i].Right += (volume[1] * (int)data[sampleIndex + 1]) >> 8;
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice(sampleIndex, 2);
+			output[i].Left += (volume[0] * (int)sample[1]) >> 8;
+			output[i].Right += (volume[1] * (int)sample[1]) >> 8;
 
 			sampleFrac += rateScaleFix;
 			sampleIndex += FIX_INTPART(sampleFrac) << 1;
@@ -2388,13 +2374,15 @@ public static unsafe class SndMix
 	}
 
 	// mix left wav (front facing) with right wav (rear facing) based on soundfacing direction
-	static void SW_Mix8StereoDirectional(float soundfacing, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDirectional(float soundfacing, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 		int x;
 		int l, r;
 		sbyte lb, rb;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
@@ -2405,9 +2393,10 @@ public static unsafe class SndMix
 
 		int frontmix = (int)(256.0f * ((1.0f + soundfacing) / 2.0f));   // 0 -> 256
 
-		for (int i = 0; i < outCount; i++) {
-			lb = (sbyte)data[sampleIndex];      // get left byte
-			rb = (sbyte)data[sampleIndex + 1];  // get right byte
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice(sampleIndex, 2);
+			lb = (sbyte)sample[0];      // get left byte
+			rb = (sbyte)sample[1];  // get right byte
 
 			l = lb;
 			r = rb;
@@ -2427,13 +2416,15 @@ public static unsafe class SndMix
 	// mix left wav (front facing) with right wav (rear facing) based on soundfacing direction
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
-	static void SW_Mix8StereoDirectional_Interp(float soundfacing, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDirectional_Interp(float soundfacing, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interpl, interpr;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
@@ -2446,16 +2437,17 @@ public static unsafe class SndMix
 
 		int frontmix = (int)(256.0f * ((1.0f + soundfacing) / 2.0f));   // 0 -> 256
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 4);
 			// interpolate between first & second sample (the samples bordering sampleFrac12 fraction)
 
-			first = (sbyte)data[sampleIndex];       // left byte
-			second = (sbyte)data[sampleIndex + 2];
+			first = (sbyte)sample[0];       // left byte
+			second = (sbyte)sample[2];
 
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = (sbyte)data[sampleIndex + 1];   // right byte
-			second = (sbyte)data[sampleIndex + 3];
+			first = (sbyte)sample[1];   // right byte
+			second = (sbyte)sample[3];
 
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2475,7 +2467,9 @@ public static unsafe class SndMix
 
 	// mix left wav (front facing) with right wav (rear facing) based on soundfacing direction
 
-	static void SW_Mix16StereoDirectional(float soundfacing, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDirectional(float soundfacing, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 
@@ -2488,11 +2482,12 @@ public static unsafe class SndMix
 
 		int frontmix = (int)(256.0f * ((1.0f + soundfacing) / 2.0f));   // 0 -> 256
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 2);
 			// get left, right samples
 
-			l = data[sampleIndex];
-			r = data[sampleIndex + 1];
+			l = sample[0];
+			r = sample[1];
 
 			// crossfade between left & right based on front/rear facing
 
@@ -2511,7 +2506,9 @@ public static unsafe class SndMix
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
 
-	static void SW_Mix16StereoDirectional_Interp(float soundfacing, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDirectional_Interp(float soundfacing, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
@@ -2525,16 +2522,17 @@ public static unsafe class SndMix
 
 		int frontmix = (int)(256.0f * ((1.0f + soundfacing) / 2.0f));   // 0 -> 256
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 4);
 			// get interpolated left, right samples
 
-			first = data[sampleIndex];
-			second = data[sampleIndex + 2];
+			first = sample[0];
+			second = sample[2];
 
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = data[sampleIndex + 1];
-			second = data[sampleIndex + 3];
+			first = sample[1];
+			second = sample[3];
 
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2553,13 +2551,15 @@ public static unsafe class SndMix
 
 
 	// distance variant wav (left is close, right is far)
-	static void SW_Mix8StereoDistVar(float distmix, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDistVar(float distmix, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 		int x;
 		int l, r;
 		sbyte lb, rb;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
@@ -2573,8 +2573,9 @@ public static unsafe class SndMix
 		// if mixing at max or min range, skip crossfade (KDB: perf)
 
 		if (nearmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				rb = (sbyte)data[sampleIndex + 1];  // get right byte
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<byte> sample = data.Slice(sampleIndex, 2);
+				rb = (sbyte)sample[1];  // get right byte
 				x = rb;
 
 				output[i].Left += lscale[x & 0xFF]; // multiply by volume and convert to 16 bit
@@ -2588,7 +2589,7 @@ public static unsafe class SndMix
 		}
 
 		if (farmix == 0) {
-			for (int i = 0; i < outCount; i++) {
+			for (int i = 0; i < output.Length; i++) {
 
 				lb = (sbyte)data[sampleIndex];              // get left byte
 				x = lb;
@@ -2605,10 +2606,11 @@ public static unsafe class SndMix
 
 		// crossfade left/right
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice(sampleIndex, 2);
 
-			lb = (sbyte)data[sampleIndex];      // get left byte
-			rb = (sbyte)data[sampleIndex + 1];  // get right byte
+			lb = (sbyte)sample[0];      // get left byte
+			rb = (sbyte)sample[1];  // get right byte
 
 			l = lb;
 			r = rb;
@@ -2628,7 +2630,9 @@ public static unsafe class SndMix
 	// distance variant wav (left is close, right is far)
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
-	static void SW_Mix8StereoDistVar_Interp(float distmix, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8StereoDistVar_Interp(float distmix, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int x;
 
 		// distmix 0 - sound is near player (100% wav left)
@@ -2642,7 +2646,7 @@ public static unsafe class SndMix
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interpl, interpr;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
@@ -2650,9 +2654,10 @@ public static unsafe class SndMix
 		// if mixing at max or min range, skip crossfade (KDB: perf)
 
 		if (nearmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				first = (sbyte)data[sampleIndex + 1];   // right sample
-				second = (sbyte)data[sampleIndex + 3];
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 4);
+				first = (sbyte)sample[1];   // right sample
+				second = (sbyte)sample[3];
 
 				interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2668,9 +2673,10 @@ public static unsafe class SndMix
 		}
 
 		if (farmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				first = (sbyte)data[sampleIndex];       // left sample
-				second = (sbyte)data[sampleIndex + 2];
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 3);
+				first = (sbyte)sample[0];       // left sample
+				second = (sbyte)sample[2];
 
 				interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2686,16 +2692,17 @@ public static unsafe class SndMix
 
 		// crossfade left/right
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 4);
 			// interpolate between first & second sample (the samples bordering sampleFrac14 fraction)
 
-			first = (sbyte)data[sampleIndex];
-			second = (sbyte)data[sampleIndex + 2];
+			first = (sbyte)sample[0];
+			second = (sbyte)sample[2];
 
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = (sbyte)data[sampleIndex + 1];
-			second = (sbyte)data[sampleIndex + 3];
+			first = (sbyte)sample[1];
+			second = (sbyte)sample[3];
 
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2715,7 +2722,9 @@ public static unsafe class SndMix
 
 	// distance variant wav (left is close, right is far)
 
-	static void SW_Mix16StereoDistVar(float distmix, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDistVar(float distmix, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 		int x;
@@ -2730,8 +2739,9 @@ public static unsafe class SndMix
 		// if mixing at max or min range, skip crossfade (KDB: perf)
 
 		if (nearmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				x = data[sampleIndex + 1];  // right sample
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<short> sample = data.Slice(sampleIndex, 2);
+				x = sample[1];  // right sample
 
 				output[i].Left += (volume[0] * x) >> 8;
 				output[i].Right += (volume[1] * x) >> 8;
@@ -2744,7 +2754,7 @@ public static unsafe class SndMix
 		}
 
 		if (farmix == 0) {
-			for (int i = 0; i < outCount; i++) {
+			for (int i = 0; i < output.Length; i++) {
 				x = data[sampleIndex];      // left sample
 
 				output[i].Left += (volume[0] * x) >> 8;
@@ -2759,9 +2769,10 @@ public static unsafe class SndMix
 
 		// crossfade left/right
 
-		for (int i = 0; i < outCount; i++) {
-			l = data[sampleIndex];
-			r = data[sampleIndex + 1];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice(sampleIndex, 2);
+			l = sample[0];
+			r = sample[1];
 
 			x = l + (((r - l) * farmix) >> 8);
 
@@ -2778,7 +2789,9 @@ public static unsafe class SndMix
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
 
-	static void SW_Mix16StereoDistVar_Interp(float distmix, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16StereoDistVar_Interp(float distmix, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int x;
 
 		fixedint sampleIndex = 0;
@@ -2797,9 +2810,10 @@ public static unsafe class SndMix
 		// if mixing at max or min range, skip crossfade (KDB: perf)
 
 		if (nearmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				first = data[sampleIndex + 1];      // right sample
-				second = data[sampleIndex + 3];
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 4);
+				first = sample[1];      // right sample
+				second = sample[3];
 				interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
 				output[i].Left += (volume[0] * interpr) >> 8;
@@ -2813,9 +2827,10 @@ public static unsafe class SndMix
 		}
 
 		if (farmix == 0) {
-			for (int i = 0; i < outCount; i++) {
-				first = data[sampleIndex];      // left sample
-				second = data[sampleIndex + 2];
+			for (int i = 0; i < output.Length; i++) {
+				ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 3);
+				first = sample[0];      // left sample
+				second = sample[2];
 				interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
 				output[i].Left += (volume[0] * interpl) >> 8;
@@ -2830,13 +2845,14 @@ public static unsafe class SndMix
 
 		// crossfade left/right
 
-		for (int i = 0; i < outCount; i++) {
-			first = data[sampleIndex];
-			second = data[sampleIndex + 2];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 4);
+			first = sample[0];
+			second = sample[2];
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = data[sampleIndex + 1];
-			second = data[sampleIndex + 3];
+			first = sample[1];
+			second = sample[3];
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
 			// crossfade between left & right samples
@@ -2852,7 +2868,9 @@ public static unsafe class SndMix
 		}
 	}
 
-	static void SW_Mix8Mono(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8Mono(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		// Not using pitch shift?
 		if (rateScaleFix == (fixedint)FIX(1)) {
 			// native code
@@ -2862,12 +2880,12 @@ public static unsafe class SndMix
 
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
 			output[i].Left += lscale[data[sampleIndex]];
 			output[i].Right += rscale[data[sampleIndex]];
 			sampleFrac += rateScaleFix;
@@ -2879,24 +2897,27 @@ public static unsafe class SndMix
 
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
-	static void SW_Mix8Mono_Interp(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8Mono_Interp(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interp;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
 		// iterate 0th sample to outCount-1 sample
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 2);
 			// interpolate between first & second sample (the samples bordering sampleFrac12 fraction)
 
-			first = (sbyte)data[sampleIndex];
-			second = (sbyte)data[sampleIndex + 1];
+			first = (sbyte)sample[0];
+			second = (sbyte)sample[1];
 
 			interp = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2909,17 +2930,20 @@ public static unsafe class SndMix
 		}
 	}
 
-	static void SW_Mix8Stereo(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8Stereo(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
-		for (int i = 0; i < outCount; i++) {
-			output[i].Left += lscale[data[sampleIndex]];
-			output[i].Right += rscale[data[sampleIndex + 1]];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice(sampleIndex, 2);
+			output[i].Left += lscale[sample[0]];
+			output[i].Right += rscale[sample[1]];
 
 			sampleFrac += rateScaleFix;
 			sampleIndex += FIX_INTPART(sampleFrac) << 1;
@@ -2930,29 +2954,32 @@ public static unsafe class SndMix
 
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
-	static void SW_Mix8Stereo_Interp(PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix8Stereo_Interp(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interpl, interpr;
-		int* lscale, rscale;
+		ReadOnlySpan<int> lscale, rscale;
 
 		lscale = SndScaleTable(volume[0] >> SND_SCALE_SHIFT);
 		rscale = SndScaleTable(volume[1] >> SND_SCALE_SHIFT);
 
 		// iterate 0th sample to outCount-1 sample
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<byte> sample = data.Slice((int)sampleIndex, 4);
 			// interpolate between first & second sample (the samples bordering sampleFrac12 fraction)
 
-			first = (sbyte)data[sampleIndex];       // left
-			second = (sbyte)data[sampleIndex + 2];
+			first = (sbyte)sample[0];       // left
+			second = (sbyte)sample[2];
 
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = (sbyte)data[sampleIndex + 1];   // right
-			second = (sbyte)data[sampleIndex + 3];
+			first = (sbyte)sample[1];   // right
+			second = (sbyte)sample[3];
 
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -2965,14 +2992,16 @@ public static unsafe class SndMix
 		}
 	}
 
-	static void SW_Mix16Mono_Shift(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16Mono_Shift(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int vol0 = volume[0];
 		int vol1 = volume[1];
 
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 
-		for (int i = 0; i < outCount; i++) {
+		for (int i = 0; i < output.Length; i++) {
 			output[i].Left += (vol0 * (int)data[sampleIndex]) >> 8;
 			output[i].Right += (vol1 * (int)data[sampleIndex]) >> 8;
 			sampleFrac += rateScaleFix;
@@ -2981,17 +3010,21 @@ public static unsafe class SndMix
 		}
 	}
 
-	static void SW_Mix16Mono_NoShift(PortableSamplePair* output, int* volume, short* data, int outCount) {
+	static void SW_Mix16Mono_NoShift(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
+		data = data[..outCount];
 		int vol0 = volume[0];
 		int vol1 = volume[1];
-		for (int i = 0; i < outCount; i++) {
-			int x = *data++;
+		for (int i = 0; i < output.Length; i++) {
+			int x = data[i];
 			output[i].Left += (x * vol0) >> 8;
 			output[i].Right += (x * vol1) >> 8;
 		}
 	}
 
-	static void SW_Mix16Mono(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16Mono(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
 		if (rateScaleFix == (fixedint)FIX(1))
 			SW_Mix16Mono_NoShift(output, volume, data, outCount);
 		else
@@ -3001,16 +3034,19 @@ public static unsafe class SndMix
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
 
-	static void SW_Mix16Mono_Interp(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16Mono_Interp(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interp;
 
-		for (int i = 0; i < outCount; i++) {
-			first = data[sampleIndex];
-			second = data[sampleIndex + 1];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 2);
+			first = sample[0];
+			second = sample[1];
 
 			interp = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -3023,13 +3059,16 @@ public static unsafe class SndMix
 		}
 	}
 
-	static void SW_Mix16Stereo(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16Stereo(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		int sampleIndex = 0;
 		fixedint sampleFrac = (fixedint)inputOffset;
 
-		for (int i = 0; i < outCount; i++) {
-			output[i].Left += (volume[0] * (int)data[sampleIndex]) >> 8;
-			output[i].Right += (volume[1] * (int)data[sampleIndex + 1]) >> 8;
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice(sampleIndex, 2);
+			output[i].Left += (volume[0] * (int)sample[0]) >> 8;
+			output[i].Right += (volume[1] * (int)sample[1]) >> 8;
 
 			sampleFrac += rateScaleFix;
 			sampleIndex += FIX_INTPART(sampleFrac) << 1;
@@ -3040,21 +3079,24 @@ public static unsafe class SndMix
 	// interpolating pitch shifter - sample(s) from preceding buffer are preloaded in
 	// pData buffer, ensuring we can always provide 'outCount' samples.
 
-	static void SW_Mix16Stereo_Interp(PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	static void SW_Mix16Stereo_Interp(Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
+		output = output[..outCount];
+		volume = volume[..2];
 		fixedint sampleIndex = 0;
 		fixedint rateScaleFix14 = FIX_28TO14(rateScaleFix);     // convert 28 bit fixed point to 14 bit fixed point
 		fixedint sampleFrac14 = FIX_28TO14((fixedint)inputOffset);
 
 		int first, second, interpl, interpr;
 
-		for (int i = 0; i < outCount; i++) {
-			first = data[sampleIndex];
-			second = data[sampleIndex + 2];
+		for (int i = 0; i < output.Length; i++) {
+			ReadOnlySpan<short> sample = data.Slice((int)sampleIndex, 4);
+			first = sample[0];
+			second = sample[2];
 
 			interpl = first + (((second - first) * (int)sampleFrac14) >> 14);
 
-			first = data[sampleIndex + 1];
-			second = data[sampleIndex + 3];
+			first = sample[1];
+			second = sample[3];
 
 			interpr = first + (((second - first) * (int)sampleFrac14) >> 14);
 
@@ -3082,14 +3124,14 @@ public static unsafe class SndMix
 	//===============================================================================
 	// DISPATCHERS FOR MIXING ROUTINES
 	//===============================================================================
-	public static void Mix8MonoWavtype(Channel channel, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	public static void Mix8MonoWavtype(Channel channel, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
 		if (FUseHighQualityPitch(channel))
 			SW_Mix8Mono_Interp(output, volume, data, inputOffset, rateScaleFix, outCount);
 		else
 			SW_Mix8Mono(output, volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
-	public static void Mix16MonoWavtype(Channel channel, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	public static void Mix16MonoWavtype(Channel channel, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
 		if (FUseHighQualityPitch(channel))
 			SW_Mix16Mono_Interp(output, volume, data, inputOffset, rateScaleFix, outCount);
 		else
@@ -3097,11 +3139,11 @@ public static unsafe class SndMix
 			SW_Mix16Mono(output, volume, data, inputOffset, rateScaleFix, outCount);
 	}
 
-	public static void Mix8StereoWavtype(Channel channel, PortableSamplePair* output, int* volume, byte* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	public static void Mix8StereoWavtype(Channel channel, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<byte> data, int inputOffset, fixedint rateScaleFix, int outCount) {
 		switch ((SoundChars)channel.WavType) {
 			case SoundChars.Doppler:
 				SW_Mix8StereoDopplerLeft(output, volume, data, inputOffset, rateScaleFix, outCount);
-				SW_Mix8StereoDopplerRight(output, &volume[IFRONT_LEFTD], data, inputOffset, rateScaleFix, outCount);
+				SW_Mix8StereoDopplerRight(output, volume[IFRONT_LEFTD..], data, inputOffset, rateScaleFix, outCount);
 				break;
 
 			case SoundChars.Directional:
@@ -3137,11 +3179,11 @@ public static unsafe class SndMix
 	}
 
 
-	public static void Mix16StereoWavtype(Channel channel, PortableSamplePair* output, int* volume, short* data, int inputOffset, fixedint rateScaleFix, int outCount) {
+	public static void Mix16StereoWavtype(Channel channel, Span<PortableSamplePair> output, ReadOnlySpan<int> volume, ReadOnlySpan<short> data, int inputOffset, fixedint rateScaleFix, int outCount) {
 		switch ((SoundChars)channel.WavType) {
 			case SoundChars.Doppler:
 				SW_Mix16StereoDopplerLeft(output, volume, data, inputOffset, rateScaleFix, outCount);
-				SW_Mix16StereoDopplerRight(output, &volume[IFRONT_LEFTD], data, inputOffset, rateScaleFix, outCount);
+				SW_Mix16StereoDopplerRight(output, volume[IFRONT_LEFTD..], data, inputOffset, rateScaleFix, outCount);
 				break;
 
 			case SoundChars.Directional:
@@ -3237,9 +3279,9 @@ public static unsafe class SndMix
 	const int CAVGSAMPLES = 10;
 	// need this to make the debug code below work.
 	//#include "snd_wave_source.h"
+	[SkipLocalsInit]
 	public static void SND_MoveMouth8(Channel ch, AudioSourceBase source, int count) {
 		int data;
-		byte* pdata = null;
 		int i;
 		int savg;
 		int scount;
@@ -3271,9 +3313,10 @@ public static unsafe class SndMix
 		}
 
 		if (mouth.NeedsEnvelope()) {
-			int availableSamples = source.GetOutputData(out pdata, ch.Mixer!.GetSamplePosition(), count, null);
+			Span<byte> copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
+			int availableSamples = source.GetOutputData(out ReadOnlySpan<byte> pdata, ch.Mixer!.GetSamplePosition(), count, copyBuf);
 
-			if (pdata == null)
+			if (pdata.IsEmpty)
 				return;
 
 			i = 0;
@@ -3391,14 +3434,14 @@ public static unsafe class SndMix
 		return (IsReplayRendering() || soundServices.IsMovieRecording()) && !soundServices.IsConsoleVisible();
 	}
 
-	static void SND_RecordBuffer() {
+	static void SND_RecordBuffer(ReadOnlySpan<int> snd_p) {
 		if (!SND_IsRecording())
 			return;
 
 		int i;
 		int val;
 		int bufferSize = snd_linear_count * sizeof(short);
-		short* tmp = stackalloc short[snd_linear_count];
+		Span<short> tmp = snd_linear_count <= 4096 ? stackalloc short[snd_linear_count] : new short[snd_linear_count];
 
 		for (i = 0; i < snd_linear_count; i += 2) {
 			val = (snd_p[i] * snd_vol) >> 8;
@@ -3409,9 +3452,9 @@ public static unsafe class SndMix
 		}
 
 		if (soundServices.MovieDoWav())
-			WaveAppendTmpFile(soundServices.GetMovieName(), tmp, 16, snd_linear_count);
+			WaveAppendTmpFile(soundServices.GetMovieName(), MemoryMarshal.AsBytes(tmp), 16, snd_linear_count);
 
 		if (soundServices.MovieDoVideoSound())
-			soundServices.AppendMovieAudioSamples(new ReadOnlySpan<short>(tmp, snd_linear_count));
+			soundServices.AppendMovieAudioSamples(tmp[..snd_linear_count]);
 	}
 }

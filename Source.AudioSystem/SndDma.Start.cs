@@ -10,7 +10,7 @@ using static Source.Common.Audio.SndGain;
 
 namespace Source.AudioSystem;
 
-public static unsafe partial class SndDma
+public static partial class SndDma
 {
 	// remap contents of volumes[] arrary if sound originates from player, or is music, and is 100% 'mono'
 	// ie: same volume in all channels
@@ -30,7 +30,7 @@ public static unsafe partial class SndDma
 	static readonly float[] vol_dist5_music = [0.5f, 0.5f, 0.25f, 0.25f, 0.0f];    // FL, FR, RL, RR, FC - 5 channel distribution
 	static readonly float[] vol_dist4_music = [0.5f, 0.5f, 0.25f, 0.25f, 0.0f];    // FL, FR, RL, RR, 0  - 4 channel distribution
 
-	static void RemapPlayerOrMusicVols(Channel ch, int* volumes, bool fplayersound, bool fmusicsound, float mono) {
+	static void RemapPlayerOrMusicVols(Channel ch, Span<int> volumes, bool fplayersound, bool fmusicsound, float mono) {
 		if (!fplayersound && !fmusicsound)
 			return; // no remapping
 
@@ -125,7 +125,7 @@ public static unsafe partial class SndDma
 		bool fmusicsound = false;
 		float mono = 0.0f;
 		bool bAttenuated = true;
-		int* volumes = stackalloc int[CCHANVOLUMES / 2];
+		Span<int> volumes = stackalloc int[CCHANVOLUMES / 2];
 
 		ch.DspFace = 1.0f;              // default facing direction: always facing player
 		ch.DspMix = 0;                  // default mix 0% dsp_room fx
@@ -160,7 +160,7 @@ public static unsafe partial class SndDma
 		if (pSource != null)
 			looping = pSource.IsLooped();
 
-		SpatializationInfo si = default;
+		scoped SpatializationInfo si = default;
 		si.Info.Set(
 			ch.SoundSource,
 			(SoundEntityChannel)ch.EntChannel,
@@ -647,7 +647,7 @@ public static unsafe partial class SndDma
 
 	// copy current channel volumes into target array, starting at ivol, copying cvol entries
 
-	public static void ChannelCopyVolumes(Channel pch, int* pvolume_dest, int ivol_start, int cvol) {
+	public static void ChannelCopyVolumes(Channel pch, Span<int> pvolume_dest, int ivol_start, int cvol) {
 		Assert(ivol_start < CCHANVOLUMES);
 		Assert(ivol_start + cvol <= CCHANVOLUMES);
 
@@ -709,7 +709,7 @@ public static unsafe partial class SndDma
 	// set into channel volumes starting at ivol_offset index
 	// set cvol volumes
 
-	public static void ChannelSetVolTargets(Channel pch, int* pvolumes, int ivol_offset, int cvol) {
+	public static void ChannelSetVolTargets(Channel pch, ReadOnlySpan<int> pvolumes, int ivol_offset, int cvol) {
 		int volume_target;
 
 		Assert(ivol_offset + cvol <= CCHANVOLUMES);
@@ -1053,7 +1053,7 @@ public static unsafe partial class SndDma
 
 		bool looping = false;
 
-		SpatializationInfo si = default;
+		scoped SpatializationInfo si = default;
 		si.Info.Set(
 			parms.SoundSource,
 			parms.EntChannel,
@@ -1408,7 +1408,10 @@ public static unsafe partial class SndDma
 	//-----------------------------------------------------------------------------
 	public static void S_SetVolumeByGuid(int guid, float fvol) {
 		Channel? pChannel = S_FindChannelByGuid(guid);
-		pChannel!.MasterVol = (short)(255.0f * Math.Clamp(fvol, 0.0f, 1.0f));
+		if (pChannel == null)
+			return;
+
+		pChannel.MasterVol = (short)(255.0f * Math.Clamp(fvol, 0.0f, 1.0f));
 	}
 
 	//-----------------------------------------------------------------------------

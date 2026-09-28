@@ -17,18 +17,15 @@ public static class SndAudioSourceGlobals
 	public static int CalcSampleSize(int bitsPerSample, int channels) => (bitsPerSample >> 3) * channels;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static AudioSourceBase? GetSource(this SfxTable sfx) => Unsafe.As<AudioSourceBase?>(sfx.Source);
+	public static AudioSourceBase? GetSource(this SfxTable sfx) => (AudioSourceBase?)sfx.Source;
 
-	public static byte[] AllocPinned(int size) => GC.AllocateArray<byte>(Math.Max(size, 1), pinned: true);
+	public static byte[] AllocArray(int size) => new byte[Math.Max(size, 1)];
 
-	public static byte[] PinnedCopy(ReadOnlySpan<byte> data) {
-		byte[] copy = AllocPinned(data.Length);
+	public static byte[] ArrayCopy(ReadOnlySpan<byte> data) {
+		byte[] copy = AllocArray(data.Length);
 		data.CopyTo(copy);
 		return copy;
 	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static unsafe byte* PinnedPointer(byte[]? array) => array == null ? null : (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetArrayDataReference(array));
 }
 
 //-----------------------------------------------------------------------------
@@ -155,7 +152,7 @@ public class AudioSourceCachedInfo
 
 		if (src.CachedData() != null && src.CachedDataSize() > 0) {
 			SetCachedDataSize(src.CachedDataSize());
-			data = PinnedCopy(src.CachedData().AsSpan(0, src.CachedDataSize()));
+			data = ArrayCopy(src.CachedData().AsSpan(0, src.CachedDataSize()));
 		}
 
 		SetCachedData(data);
@@ -168,7 +165,7 @@ public class AudioSourceCachedInfo
 
 		if (src.HeaderData() != null && src.HeaderSize() > 0) {
 			SetHeaderSize(src.HeaderSize());
-			data = PinnedCopy(src.HeaderData().AsSpan(0, src.HeaderSize()));
+			data = ArrayCopy(src.HeaderData().AsSpan(0, src.HeaderSize()));
 		}
 
 		SetHeaderData(data);
@@ -251,7 +248,7 @@ public class AudioSourceCachedInfo
 			cachedDataSize = (ushort)buf.GetInt();
 			Assert(cachedDataSize > 0 && cachedDataSize < 65535);
 			if (cachedDataSize > 0) {
-				byte[] data = AllocPinned(cachedDataSize);
+				byte[] data = AllocArray(cachedDataSize);
 				buf.Get(data.AsSpan(0, cachedDataSize));
 				SetCachedData(data);
 			}
@@ -261,7 +258,7 @@ public class AudioSourceCachedInfo
 			headerSize = (ushort)buf.GetShort();
 			Assert(headerSize > 0 && headerSize <= 32767);
 			if (headerSize > 0) {
-				byte[] data = AllocPinned(headerSize);
+				byte[] data = AllocArray(headerSize);
 				buf.Get(data.AsSpan(0, headerSize));
 				SetHeaderData(data);
 			}
@@ -430,7 +427,7 @@ public struct AudioSourceCachedInfoHandle
 // Purpose: A source is an abstraction for a stream, cached file, or procedural
 //			source of audio.
 //-----------------------------------------------------------------------------
-public abstract unsafe class AudioSourceBase : AudioSource, IDisposable
+public abstract class AudioSourceBase : AudioSource, IDisposable
 {
 	public virtual void Dispose() {
 		GC.SuppressFinalize(this);
@@ -444,7 +441,7 @@ public abstract unsafe class AudioSourceBase : AudioSource, IDisposable
 
 	// Provide samples for the mixer. You can point pData at your own data, or if you prefer to copy the data,
 	// you can copy it into copyBuf and set pData to copyBuf.
-	public abstract int GetOutputData(out byte* data, int samplePosition, int sampleCount, byte* copyBuf);
+	public abstract int GetOutputData(out ReadOnlySpan<byte> data, int samplePosition, int sampleCount, Span<byte> copyBuf);
 
 	// mixer's references
 	public abstract void ReferenceAdd(AudioMixer mixer);
@@ -455,16 +452,16 @@ public abstract unsafe class AudioSourceBase : AudioSource, IDisposable
 // Purpose: Linear iterator over source data.
 //			Keeps track of position in source, and maintains necessary buffers
 //-----------------------------------------------------------------------------
-public unsafe interface IWaveData : IDisposable
+public interface IWaveData : IDisposable
 {
 	AudioSourceBase Source();
-	int ReadSourceData(out byte* data, int sampleIndex, int sampleCount, byte* copyBuf);
+	int ReadSourceData(out ReadOnlySpan<byte> data, int sampleIndex, int sampleCount, Span<byte> copyBuf);
 	bool IsReadyToMix();
 }
 
-public unsafe interface IWaveStreamSource
+public interface IWaveStreamSource
 {
 	int UpdateLoopingSamplePosition(int samplePosition);
-	void UpdateSamples(byte* data, int sampleCount);
+	void UpdateSamples(Span<byte> data, int sampleCount);
 	int GetLoopingInfo(out int loopBlock, out int numLeadingSamples, out int numTrailingSamples);
 }

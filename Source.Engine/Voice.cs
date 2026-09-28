@@ -275,7 +275,7 @@ public class VoiceChannel
 	}
 
 	public int Entity;
-	public readonly SizedCircularBuffer<byte> Buffer = new(VOICE_RECEIVE_BUFFER_SIZE);
+	public readonly CircularBuffer Buffer = new(VOICE_RECEIVE_BUFFER_SIZE);
 	public double LastFraction;
 	public short LastSample;
 	public bool Starved;
@@ -1063,7 +1063,7 @@ public static class Voice
 
 		return nChannel;
 	}
-	public static double UpsampleIntoBuffer(ReadOnlySpan<short> src, int srcSamples, SizedCircularBuffer<byte> buffer, double startFraction, double rate) {
+	public static double UpsampleIntoBuffer(ReadOnlySpan<short> src, int srcSamples, CircularBuffer buffer, double startFraction, double rate) {
 		double maxFraction = srcSamples - 1;
 
 		while (true) {
@@ -1076,7 +1076,7 @@ public static class Voice
 			double val1 = src[sample];
 			double val2 = src[sample + 1];
 			short newSample = (short)(val1 + (val2 - val1) * frac);
-			buffer.PushFront(new ReadOnlySpan<short>(in newSample).Cast<short, byte>());
+			buffer.Write(MemoryMarshal.AsBytes(new ReadOnlySpan<short>(in newSample)), sizeof(short));
 
 			startFraction += rate;
 		}
@@ -1173,7 +1173,7 @@ public static class Voice
 				if (channel.Entity == -1)
 					continue;
 
-				Msg($"Voice - chan {i}, ent {channel.Entity}, bufsize: {channel.Buffer.Size}\n");
+				Msg($"Voice - chan {i}, ent {channel.Entity}, bufsize: {channel.Buffer.GetReadAvailable()}\n");
 			}
 		}
 
@@ -1208,17 +1208,13 @@ public static class Voice
 		int maxOutSamples = copyBufSize / BYTES_PER_SAMPLE;
 
 		// Find out how much we want and get it from the received data channel.	
-		SizedCircularBuffer<byte> pBuffer = pChannel.Buffer;
-		int nBytesToRead = pBuffer.Size;
+		CircularBuffer pBuffer = pChannel.Buffer;
+		int nBytesToRead = pBuffer.GetReadAvailable();
 		nBytesToRead = Math.Min(Math.Min(nBytesToRead, (int)maxOutSamples), sampleCount * BYTES_PER_SAMPLE);
-		for (int i = 0; i < nBytesToRead; i++) {
-			copyBufBytes[i] = pBuffer.Front();
-			pBuffer.PopFront();
-		}
-		int nSamplesGotten = nBytesToRead / BYTES_PER_SAMPLE;
+		int nSamplesGotten = pBuffer.Read(copyBufBytes, nBytesToRead) / BYTES_PER_SAMPLE;
 
 		// Are we at the end of the buffer's data? If so, fade data to silence so it doesn't clip.
-		int readSamplesAvail = pBuffer.Size / BYTES_PER_SAMPLE;
+		int readSamplesAvail = pBuffer.GetReadAvailable() / BYTES_PER_SAMPLE;
 		if (readSamplesAvail < FadeSamples) {
 			int bufferFadeOffset = Math.Max((readSamplesAvail + nSamplesGotten) - FadeSamples, 0);
 			int globalFadeOffset = Math.Max(FadeSamples - (readSamplesAvail + nSamplesGotten), 0);
@@ -1257,7 +1253,7 @@ public static class Voice
 		}
 
 		// If the buffer is out of data, mark this channel to go away.
-		if (pBuffer.Size == 0)
+		if (pBuffer.GetReadAvailable() == 0)
 			pChannel.Starved = true;
 
 		if (voice_showchannels.GetInt() >= 2)

@@ -3,17 +3,22 @@ using System.Runtime.InteropServices;
 
 namespace Source.AudioSystem;
 
-public unsafe struct LfoWav     // lfo or envelope wave table
+public class LfoWav     // lfo or envelope wave table
 {
 	public int type;            // lfo type
-	public Dly* pdly;           // delay holds wav values and step pointers
+	public Dly? pdly;           // delay holds wav values and step pointers
+
+	public void Clear() {
+		type = 0;
+		pdly = null;
+	}
 }
 
-public unsafe struct Lfo
+public sealed class Lfo : DspProcessor
 {
 	public bool fused;          // true if slot take
 
-	public Dly* pdly;           // delay points to lfo wav within lfowav_t (don't free this)
+	public Dly? pdly;           // delay points to lfo wav within lfowav_t (don't free this)
 
 	public int gain;
 
@@ -23,17 +28,32 @@ public unsafe struct Lfo
 	public PosOne pos1;         // current position within wav table, one shot
 
 	public int foneshot;        // true - one shot only, don't repeat
+
+	public void Clear() {
+		fused = false;
+		pdly = null;
+		gain = 0;
+		f = 0;
+		pos = default;
+		pos1 = default;
+		foneshot = 0;
+	}
+
+	public override int GetNext(int x) => SndDsp.LFO_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.LFO_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.LFO_Free(this);
+	public override void Mod(float v) => SndDsp.LFO_Mod(this, v);
 }
 
-public unsafe struct Ptc
+public sealed class Ptc : DspProcessor
 {
 	public bool fused;
 
-	public Dly* pdly_in;        // input buffer space
-	public Dly* pdly_out;       // output buffer space
+	public Dly? pdly_in;        // input buffer space
+	public Dly? pdly_out;       // output buffer space
 
-	public int* pin;            // input buffer (pdly_in->w)
-	public int* pout;           // output buffer (pdly_out->w)
+	public int[]? pin;          // input buffer (pdly_in->w)
+	public int[]? pout;         // output buffer (pdly_out->w)
 
 	public int cin;             // # samples in input buffer
 	public int cout;            // # samples in output buffer
@@ -49,6 +69,23 @@ public unsafe struct Ptc
 	public bool fdup;           // true if duplicating, false if cutting
 
 	public float fstep;         // pitch shift & time compress/expand
+
+	public void Clear() {
+		fused = false;
+		pdly_in = pdly_out = null;
+		pin = pout = null;
+		cin = cout = 0;
+		cxfade = ccut = cduplicate = 0;
+		iin = 0;
+		psn = default;
+		fdup = false;
+		fstep = 0;
+	}
+
+	public override int GetNext(int x) => SndDsp.PTC_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.PTC_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.PTC_Free(this);
+	public override void Mod(float v) => SndDsp.PTC_Mod(this, v);
 }
 
 [InlineArray(SndDsp.CENVRMPS)]
@@ -57,7 +94,7 @@ public struct RmpArray4
 	Rmp element;
 }
 
-public struct Env
+public sealed class Env : DspProcessor
 {
 	public bool fused;
 
@@ -66,9 +103,22 @@ public struct Env
 
 	public int ienv;            // current ramp
 	public RmpArray4 rmps;      // ramps
+
+	public void Clear() {
+		fused = false;
+		fhitend = false;
+		fexp = false;
+		ienv = 0;
+		rmps = default;
+	}
+
+	public override int GetNext(int x) => SndDsp.ENV_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.ENV_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.ENV_Free(this);
+	public override void Mod(float v) => SndDsp.ENV_Mod(this, v);
 }
 
-public struct Efo
+public sealed class Efo : DspProcessor
 {
 	public bool fused;
 
@@ -89,20 +139,46 @@ public struct Efo
 
 	public Rmp rmp_attack;      // gate on ramp - attack
 	public Rmp rmp_decay;       // gate off ramp - decay
+
+	public void Clear() {
+		fused = false;
+		xout = 0;
+		bgate = bgateon = bexp = false;
+		thresh = thresh_off = 0;
+		attack_time = decay_time = 0;
+		rmp_attack = default;
+		rmp_decay = default;
+	}
+
+	public override int GetNext(int x) => SndDsp.EFO_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.EFO_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.EFO_Free(this);
+	public override void Mod(float v) => SndDsp.EFO_Mod(this, v);
 }
 
-public unsafe struct Crs
+public sealed class Crs : DspProcessor
 {
 	public bool fused;
 
-	public Mdy* pmdy;           // modulatable delay
-	public Lfo* plfo;           // modulating lfo
+	public Mdy? pmdy;           // modulatable delay
+	public Lfo? plfo;           // modulating lfo
 
 	public int lfoprev;         // previous modulator value from lfo
 
+	public void Clear() {
+		fused = false;
+		pmdy = null;
+		plfo = null;
+		lfoprev = 0;
+	}
+
+	public override int GetNext(int x) => SndDsp.CRS_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.CRS_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.CRS_Free(this);
+	public override void Mod(float v) => SndDsp.CRS_Mod(this, v);
 }
 
-public struct Amp
+public sealed class Amp : DspProcessor
 {
 	public bool fused;
 
@@ -121,14 +197,38 @@ public struct Amp
 	public bool brand;          // if true, use random modulation otherwise alternate btwn max/min
 	public Rmp rmp_interp;      // interpolation ramp 0...PMAX
 
+	public void Clear() {
+		fused = false;
+		gain = gain_max = distmix = vfeed = vthresh = 0;
+		fchanging = false;
+		ramptime = 0;
+		mtime = mtimecur = 0;
+		depth = 0;
+		brand = false;
+		rmp_interp = default;
+	}
+
+	public override int GetNext(int x) => SndDsp.AMP_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.AMP_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.AMP_Free(this);
+	public override void Mod(float v) => SndDsp.AMP_Mod(this, v);
 }
 
-public struct Nul
+public sealed class Nul : DspProcessor
 {
 	public int type;
+
+	public void Clear() {
+		type = 0;
+	}
+
+	public override int GetNext(int x) => SndDsp.NULL_GetNext(this, x);
+	public override void GetNextN(Span<PortableSamplePair> pbuffer, int SampleCount, int op) => SndDsp.NULL_GetNextN(this, pbuffer, SampleCount, op);
+	public override void Free() => SndDsp.NULL_Free(this);
+	public override void Mod(float v) => SndDsp.NULL_Mod(this, v);
 }
 
-public static unsafe partial class SndDsp
+public static partial class SndDsp
 {
 	//////////////////////
 	// LFO wav definitions
@@ -153,30 +253,30 @@ public static unsafe partial class SndDsp
 
 	public const int CLFOWAV = 9;           // number of LFO wav tables
 
-	static readonly LfoWav* lfowavs = (LfoWav*)NativeMemory.AllocZeroed((nuint)(CLFOWAV * sizeof(LfoWav)));
+	static readonly LfoWav[] lfowavs = CreatePool<LfoWav>(CLFOWAV);
 
 	// deallocate lfo wave table. Called only when sound engine exits.
 
-	static void LFOWAV_Free(LfoWav* plw) {
+	static void LFOWAV_Free(LfoWav? plw) {
 		// free delay
 
 		if (plw != null)
-			DLY_Free(plw->pdly);
+			DLY_Free(plw.pdly);
 
-		Unsafe.InitBlock(plw, 0, (uint)sizeof(LfoWav));
+		plw?.Clear();
 	}
 
 	// deallocate all lfo wave tables. Called only when sound engine exits.
 
 	static void LFOWAV_FreeAll() {
 		for (int i = 0; i < CLFOWAV; i++)
-			LFOWAV_Free(&lfowavs[i]);
+			LFOWAV_Free(lfowavs[i]);
 	}
 
 	// fill lfo array w with count samples of lfo type 'type'
 	// all lfo wavs except fade out, rnd, and log_out should start with 0 output
 
-	static void LFOWAV_Fill(int* w, int count, int type) {
+	static void LFOWAV_Fill(Span<int> w, int count, int type) {
 		int i, x;
 		switch (type) {
 			default:
@@ -229,9 +329,10 @@ public static unsafe partial class SndDsp
 
 	static void LFOWAV_InitAll() {
 		int i;
-		Dly* pdly;
+		Dly? pdly;
 
-		Unsafe.InitBlock(lfowavs, 0, (uint)(CLFOWAV * sizeof(LfoWav)));
+		foreach (LfoWav lfowav in lfowavs)
+			lfowav.Clear();
 
 		// alloc space for each lfo wav type
 
@@ -241,7 +342,7 @@ public static unsafe partial class SndDsp
 			lfowavs[i].pdly = pdly;
 			lfowavs[i].type = i;
 
-			LFOWAV_Fill(pdly->w, CLFOSAMPS, i);
+			LFOWAV_Fill(pdly!.w, CLFOSAMPS, i);
 		}
 
 		// if any dlys fail to alloc, free all
@@ -259,13 +360,12 @@ public static unsafe partial class SndDsp
 
 	public const int CLFO = 16; // max active lfos (this steals from active delays)
 
-	static readonly Lfo* lfos = (Lfo*)NativeMemory.AllocZeroed((nuint)(CLFO * sizeof(Lfo)));
+	static readonly Lfo[] lfos = CreatePool<Lfo>(CLFO);
 
-	static void LFO_Init(Lfo* plfo) { if (plfo != null) Unsafe.InitBlock(plfo, 0, (uint)sizeof(Lfo)); }
-	static void LFO_InitAll() { for (int i = 0; i < CLFO; i++) LFO_Init(&lfos[i]); }
-	static void LFO_Free(Lfo* plfo) { if (plfo != null) Unsafe.InitBlock(plfo, 0, (uint)sizeof(Lfo)); }
-	static void LFO_FreeV(void* plfo) => LFO_Free((Lfo*)plfo);
-	static void LFO_FreeAll() { for (int i = 0; i < CLFO; i++) LFO_Free(&lfos[i]); }
+	static void LFO_Init(Lfo? plfo) { if (plfo != null) plfo.Clear(); }
+	static void LFO_InitAll() { for (int i = 0; i < CLFO; i++) LFO_Init(lfos[i]); }
+	internal static void LFO_Free(Lfo? plfo) { if (plfo != null) plfo.Clear(); }
+	static void LFO_FreeAll() { for (int i = 0; i < CLFO; i++) LFO_Free(lfos[i]); }
 
 
 	// get step value given desired playback frequency
@@ -287,31 +387,31 @@ public static unsafe partial class SndDsp
 
 	// return pointer to new lfo
 
-	static Lfo* LFO_Alloc(int wtype, float freqHz, bool foneshot, float gain) {
+	static Lfo? LFO_Alloc(int wtype, float freqHz, bool foneshot, float gain) {
 		int i;
 		int type = Math.Min(CLFOWAV - 1, wtype);
 		float lfostep;
 
 		for (i = 0; i < CLFO; i++)
 			if (!lfos[i].fused) {
-				Lfo* plfo = &lfos[i];
+				Lfo plfo = lfos[i];
 
 				LFO_Init(plfo);
 
-				plfo->fused = true;
-				plfo->pdly = lfowavs[type].pdly;        // pdly in lfo points to wav table data in lfowavs
-				plfo->f = freqHz;
-				plfo->foneshot = foneshot ? 1 : 0;
-				plfo->gain = (int)(gain * PMAX);
+				plfo.fused = true;
+				plfo.pdly = lfowavs[type].pdly;        // pdly in lfo points to wav table data in lfowavs
+				plfo.f = freqHz;
+				plfo.foneshot = foneshot ? 1 : 0;
+				plfo.gain = (int)(gain * PMAX);
 
 				lfostep = LFO_HzToStep(freqHz);
 
 				// init positional pointer (ie: fixed point updater for controlling pitch of lfo)
 
 				if (!foneshot)
-					POS_Init(&plfo->pos, plfo->pdly->D, lfostep);
+					POS_Init(ref plfo.pos, plfo.pdly!.D, lfostep);
 				else
-					POS_ONE_Init(&plfo->pos1, plfo->pdly->D, lfostep);
+					POS_ONE_Init(ref plfo.pos1, plfo.pdly!.D, lfostep);
 
 				return plfo;
 			}
@@ -325,51 +425,45 @@ public static unsafe partial class SndDsp
 	// called once for every output sample (ie: at SOUND_DMA_SPEED)
 	// x is dummy param
 
-	static int LFO_GetNext(Lfo* plfo, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int LFO_GetNext(Lfo plfo, int x) {
 		int i;
 
 		// get current position
 
-		if (plfo->foneshot == 0)
-			i = POS_GetNext(&plfo->pos);
+		if (plfo.foneshot == 0)
+			i = POS_GetNext(ref plfo.pos);
 		else
-			i = POS_ONE_GetNext(&plfo->pos1);
+			i = POS_ONE_GetNext(ref plfo.pos1);
 
 		// return current sample
 
-		if (plfo->gain == PMAX)
-			return plfo->pdly->w[i];
+		if (plfo.gain == PMAX)
+			return plfo.pdly!.w![i];
 		else
-			return (plfo->pdly->w[i] * plfo->gain) >> PBITS;
+			return (plfo.pdly!.w![i] * plfo.gain) >> PBITS;
 	}
 
-	static int LFO_GetNextV(void* plfo, int x) => LFO_GetNext((Lfo*)plfo, x);
 
 	// batch version for performance
 
-	static void LFO_GetNextN(void* plfo, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void LFO_GetNextN(Lfo plfo, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = LFO_GetNext((Lfo*)plfo, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = LFO_GetNext(plfo, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = LFO_GetNext((Lfo*)plfo, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = LFO_GetNext(plfo, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = LFO_GetNext((Lfo*)plfo, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = LFO_GetNext(plfo, pb[i].Left);
 				return;
 		}
 	}
@@ -398,41 +492,41 @@ public static unsafe partial class SndDsp
 	];
 
 
-	static Lfo* LFO_Params(Prc* pprc) {
-		Lfo* plfo;
-		bool foneshot = pprc->prm[lfo_ifoneshot] > 0;
-		float gain = pprc->prm[lfo_igain];
+	static Lfo? LFO_Params(ref Prc pprc) {
+		Lfo? plfo;
+		bool foneshot = pprc.prm[lfo_ifoneshot] > 0;
+		float gain = pprc.prm[lfo_igain];
 
-		plfo = LFO_Alloc((int)pprc->prm[lfo_iwav], pprc->prm[lfo_irate], foneshot, gain);
+		plfo = LFO_Alloc((int)pprc.prm[lfo_iwav], pprc.prm[lfo_irate], foneshot, gain);
 
 		return plfo;
 	}
 
-	static void LFO_ChangeVal(Lfo* plfo, float fhz) {
+	static void LFO_ChangeVal(Lfo plfo, float fhz) {
 		float fstep = LFO_HzToStep(fhz);
 
 		// change lfo playback rate to new frequency fhz
 
-		if (plfo->foneshot != 0)
-			POS_ChangeVal(&plfo->pos, fstep);
+		if (plfo.foneshot != 0)
+			POS_ChangeVal(ref plfo.pos, fstep);
 		else
-			POS_ChangeVal(&plfo->pos1.p, fstep);
+			POS_ChangeVal(ref plfo.pos1.p, fstep);
 	}
 
-	static void* LFO_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, lfo_rng);
-		return LFO_Params((Prc*)p);
+	static DspProcessor? LFO_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, lfo_rng);
+		return LFO_Params(ref p);
 	}
 
 	// v is +/- 0-1.0
 	// v changes current lfo frequency up/down by +/- v%
 
-	static void LFO_Mod(void* p, float v) {
-		Lfo* plfo = (Lfo*)p;
+	internal static void LFO_Mod(Lfo p, float v) {
+		Lfo plfo = p;
 		float fhz;
 		float fhznew;
 
-		fhz = plfo->f;
+		fhz = plfo.f;
 		fhznew = fhz * (1.0F + v);
 
 		LFO_ChangeVal(plfo, fhznew);
@@ -449,20 +543,19 @@ public static unsafe partial class SndDsp
 
 	public const int CPTCS = 64;
 
-	static readonly Ptc* ptcs = (Ptc*)NativeMemory.AllocZeroed((nuint)(CPTCS * sizeof(Ptc)));
+	static readonly Ptc[] ptcs = CreatePool<Ptc>(CPTCS);
 
-	static void PTC_Init(Ptc* pptc) { if (pptc != null) Unsafe.InitBlock(pptc, 0, (uint)sizeof(Ptc)); }
-	static void PTC_Free(Ptc* pptc) {
+	static void PTC_Init(Ptc? pptc) { if (pptc != null) pptc.Clear(); }
+	internal static void PTC_Free(Ptc? pptc) {
 		if (pptc != null) {
-			DLY_Free(pptc->pdly_in);
-			DLY_Free(pptc->pdly_out);
+			DLY_Free(pptc.pdly_in);
+			DLY_Free(pptc.pdly_out);
 
-			Unsafe.InitBlock(pptc, 0, (uint)sizeof(Ptc));
+			pptc.Clear();
 		}
 	}
-	static void PTC_FreeV(void* pptc) => PTC_Free((Ptc*)pptc);
-	static void PTC_InitAll() { for (int i = 0; i < CPTCS; i++) PTC_Init(&ptcs[i]); }
-	static void PTC_FreeAll() { for (int i = 0; i < CPTCS; i++) PTC_Free(&ptcs[i]); }
+	static void PTC_InitAll() { for (int i = 0; i < CPTCS; i++) PTC_Init(ptcs[i]); }
+	static void PTC_FreeAll() { for (int i = 0; i < CPTCS; i++) PTC_Free(ptcs[i]); }
 
 
 
@@ -507,10 +600,10 @@ public static unsafe partial class SndDsp
 	// [0... [.XFADE ...D]								final cut output buffer - resample at fstep
 
 
-	static Ptc* PTC_Alloc(float timeslice, float timexfade, float fstep) {
+	static Ptc? PTC_Alloc(float timeslice, float timexfade, float fstep) {
 
 		int i;
-		Ptc* pptc;
+		Ptc pptc;
 		float tout;
 		int cin, cout;
 		float tslice = timeslice;
@@ -529,7 +622,7 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		pptc = &ptcs[i];
+		pptc = ptcs[i];
 
 		PTC_Init(pptc);
 
@@ -548,9 +641,9 @@ public static unsafe partial class SndDsp
 		txfade = Math.Min(txfade, 0.9F * tcutdup);
 		txfade = Math.Min(txfade, 0.9F * (tslice - tcutdup));
 
-		pptc->cxfade = MSEC_TO_SAMPS(txfade);
-		pptc->ccut = MSEC_TO_SAMPS(tcutdup);
-		pptc->cduplicate = MSEC_TO_SAMPS(tcutdup);
+		pptc.cxfade = MSEC_TO_SAMPS(txfade);
+		pptc.ccut = MSEC_TO_SAMPS(tcutdup);
+		pptc.cduplicate = MSEC_TO_SAMPS(tcutdup);
 
 		// alloc delay lines (buffers)
 
@@ -559,10 +652,10 @@ public static unsafe partial class SndDsp
 		cin = MSEC_TO_SAMPS(tslice);
 		cout = MSEC_TO_SAMPS(tout);
 
-		pptc->pdly_in = DLY_Alloc(cin, 0, 1, DLY_LINEAR);           // alloc input buffer
-		pptc->pdly_out = DLY_Alloc(cout, 0, 1, DLY_LINEAR);     // alloc output buffer
+		pptc.pdly_in = DLY_Alloc(cin, 0, 1, DLY_LINEAR);           // alloc input buffer
+		pptc.pdly_out = DLY_Alloc(cout, 0, 1, DLY_LINEAR);     // alloc output buffer
 
-		if (pptc->pdly_in == null || pptc->pdly_out == null) {
+		if (pptc.pdly_in == null || pptc.pdly_out == null) {
 			PTC_Free(pptc);
 			DevMsg("DSP: Warning, failed to allocate delay for pitch shifter.\n");
 			return null;
@@ -570,26 +663,26 @@ public static unsafe partial class SndDsp
 
 		// buffer pointers
 
-		pptc->pin = pptc->pdly_in->w;
-		pptc->pout = pptc->pdly_out->w;
+		pptc.pin = pptc.pdly_in.w;
+		pptc.pout = pptc.pdly_out.w;
 
 		// input buffer index
 
-		pptc->iin = 0;
+		pptc.iin = 0;
 
 		// output buffer index
 
-		POS_ONE_Init(&pptc->psn, cout, fstep);
+		POS_ONE_Init(ref pptc.psn, cout, fstep);
 
 		// if fstep > 1.0 we're pitching shifting up, so fdup = true
 
-		pptc->fdup = fstep > 1.0F;
+		pptc.fdup = fstep > 1.0F;
 
-		pptc->cin = cin;
-		pptc->cout = cout;
+		pptc.cin = cin;
+		pptc.cout = cout;
 
-		pptc->fstep = fstep;
-		pptc->fused = true;
+		pptc.fstep = fstep;
+		pptc.fused = true;
 
 		return pptc;
 	}
@@ -617,7 +710,7 @@ public static unsafe partial class SndDsp
 	// cxfade = # of crossfade samples
 	// cduplicate = # of samples in duplicate/cut segment
 
-	static void TimeExpand(int* w, int* v, int cin, int cout, int cxfade, int cduplicate) {
+	static void TimeExpand(int[] w, int[] v, int cin, int cout, int cxfade, int cduplicate) {
 		int i, j;
 		int m;
 		int p;
@@ -673,7 +766,7 @@ public static unsafe partial class SndDsp
 	// cxfade = # of crossfade samples
 	// ccut = # of samples in cut segment
 
-	static void TimeCompress(int* w, int* v, int cin, int cout, int cxfade, int ccut) {
+	static void TimeCompress(int[] w, int[] v, int cin, int cout, int cxfade, int ccut) {
 		int i, j;
 		int m;
 		int p;
@@ -722,27 +815,28 @@ public static unsafe partial class SndDsp
 	// get output sample from output buffer, step by fstep %
 	// output buffer is time expanded or compressed version of previous input buffer
 
-	static int PTC_GetNext(Ptc* pptc, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int PTC_GetNext(Ptc pptc, int x) {
 		int iout, xout;
 		bool fhitend = false;
 
 		// write x into input buffer
-		Assert(pptc->iin < pptc->cin);
+		Assert(pptc.iin < pptc.cin);
 
-		pptc->pin[pptc->iin] = x;
+		pptc.pin![pptc.iin] = x;
 
-		pptc->iin++;
+		pptc.iin++;
 
 		// check for end of input buffer
 
-		if (pptc->iin >= pptc->cin)
+		if (pptc.iin >= pptc.cin)
 			fhitend = true;
 
 		// read sample from output buffer, resampling at fstep
 
-		iout = POS_ONE_GetNext(&pptc->psn);
-		Assert(iout < pptc->cout);
-		xout = pptc->pout[iout];
+		iout = POS_ONE_GetNext(ref pptc.psn);
+		Assert(iout < pptc.cout);
+		xout = pptc.pout![iout];
 
 		if (fhitend) {
 			// if hit end of input buffer (ie: input buffer is full)
@@ -750,46 +844,39 @@ public static unsafe partial class SndDsp
 			//		reset output buffer pointer
 			//		rebuild entire output buffer (TimeCompress/TimeExpand)
 
-			pptc->iin = 0;
+			pptc.iin = 0;
 
-			POS_ONE_Init(&pptc->psn, pptc->cout, pptc->fstep);
+			POS_ONE_Init(ref pptc.psn, pptc.cout, pptc.fstep);
 
-			if (pptc->fdup)
-				TimeExpand(pptc->pin, pptc->pout, pptc->cin, pptc->cout, pptc->cxfade, pptc->cduplicate);
+			if (pptc.fdup)
+				TimeExpand(pptc.pin, pptc.pout, pptc.cin, pptc.cout, pptc.cxfade, pptc.cduplicate);
 			else
-				TimeCompress(pptc->pin, pptc->pout, pptc->cin, pptc->cout, pptc->cxfade, pptc->ccut);
+				TimeCompress(pptc.pin, pptc.pout, pptc.cin, pptc.cout, pptc.cxfade, pptc.ccut);
 		}
 
 		return xout;
 	}
 
-	static int PTC_GetNextV(void* pptc, int x) => PTC_GetNext((Ptc*)pptc, x);
 
 	// batch version for performance
 
-	static void PTC_GetNextN(void* pptc, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void PTC_GetNextN(Ptc pptc, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = PTC_GetNext((Ptc*)pptc, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = PTC_GetNext(pptc, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = PTC_GetNext((Ptc*)pptc, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = PTC_GetNext(pptc, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = PTC_GetNext((Ptc*)pptc, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = PTC_GetNext(pptc, pb[i].Left);
 				return;
 		}
 	}
@@ -798,7 +885,7 @@ public static unsafe partial class SndDsp
 	// fstep is new value
 	// ramptime is how long change takes in seconds (ramps smoothly), 0 for no ramp
 
-	static void PTC_ChangeVal(Ptc* pptc, float fstep, float ramptime) {
+	static void PTC_ChangeVal(Ptc pptc, float fstep, float ramptime) {
 		// UNDONE: ignored
 		// UNDONE: just realloc time compressor with new fstep
 	}
@@ -828,33 +915,33 @@ public static unsafe partial class SndDsp
 	];
 
 
-	static Ptc* PTC_Params(Prc* pprc) {
-		Ptc* pptc;
+	static Ptc? PTC_Params(ref Prc pprc) {
+		Ptc? pptc;
 
-		float pitch = pprc->prm[ptc_ipitch];
-		float timeslice = pprc->prm[ptc_itimeslice];
-		float txfade = pprc->prm[ptc_ixfade];
+		float pitch = pprc.prm[ptc_ipitch];
+		float timeslice = pprc.prm[ptc_itimeslice];
+		float txfade = pprc.prm[ptc_ixfade];
 
 		pptc = PTC_Alloc(timeslice, txfade, pitch);
 
 		return pptc;
 	}
 
-	static void* PTC_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, ptc_rng);
-		return PTC_Params((Prc*)p);
+	static DspProcessor? PTC_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, ptc_rng);
+		return PTC_Params(ref p);
 	}
 
 	// change to new pitch value
 	// v is +/- 0-1.0
 	// v changes current pitch up/down by +/- v%
 
-	static void PTC_Mod(void* p, float v) {
-		Ptc* pptc = (Ptc*)p;
+	internal static void PTC_Mod(Ptc p, float v) {
+		Ptc pptc = p;
 		float fstep;
 		float fstepnew;
 
-		fstep = pptc->fstep;
+		fstep = pptc.fstep;
 		fstepnew = fstep * (1.0F + v);
 
 		PTC_ChangeVal(pptc, fstepnew, 0.01F);
@@ -874,13 +961,12 @@ public static unsafe partial class SndDsp
 
 	const int ENV_BITS = 14;        // bits of resolution of ramp
 
-	static readonly Env* envs = (Env*)NativeMemory.AllocZeroed((nuint)(CENVS * sizeof(Env)));
+	static readonly Env[] envs = CreatePool<Env>(CENVS);
 
-	static void ENV_Init(Env* penv) { if (penv != null) Unsafe.InitBlock(penv, 0, (uint)sizeof(Env)); }
-	static void ENV_Free(Env* penv) { if (penv != null) Unsafe.InitBlock(penv, 0, (uint)sizeof(Env)); }
-	static void ENV_FreeV(void* penv) => ENV_Free((Env*)penv);
-	static void ENV_InitAll() { for (int i = 0; i < CENVS; i++) ENV_Init(&envs[i]); }
-	static void ENV_FreeAll() { for (int i = 0; i < CENVS; i++) ENV_Free(&envs[i]); }
+	static void ENV_Init(Env? penv) { if (penv != null) penv.Clear(); }
+	internal static void ENV_Free(Env? penv) { if (penv != null) penv.Clear(); }
+	static void ENV_InitAll() { for (int i = 0; i < CENVS; i++) ENV_Init(envs[i]); }
+	static void ENV_FreeAll() { for (int i = 0; i < CENVS; i++) ENV_Free(envs[i]); }
 
 
 	// allocate ADSR envelope
@@ -889,9 +975,9 @@ public static unsafe partial class SndDsp
 	// amp2 - sustain amplitude multiplier 0-1.0
 	// amp3 - end of sustain amplitude multiplier 0-1.0
 
-	static Env* ENV_Alloc(int type, float famp1, float famp2, float famp3, float attack, float decay, float sustain, float release, bool fexp) {
+	static Env? ENV_Alloc(int type, float famp1, float famp2, float famp3, float attack, float decay, float sustain, float release, bool fexp) {
 		int i;
-		Env* penv;
+		Env penv;
 
 		for (i = 0; i < CENVS; i++) {
 			if (!envs[i].fused) {
@@ -900,7 +986,7 @@ public static unsafe partial class SndDsp
 				int amp2 = (int)(famp2 * (1 << ENV_BITS));
 				int amp3 = (int)(famp3 * (1 << ENV_BITS));
 
-				penv = &envs[i];
+				penv = envs[i];
 
 				ENV_Init(penv);
 
@@ -908,16 +994,16 @@ public static unsafe partial class SndDsp
 
 				// set up ramps
 
-				Rmp* rmps = (Rmp*)&penv->rmps;
-				RMP_Init(&rmps[0], attack, 0, amp1, true);
-				RMP_Init(&rmps[1], decay, amp1, amp2, true);
-				RMP_Init(&rmps[2], sustain, amp2, amp3, true);
-				RMP_Init(&rmps[3], release, amp3, 0, true);
+				Span<Rmp> rmps = penv.rmps;
+				RMP_Init(ref rmps[0], attack, 0, amp1, true);
+				RMP_Init(ref rmps[1], decay, amp1, amp2, true);
+				RMP_Init(ref rmps[2], sustain, amp2, amp3, true);
+				RMP_Init(ref rmps[3], release, amp3, 0, true);
 
-				penv->ienv = 0;
-				penv->fused = true;
-				penv->fhitend = false;
-				penv->fexp = fexp;
+				penv.ienv = 0;
+				penv.fused = true;
+				penv.fhitend = false;
+				penv.fexp = fexp;
 				return penv;
 			}
 		}
@@ -926,31 +1012,32 @@ public static unsafe partial class SndDsp
 	}
 
 
-	static int ENV_GetNext(Env* penv, int x) {
-		if (!penv->fhitend) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int ENV_GetNext(Env penv, int x) {
+		if (!penv.fhitend) {
 			int i;
 			int y;
 
-			Rmp* rmps = (Rmp*)&penv->rmps;
+			Span<Rmp> rmps = penv.rmps;
 
-			i = penv->ienv;
-			y = RMP_GetNext(&rmps[i]);
+			i = penv.ienv;
+			y = RMP_GetNext(ref rmps[i]);
 
 			// check for next ramp
 
 			if (rmps[i].fhitend)
 				i++;
 
-			penv->ienv = i;
+			penv.ienv = i;
 
 			// check for end of all ramps
 
 			if (i > 3)
-				penv->fhitend = true;
+				penv.fhitend = true;
 
 			// multiply input signal by ramp
 
-			if (penv->fexp)
+			if (penv.fexp)
 				return (((x * y) >> ENV_BITS) * y) >> ENV_BITS;
 			else
 				return (x * y) >> ENV_BITS;
@@ -959,33 +1046,26 @@ public static unsafe partial class SndDsp
 		return 0;
 	}
 
-	static int ENV_GetNextV(void* penv, int x) => ENV_GetNext((Env*)penv, x);
 
 	// batch version for performance
 
-	static void ENV_GetNextN(void* penv, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void ENV_GetNextN(Env penv, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = ENV_GetNext((Env*)penv, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = ENV_GetNext(penv, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = ENV_GetNext((Env*)penv, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = ENV_GetNext(penv, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = ENV_GetNext((Env*)penv, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = ENV_GetNext(penv, pb[i].Left);
 				return;
 		}
 	}
@@ -1023,18 +1103,18 @@ public static unsafe partial class SndDsp
 		new(env_ifexp, 0.0f, 1.0f),     // 1.0 if exponential ramps
 	];
 
-	static Env* ENV_Params(Prc* pprc) {
-		Env* penv;
+	static Env? ENV_Params(ref Prc pprc) {
+		Env? penv;
 
-		float type = pprc->prm[env_itype];
-		float amp1 = pprc->prm[env_iamp1];
-		float amp2 = pprc->prm[env_iamp2];
-		float amp3 = pprc->prm[env_iamp3];
-		float attack = pprc->prm[env_iattack] / 1000.0F;
-		float decay = pprc->prm[env_idecay] / 1000.0F;
-		float sustain = pprc->prm[env_isustain] / 1000.0F;
-		float release = pprc->prm[env_irelease] / 1000.0F;
-		float fexp = pprc->prm[env_ifexp];
+		float type = pprc.prm[env_itype];
+		float amp1 = pprc.prm[env_iamp1];
+		float amp2 = pprc.prm[env_iamp2];
+		float amp3 = pprc.prm[env_iamp3];
+		float attack = pprc.prm[env_iattack] / 1000.0F;
+		float decay = pprc.prm[env_idecay] / 1000.0F;
+		float sustain = pprc.prm[env_isustain] / 1000.0F;
+		float release = pprc.prm[env_irelease] / 1000.0F;
+		float fexp = pprc.prm[env_ifexp];
 		bool bexp;
 
 		bexp = fexp > 0.0;
@@ -1042,12 +1122,12 @@ public static unsafe partial class SndDsp
 		return penv;
 	}
 
-	static void* ENV_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, env_rng);
-		return ENV_Params((Prc*)p);
+	static DspProcessor? ENV_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, env_rng);
+		return ENV_Params(ref p);
 	}
 
-	static void ENV_Mod(void* p, float v) { return; }
+	internal static void ENV_Mod(Env p, float v) { return; }
 
 	//////////////////////////
 	// Gate & envelope follower
@@ -1055,18 +1135,17 @@ public static unsafe partial class SndDsp
 
 	public const int CEFOS = 64;        // max # of envelope followers active
 
-	static readonly Efo* efos = (Efo*)NativeMemory.AllocZeroed((nuint)(CEFOS * sizeof(Efo)));
+	static readonly Efo[] efos = CreatePool<Efo>(CEFOS);
 
-	static void EFO_Init(Efo* pefo) { if (pefo != null) Unsafe.InitBlock(pefo, 0, (uint)sizeof(Efo)); }
-	static void EFO_Free(Efo* pefo) { if (pefo != null) Unsafe.InitBlock(pefo, 0, (uint)sizeof(Efo)); }
-	static void EFO_FreeV(void* pefo) => EFO_Free((Efo*)pefo);
-	static void EFO_InitAll() { for (int i = 0; i < CEFOS; i++) EFO_Init(&efos[i]); }
-	static void EFO_FreeAll() { for (int i = 0; i < CEFOS; i++) EFO_Free(&efos[i]); }
+	static void EFO_Init(Efo? pefo) { if (pefo != null) pefo.Clear(); }
+	internal static void EFO_Free(Efo? pefo) { if (pefo != null) pefo.Clear(); }
+	static void EFO_InitAll() { for (int i = 0; i < CEFOS; i++) EFO_Init(efos[i]); }
+	static void EFO_FreeAll() { for (int i = 0; i < CEFOS; i++) EFO_Free(efos[i]); }
 
 	// return true when gate is off AND decay ramp has hit end
 
-	static bool EFO_GateOff(Efo* pefo) {
-		return !pefo->bgateon && RMP_HitEnd(&pefo->rmp_decay);
+	static bool EFO_GateOff(Efo pefo) {
+		return !pefo.bgateon && RMP_HitEnd(ref pefo.rmp_decay);
 	}
 
 
@@ -1074,36 +1153,36 @@ public static unsafe partial class SndDsp
 
 	const int EFO_HYST_AMP = 1000;      // hysteresis amplitude
 
-	static Efo* EFO_Alloc(float threshold, float attack_sec, float decay_sec, bool bexp) {
+	static Efo? EFO_Alloc(float threshold, float attack_sec, float decay_sec, bool bexp) {
 		int i;
-		Efo* pefo;
+		Efo pefo;
 
 		for (i = 0; i < CEFOS; i++) {
 			if (!efos[i].fused) {
-				pefo = &efos[i];
+				pefo = efos[i];
 
 				EFO_Init(pefo);
 
-				pefo->xout = 0;
-				pefo->fused = true;
+				pefo.xout = 0;
+				pefo.fused = true;
 
 				// init gate params
 
-				pefo->bgate = threshold > 0.0;
+				pefo.bgate = threshold > 0.0;
 
-				if (pefo->bgate) {
-					pefo->attack_time = attack_sec;
-					pefo->decay_time = decay_sec;
+				if (pefo.bgate) {
+					pefo.attack_time = attack_sec;
+					pefo.decay_time = decay_sec;
 
-					RMP_Init(&pefo->rmp_attack, attack_sec, 0, PMAX, false);
-					RMP_Init(&pefo->rmp_decay, decay_sec, PMAX, 0, false);
-					RMP_SetEnd(&pefo->rmp_attack);
-					RMP_SetEnd(&pefo->rmp_decay);
+					RMP_Init(ref pefo.rmp_attack, attack_sec, 0, PMAX, false);
+					RMP_Init(ref pefo.rmp_decay, decay_sec, PMAX, 0, false);
+					RMP_SetEnd(ref pefo.rmp_attack);
+					RMP_SetEnd(ref pefo.rmp_decay);
 
-					pefo->thresh = (int)threshold;
-					pefo->thresh_off = (int)Math.Max(1.0f, threshold - EFO_HYST_AMP);
-					pefo->bgateon = false;
-					pefo->bexp = bexp;
+					pefo.thresh = (int)threshold;
+					pefo.thresh_off = (int)Math.Max(1.0f, threshold - EFO_HYST_AMP);
+					pefo.bgateon = false;
+					pefo.bexp = bexp;
 				}
 
 				return pefo;
@@ -1148,7 +1227,8 @@ public static unsafe partial class SndDsp
 
 	const int CEFO_BITS = 11;           // 14143 samples in gate window (3hz)
 
-	static int EFO_GetNext(Efo* pefo, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int EFO_GetNext(Efo pefo, int x) {
 		int r;
 		int xa = Math.Abs(x);
 		int xdif;
@@ -1170,28 +1250,28 @@ public static unsafe partial class SndDsp
 		// xdif = Cn-1 - |x|
 		// so:    xdif * L = xdif - xdif / (1 << CEFO_BITS) = ((xdif << CEFO_BITS) - xdif ) >> CEFO_BITS
 
-		xdif = pefo->xout - xa;
+		xdif = pefo.xout - xa;
 
-		pefo->xout = xa + (((xdif << CEFO_BITS) - xdif) >> CEFO_BITS);
+		pefo.xout = xa + (((xdif << CEFO_BITS) - xdif) >> CEFO_BITS);
 
-		if (pefo->bgate) {
+		if (pefo.bgate) {
 			// gate
 
-			bool bgateon_prev = pefo->bgateon;
+			bool bgateon_prev = pefo.bgateon;
 
 			// gate hysteresis
 
 			if (bgateon_prev)
 				// gate was on - it's off only if amp drops below thresh_off
-				pefo->bgateon = pefo->xout >= pefo->thresh_off;
+				pefo.bgateon = pefo.xout >= pefo.thresh_off;
 			else
 				// gate was off - it's on only if amp > thresh
-				pefo->bgateon = pefo->xout >= pefo->thresh;
+				pefo.bgateon = pefo.xout >= pefo.thresh;
 
-			if (pefo->bgateon) {
+			if (pefo.bgateon) {
 				// gate is on
 
-				if (bgateon_prev && RMP_HitEnd(&pefo->rmp_attack))
+				if (bgateon_prev && RMP_HitEnd(ref pefo.rmp_attack))
 					return x;       // gate is fully on
 
 				if (!bgateon_prev) {
@@ -1199,18 +1279,18 @@ public static unsafe partial class SndDsp
 
 					// start attack from previous decay ramp if active
 
-					r = RMP_HitEnd(&pefo->rmp_decay) ? 0 : RMP_GetNext(&pefo->rmp_decay);
-					RMP_SetEnd(&pefo->rmp_decay);
+					r = RMP_HitEnd(ref pefo.rmp_decay) ? 0 : RMP_GetNext(ref pefo.rmp_decay);
+					RMP_SetEnd(ref pefo.rmp_decay);
 
 					// DevMsg ("GATE ON \n");
 
-					RMP_Init(&pefo->rmp_attack, pefo->attack_time, r, PMAX, false);
+					RMP_Init(ref pefo.rmp_attack, pefo.attack_time, r, PMAX, false);
 
 					return (x * r) >> PBITS;
 				}
 
-				if (!RMP_HitEnd(&pefo->rmp_attack)) {
-					r = RMP_GetNext(&pefo->rmp_attack);
+				if (!RMP_HitEnd(ref pefo.rmp_attack)) {
+					r = RMP_GetNext(ref pefo.rmp_attack);
 
 					// gate is on and ramping up
 
@@ -1221,7 +1301,7 @@ public static unsafe partial class SndDsp
 			else {
 				// gate is fully off
 
-				if (!bgateon_prev && RMP_HitEnd(&pefo->rmp_decay))
+				if (!bgateon_prev && RMP_HitEnd(ref pefo.rmp_decay))
 					return 0;
 
 				if (bgateon_prev) {
@@ -1229,30 +1309,30 @@ public static unsafe partial class SndDsp
 
 					// start decay from previous attack ramp if active
 
-					r = RMP_HitEnd(&pefo->rmp_attack) ? PMAX : RMP_GetNext(&pefo->rmp_attack);
-					RMP_SetEnd(&pefo->rmp_attack);
+					r = RMP_HitEnd(ref pefo.rmp_attack) ? PMAX : RMP_GetNext(ref pefo.rmp_attack);
+					RMP_SetEnd(ref pefo.rmp_attack);
 
-					RMP_Init(&pefo->rmp_decay, pefo->decay_time, r, 0, false);
+					RMP_Init(ref pefo.rmp_decay, pefo.decay_time, r, 0, false);
 
 					// DevMsg ("GATE OFF \n");
 
 					// if exponential set, gate has exponential ramp down. Otherwise linear ramp down.
 
-					if (pefo->bexp)
+					if (pefo.bexp)
 						return (((x * r) >> PBITS) * r) >> PBITS;
 					else
 						return (x * r) >> PBITS;
 
 				}
-				else if (!RMP_HitEnd(&pefo->rmp_decay)) {
+				else if (!RMP_HitEnd(ref pefo.rmp_decay)) {
 					// gate is off and ramping down
 
-					r = RMP_GetNext(&pefo->rmp_decay);
+					r = RMP_GetNext(ref pefo.rmp_decay);
 
 
 					// if exponential set, gate has exponential ramp down. Otherwise linear ramp down.
 
-					if (pefo->bexp)
+					if (pefo.bexp)
 						return (((x * r) >> PBITS) * r) >> PBITS;
 					else
 						return (x * r) >> PBITS;
@@ -1262,36 +1342,29 @@ public static unsafe partial class SndDsp
 			return x;
 		}
 
-		return pefo->xout;
+		return pefo.xout;
 	}
 
-	static int EFO_GetNextV(void* pefo, int x) => EFO_GetNext((Efo*)pefo, x);
 
 	// batch version for performance
 
-	static void EFO_GetNextN(void* pefo, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void EFO_GetNextN(Efo pefo, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = EFO_GetNext((Efo*)pefo, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = EFO_GetNext(pefo, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = EFO_GetNext((Efo*)pefo, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = EFO_GetNext(pefo, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = EFO_GetNext((Efo*)pefo, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = EFO_GetNext(pefo, pb[i].Left);
 				return;
 		}
 	}
@@ -1317,18 +1390,18 @@ public static unsafe partial class SndDsp
 
 	];
 
-	static Efo* EFO_Params(Prc* pprc) {
-		Efo* penv;
+	static Efo? EFO_Params(ref Prc pprc) {
+		Efo? penv;
 
-		float threshold = Gain_To_Amplitude(dB_To_Gain(pprc->prm[efo_ithreshold]));
-		float attack = pprc->prm[efo_iattack] / 1000.0F;
-		float decay = pprc->prm[efo_idecay] / 1000.0F;
-		float fexp = pprc->prm[efo_iexp];
+		float threshold = Gain_To_Amplitude(dB_To_Gain(pprc.prm[efo_ithreshold]));
+		float attack = pprc.prm[efo_iattack] / 1000.0F;
+		float decay = pprc.prm[efo_idecay] / 1000.0F;
+		float fexp = pprc.prm[efo_iexp];
 		bool bexp;
 
 		// check for no gate
 
-		if (pprc->prm[efo_ithreshold] == 0.0)
+		if (pprc.prm[efo_ithreshold] == 0.0)
 			threshold = 0.0f;
 
 		bexp = fexp > 0.0;
@@ -1337,12 +1410,12 @@ public static unsafe partial class SndDsp
 		return penv;
 	}
 
-	static void* EFO_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, efo_rng);
-		return EFO_Params((Prc*)p);
+	static DspProcessor? EFO_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, efo_rng);
+		return EFO_Params(ref p);
 	}
 
-	static void EFO_Mod(void* p, float v) { return; }
+	internal static void EFO_Mod(Efo p, float v) { return; }
 
 
 	///////////////////////////////////////////
@@ -1352,21 +1425,20 @@ public static unsafe partial class SndDsp
 
 	public const int CCRSS = 64;                // max number chorus' active
 
-	static readonly Crs* crss = (Crs*)NativeMemory.AllocZeroed((nuint)(CCRSS * sizeof(Crs)));
+	static readonly Crs[] crss = CreatePool<Crs>(CCRSS);
 
-	static void CRS_Init(Crs* pcrs) { if (pcrs != null) Unsafe.InitBlock(pcrs, 0, (uint)sizeof(Crs)); }
-	static void CRS_Free(Crs* pcrs) {
+	static void CRS_Init(Crs? pcrs) { if (pcrs != null) pcrs.Clear(); }
+	internal static void CRS_Free(Crs? pcrs) {
 		if (pcrs != null) {
-			MDY_Free(pcrs->pmdy);
-			LFO_Free(pcrs->plfo);
-			Unsafe.InitBlock(pcrs, 0, (uint)sizeof(Crs));
+			MDY_Free(pcrs.pmdy);
+			LFO_Free(pcrs.plfo);
+			pcrs.Clear();
 		}
 	}
-	static void CRS_FreeV(void* pcrs) => CRS_Free((Crs*)pcrs);
 
 
-	static void CRS_InitAll() { for (int i = 0; i < CCRSS; i++) CRS_Init(&crss[i]); }
-	static void CRS_FreeAll() { for (int i = 0; i < CCRSS; i++) CRS_Free(&crss[i]); }
+	static void CRS_InitAll() { for (int i = 0; i < CCRSS; i++) CRS_Init(crss[i]); }
+	static void CRS_FreeAll() { for (int i = 0; i < CCRSS; i++) CRS_Free(crss[i]); }
 
 	// fstep is base pitch shift, ie: floating point step value, where 1.0 = +1 octave, 0.5 = -1 octave
 	// lfotype is LFO_SIN, LFO_RND, LFO_TRI etc (LFO_RND for chorus, LFO_SIN for flange)
@@ -1377,13 +1449,13 @@ public static unsafe partial class SndDsp
 	const int CRS_DELAYMAX = 100;       // max milliseconds of sweepable delay
 	const int CRS_RAMPTIME = 5;     // milliseconds to ramp between new delay values
 
-	static Crs* CRS_Alloc(int lfotype, float fHz, float fdepth, float mix) {
+	static Crs? CRS_Alloc(int lfotype, float fHz, float fdepth, float mix) {
 
 		int i;
-		Crs* pcrs;
-		Dly* pdly;
-		Mdy* pmdy;
-		Lfo* plfo;
+		Crs pcrs;
+		Dly? pdly;
+		Mdy? pmdy;
+		Lfo? plfo;
 		float ramptime;
 		int D;
 
@@ -1399,7 +1471,7 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		pcrs = &crss[i];
+		pcrs = crss[i];
 
 		CRS_Init(pcrs);
 
@@ -1420,34 +1492,35 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		pcrs->pmdy = pmdy;
-		pcrs->plfo = plfo;
-		pcrs->fused = true;
+		pcrs.pmdy = pmdy;
+		pcrs.plfo = plfo;
+		pcrs.fused = true;
 
 		return pcrs;
 	}
 
 	// return next chorused sample (modulated delay) mixed with input sample
 
-	static int CRS_GetNext(Crs* pcrs, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int CRS_GetNext(Crs pcrs, int x) {
 		int l;
 		int y;
 
 		// get current mod delay value
 
-		y = MDY_GetNext(pcrs->pmdy, x);
+		y = MDY_GetNext(pcrs.pmdy!, x);
 
 		// get next lfo value for modulation
 		// note: lfo must return 0 as first value
 
-		l = LFO_GetNext(pcrs->plfo, x);
+		l = LFO_GetNext(pcrs.plfo!, x);
 
 		// if modulator has changed, change mdy
 
-		if (l != pcrs->lfoprev) {
+		if (l != pcrs.lfoprev) {
 			// calculate new tap starts at D)
 
-			int D = pcrs->pmdy->pdly->D0;
+			int D = pcrs.pmdy!.pdly!.D0;
 			int tap;
 
 			// lfo should always output values 0 <= l <= LFOMAX
@@ -1457,41 +1530,34 @@ public static unsafe partial class SndDsp
 
 			tap = D - ((l * D) >> LFOBITS);
 
-			MDY_ChangeVal(pcrs->pmdy, tap);
+			MDY_ChangeVal(pcrs.pmdy!, tap);
 
-			pcrs->lfoprev = l;
+			pcrs.lfoprev = l;
 		}
 
 		return y;
 	}
 
-	static int CRS_GetNextV(void* pcrs, int x) => CRS_GetNext((Crs*)pcrs, x);
 
 	// batch version for performance
 
-	static void CRS_GetNextN(void* pcrs, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void CRS_GetNextN(Crs pcrs, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = CRS_GetNext((Crs*)pcrs, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = CRS_GetNext(pcrs, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = CRS_GetNext((Crs*)pcrs, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = CRS_GetNext(pcrs, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = CRS_GetNext((Crs*)pcrs, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = CRS_GetNext(pcrs, pb[i].Left);
 				return;
 		}
 	}
@@ -1521,20 +1587,20 @@ public static unsafe partial class SndDsp
 
 	// uses pitch, lfowav, rate, depth
 
-	static Crs* CRS_Params(Prc* pprc) {
-		Crs* pcrs;
+	static Crs? CRS_Params(ref Prc pprc) {
+		Crs? pcrs;
 
-		pcrs = CRS_Alloc((int)pprc->prm[crs_ilfotype], pprc->prm[crs_irate], pprc->prm[crs_idepth], pprc->prm[crs_imix]);
+		pcrs = CRS_Alloc((int)pprc.prm[crs_ilfotype], pprc.prm[crs_irate], pprc.prm[crs_idepth], pprc.prm[crs_imix]);
 
 		return pcrs;
 	}
 
-	static void* CRS_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, crs_rng);
-		return CRS_Params((Prc*)p);
+	static DspProcessor? CRS_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, crs_rng);
+		return CRS_Params(ref p);
 	}
 
-	static void CRS_Mod(void* p, float v) { return; }
+	internal static void CRS_Mod(Crs p, float v) { return; }
 
 
 	////////////////////////////////////////////////////
@@ -1545,23 +1611,22 @@ public static unsafe partial class SndDsp
 
 	const int AMPSLEW = 10;             // milliseconds of slew time between gain changes
 
-	static readonly Amp* amps = (Amp*)NativeMemory.AllocZeroed((nuint)(CAMPS * sizeof(Amp)));
+	static readonly Amp[] amps = CreatePool<Amp>(CAMPS);
 
-	static void AMP_Init(Amp* pamp) { if (pamp != null) Unsafe.InitBlock(pamp, 0, (uint)sizeof(Amp)); }
-	static void AMP_Free(Amp* pamp) {
+	static void AMP_Init(Amp? pamp) { if (pamp != null) pamp.Clear(); }
+	internal static void AMP_Free(Amp? pamp) {
 		if (pamp != null)
-			Unsafe.InitBlock(pamp, 0, (uint)sizeof(Amp));
+			pamp.Clear();
 	}
-	static void AMP_FreeV(void* pamp) => AMP_Free((Amp*)pamp);
 
 
-	static void AMP_InitAll() { for (int i = 0; i < CAMPS; i++) AMP_Init(&amps[i]); }
-	static void AMP_FreeAll() { for (int i = 0; i < CAMPS; i++) AMP_Free(&amps[i]); }
+	static void AMP_InitAll() { for (int i = 0; i < CAMPS; i++) AMP_Init(amps[i]); }
+	static void AMP_FreeAll() { for (int i = 0; i < CAMPS; i++) AMP_Free(amps[i]); }
 
 
-	static Amp* AMP_Alloc(float gain, float vthresh, float distmix, float vfeed, float ramptime, float modtime, float depth, bool brand) {
+	static Amp? AMP_Alloc(float gain, float vthresh, float distmix, float vfeed, float ramptime, float modtime, float depth, bool brand) {
 		int i;
-		Amp* pamp;
+		Amp pamp;
 
 		// find free amp slot
 
@@ -1575,41 +1640,42 @@ public static unsafe partial class SndDsp
 			return null;
 		}
 
-		pamp = &amps[i];
+		pamp = amps[i];
 
 		AMP_Init(pamp);
 
-		pamp->fused = true;
+		pamp.fused = true;
 
-		pamp->gain = (int)(gain * PMAX);
-		pamp->gain_max = (int)(gain * PMAX);
-		pamp->distmix = (int)(distmix * PMAX);
-		pamp->vfeed = (int)(vfeed * PMAX);
-		pamp->vthresh = (int)(vthresh * 32767.0f);
+		pamp.gain = (int)(gain * PMAX);
+		pamp.gain_max = (int)(gain * PMAX);
+		pamp.distmix = (int)(distmix * PMAX);
+		pamp.vfeed = (int)(vfeed * PMAX);
+		pamp.vthresh = (int)(vthresh * 32767.0f);
 
 		// modrate,	0.01, 200.0},		// frequency at which amplitude values change to new random value. 0 is no self-modulation
 		// moddepth,	0.0, 1.0},			// how much amplitude changes (decreases) from current value (0-1.0)
 		// modglide,	0.01, 100.0},		// glide time between mapcur and ampnew in milliseconds
 
-		pamp->ramptime = ramptime;
-		pamp->mtime = SEC_TO_SAMPS(modtime);
-		pamp->mtimecur = pamp->mtime;
-		pamp->depth = (int)(depth * PMAX);
-		pamp->brand = brand;
+		pamp.ramptime = ramptime;
+		pamp.mtime = SEC_TO_SAMPS(modtime);
+		pamp.mtimecur = pamp.mtime;
+		pamp.depth = (int)(depth * PMAX);
+		pamp.brand = brand;
 
 		return pamp;
 	}
 
 	// return next amplified sample
 
-	static int AMP_GetNext(Amp* pamp, int x) {
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static int AMP_GetNext(Amp pamp, int x) {
 		int y = x;
 		int d;
 
 		// if distortion is on, add distortion, feedback
 
-		if (pamp->vthresh < PMAX && pamp->distmix != 0) {
-			int vthresh = pamp->vthresh;
+		if (pamp.vthresh < PMAX && pamp.distmix != 0) {
+			int vthresh = pamp.vthresh;
 
 			/* 		if ( pamp->vfeed > 0.0 )
 					{
@@ -1622,102 +1688,95 @@ public static unsafe partial class SndDsp
 
 			// mix distorted with clean (1.0 = full distortion)
 
-			if (pamp->distmix < PMAX)
-				y = y + (((d - y) * pamp->distmix) >> PBITS);
+			if (pamp.distmix < PMAX)
+				y = y + (((d - y) * pamp.distmix) >> PBITS);
 			else
 				y = d;
 		}
 
 		// get output for current gain value
 
-		int xout = (y * pamp->gain) >> PBITS;
+		int xout = (y * pamp.gain) >> PBITS;
 
-		if (!pamp->fchanging && pamp->mtime == 0) {
+		if (!pamp.fchanging && pamp.mtime == 0) {
 			// if not modulating and not self modulating, return right away
 
 			return xout;
 		}
 
-		if (pamp->fchanging) {
+		if (pamp.fchanging) {
 			// modulating...
 
 			// get next gain value
 
-			pamp->gain = RMP_GetNext(&pamp->rmp_interp); // 0...next gain
+			pamp.gain = RMP_GetNext(ref pamp.rmp_interp); // 0...next gain
 
-			if (RMP_HitEnd(&pamp->rmp_interp)) {
+			if (RMP_HitEnd(ref pamp.rmp_interp)) {
 				// done.
 
-				pamp->fchanging = false;
+				pamp.fchanging = false;
 			}
 		}
 
 		// if self-modulating and timer has expired, get next change
 
-		if (pamp->mtime != 0 && pamp->mtimecur-- == 0) {
-			pamp->mtimecur = pamp->mtime;
+		if (pamp.mtime != 0 && pamp.mtimecur-- == 0) {
+			pamp.mtimecur = pamp.mtime;
 
 			int gain_new;
 			int G1;
-			int G2 = pamp->gain_max;
+			int G2 = pamp.gain_max;
 
 			// modulate between 0 and 100% of gain_max
 
-			G1 = pamp->gain_max - ((pamp->gain_max * pamp->depth) >> PBITS);
+			G1 = pamp.gain_max - ((pamp.gain_max * pamp.depth) >> PBITS);
 
-			if (pamp->brand)
+			if (pamp.brand)
 				gain_new = RandomInt(Math.Min(G1, G2), Math.Max(G1, G2));
 			else {
 				// alternate between min & max
 
-				gain_new = pamp->gain == G1 ? G2 : G1;
+				gain_new = pamp.gain == G1 ? G2 : G1;
 			}
 
 			// set up modulation to new value
 
-			pamp->fchanging = true;
+			pamp.fchanging = true;
 
 			// init gain ramp - always hit target
 
-			RMP_Init(&pamp->rmp_interp, pamp->ramptime, pamp->gain, gain_new, false);
+			RMP_Init(ref pamp.rmp_interp, pamp.ramptime, pamp.gain, gain_new, false);
 		}
 
 		return xout;
 
 	}
 
-	static int AMP_GetNextV(void* pamp, int x) => AMP_GetNext((Amp*)pamp, x);
 
 	// batch version for performance
 
-	static void AMP_GetNextN(void* pamp, PortableSamplePair* pbuffer, int SampleCount, int op) {
-		int count = SampleCount;
-		PortableSamplePair* pb = pbuffer;
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	internal static void AMP_GetNextN(Amp pamp, Span<PortableSamplePair> pbuffer, int SampleCount, int op) {
+		Span<PortableSamplePair> pb = pbuffer[..SampleCount];
 
 		switch (op) {
 			default:
 			case OP_LEFT:
-				while (count-- != 0) {
-					pb->Left = AMP_GetNext((Amp*)pamp, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = AMP_GetNext(pamp, pb[i].Left);
 				return;
 			case OP_RIGHT:
-				while (count-- != 0) {
-					pb->Right = AMP_GetNext((Amp*)pamp, pb->Right);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Right = AMP_GetNext(pamp, pb[i].Right);
 				return;
 			case OP_LEFT_DUPLICATE:
-				while (count-- != 0) {
-					pb->Left = pb->Right = AMP_GetNext((Amp*)pamp, pb->Left);
-					pb++;
-				}
+				for (int i = 0; i < pb.Length; i++)
+					pb[i].Left = pb[i].Right = AMP_GetNext(pamp, pb[i].Left);
 				return;
 		}
 	}
 
-	static void AMP_Mod(void* pamp, float v) {
+	internal static void AMP_Mod(Amp pamp, float v) {
 	}
 
 
@@ -1751,32 +1810,32 @@ public static unsafe partial class SndDsp
 		new(amp_irand, 0.0f, 1.0f),         // if 1, use random modulation otherwise alternate from max-min-max
 	];
 
-	static Amp* AMP_Params(Prc* pprc) {
-		Amp* pamp;
+	static Amp? AMP_Params(ref Prc pprc) {
+		Amp? pamp;
 
 		float ramptime = 0.0f;
 		float modtime = 0.0f;
 		float depth = 0.0f;
-		float rand = pprc->prm[amp_irand];
+		float rand = pprc.prm[amp_irand];
 		bool brand;
 
-		if (pprc->prm[amp_imodrate] > 0.0F) {
-			ramptime = pprc->prm[amp_imodglide] / 1000.0F;          // get ramp time in seconds
-			modtime = 1.0F / Math.Max(pprc->prm[amp_imodrate], 0.01F);      // time between modulations in seconds
-			depth = pprc->prm[amp_imoddepth];                       // depth of modulations 0-1.0
+		if (pprc.prm[amp_imodrate] > 0.0F) {
+			ramptime = pprc.prm[amp_imodglide] / 1000.0F;          // get ramp time in seconds
+			modtime = 1.0F / Math.Max(pprc.prm[amp_imodrate], 0.01F);      // time between modulations in seconds
+			depth = pprc.prm[amp_imoddepth];                       // depth of modulations 0-1.0
 		}
 
 		brand = rand > 0.0F;
 
-		pamp = AMP_Alloc(pprc->prm[amp_gain], pprc->prm[amp_vthresh], pprc->prm[amp_distmix], pprc->prm[amp_vfeed],
+		pamp = AMP_Alloc(pprc.prm[amp_gain], pprc.prm[amp_vthresh], pprc.prm[amp_distmix], pprc.prm[amp_vfeed],
 			ramptime, modtime, depth, brand);
 
 		return pamp;
 	}
 
-	static void* AMP_VParams(void* p) {
-		PRC_CheckParams((Prc*)p, amp_rng);
-		return AMP_Params((Prc*)p);
+	static DspProcessor? AMP_VParams(ref Prc p) {
+		PRC_CheckParams(ref p, amp_rng);
+		return AMP_Params(ref p);
 	}
 
 
@@ -1784,22 +1843,21 @@ public static unsafe partial class SndDsp
 	// NULL processor
 	/////////////////
 
-	static readonly Nul* nuls = (Nul*)NativeMemory.AllocZeroed((nuint)sizeof(Nul));
+	static readonly Nul[] nuls = CreatePool<Nul>(1);
 
-	static void NULL_Init(Nul* pnul) { }
+	static void NULL_Init(Nul? pnul) { }
 	static void NULL_InitAll() { }
-	static void NULL_Free(Nul* pnul) { }
-	static void NULL_FreeV(void* pnul) { }
+	internal static void NULL_Free(Nul? pnul) { }
 	static void NULL_FreeAll() { }
-	static Nul* NULL_Alloc() { return &nuls[0]; }
+	static Nul? NULL_Alloc() { return nuls[0]; }
 
-	static int NULL_GetNext(void* p, int x) { return x; }
+	internal static int NULL_GetNext(Nul p, int x) { return x; }
 
-	static void NULL_GetNextN(void* pnul, PortableSamplePair* pbuffer, int SampleCount, int op) { return; }
+	internal static void NULL_GetNextN(Nul pnul, Span<PortableSamplePair> pbuffer, int SampleCount, int op) { return; }
 
-	static void NULL_Mod(void* p, float v) { return; }
+	internal static void NULL_Mod(Nul p, float v) { return; }
 
-	static void* NULL_VParams(void* p) { return &nuls[0]; }
+	static DspProcessor? NULL_VParams(ref Prc p) { return nuls[0]; }
 
 	//////////////////////////
 	// DSP processors presets - see dsp_presets.txt
@@ -1816,19 +1874,9 @@ public static unsafe partial class SndDsp
 
 	// returns false if failed to init one or more processors
 
-	static void FLT_FreeV(void* p) => FLT_Free((Flt*)p);
-	static void DLY_FreeV(void* p) => DLY_Free((Dly*)p);
-	static void RVA_FreeV(void* p) => RVA_Free((Rva*)p);
-	static void MDY_FreeV(void* p) => MDY_Free((Mdy*)p);
-	static void DFR_FreeV(void* p) => DFR_Free((Dfr*)p);
 
-	static bool PRC_InitAll(Prc* prcs, int count) {
+	static bool PRC_InitAll(Span<Prc> prcs, int count) {
 		int i;
-		delegate*<void*, void*> pfnParam;           // allocation function - takes ptr to prc, returns ptr to specialized data struct for proc type
-		delegate*<void*, int, int> pfnGetNext;      // get next function
-		delegate*<void*, PortableSamplePair*, int, int, void> pfnGetNextN;      // get next function, batch version
-		delegate*<void*, void> pfnFree;
-		delegate*<void*, float, void> pfnMod;
 
 		bool fok = true;
 
@@ -1838,105 +1886,47 @@ public static unsafe partial class SndDsp
 		// set up pointers to XXX_Free, XXX_GetNext and XXX_Params functions
 
 		for (i = 0; i < count; i++) {
+			// call param function, store pdata for the processor type
+
 			switch (prcs[i].type) {
 				default:
 				case PRC_NULL:
-					pfnFree = &NULL_FreeV;
-					pfnGetNext = &NULL_GetNext;
-					pfnGetNextN = &NULL_GetNextN;
-					pfnParam = &NULL_VParams;
-					pfnMod = &NULL_Mod;
+					prcs[i].pdata = NULL_VParams(ref prcs[i]);
 					break;
 				case PRC_DLY:
-					pfnFree = &DLY_FreeV;
-					pfnGetNext = &DLY_GetNextV;
-					pfnGetNextN = &DLY_GetNextN;
-					pfnParam = &DLY_VParams;
-					pfnMod = &DLY_Mod;
+					prcs[i].pdata = DLY_VParams(ref prcs[i]);
 					break;
 				case PRC_RVA:
-					pfnFree = &RVA_FreeV;
-					pfnGetNext = &RVA_GetNextV;
-					pfnGetNextN = &RVA_GetNextN;
-					pfnParam = &RVA_VParams;
-					pfnMod = &RVA_Mod;
+					prcs[i].pdata = RVA_VParams(ref prcs[i]);
 					break;
 				case PRC_FLT:
-					pfnFree = &FLT_FreeV;
-					pfnGetNext = &FLT_GetNextV;
-					pfnGetNextN = &FLT_GetNextN;
-					pfnParam = &FLT_VParams;
-					pfnMod = &FLT_Mod;
+					prcs[i].pdata = FLT_VParams(ref prcs[i]);
 					break;
 				case PRC_CRS:
-					pfnFree = &CRS_FreeV;
-					pfnGetNext = &CRS_GetNextV;
-					pfnGetNextN = &CRS_GetNextN;
-					pfnParam = &CRS_VParams;
-					pfnMod = &CRS_Mod;
+					prcs[i].pdata = CRS_VParams(ref prcs[i]);
 					break;
 				case PRC_PTC:
-					pfnFree = &PTC_FreeV;
-					pfnGetNext = &PTC_GetNextV;
-					pfnGetNextN = &PTC_GetNextN;
-					pfnParam = &PTC_VParams;
-					pfnMod = &PTC_Mod;
+					prcs[i].pdata = PTC_VParams(ref prcs[i]);
 					break;
 				case PRC_ENV:
-					pfnFree = &ENV_FreeV;
-					pfnGetNext = &ENV_GetNextV;
-					pfnGetNextN = &ENV_GetNextN;
-					pfnParam = &ENV_VParams;
-					pfnMod = &ENV_Mod;
+					prcs[i].pdata = ENV_VParams(ref prcs[i]);
 					break;
 				case PRC_LFO:
-					pfnFree = &LFO_FreeV;
-					pfnGetNext = &LFO_GetNextV;
-					pfnGetNextN = &LFO_GetNextN;
-					pfnParam = &LFO_VParams;
-					pfnMod = &LFO_Mod;
+					prcs[i].pdata = LFO_VParams(ref prcs[i]);
 					break;
 				case PRC_EFO:
-					pfnFree = &EFO_FreeV;
-					pfnGetNext = &EFO_GetNextV;
-					pfnGetNextN = &EFO_GetNextN;
-					pfnParam = &EFO_VParams;
-					pfnMod = &EFO_Mod;
+					prcs[i].pdata = EFO_VParams(ref prcs[i]);
 					break;
 				case PRC_MDY:
-					pfnFree = &MDY_FreeV;
-					pfnGetNext = &MDY_GetNextV;
-					pfnGetNextN = &MDY_GetNextN;
-					pfnParam = &MDY_VParams;
-					pfnMod = &MDY_Mod;
+					prcs[i].pdata = MDY_VParams(ref prcs[i]);
 					break;
 				case PRC_DFR:
-					pfnFree = &DFR_FreeV;
-					pfnGetNext = &DFR_GetNextV;
-					pfnGetNextN = &DFR_GetNextN;
-					pfnParam = &DFR_VParams;
-					pfnMod = &DFR_Mod;
+					prcs[i].pdata = DFR_VParams(ref prcs[i]);
 					break;
 				case PRC_AMP:
-					pfnFree = &AMP_FreeV;
-					pfnGetNext = &AMP_GetNextV;
-					pfnGetNextN = &AMP_GetNextN;
-					pfnParam = &AMP_VParams;
-					pfnMod = &AMP_Mod;
+					prcs[i].pdata = AMP_VParams(ref prcs[i]);
 					break;
 			}
-
-			// set up function pointers
-
-			prcs[i].pfnParam = pfnParam;
-			prcs[i].pfnGetNext = pfnGetNext;
-			prcs[i].pfnGetNextN = pfnGetNextN;
-			prcs[i].pfnFree = pfnFree;
-			prcs[i].pfnMod = pfnMod;
-
-			// call param function, store pdata for the processor type
-
-			prcs[i].pdata = pfnParam(&prcs[i]);
 
 			if (prcs[i].pdata == null)
 				fok = false;
@@ -1947,30 +1937,31 @@ public static unsafe partial class SndDsp
 
 	// free individual processor's data
 
-	static void PRC_Free(Prc* pprc) {
-		if (pprc->pfnFree != null && pprc->pdata != null)
-			pprc->pfnFree(pprc->pdata);
+	static void PRC_Free(ref Prc pprc) {
+		if (pprc.pdata != null)
+			pprc.pdata.Free();
 	}
 
 	// free all processors for supplied array
 	// prcs - array of processors
 	// count - elements in array
 
-	static void PRC_FreeAll(Prc* prcs, int count) {
+	static void PRC_FreeAll(Span<Prc> prcs, int count) {
 		for (int i = 0; i < count; i++)
-			PRC_Free(&prcs[i]);
+			PRC_Free(ref prcs[i]);
 	}
 
 	// get next value for processor - (usually called directly by PSET_GetNext)
 
-	static int PRC_GetNext(Prc* pprc, int x) {
-		return pprc->pfnGetNext(pprc->pdata, x);
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static int PRC_GetNext(ref Prc pprc, int x) {
+		return pprc.pdata!.GetNext(x);
 	}
 
 	// automatic parameter range limiting
 	// force parameters between specified min/max in param_rng
 
-	static void PRC_CheckParams(Prc* pprc, PrmRng[] prng) {
+	static void PRC_CheckParams(ref Prc pprc, PrmRng[] prng) {
 		// first entry in param_rng is # of parameters
 
 		int cprm = prng[0].iprm;
@@ -1978,9 +1969,9 @@ public static unsafe partial class SndDsp
 		for (int i = 0; i < cprm; i++) {
 			// if parameter is 0.0, always allow it (this is 'off' for most params)
 
-			if (pprc->prm[i] != 0.0 && (pprc->prm[i] > prng[i + 1].hi || pprc->prm[i] < prng[i + 1].lo)) {
+			if (pprc.prm[i] != 0.0 && (pprc.prm[i] > prng[i + 1].hi || pprc.prm[i] < prng[i + 1].lo)) {
 				DevMsg("DSP: Warning, clamping out of range parameter.\n");
-				pprc->prm[i] = Math.Clamp(pprc->prm[i], prng[i + 1].lo, prng[i + 1].hi);
+				pprc.prm[i] = Math.Clamp(pprc.prm[i], prng[i + 1].lo, prng[i + 1].hi);
 			}
 		}
 	}

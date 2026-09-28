@@ -96,8 +96,10 @@ public class DiskSearchPath : BaseSearchPath
 			_ => throw new NotSupportedException()
 		};
 
+		FileShare share = access == FileAccess.Read ? FileShare.ReadWrite | FileShare.Delete : FileShare.Read;
+
 		try {
-			return new DiskFileHandle(parent, info.Open(mode, access), parent.FindOrAddFileName(path));
+			return new DiskFileHandle(parent, info.Open(mode, access, share), parent.FindOrAddFileName(path));
 		}
 		catch {
 			return null;

@@ -14,7 +14,7 @@ public static class SndParse
 	Parse a token out of a string
 	==============
 	*/
-	public static ReadOnlySpan<char> COM_Parse(ReadOnlySpan<char> data, Span<char> com_token) {
+	public static ReadOnlySpan<char> COM_Parse(ReadOnlySpan<char> data, scoped Span<char> com_token) {
 		char c;
 		int len;
 		string breaks;

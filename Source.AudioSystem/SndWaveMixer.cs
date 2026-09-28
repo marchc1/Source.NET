@@ -4,6 +4,7 @@ using Source.Common.Audio;
 
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using static Source.Common.Formats.RiffConstants;
 
@@ -95,7 +96,7 @@ public static class SndWaveMixer
 // optimized, format sensitive code by calling back into the device that
 // controls them.
 //-----------------------------------------------------------------------------
-public abstract unsafe class AudioMixerWave : AudioMixer
+public abstract class AudioMixerWave : AudioMixer
 {
 	protected double fsample_index;         // index of next sample to output
 	protected int sample_max_loaded;        // count of total samples loaded - ie: the index of
@@ -136,7 +137,7 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 		base.Dispose();
 	}
 
-	public abstract void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress);
+	public abstract void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress);
 
 	public override bool IsReadyToMix() {
 		return data!.IsReadyToMix();
@@ -151,10 +152,10 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 	//			sampleCount - number of samples needed
 	// Output : number of samples available in this batch
 	//-----------------------------------------------------------------------------
-	public virtual int GetOutputData(out byte* data, int sampleCount, byte* copyBuf) {
+	public virtual int GetOutputData(out ReadOnlySpan<byte> data, int sampleCount, Span<byte> copyBuf) {
 		int samples_loaded;
 		// clear this out in case the underlying code leaves it unmodified
-		data = null;
+		data = default;
 		samples_loaded = this.data!.ReadSourceData(out data, sample_max_loaded, sampleCount, copyBuf);
 
 		// keep track of total samples loaded
@@ -236,12 +237,12 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 	}
 
 	// wrapper routine to append without overflowing the temp buffer
-	static uint AppendToBuffer(byte* buffer, byte* sampleData, nuint bytes, byte* bufferEnd) {
-		if (bufferEnd > buffer) {
-			nuint avail = (nuint)(bufferEnd - buffer);
-			nuint copy = Math.Min(bytes, avail);
-			Unsafe.CopyBlock(buffer, sampleData, (uint)copy);
-			return (uint)copy;
+	static int AppendToBuffer(Span<byte> buffer, ReadOnlySpan<byte> sampleData, int bytes) {
+		if (buffer.Length > 0) {
+			int avail = buffer.Length;
+			int copy = Math.Min(bytes, avail);
+			sampleData[..copy].CopyTo(buffer);
+			return copy;
 		}
 		else
 			return 0;
@@ -258,10 +259,10 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 	// Returns: NULL ptr to data if no samples available, otherwise always fills remainder of copy buffer with
 	// 0 to pad remainder.
 	// NOTE: DO NOT MODIFY THIS ROUTINE (KELLYB)
-	public byte* LoadMixBuffer(Channel channel, int sample_load_request, out int samplesLoaded, byte* copyBuf) {
+	public ReadOnlySpan<byte> LoadMixBuffer(Channel channel, int sample_load_request, out int samplesLoaded, Span<byte> copyBuf) {
 		int samples_loaded;
-		byte* sample = null;
-		byte* data = null;
+		scoped ReadOnlySpan<byte> sample;
+		scoped ReadOnlySpan<byte> data;
 		int cCopySamps = 0;
 
 		// save index of last sample loaded (updated in GetOutputData)
@@ -274,13 +275,14 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 			// 360 might not be able to get samples due to latency of loop seek
 			// could also be the valid EOF for non-loops (caller keeps polling for data, until no more)
 			samplesLoaded = 0;
-			return null;
+			return default;
 		}
 
 		int samplesize = GetMixSampleSize();
-		int nTempCopyBufferSize = TEMP_COPY_BUFFER_SIZE * sizeof(PortableSamplePair);
-		byte* copy = (byte*)g_temppaintbuffer;
-		byte* copyBufferEnd = copy + nTempCopyBufferSize;
+		int nTempCopyBufferSize = TEMP_COPY_BUFFER_SIZE * PortableSamplePair.SIZE;
+		Span<byte> copyBuffer = MemoryMarshal.AsBytes(g_temppaintbuffer.AsSpan());
+		int copy = 0;
+		int copyBufferEnd = nTempCopyBufferSize;
 
 #if DEBUG
 		// for safety, 360 always validates sample request, due to new xma audio code and possible logic flaws
@@ -293,7 +295,7 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 			DevWarning($"LoadMixBuffer: sample load request {sample_load_request} exceeds buffer sizes\n");
 			Assert(false);
 			samplesLoaded = 0;
-			return null;
+			return default;
 		}
 #endif
 
@@ -324,8 +326,8 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 
 			[return 3 samp]     [return 3 samp]    [return 3 samp]
 		*/
-		fixed (byte* samplePrev = channel.SamplePrev) {
-			sample = samplePrev;
+		{
+			sample = channel.SamplePrev;
 
 			// determine how many saved samples we need to copy to head of copy buffer (0,1 or 2)
 			// so that pitch interpolation will correctly reference samples.
@@ -355,14 +357,14 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 
 			// point to the sample(s) we are to copy
 			if (cCopySamps != 0) {
-				sample = cCopySamps == 1 ? sample + samplesize : sample;
-				copy += AppendToBuffer(copy, sample, (nuint)(samplesize * cCopySamps), copyBufferEnd);
+				sample = cCopySamps == 1 ? sample[samplesize..] : sample;
+				copy += AppendToBuffer(copyBuffer[copy..copyBufferEnd], sample, samplesize * cCopySamps);
 			}
 		}
 
 		// copy loaded samples from pData into pCopy
 		// and update pointer to free space in copy buffer
-		if ((samples_loaded * samplesize) != 0 && data == null) {
+		if ((samples_loaded * samplesize) != 0 && data.IsEmpty) {
 			ReadOnlySpan<char> wavName = "";
 			Common.Audio.SfxTable? source = channel.Sfx;
 			if (source != null)
@@ -370,10 +372,10 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 
 			Warning($"CAudioMixerWave::LoadMixBuffer: '{wavName}' samples_loaded * samplesize = {(samples_loaded * samplesize)} but pData == NULL\n");
 			samplesLoaded = 0;
-			return null;
+			return default;
 		}
 
-		copy += AppendToBuffer(copy, data, (nuint)(samples_loaded * samplesize), copyBufferEnd);
+		copy += AppendToBuffer(copyBuffer[copy..copyBufferEnd], data, samples_loaded * samplesize);
 
 		// if we loaded fewer samples than we wanted to, and we're not
 		// delaying, load more samples or, if we run out of samples from non-looping source,
@@ -391,13 +393,13 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 
 				// copy loaded samples from pData into pCopy
 				if (samples_loaded_retry != 0) {
-					if ((samples_loaded_retry * samplesize) != 0 && data == null) {
+					if ((samples_loaded_retry * samplesize) != 0 && data.IsEmpty) {
 						Warning($"CAudioMixerWave::LoadMixBuffer:  samples_loaded_retry * samplesize = {(samples_loaded_retry * samplesize)} but pData == NULL\n");
 						samplesLoaded = 0;
-						return null;
+						return default;
 					}
 
-					copy += AppendToBuffer(copy, data, (nuint)(samples_loaded_retry * samplesize), copyBufferEnd);
+					copy += AppendToBuffer(copyBuffer[copy..copyBufferEnd], data, samples_loaded_retry * samplesize);
 					samples_loaded += samples_loaded_retry;
 				}
 			}
@@ -409,10 +411,10 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 			// non-looping source hit end of data, fill rest of g_temppaintbuffer with 0
 			int samples_zero_fill = sample_load_request - samples_loaded;
 
-			int avail = (int)(copyBufferEnd - copy);
+			int avail = copyBufferEnd - copy;
 			int fill = samples_zero_fill * samplesize;
 			fill = Math.Min(avail, fill);
-			Unsafe.InitBlock(copy, 0, (uint)fill);
+			copyBuffer.Slice(copy, fill).Clear();
 			copy += fill;
 			samples_loaded += samples_zero_fill;
 		}
@@ -421,8 +423,7 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 			// always save last 2 samples from copy buffer to channel
 			// (we'll need 0,1 or 2 samples as start of next buffer for interpolation)
 			Assert(channel.SamplePrev.Length >= samplesize * 2);
-			sample = copy - samplesize * 2;
-			new ReadOnlySpan<byte>(sample, samplesize * 2).CopyTo(channel.SamplePrev);
+			copyBuffer.Slice(copy - samplesize * 2, samplesize * 2).CopyTo(channel.SamplePrev);
 		}
 
 		// this routine must always return as many samples loaded (or zeros) as requested.
@@ -430,7 +431,7 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 
 		samplesLoaded = samples_loaded;
 
-		return (byte*)g_temppaintbuffer;
+		return MemoryMarshal.AsBytes(g_temppaintbuffer.AsSpan());
 	}
 
 	// Helper routine for MixDataToDevice:
@@ -488,6 +489,7 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 	// NOTE:	DO NOT MODIFY THIS ROUTINE (KELLYB)
 
 	//-----------------------------------------------------------------------------
+	[SkipLocalsInit]
 	public int MixDataToDevice_(IAudioDevice? device, Channel channel, int sampleCount, int outputRate, int outputOffset, bool skipAllMixing) {
 		// shouldn't be playing this if finished, but return if we are
 		if (finished)
@@ -528,11 +530,11 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 		m_sample_loaded_index-----   |     		(after first load 4 samples, this is where pointers are)
 			  m_fsample_index---------
 		*/
-		byte* copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
+		Span<byte> copyBuf = stackalloc byte[AudioSource.AUDIOSOURCE_COPYBUF_SIZE];
 		while (sampleCount > 0) {
 			bool advanceSample = true;
 			int samples_loaded, outputSampleCount;
-			byte* data = null;
+			scoped ReadOnlySpan<byte> data = default;
 			double fsample_index_prev = fsample_index;      // save so we can modify in LoadMixBuffer
 			bool interpolatedPitch = FUseHighQualityPitch(channel);
 			double rate;
@@ -556,11 +558,12 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 				int readBytes = sampleSize * num_zero_samples;
 
 				// make sure we don't overflow temp copy buffer (g_temppaintbuffer)
-				Assert(TEMP_COPY_BUFFER_SIZE * sizeof(PortableSamplePair) > readBytes);
-				data = (byte*)g_temppaintbuffer;
+				Assert(TEMP_COPY_BUFFER_SIZE * PortableSamplePair.SIZE > readBytes);
+				Span<byte> zeroData = MemoryMarshal.AsBytes(g_temppaintbuffer.AsSpan());
 
 				// Now copy in some zeroes
-				Unsafe.InitBlock(data, 0, (uint)readBytes);
+				zeroData[..readBytes].Clear();
+				data = zeroData;
 
 				// we don't pitch shift these samples, so outputSampleCount == samples_loaded
 				samples_loaded = num_zero_samples;
@@ -585,13 +588,13 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 				data = LoadMixBuffer(channel, sample_load_request, out samples_loaded, copyBuf);
 
 				// LoadMixBuffer should always return requested samples.
-				Assert(data == null || (samples_loaded == sample_load_request));
+				Assert(data.IsEmpty || (samples_loaded == sample_load_request));
 
 				outputSampleCount = sampleCountOut;
 			}
 
 			// no samples available
-			if (data == null)
+			if (data.IsEmpty)
 				break;
 
 			// get sample fraction from 0th sample in copy buffer
@@ -662,51 +665,51 @@ public abstract unsafe class AudioMixerWave : AudioMixer
 //-----------------------------------------------------------------------------
 // Purpose: maps mixing to 8-bit mono mixer
 //-----------------------------------------------------------------------------
-public unsafe class AudioMixerWave8Mono(IWaveData data) : AudioMixerWave(data)
+public class AudioMixerWave8Mono(IWaveData data) : AudioMixerWave(data)
 {
 	public override int GetMixSampleSize() => CalcSampleSize(8, 1);
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
-		device.Mix8Mono(channel, (byte*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+		device.Mix8Mono(channel, data, outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: maps mixing to 8-bit stereo mixer
 //-----------------------------------------------------------------------------
-public unsafe class AudioMixerWave8Stereo(IWaveData data) : AudioMixerWave(data)
+public class AudioMixerWave8Stereo(IWaveData data) : AudioMixerWave(data)
 {
 	public override int GetMixSampleSize() => CalcSampleSize(8, 2);
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
-		device.Mix8Stereo(channel, (byte*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+		device.Mix8Stereo(channel, data, outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: maps mixing to 16-bit mono mixer
 //-----------------------------------------------------------------------------
-public unsafe class AudioMixerWave16Mono(IWaveData data) : AudioMixerWave(data)
+public class AudioMixerWave16Mono(IWaveData data) : AudioMixerWave(data)
 {
 	public override int GetMixSampleSize() => CalcSampleSize(16, 1);
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
-		device.Mix16Mono(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+		device.Mix16Mono(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: maps mixing to 16-bit stereo mixer
 //-----------------------------------------------------------------------------
-public unsafe class AudioMixerWave16Stereo(IWaveData data) : AudioMixerWave(data)
+public class AudioMixerWave16Stereo(IWaveData data) : AudioMixerWave(data)
 {
 	public override int GetMixSampleSize() => CalcSampleSize(16, 2);
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
-		device.Mix16Stereo(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+		device.Mix16Stereo(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: Mixer for ADPCM encoded audio
 //-----------------------------------------------------------------------------
-public unsafe class AudioMixerWaveADPCM : AudioMixerWave
+public class AudioMixerWaveADPCM : AudioMixerWave
 {
 	// max size of ADPCM block in bytes
 	const int MAX_BLOCK_SIZE = 4096;
@@ -743,7 +746,7 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 			coefficientsOffset = WAVEFORMATEX_SIZE + 4;
 
 			// create the decode buffer
-			samples = GC.AllocateArray<short>(wSamplesPerBlock * nChannels, pinned: true);
+			samples = new short[wSamplesPerBlock * nChannels];
 
 			// number of bytes for samples
 			blockSize = ((wSamplesPerBlock - 2) * nChannels) / 2;
@@ -768,11 +771,11 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 
 	public override int GetMixSampleSize() => CalcSampleSize(16, NumChannels());
 
-	public override void Mix(IAudioDevice device, Channel channel, void* data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
+	public override void Mix(IAudioDevice device, Channel channel, ReadOnlySpan<byte> data, int outputOffset, int inputOffset, fixedint fracRate, int outCount, int timecompress) {
 		if (NumChannels() == 1)
-			device.Mix16Mono(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+			device.Mix16Mono(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 		else
-			device.Mix16Stereo(channel, (short*)data, outputOffset, inputOffset, fracRate, outCount, timecompress);
+			device.Mix16Stereo(channel, MemoryMarshal.Cast<byte, short>(data), outputOffset, inputOffset, fracRate, outCount, timecompress);
 	}
 
 	static ReadOnlySpan<int> error_sign_lut => [0, 1, 2, 3, 4, 5, 6, 7, -8, -7, -6, -5, -4, -3, -2, -1];
@@ -785,25 +788,27 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 	//			*pIn - input block
 	//			count - number of samples to decode (to support partial blocks)
 	//-----------------------------------------------------------------------------
-	void DecompressBlockMono(short* @out, byte* @in, int count) {
-		int pred = *(sbyte*)@in++;
+	void DecompressBlockMono(Span<short> @out, ReadOnlySpan<byte> @in, int count) {
+		int ip = 0, op = 0;
+
+		int pred = (sbyte)@in[ip++];
 		int co1 = iCoef1(pred);
 		int co2 = iCoef2(pred);
 
 		// read initial delta
-		int delta = *((short*)@in);
-		@in += 2;
+		int delta = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
+		ip += 2;
 
 		// read initial samples for prediction
-		int samp1 = *((short*)@in);
-		@in += 2;
+		int samp1 = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
+		ip += 2;
 
-		int samp2 = *((short*)@in);
-		@in += 2;
+		int samp2 = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
+		ip += 2;
 
 		// write out the initial samples (stored in reverse order)
-		*@out++ = (short)samp2;
-		*@out++ = (short)samp1;
+		@out[op++] = (short)samp2;
+		@out[op++] = (short)samp1;
 
 		// subtract the 2 samples in the header
 		count -= 2;
@@ -817,7 +822,7 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 		while (count != 0) {
 			// read the error nibble from the input stream
 			if (high != 0) {
-				sample = *@in++;
+				sample = @in[ip++];
 				// high nibble
 				error = sample >> 4;
 				// cache low nibble for next read
@@ -855,7 +860,7 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 				predSample = -32768;
 
 			// output
-			*@out++ = (short)predSample;
+			@out[op++] = (short)predSample;
 			// move samples over
 			samp2 = samp1;
 			samp1 = predSample;
@@ -870,34 +875,35 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 	//			*pIn - ADPCM encoded block data
 	//			count - number of sample pairs to decode
 	//-----------------------------------------------------------------------------
-	void DecompressBlockStereo(short* @out, byte* @in, int count) {
-		int* pred = stackalloc int[2], co1 = stackalloc int[2], co2 = stackalloc int[2];
+	void DecompressBlockStereo(Span<short> @out, ReadOnlySpan<byte> @in, int count) {
+		Span<int> pred = stackalloc int[2], co1 = stackalloc int[2], co2 = stackalloc int[2];
 		int i;
+		int ip = 0, op = 0;
 
 		for (i = 0; i < 2; i++) {
-			pred[i] = *(sbyte*)@in++;
+			pred[i] = (sbyte)@in[ip++];
 			co1[i] = iCoef1(pred[i]);
 			co2[i] = iCoef2(pred[i]);
 		}
 
-		int* delta = stackalloc int[2], samp1 = stackalloc int[2], samp2 = stackalloc int[2];
+		Span<int> delta = stackalloc int[2], samp1 = stackalloc int[2], samp2 = stackalloc int[2];
 
-		for (i = 0; i < 2; i++, @in += 2) {
+		for (i = 0; i < 2; i++, ip += 2) {
 			// read initial delta
-			delta[i] = *((short*)@in);
+			delta[i] = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
 		}
 
 		// read initial samples for prediction
-		for (i = 0; i < 2; i++, @in += 2)
-			samp1[i] = *((short*)@in);
-		for (i = 0; i < 2; i++, @in += 2)
-			samp2[i] = *((short*)@in);
+		for (i = 0; i < 2; i++, ip += 2)
+			samp1[i] = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
+		for (i = 0; i < 2; i++, ip += 2)
+			samp2[i] = BinaryPrimitives.ReadInt16LittleEndian(@in[ip..]);
 
 		// write out the initial samples (stored in reverse order)
-		*@out++ = (short)samp2[0];  // left
-		*@out++ = (short)samp2[1];  // right
-		*@out++ = (short)samp1[0];  // left
-		*@out++ = (short)samp1[1];  // right
+		@out[op++] = (short)samp2[0];  // left
+		@out[op++] = (short)samp2[1];  // right
+		@out[op++] = (short)samp1[0];  // left
+		@out[op++] = (short)samp1[1];  // right
 
 		// subtract the 2 samples in the header
 		count -= 2;
@@ -912,7 +918,7 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 			for (i = 0; i < 2; i++) {
 				// read the error nibble from the input stream
 				if (high != 0) {
-					sample = *@in++;
+					sample = @in[ip++];
 					// high nibble
 					error = sample >> 4;
 					// cache low nibble for next read
@@ -950,7 +956,7 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 					predSample = -32768;
 
 				// output
-				*@out++ = (short)predSample;
+				@out[op++] = (short)predSample;
 				// move samples over
 				samp2[i] = samp1[i];
 				samp1[i] = predSample;
@@ -964,9 +970,10 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 	//			routine.
 	// Output : Returns true if data was decoded, false if none.
 	//-----------------------------------------------------------------------------
+	[SkipLocalsInit]
 	bool DecodeBlock() {
-		byte* tmpBlock = stackalloc byte[MAX_BLOCK_SIZE];
-		byte* data;
+		Span<byte> tmpBlock = stackalloc byte[MAX_BLOCK_SIZE];
+		scoped ReadOnlySpan<byte> data;
 		int blockSize;
 		int firstSample;
 
@@ -990,14 +997,14 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 			blockSize = this.blockSize;
 
 		// get requested data
-		int available = this.data.ReadSourceData(out data, offset, blockSize, null);
+		int available = this.data.ReadSourceData(out data, offset, blockSize, default);
 		if (available < blockSize) {
 			// pump to get all of requested data
 			int total = 0;
 			while (available != 0 && total < blockSize) {
-				Unsafe.CopyBlock(tmpBlock + total, data, (uint)available);
+				data[..available].CopyTo(tmpBlock[total..]);
 				total += available;
-				available = this.data.ReadSourceData(out data, offset + total, blockSize - total, null);
+				available = this.data.ReadSourceData(out data, offset + total, blockSize - total, default);
 			}
 			data = tmpBlock;
 			available = total;
@@ -1023,12 +1030,10 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 		samplePosition = firstSample;
 
 		// no need to subclass for different channel counts...
-		fixed (short* pSamples = samples) {
-			if (channelCount == 1)
-				DecompressBlockMono(pSamples, data, sampleCount);
-			else
-				DecompressBlockStereo(pSamples, data, sampleCount);
-		}
+		if (channelCount == 1)
+			DecompressBlockMono(samples, data, sampleCount);
+		else
+			DecompressBlockStereo(samples, data, sampleCount);
 		return true;
 	}
 
@@ -1038,15 +1043,15 @@ public unsafe class AudioMixerWaveADPCM : AudioMixerWave
 	//			sampleCount - number of samples (or pairs)
 	// Output : int - available samples (zero to stop decoding)
 	//-----------------------------------------------------------------------------
-	public override int GetOutputData(out byte* data, int sampleCount, byte* copyBuf) {
-		data = null;
+	public override int GetOutputData(out ReadOnlySpan<byte> data, int sampleCount, Span<byte> copyBuf) {
+		data = default;
 		if (samplePosition >= this.sampleCount) {
 			if (!DecodeBlock())
 				return 0;
 		}
 
 		if (samples != null && samplePosition < this.sampleCount) {
-			data = (byte*)((short*)Unsafe.AsPointer(ref samples[0]) + samplePosition * NumChannels());
+			data = MemoryMarshal.AsBytes(samples.AsSpan(samplePosition * NumChannels()));
 			int available = this.sampleCount - samplePosition;
 			if (available > sampleCount)
 				available = sampleCount;

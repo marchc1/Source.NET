@@ -16,7 +16,7 @@ namespace Source.AudioSystem;
 // see scripts/soundmixers.txt for data format
 //------------------------------------------------------------------------------
 
-public static unsafe partial class SndDma
+public static partial class SndDma
 {
 	const int CMXRGROUPMAX = 64;                    // up to n mixgroups
 	const int CMXRGROUPRULESMAX = CMXRGROUPMAX + 16;    // max number of group rules
