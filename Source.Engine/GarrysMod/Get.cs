@@ -196,7 +196,7 @@ public class Get(IServiceProvider services, EngineParms host_parms) : IGet
 
 	public void RunSteamCallbacks() {
 		if (IsDedicatedServer())
-			SteamworksDotNetBoasts100PercentCoverageOfTheNativeSteamworksAPIAcrossAllInterfaces.SteamGameServer_RunCallbacks();
+			SteamGameServer_RunCallbacks();
 		else
 			SteamAPI.RunCallbacks();
 	}

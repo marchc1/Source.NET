@@ -145,4 +145,97 @@ public static class LZMA
 
 		return true;
 	}
+
+	public interface IProgress
+	{
+		bool OnProgress(float progress);
+	}
+
+	class CodeProgress(IProgress progress, long outSize) : ICodeProgress
+	{
+		public void SetProgress(long inSize, long outProcessed) => progress.OnProgress((float)outProcessed / (float)outSize);
+	}
+
+	public static bool Extract(ReadOnlySpan<byte> data, ReadOnlySpan<char> outFile, IProgress? progress) {
+		if (data.Length <= 0xd || data[0] >= 0xe1 || BitConverter.ToUInt32(data[1..5]) < 0x1000)
+			return false;
+
+		uint outSize = BitConverter.ToUInt32(data[5..9]);
+
+		SevenZip.Compression.LZMA.Decoder decoder = new();
+		decoder.SetDecoderProperties(data[..LZMA_PROPS_SIZE].ToArray());
+
+		FileStream output;
+		try {
+			output = new FileStream(new string(outFile), FileMode.Create, FileAccess.Write);
+		}
+		catch {
+			return false;
+		}
+
+		using (output) {
+			data = data[0xd..];
+			try {
+				unsafe {
+					fixed (byte* d = data)
+						using (UnmanagedMemoryStream ms = new UnmanagedMemoryStream(d, data.Length))
+							decoder.Code(ms, output, data.Length, outSize, progress == null ? null : new CodeProgress(progress, outSize));
+				}
+			}
+			catch {
+				return false;
+			}
+
+			return output.Length >= outSize;
+		}
+	}
+
+	public class ExtractionThread : IProgress
+	{
+		readonly Lock mutex = new();
+		readonly string outFile;
+		byte[]? buffer;
+		bool done;
+		bool success;
+		float progress;
+
+		public ExtractionThread(ReadOnlySpan<byte> data, ReadOnlySpan<char> outFile) {
+			buffer = data.ToArray();
+			this.outFile = new(outFile);
+			done = false;
+			success = false;
+			progress = 0;
+			new Thread(Run) { IsBackground = true }.Start();
+		}
+
+		void Run() {
+			bool result = Extract(buffer, outFile, this);
+			buffer = null;
+			lock (mutex) {
+				done = true;
+				success = result;
+			}
+		}
+
+		public bool IsDone() {
+			lock (mutex)
+				return done;
+		}
+
+		public bool Success() {
+			lock (mutex)
+				return success;
+		}
+
+		public float GetProgress() {
+			lock (mutex)
+				return progress;
+		}
+
+		public bool OnProgress(float progress) {
+			lock (mutex)
+				this.progress = progress;
+			return true;
+		}
+	}
 }
