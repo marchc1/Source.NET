@@ -145,6 +145,9 @@ public class PackStoreSearchPath : BaseSearchPath
 					continue;
 			}
 
+			if (wildcard != null && !System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(Path.GetFileName(wildcard), baseName))
+				continue;
+
 			dirs.Add(new(baseName));
 		}
 

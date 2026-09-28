@@ -715,7 +715,7 @@ public class BaseFileSystem : IFileSystem
 				currentCollection = PathID == 0
 					? system.SearchPaths.At(Interlocked.Increment(ref CollectionIdx))
 					: Interlocked.CompareExchange(ref ranAtLeastOnce, 1, 0) == 0
-					? (system.SearchPaths.TryGetValue(PathID, out var found) ? found : null)
+					? (system.SearchPaths.TryGetValue(PathID.String().Hash(), out var found) ? found : null)
 						: null;
 
 				if (currentCollection != null) {
@@ -931,9 +931,9 @@ public class BaseFileSystem : IFileSystem
 
 	public void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game) {
 		string workshop = Path.Combine(new string(game), "workshop");
-		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "GAME", SearchPathAdd.ToHead);
-		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "workshop", SearchPathAdd.ToHead);
-		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "thirdparty", SearchPathAdd.ToHead);
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "GAME", SearchPathAdd.ToHead, PathGroupName.GModCore);
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "workshop", SearchPathAdd.ToHead, PathGroupName.GModCore);
+		AddSearchPath(new AddonSearchPath(g_AddonFileSystem, workshop), "thirdparty", SearchPathAdd.ToHead, PathGroupName.GModCore);
 		MarkPathIDByRequestOnly("workshop", true);
 		MarkPathIDByRequestOnly("thirdparty", true);
 	}
