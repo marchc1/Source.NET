@@ -509,7 +509,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		// DispInfo_BatchDecals(visibleDisps, visibleDispCount);
 		// DispInfo_DrawDecals(visibleDisps, visibleDispCount);
 
-		g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, VisibleDisps, visibleDispCount, flashlightMask);
+		g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask);
 		g_ShadowMgr.RenderShadows();
 		g_ShadowMgr.ClearShadowRenderList();
 

@@ -42,7 +42,7 @@ public enum FDecal : short
 	HasUpdated = 0x4000
 }
 
-public class Decal
+public class Decal : IPoolableObject
 {
 	public Decal? Next;
 	public Decal? DestroyList;
@@ -67,6 +67,9 @@ public class Decal
 	public short EntityIndex;
 	public nint SortTree;
 	public nint SortMaterial;
+
+	public void Init() { }
+	public void Reset() { }
 }
 
 public class DecalInfo
@@ -399,7 +402,7 @@ public partial class Render
 	static uint s_DecalScaleVarCache = 0;
 	static uint s_DecalFadeVarCache = 0;
 
-	static readonly ClassMemoryPool<Decal> g_DecalAllocator = new();
+	static readonly ObjectPool<Decal> g_DecalAllocator = new();
 	static int g_DynamicDecals = 0;
 	static int g_StaticDecals = 0;
 	static int g_LastReplacedDynamic = -1;

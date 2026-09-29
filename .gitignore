@@ -411,3 +411,4 @@ Game.Assets/hl2/resource
 Source.Launcher/Properties/launchSettings.json
 /.idea
 Source.DataDescGen/
+Game.Assets/hl2/cache/workshop
