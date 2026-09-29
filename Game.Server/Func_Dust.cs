@@ -8,6 +8,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<Func_Dust>;
 
+[NetworkName("CFunc_Dust")]
 public class Func_Dust : BaseEntity
 {
 	public static readonly SendTable DT_Func_Dust = new([
@@ -19,23 +20,34 @@ public class Func_Dust : BaseEntity
 		SendPropInt(FIELD.OF(nameof(DistMax)), 16, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(LifetimeMin)), 4, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(LifetimeMax)), 4, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(DustFlags)), 4, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(DustFlags)), 3, PropFlags.Unsigned),
 		SendPropModelIndex(FIELD.OF(nameof(ModelIndex))),
 		SendPropFloat(FIELD.OF(nameof(FallSpeed)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(AffectedByWind))),
-		SendPropDataTable("Collision", CollisionProperty.DT_CollisionProperty)
+		SendPropDataTable("m_Collision", CollisionProperty.DT_CollisionProperty)
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("Func_Dust", DT_Func_Dust).WithManualClassID(StaticClassIndices.CFunc_Dust);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Func_Dust);
 
+	[NetworkName("m_Color")]
 	public Color Color;
+	[NetworkName("m_SpawnRate")]
 	public int SpawnRate;
+	[NetworkName("m_SpeedMax")]
 	public int SpeedMax;
+	[NetworkName("m_flSizeMin")]
 	public float SizeMin;
+	[NetworkName("m_flSizeMax")]
 	public float SizeMax;
+	[NetworkName("m_DistMax")]
 	public int DistMax;
+	[NetworkName("m_LifetimeMin")]
 	public int LifetimeMin;
+	[NetworkName("m_LifetimeMax")]
 	public int LifetimeMax;
+	[NetworkName("m_DustFlags")]
 	public int DustFlags;
+	[NetworkName("m_FallSpeed")]
 	public float FallSpeed;
+	[NetworkName("m_bAffectedByWind")]
 	public bool AffectedByWind;
 }

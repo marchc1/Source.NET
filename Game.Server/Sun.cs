@@ -9,6 +9,7 @@ namespace Game.Server;
 using FIELD = Source.FIELD<Sun>;
 
 [LinkEntityToClass("env_sun")]
+[NetworkName("CSun")]
 public class Sun : BaseEntity
 {
 	public static readonly SendTable DT_Sun = new([
@@ -22,15 +23,23 @@ public class Sun : BaseEntity
 		SendPropInt(FIELD.OF(nameof(OverlayMaterial)), 32, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(HDRColorScale)), 0, PropFlags.NoScale, 0.0f, 100.0f),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("Sun", DT_Sun).WithManualClassID(StaticClassIndices.CSun);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Sun);
 
+	[NetworkName("m_clrRender")]
 	public Color Render;
+	[NetworkName("m_clrOverlay")]
 	public Color Overlay;
+	[NetworkName("m_vDirection")]
 	public Vector3 Direction;
+	[NetworkName("m_bOn")]
 	public bool On;
+	[NetworkName("m_nSize")]
 	public int Size;
+	[NetworkName("m_nOverlaySize")]
 	public int OverlaySize;
+	[NetworkName("m_nMaterial")]
 	public int Material;
+	[NetworkName("m_nOverlayMaterial")]
 	public int OverlayMaterial;
 	public int HDRColorScale;
 }

@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponSatchel>;
+[NetworkName("CWeaponSatchel")]
 public class WeaponSatchel : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -26,14 +27,19 @@ public class WeaponSatchel : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSatchel", null, null, DT_WeaponSatchel).WithManualClassID(StaticClassIndices.CWeaponSatchel);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponSatchel);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSatchel", DT_WeaponSatchel).WithManualClassID(StaticClassIndices.CWeaponSatchel);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponSatchel);
 #endif
+	[NetworkName("m_iRadioViewIndex")]
 	public int RadioViewIndex;
+	[NetworkName("m_iRadioWorldIndex")]
 	public float RadioWorldIndex;
+	[NetworkName("m_iSatchelViewIndex")]
 	public float SatchelViewIndex;
+	[NetworkName("m_iSatchelWorldIndex")]
 	public float SatchelWorldIndex;
+	[NetworkName("m_iChargeReady")]
 	public float ChargeReady;
 }
 #endif

@@ -219,23 +219,35 @@ public class CollisionProperty : ICollideable
 	}
 #endif
 
+	[NetworkName("m_vecMinsPreScaled")]
 	public Vector3 MinsPreScaled;
+	[NetworkName("m_vecMaxsPreScaled")]
 	public Vector3 MaxsPreScaled;
+	[NetworkName("m_vecMins")]
 	public Vector3 Mins;
+	[NetworkName("m_vecMaxs")]
 	public Vector3 Maxs;
 	public Vector3 Size;
 	float Radius;
+	[NetworkName("m_usSolidFlags")]
 	public ushort SolidFlags;
 	SpatialPartitionHandle_t Partition = PARTITION_INVALID_HANDLE;
+	[NetworkName("m_nSurroundType")]
 	byte SurroundType;
+	[NetworkName("m_nSolidType")]
 	public byte SolidType;
 
+	[NetworkName("m_triggerBloat")]
 	public byte TriggerBloat;
 	Vector3 SurroundingMins;
 	Vector3 SurroundingMaxs;
+	[NetworkName("m_vecSpecifiedSurroundingMinsPreScaled")]
 	Vector3 SpecifiedSurroundingMinsPreScaled;
+	[NetworkName("m_vecSpecifiedSurroundingMaxsPreScaled")]
 	Vector3 SpecifiedSurroundingMaxsPreScaled;
+	[NetworkName("m_vecSpecifiedSurroundingMins")]
 	Vector3 SpecifiedSurroundingMins;
+	[NetworkName("m_vecSpecifiedSurroundingMaxs")]
 	Vector3 SpecifiedSurroundingMaxs;
 
 	public void UseTriggerBounds(bool enable, float bloat) {
@@ -853,7 +865,7 @@ public class CollisionProperty : ICollideable
 	public BaseEntity GetOuter() => Outer;
 
 #if CLIENT_DLL
-	public static RecvTable DT_CollisionProperty = new([
+	public static RecvTable DT_CollisionProperty = new(nameof(DT_CollisionProperty), [
 		RecvPropVector(FIELD.OF(nameof(MinsPreScaled)), 0, RecvProxy_OBBMinsPreScaled),
 		RecvPropVector(FIELD.OF(nameof(MaxsPreScaled)), 0, RecvProxy_OBBMaxPreScaled),
 		RecvPropVector(FIELD.OF(nameof(Mins)), 0),
@@ -868,9 +880,8 @@ public class CollisionProperty : ICollideable
 		RecvPropVector(FIELD.OF(nameof(SpecifiedSurroundingMaxs)), 0, RecvProxy_VectorDirtySurround),
 	]);
 
-	public static readonly ClientClass CC_CollisionProperty = new("CollisionProperty", null, null, DT_CollisionProperty);
 #else
-	public static SendTable DT_CollisionProperty = new([
+	public static SendTable DT_CollisionProperty = new(nameof(DT_CollisionProperty), [
 		SendPropVector(FIELD.OF(nameof(MinsPreScaled)), 0, PropFlags.NoScale),
 		SendPropVector(FIELD.OF(nameof(MaxsPreScaled)), 0, PropFlags.NoScale),
 		SendPropVector(FIELD.OF(nameof(Mins)), 0, PropFlags.NoScale),
@@ -886,7 +897,6 @@ public class CollisionProperty : ICollideable
 	]);
 
 
-	public static readonly ServerClass CC_CollisionProperty = new("CollisionProperty", DT_CollisionProperty);
 #endif
 }
 #endif

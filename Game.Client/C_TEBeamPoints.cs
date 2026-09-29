@@ -7,15 +7,18 @@ using System.Numerics;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEBeamPoints>;
+[NetworkName("CTEBeamPoints")]
 public class C_TEBeamPoints : C_BaseBeam
 {
 	public static readonly RecvTable DT_TEBeamPoints = new(DT_BaseBeam, [
 		RecvPropVector(FIELD.OF(nameof(StartPoint))),
 		RecvPropVector(FIELD.OF(nameof(EndPoint))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamPoints", DT_TEBeamPoints).AsEvent<C_TEBeamPoints>().WithManualClassID(StaticClassIndices.CTEBeamPoints);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBeamPoints).AsEvent<C_TEBeamPoints>();
 
+	[NetworkName("m_vecStartPoint")]
 	public Vector3 StartPoint;
+	[NetworkName("m_vecEndPoint")]
 	public Vector3 EndPoint;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

@@ -7,6 +7,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<BreakableSurface>;
+[NetworkName("CBreakableSurface")]
 public class BreakableSurface : BaseEntity
 {
 	public static readonly SendTable DT_BreakableSurface = new(DT_BaseEntity, [
@@ -18,17 +19,26 @@ public class BreakableSurface : BaseEntity
 		SendPropVector(FIELD.OF(nameof(VCorner)), 0, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(IsBroken)), 1, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(SurfaceType)), 2, PropFlags.Unsigned),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(RawPanelBitVec)), SendPropInt((IFieldAccessor)null!, 1, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned, sizeOfVar: sizeof(int))),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(RawPanelBitVec)), SendPropInt((IFieldAccessor)null!, 1, PropFlags.Unsigned, sizeOfVar: sizeof(int))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("BreakableSurface", DT_BreakableSurface).WithManualClassID(StaticClassIndices.CBreakableSurface);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BreakableSurface);
 
+	[NetworkName("m_nNumWide")]
 	public int NumWide;
+	[NetworkName("m_nNumHigh")]
 	public int NumHigh;
+	[NetworkName("m_flPanelWidth")]
 	public float PanelWidth;
+	[NetworkName("m_flPanelHeight")]
 	public float PanelHeight;
+	[NetworkName("m_vNormal")]
 	public Vector3 VNormal;
+	[NetworkName("m_vCorner")]
 	public Vector3 VCorner;
+	[NetworkName("m_bIsBroken")]
 	public int IsBroken;
+	[NetworkName("m_nSurfaceType")]
 	public int SurfaceType;
+	[NetworkName("m_RawPanelBitVec")]
 	public InlineArray256<int> RawPanelBitVec;
 }

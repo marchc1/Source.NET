@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
+[NetworkName("CBaseTempEntity")]
 public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 {
 	public static C_BaseTempEntity? GetDynamicList() => s_DynamicEntities;
@@ -41,7 +42,7 @@ public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 	private static C_BaseTempEntity? s_DynamicEntities;
 
 	public static readonly RecvTable DT_BaseTempEntity = new([]);
-	public static readonly ClientClass ClientClass = new ClientClass("BaseTempEntity", DT_BaseTempEntity).WithManualClassID(Shared.StaticClassIndices.CBaseTempEntity);
+	public static readonly ClientClass ClientClass = new ClientClass(DT_BaseTempEntity);
 
 	public int EntIndex() => 0;
 	public ClientClass GetClientClass() {

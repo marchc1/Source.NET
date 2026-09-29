@@ -25,13 +25,15 @@ using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
 namespace Game.Client;
 
+[NetworkName("CInfoLightingRelative")]
 public partial class C_InfoLightingRelative : C_BaseEntity
 {
 	public static readonly RecvTable DT_InfoLightingRelative = new(DT_BaseEntity, [
 		RecvPropEHandle(FIELD_ILR.OF(nameof(LightingLandmark))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_InfoLightingRelative);
 
+	[NetworkName("m_hLightingLandmark")]
 	public EHANDLE LightingLandmark = new();
 }
 
@@ -40,6 +42,7 @@ public static class C_BaseAnimatingGlobals
 	public const ClientSideAnimationListHandle_t INVALID_CLIENTSIDEANIMATION_LIST_HANDLE = unchecked((ClientSideAnimationListHandle_t)(~0));
 }
 
+[NetworkName("CBaseAnimating")]
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
 	// They did some REALLY weird stuff for access tags...
@@ -804,10 +807,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping) != 0;
 	}
 
-	public static readonly RecvTable DT_ServerAnimationData = new([
+	public static readonly RecvTable DT_ServerAnimationData = new(nameof(DT_ServerAnimationData), [
 		RecvPropFloat(FIELD.OF(nameof(Cycle))),
 	]);
-	public static readonly ClientClass CC_ServerAnimationData = new ClientClass("ServerAnimationData", null, null, DT_ServerAnimationData);
 	public static readonly new DataMap PredMap = new(typeof(C_BaseAnimating), C_BaseEntity.PredMap, [
 		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
@@ -866,7 +868,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public virtual void DoMuzzleFlash() => MuzzleFlashParity = unchecked((byte)((MuzzleFlashParity + 1) & ((1 << (int)EntityEffects.MuzzleflashBits) - 1)));
 
 
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimating", null, null, DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseAnimating);
 	protected override StudioHdr? OnNewModel() {
 		InvalidateMdlCache();
 		int i;
@@ -1731,37 +1733,61 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
+	[NetworkName("m_nSequence")]
 	public int Sequence;
+	[NetworkName("m_nForceBone")]
 	public int ForceBone;
+	[NetworkName("m_vecForce")]
 	public Vector3 Force;
+	[NetworkName("m_nSkin")]
 	public int Skin;
+	[NetworkName("m_nBody")]
 	public int Body;
+	[NetworkName("m_nHitboxSet")]
 	public int HitboxSet;
+	[NetworkName("m_flModelScale")]
 	public float ModelScale = 1.0f;
+	[NetworkName("m_flPlaybackRate")]
 	public float PlaybackRate;
+	[NetworkName("m_bClientSideAnimation")]
 	public bool ClientSideAnimation;
 	public bool LastClientSideFrameReset;
+	[NetworkName("m_bClientSideFrameReset")]
 	public bool ClientSideFrameReset;
+	[NetworkName("m_nNewSequenceParity")]
 	public int NewSequenceParity;
+	[NetworkName("m_nResetEventsParity")]
 	public int ResetEventsParity;
 	public byte OldMuzzleFlashParity;
+	[NetworkName("m_nMuzzleFlashParity")]
 	public byte MuzzleFlashParity;
+	[NetworkName("m_hLightingOrigin")]
 	public EHANDLE LightingOrigin = new();
+	[NetworkName("m_hLightingOriginRelative")]
 	public EHANDLE LightingOriginRelative = new();
+	[NetworkName("m_pBoneManipulator")]
 	public EHANDLE BoneManipulator = new();
+	[NetworkName("m_pFlexManipulator")]
 	public EHANDLE FlexManipulator = new();
+	[NetworkName("m_OverrideViewTarget")]
 	public Vector3 OverrideViewTarget;
+	[NetworkName("m_fadeMinDist")]
 	public float FadeMinDist;
+	[NetworkName("m_fadeMaxDist")]
 	public float FadeMaxDist;
+	[NetworkName("m_flFadeScale")]
 	public float FadeScale;
+	[NetworkName("m_flCycle")]
 	public TimeUnit_t Cycle;
 	public readonly InterpolatedVar<float> iv_Cycle;
 	public readonly InterpolatedVarArray<float> iv_flPoseParameter;
 
+	[NetworkName("m_flPoseParameter")]
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;
 	public int EventSequence;
+	[NetworkName("m_flEncodedController")]
 	public InlineArrayMaxStudioBoneCtrls<float> EncodedController;
 	public InlineArrayMaxStudioBoneCtrls<float> OldEncodedController;
 }

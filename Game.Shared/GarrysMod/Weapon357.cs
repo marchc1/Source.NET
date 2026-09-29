@@ -10,6 +10,7 @@ using FIELD = Source.FIELD<Weapon357>;
 
 [LinkEntityToClass("weapon_357")]
 [PrecacheWeaponRegister("weapon_357")]
+[NetworkName("CWeapon357")]
 public class Weapon357 : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -26,10 +27,10 @@ public class Weapon357 : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("Weapon357", null, null, DT_Weapon357).WithManualClassID(StaticClassIndices.CWeapon357);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_Weapon357);
 	public static readonly new DataMap PredMap = new([], typeof(Weapon357), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("Weapon357", DT_Weapon357).WithManualClassID(StaticClassIndices.CWeapon357);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Weapon357);
 #endif
 
 	public override void PrimaryAttack() {

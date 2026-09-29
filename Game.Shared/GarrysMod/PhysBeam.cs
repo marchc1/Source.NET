@@ -26,6 +26,7 @@ using Class =
 	ServerClass;
 #endif
 
+[NetworkName("CPhysBeam")]
 public partial class
 #if CLIENT_DLL
     C_PhysBeam 
@@ -54,11 +55,15 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("PhysBeam", DT_PhysBeam).WithManualClassID(StaticClassIndices.CPhysBeam);
+		= new Class(DT_PhysBeam);
 
+	[NetworkName("m_hTargetEnt")]
 	public EHANDLE TargetEnt = new();
+	[NetworkName("m_HoldPos")]
 	public Vector3 HoldPos;
+	[NetworkName("m_bIsOn")]
 	public bool IsOn;
+	[NetworkName("m_iPhysBone")]
 	public int PhysBone;
 }
 #endif

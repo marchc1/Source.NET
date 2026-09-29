@@ -220,7 +220,6 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public bool DLLInit(IServiceProvider services) {
-		StaticClassIndicesHelpers.DumpDatatablesCompleted();
 		BaseEdict.GetChangeAccessor += x => engine.GetChangeAccessor((Edict)x); // Kind of a hack, but this is defined in gameinterface.cpp like this...
 		g_SharedChangeInfo = engine.GetSharedEdictChangeInfo();
 

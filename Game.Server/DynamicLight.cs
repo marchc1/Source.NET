@@ -9,6 +9,7 @@ using static Source.Common.Networking.SVC_ClassInfo;
 
 using FIELD = FIELD<DynamicLight>;
 
+[NetworkName("CDynamicLight")]
 public class DynamicLight : BaseEntity
 {
 	public static readonly SendTable DT_DynamicLight = new(DT_BaseEntity, [
@@ -20,13 +21,20 @@ public class DynamicLight : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(OuterAngle)), 8, 0, 0.0f, 360.0f),
 		SendPropFloat(FIELD.OF(nameof(SpotRadius)), 0, PropFlags.NoScale),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("DynamicLight", DT_DynamicLight).WithManualClassID(StaticClassIndices.CDynamicLight);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_DynamicLight);
 
+	[NetworkName("m_Flags")]
 	public int Flags;
+	[NetworkName("m_LightStyle")]
 	public int LightStyle;
+	[NetworkName("m_Radius")]
 	public float Radius;
+	[NetworkName("m_Exponent")]
 	public int Exponent;
+	[NetworkName("m_InnerAngle")]
 	public float InnerAngle;
+	[NetworkName("m_OuterAngle")]
 	public float OuterAngle;
+	[NetworkName("m_SpotRadius")]
 	public float SpotRadius;
 }

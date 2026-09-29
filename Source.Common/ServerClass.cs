@@ -1,4 +1,4 @@
-﻿using Source.Common.Engine;
+using Source.Common.Engine;
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -22,6 +22,14 @@ public static class ServerClassRetriever
 	}
 }
 
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property)]
+public class NetworkNameAttribute(string name) : Attribute
+{
+	public readonly string Name = name;
+
+	public static string Get(Type t) => t.GetCustomAttribute<NetworkNameAttribute>(false)?.Name ?? throw new NullReferenceException($"{t.Name} is missing a {nameof(NetworkNameAttribute)}");
+}
+
 public class ServerClass
 {
 	public static ServerClass? Head;
@@ -31,14 +39,38 @@ public class ServerClass
 	public ServerClass? Next;
 	public int ClassID;
 	public int InstanceBaselineIndex = INetworkStringTable.INVALID_STRING_INDEX;
-	public ServerClass(ReadOnlySpan<char> networkName, SendTable table, [CallerArgumentExpression(nameof(table))] string? nameOfTable = null) {
-		NetworkName = new(networkName);
+	public ServerClass(SendTable table, [CallerArgumentExpression(nameof(table))] string? nameOfTable = null) {
+		NetworkName = NetworkNameAttribute.Get(WhoCalledMe(skipFrames: 2) ?? throw new NullReferenceException("This doesnt work as well as we hoped!"));
 		Table = table;
 		if (nameOfTable != null)
 			table.NetTableName = nameOfTable;
 
-		Next = Head;
-		Head = this;
+		Next = null;
+		InstanceBaselineIndex = INetworkStringTable.INVALID_STRING_INDEX;
+		if (Head == null) {
+			Head = this;
+			Next = null;
+		}
+		else {
+			ServerClass? p1 = Head;
+			ServerClass? p2 = p1.Next;
 
+			if (stricmp(p1.NetworkName, NetworkName) > 0) {
+				Next = Head;
+				Head = this;
+				p1 = null;
+			}
+
+			while (p1 != null) {
+				if (p2 == null || stricmp(p2.NetworkName, NetworkName) > 0) {
+					Next = p2;
+					p1.Next = this;
+					break;
+				}
+				p1 = p2;
+				p2 = p2.Next;
+			}
+		}
+		ClassID = -1;
 	}
 }

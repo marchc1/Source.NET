@@ -41,7 +41,7 @@ public class PlayerLocalData
 		DEFINE.PRED_FIELD( nameof(DuckToggled), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);
 
-	public static readonly RecvTable DT_Local = new([
+	public static readonly RecvTable DT_Local = new(nameof(DT_Local), [
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(AreaBits)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaBits)))),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(AreaPortalBits)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaPortalBits)))),
 		RecvPropInt(FIELD.OF(nameof(HideHUD))),
@@ -100,45 +100,74 @@ public class PlayerLocalData
 		RecvPropFloat(FIELD.OF(nameof(DuckSpeed))),
 		RecvPropFloat(FIELD.OF(nameof(UnDuckSpeed))),
 		RecvPropBool(FIELD.OF(nameof(DuckToggled))),
-	]); public static readonly ClientClass CC_Local = new ClientClass("Local", null, null, DT_Local);
+	]);
 
+	[NetworkName("m_fSprintSpeed")]
 	public float SprintSpeed = 400;
+	[NetworkName("m_fWalkSpeed")]
 	public float WalkSpeed = 200;
+	[NetworkName("m_fSlowWalkSpeed")]
 	public float SlowWalkSpeed = 100;
+	[NetworkName("m_fLadderSpeed")]
 	public float LadderSpeed = 200;
+	[NetworkName("m_fCrouchedWalkSpeed")]
 	public float CrouchedWalkSpeed = 0.3f;
+	[NetworkName("m_fDuckSpeed")]
 	public float DuckSpeed = 0.1f;
+	[NetworkName("m_fUnDuckSpeed")]
 	public float UnDuckSpeed = 0.1f;
+	[NetworkName("m_bDuckToggled")]
 	public bool DuckToggled;
 
 	// TODO: NETWORK VARS!!!!!
+	[NetworkName("m_chAreaBits")]
 	public InlineArrayMaxAreaStateBytes<byte> AreaBits;
+	[NetworkName("m_chAreaPortalBits")]
 	public InlineArrayMaxAreaPortalStateBytes<byte> AreaPortalBits;
+	[NetworkName("m_iHideHUD")]
 	public int HideHUD;
+	[NetworkName("m_flFOVRate")]
 	public float FOVRate;
+	[NetworkName("m_bDucked")]
 	public bool Ducked;
+	[NetworkName("m_bDucking")]
 	public bool Ducking;
+	[NetworkName("m_bInDuckJump")]
 	public bool InDuckJump;
+	[NetworkName("m_flDucktime")]
 	public float DuckTime;
+	[NetworkName("m_flDuckJumpTime")]
 	public float DuckJumpTime;
+	[NetworkName("m_flJumpTime")]
 	public float JumpTime;
 	public int StepSide;
+	[NetworkName("m_flFallVelocity")]
 	public float FallVelocity;
 	public int OldButtons;
 	public int OldForwardMove;
+	[NetworkName("m_vecPunchAngle")]
 	public QAngle PunchAngle;
 	public readonly InterpolatedVar<QAngle> iv_PunchAngle;
+	[NetworkName("m_vecPunchAngleVel")]
 	public QAngle PunchAngleVel;
 	public readonly InterpolatedVar<QAngle> iv_PunchAngleVel;
+	[NetworkName("m_bDrawViewmodel")]
 	public bool DrawViewmodel;
+	[NetworkName("m_bWearingSuit")]
 	public bool WearingSuit;
+	[NetworkName("m_bPoisoned")]
 	public bool Poisoned;
+	[NetworkName("m_flStepSize")]
 	public float StepSize;
+	[NetworkName("m_bAllowAutoMovement")]
 	public bool AllowAutoMovement;
 	public bool SlowMovement;
 
+	[NetworkName("m_skybox3d")]
 	public Sky3DParams Skybox3D = new();
+	[NetworkName("m_PlayerFog")]
 	public FogPlayerParams PlayerFog = new();
+	[NetworkName("m_audio")]
 	public AudioParams Audio = new();
 
 	public static readonly DynamicAccessor FIELD_PUNCHANGLE = FIELD.OF(nameof(PunchAngle));

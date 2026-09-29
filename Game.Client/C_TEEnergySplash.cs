@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEEnergySplash>;
+[NetworkName("CTEEnergySplash")]
 public class C_TEEnergySplash : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEEnergySplash = new([
@@ -11,10 +12,13 @@ public class C_TEEnergySplash : C_BaseTempEntity
 		RecvPropVector(FIELD.OF(nameof(Dir))),
 		RecvPropInt(FIELD.OF(nameof(Explosive))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEEnergySplash", DT_TEEnergySplash).WithManualClassID(StaticClassIndices.CTEEnergySplash);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEEnergySplash);
 
+	[NetworkName("m_vecPos")]
 	public Vector3 Pos;
+	[NetworkName("m_vecDir")]
 	public Vector3 Dir;
+	[NetworkName("m_bExplosive")]
 	public int Explosive;
 }
 

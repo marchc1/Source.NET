@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponGauss>;
+[NetworkName("CWeaponGauss")]
 public class WeaponGauss : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -28,15 +29,21 @@ public class WeaponGauss : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponGauss", null, null, DT_WeaponGauss).WithManualClassID(StaticClassIndices.CWeaponGauss);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponGauss);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponGauss", DT_WeaponGauss).WithManualClassID(StaticClassIndices.CWeaponGauss);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponGauss);
 #endif
+	[NetworkName("m_nAttackState")]
 	public int AttackState;
+	[NetworkName("m_bPrimaryFire")]
 	public bool PrimaryFire;
+	[NetworkName("m_flStartCharge")]
 	public TimeUnit_t StartCharge;
+	[NetworkName("m_flAmmoStartCharge")]
 	public TimeUnit_t AmmoStartCharge;
+	[NetworkName("m_flPlayAftershock")]
 	public TimeUnit_t PlayAftershock;
+	[NetworkName("m_flNextAmmoBurn")]
 	public TimeUnit_t NextAmmoBurn;
 }
 #endif

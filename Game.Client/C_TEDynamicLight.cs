@@ -7,6 +7,7 @@ using System.Numerics;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEDynamicLight>;
+[NetworkName("CTEDynamicLight")]
 public class C_TEDynamicLight : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEDynamicLight = new(DT_BaseTempEntity, [
@@ -19,15 +20,23 @@ public class C_TEDynamicLight : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Time))),
 		RecvPropFloat(FIELD.OF(nameof(Decay))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEDynamicLight", DT_TEDynamicLight).AsEvent<C_TEDynamicLight>().WithManualClassID(StaticClassIndices.CTEDynamicLight);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEDynamicLight).AsEvent<C_TEDynamicLight>();
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("r")]
 	public int R;
+	[NetworkName("g")]
 	public int G;
+	[NetworkName("b")]
 	public int B;
+	[NetworkName("exponent")]
 	public int Exponent;
+	[NetworkName("m_fRadius")]
 	public float Radius;
+	[NetworkName("m_fTime")]
 	public float Time;
+	[NetworkName("m_fDecay")]
 	public float Decay;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

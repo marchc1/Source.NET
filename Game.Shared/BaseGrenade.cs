@@ -9,6 +9,7 @@ using Source.Common;
 namespace Game.Shared;
 
 using FIELD = Source.FIELD<BaseGrenade>;
+[NetworkName("CBaseGrenade")]
 public partial class BaseGrenade : BaseProjectile
 {
 	public static readonly
@@ -35,14 +36,19 @@ public partial class BaseGrenade : BaseProjectile
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseGrenade", null, null, DT_BaseGrenade).WithManualClassID(StaticClassIndices.CBaseGrenade);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseGrenade);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseGrenade", DT_BaseGrenade).WithManualClassID(StaticClassIndices.CBaseGrenade);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseGrenade);
 #endif
+	[NetworkName("m_flDamage")]
 	public float Damage;
+	[NetworkName("m_DmgRadius")]
 	public float DmgRadius;
+	[NetworkName("m_bIsLive")]
 	public bool IsLive;
+	[NetworkName("m_hThrower")]
 	public EHANDLE Thrower = new();
+	[NetworkName("m_fFlags")]
 	public int Flags;
 }
 #endif

@@ -25,6 +25,7 @@ using Class =
 	ServerClass;
 #endif
 
+[NetworkName("CSENT_point")]
 public partial class
 #if CLIENT_DLL
     C_SENT_Point
@@ -33,11 +34,11 @@ public partial class
 #endif
 	: BaseEntity
 {
-	public static readonly Table DT_SENT_Point = new(DT_BaseEntity, [
+	public static readonly Table DT_SENT_point = new(DT_BaseEntity, [
 #if CLIENT_DLL
-		RecvPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		RecvPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #elif GAME_DLL
-		SendPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		SendPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #endif
 	]);
 
@@ -47,6 +48,6 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("SENT_Point", DT_SENT_Point).WithManualClassID(StaticClassIndices.CSENT_point);
+		= new Class(DT_SENT_point);
 }
 #endif

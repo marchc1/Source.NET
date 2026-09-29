@@ -6,6 +6,7 @@ using Source.Common.Mathematics;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<BaseToggle>;
+[NetworkName("CBaseToggle")]
 public class BaseToggle : BaseEntity
 {
 	public static readonly
@@ -26,12 +27,15 @@ public class BaseToggle : BaseEntity
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseToggle", null, null, DT_BaseToggle).WithManualClassID(StaticClassIndices.CBaseToggle);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseToggle);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseToggle", DT_BaseToggle).WithManualClassID(StaticClassIndices.CBaseToggle);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseToggle);
 #endif
+	[NetworkName("m_vecFinalDest")]
 	public Vector3 FinalDest;
+	[NetworkName("m_movementType")]
 	public int MovementType;
+	[NetworkName("m_flMoveTargetTime")]
 	public TimeUnit_t MoveTargetTime;
 
 #if GAME_DLL

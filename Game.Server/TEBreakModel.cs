@@ -7,6 +7,7 @@ using Source.Common.Mathematics;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBreakModel>;
+[NetworkName("CTEBreakModel")]
 public class TEBreakModel(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEBreakModel = new(DT_BaseTempEntity, [
@@ -19,18 +20,27 @@ public class TEBreakModel(ReadOnlySpan<char> name) : BaseTempEntity(name)
 		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
 		SendPropInt(FIELD.OF(nameof(Randomization)), 9, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Count)), 8, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(Time)), 10, 0),
+		SendPropFloat(FIELD.OF(nameof(Time)), 10, 0, 0, 102.4f),
 		SendPropInt(FIELD.OF(nameof(Flags)), 8, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEBreakModel", DT_TEBreakModel).WithManualClassID(StaticClassIndices.CTEBreakModel);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEBreakModel);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_angRotation")]
 	public QAngle Rotation;
+	[NetworkName("m_vecSize")]
 	public Vector3 Size;
+	[NetworkName("m_vecVelocity")]
 	public Vector3 Velocity;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_nRandomization")]
 	public int Randomization;
+	[NetworkName("m_nCount")]
 	public int Count;
+	[NetworkName("m_fTime")]
 	public float Time;
+	[NetworkName("m_nFlags")]
 	public int Flags;
 }

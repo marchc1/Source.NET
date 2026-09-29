@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEExplosion>;
+[NetworkName("CTEExplosion")]
 public class C_TEExplosion : C_TEParticleSystem
 {
 	public static readonly RecvTable DT_TEExplosion = new(DT_TEParticleSystem, [
@@ -12,15 +13,19 @@ public class C_TEExplosion : C_TEParticleSystem
 		RecvPropInt(FIELD.OF(nameof(Radius))),
 		RecvPropInt(FIELD.OF(nameof(Magnitude))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEExplosion", DT_TEExplosion).WithManualClassID(StaticClassIndices.CTEExplosion);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEExplosion);
 
 	public int ModelIndex;
+	[NetworkName("m_fScale")]
 	public float Scale;
 	public int FrameRate;
+	[NetworkName("m_nFlags")]
 	public int Flags;
 	public Vector3 Normal;
 	public int ChMaterialType;
+	[NetworkName("m_nRadius")]
 	public int Radius;
+	[NetworkName("m_nMagnitude")]
 	public int Magnitude;
 }
 

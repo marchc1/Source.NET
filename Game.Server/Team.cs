@@ -21,6 +21,7 @@ public static class TeamGlobals
 	}
 }
 
+[NetworkName("CTeam")]
 public class Team : BaseEntity
 {
 	public static readonly SendTable DT_Team = new([
@@ -30,7 +31,7 @@ public class Team : BaseEntity
 		SendPropString(FIELD.OF(nameof(Teamname))),
 
 		SendPropInt("player_array_element", 10, PropFlags.Unsigned, SendProxy_PlayerList, 4),
-		SendPropArray2(SendProxyArrayLength_PlayerArray, Constants.MAX_PLAYERS, "player_array")
+		SendPropArray2(SendProxyArrayLength_PlayerArray, Constants.MAX_PLAYERS, "\"player_array\"")
 	]);
 
 	private static int SendProxyArrayLength_PlayerArray(object instance, int objectID) => ((Team)instance).Players.Count;
@@ -46,7 +47,7 @@ public class Team : BaseEntity
 		throw new NotImplementedException();
 	}
 
-	public static readonly new ServerClass ServerClass = new ServerClass("Team", DT_Team).WithManualClassID(StaticClassIndices.CTeam);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Team);
 
 	public void AddPlayer(BasePlayer player) {
 		Players.Add(player);
@@ -61,10 +62,14 @@ public class Team : BaseEntity
 	public int GetNumPlayers() => Players.Count;
 
 	public readonly List<BasePlayer> Players = [];
+	[NetworkName("m_szTeamname")]
 	public InlineArray32<char> Teamname;
+	[NetworkName("m_iScore")]
 	public int Score;
+	[NetworkName("m_iRoundsWon")]
 	public int RoundsWon;
 	public int Deaths;
 	public int LastSpawn;
+	[NetworkName("m_iTeamNum")]
 	public new int TeamNum;
 }

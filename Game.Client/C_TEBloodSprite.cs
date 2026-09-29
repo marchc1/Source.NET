@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBloodSprite>;
+[NetworkName("CTEBloodSprite")]
 public class C_TEBloodSprite
 {
 	public static readonly RecvTable DT_TEBloodSprite = new([
@@ -15,16 +16,23 @@ public class C_TEBloodSprite
 		RecvPropInt(FIELD.OF(nameof(A))),
 		RecvPropInt(FIELD.OF(nameof(Size))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBloodSprite", DT_TEBloodSprite).WithManualClassID(StaticClassIndices.CTEBloodSprite);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBloodSprite);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vecDirection")]
 	public Vector3 Direction;
+	[NetworkName("r")]
 	public int R;
+	[NetworkName("g")]
 	public int G;
+	[NetworkName("b")]
 	public int B;
+	[NetworkName("a")]
 	public int A;
 	public int SprayModel;
 	public int DropModel;
+	[NetworkName("m_nSize")]
 	public int Size;
 }
 

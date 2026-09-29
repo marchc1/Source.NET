@@ -24,6 +24,7 @@ public enum BeamTypes
 }
 
 
+[NetworkName("CBeam")]
 public class
 #if CLIENT_DLL
 	C_Beam
@@ -139,28 +140,47 @@ public class
 		beam.Speed = val;
 	}
 
-	public static readonly new ClientClass ClientClass = new ClientClass("Beam", null, null, DT_Beam).WithManualClassID(StaticClassIndices.CBeam);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_Beam);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("Beam", DT_Beam).WithManualClassID(StaticClassIndices.CBeam);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Beam);
 #endif
+	[NetworkName("m_hAttachEntity")]
 	public InlineArrayNewMaxBeamEnts<EHANDLE> AttachEntity = new();
+	[NetworkName("m_nAttachIndex")]
 	public InlineArrayNewMaxBeamEnts<int> AttachIndex = new();
+	[NetworkName("m_nBeamType")]
 	public int BeamType;
+	[NetworkName("m_nBeamFlags")]
 	public int BeamFlags;
+	[NetworkName("m_nNumBeamEnts")]
 	public int NumBeamEnts;
+	[NetworkName("m_nMinDXLevel")]
 	public int MinDXLevel;
+	[NetworkName("m_nHaloIndex")]
 	public int HaloIndex;
+	[NetworkName("m_fHaloScale")]
 	public float HaloScale;
+	[NetworkName("m_fWidth")]
 	public float Width;
+	[NetworkName("m_fEndWidth")]
 	public float EndWidth;
+	[NetworkName("m_fFadeLength")]
 	public float FadeLength;
+	[NetworkName("m_fAmplitude")]
 	public float Amplitude;
+	[NetworkName("m_fStartFrame")]
 	public float StartFrame;
+	[NetworkName("m_fSpeed")]
 	public new float Speed;
+	[NetworkName("m_flFrameRate")]
 	public float FrameRate;
+	[NetworkName("m_flHDRColorScale")]
 	public float HDRColorScale;
+	[NetworkName("m_flFrame")]
 	public float Frame;
+	[NetworkName("m_clrRender")]
 	public Color RenderColor;
+	[NetworkName("m_vecEndPos")]
 	public Vector3 EndPos;
 }
 

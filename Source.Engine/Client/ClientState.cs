@@ -905,7 +905,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 	public void CheckFileCRCsWithServer() { }
 	public void SendClientInfo() {
 		CLC_ClientInfo info = new CLC_ClientInfo();
-		info.SendTableCRC = CLC.ClientInfoCRC;
+		info.SendTableCRC = (int)EngineSendTable.GetCRC();
 		info.ServerCount = ServerCount;
 		info.IsHLTV = false;
 		info.FriendsID = SteamUser.GetSteamID().m_SteamID;

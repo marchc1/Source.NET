@@ -9,6 +9,7 @@ using FIELD = Source.FIELD<WeaponShotgun>;
 
 [LinkEntityToClass("weapon_shotgun")]
 [PrecacheWeaponRegister("weapon_shotgun")]
+[NetworkName("CWeaponShotgun")]
 public class WeaponShotgun : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -31,14 +32,18 @@ public class WeaponShotgun : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponShotgun", null, null, DT_WeaponShotgun).WithManualClassID(StaticClassIndices.CWeaponShotgun);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponShotgun);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponShotgun), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponShotgun", DT_WeaponShotgun).WithManualClassID(StaticClassIndices.CWeaponShotgun);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponShotgun);
 #endif
+	[NetworkName("m_bNeedPump")]
 	public bool NeedPump;
+	[NetworkName("m_bDelayedFire1")]
 	public bool DelayedFire1;
+	[NetworkName("m_bDelayedFire2")]
 	public bool DelayedFire2;
+	[NetworkName("m_bDelayedReload")]
 	public bool DelayedReload;
 	public WeaponShotgun() {
 		ReloadsSingly = true;

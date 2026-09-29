@@ -13,6 +13,7 @@ public static class PlayerResourceGlobals{
 }
 
 [LinkEntityToClass("player_manager")]
+[NetworkName("CPlayerResource")]
 public class PlayerResource : BaseEntity
 {
 
@@ -26,14 +27,22 @@ public class PlayerResource : BaseEntity
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Health)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Health), 0), 32, PropFlags.VarInt | PropFlags.Unsigned | PropFlags.Normal ) ),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Armor)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Health), 0), 32, PropFlags.Unsigned) ),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("PlayerResource", DT_PlayerResource).WithManualClassID(StaticClassIndices.CPlayerResource);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_PlayerResource);
 
+	[NetworkName("m_iPing")]
 	InlineArrayMaxPlayersPlusOne<int> Ping = new();
+	[NetworkName("m_iScore")]
 	InlineArrayMaxPlayersPlusOne<int> Score = new();
+	[NetworkName("m_iDeaths")]
 	InlineArrayMaxPlayersPlusOne<int> Deaths = new();
+	[NetworkName("m_bConnected")]
 	InlineArrayMaxPlayersPlusOne<bool> Connected = new();
+	[NetworkName("m_iTeam")]
 	InlineArrayMaxPlayersPlusOne<int> Team = new();
+	[NetworkName("m_bAlive")]
 	InlineArrayMaxPlayersPlusOne<bool> Alive = new();
+	[NetworkName("m_iHealth")]
 	new InlineArrayMaxPlayersPlusOne<int> Health = new();
+	[NetworkName("m_iArmor")]
 	InlineArrayMaxPlayersPlusOne<int> Armor = new();
 }

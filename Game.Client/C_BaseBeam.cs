@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_BaseBeam>;
+[NetworkName("CTEBaseBeam")]
 public class C_BaseBeam : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_BaseBeam = new([
@@ -23,21 +24,36 @@ public class C_BaseBeam : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(A))),
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBaseBeam", DT_BaseBeam).WithManualClassID(StaticClassIndices.CTEBaseBeam);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_BaseBeam);
 
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_nHaloIndex")]
 	public int HaloIndex;
+	[NetworkName("m_nStartFrame")]
 	public int StartFrame;
+	[NetworkName("m_nFrameRate")]
 	public int FrameRate;
+	[NetworkName("m_fLife")]
 	public float Life;
+	[NetworkName("m_fWidth")]
 	public float Width;
+	[NetworkName("m_fEndWidth")]
 	public float EndWidth;
+	[NetworkName("m_nFadeLength")]
 	public int FadeLength;
+	[NetworkName("m_fAmplitude")]
 	public float Amplitude;
+	[NetworkName("m_nSpeed")]
 	public int Speed;
+	[NetworkName("r")]
 	public int R;
+	[NetworkName("g")]
 	public int G;
+	[NetworkName("b")]
 	public int B;
+	[NetworkName("a")]
 	public int A;
+	[NetworkName("m_nFlags")]
 	public int Flags;
 }

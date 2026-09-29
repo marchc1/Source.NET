@@ -4,15 +4,18 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_EnvDetailController>;
+[NetworkName("CEnvDetailController")]
 public class C_EnvDetailController : C_BaseEntity
 {
-	public static readonly RecvTable DT_EnvDetailController = new([
+	public static readonly RecvTable DT_DetailController = new([
 		RecvPropFloat(FIELD.OF(nameof(FadeStartDist))),
 		RecvPropFloat(FIELD.OF(nameof(FadeEndDist))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("EnvDetailController", DT_EnvDetailController).WithManualClassID(StaticClassIndices.CEnvDetailController);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_DetailController);
 
+	[NetworkName("m_flFadeStartDist")]
 	public float FadeStartDist;
+	[NetworkName("m_flFadeEndDist")]
 	public float FadeEndDist;
 
 	static C_EnvDetailController? s_DetailController;

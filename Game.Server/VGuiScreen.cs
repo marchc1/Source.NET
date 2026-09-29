@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VGuiScreen>;
+[NetworkName("CVGuiScreen")]
 public class VGuiScreen : BaseEntity
 {
 	public static readonly SendTable DT_VGuiScreen = new(DT_BaseEntity, [
@@ -15,13 +16,20 @@ public class VGuiScreen : BaseEntity
 		SendPropInt(FIELD.OF(nameof(OverlayMaterial)), 10, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(HPlayerOwner))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("VGuiScreen", DT_VGuiScreen).WithManualClassID(StaticClassIndices.CVGuiScreen);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_VGuiScreen);
 
+	[NetworkName("m_flWidth")]
 	public float Width;
+	[NetworkName("m_flHeight")]
 	public float Height;
+	[NetworkName("m_nAttachmentIndex")]
 	public int AttachmentIndex;
+	[NetworkName("m_nPanelName")]
 	public int PanelName;
+	[NetworkName("m_fScreenFlags")]
 	public int ScreenFlags;
+	[NetworkName("m_nOverlayMaterial")]
 	public int OverlayMaterial;
+	[NetworkName("m_hPlayerOwner")]
 	public EHANDLE HPlayerOwner = new();
 }

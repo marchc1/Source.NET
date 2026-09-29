@@ -23,6 +23,7 @@ public static class GMOD_PlayerGlobals
 }
 
 [LinkEntityToClass("player")]
+[NetworkName("CGMOD_Player")]
 public partial class GMOD_Player : HL2MP_Player
 {
 	public static GMOD_Player? CreatePlayer(ReadOnlySpan<char> classname, Edict ed) {
@@ -41,7 +42,7 @@ public partial class GMOD_Player : HL2MP_Player
 		SendPropBool(FIELD.OF(nameof(IsTyping))),
 		SendPropFloat(FIELD.OF(nameof(StepSize)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(JumpPower)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(ViewOffset)), 0, PropFlags.NoScale),
+		SendPropVector(FIELD.OF_NAMED(nameof(ViewOffset), "m_ViewOffset"), 0, PropFlags.NoScale),
 		SendPropVector(FIELD.OF(nameof(ViewOffsetDucked)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(GestureEndTime)), 0, PropFlags.NoScale),
 		SendPropVector(FIELD.OF(nameof(PlayerColor)), 0, PropFlags.NoScale),
@@ -52,31 +53,49 @@ public partial class GMOD_Player : HL2MP_Player
 		SendPropFloat(FIELD.OF(nameof(Gravity)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(SprintEnabled))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("GMOD_Player", DT_GMOD_Player)
-															.WithManualClassID(StaticClassIndices.CGMOD_Player);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_GMOD_Player);
 
 	public override void InitialSpawn() {
 		base.InitialSpawn();
 	}
 
+	[NetworkName("m_iGModPlayerFlags")]
 	public int GModPlayerFlags;
+	[NetworkName("m_HoveredWidget")]
 	public EHANDLE HoveredWidget = new();
+	[NetworkName("m_PressedWidget")]
 	public EHANDLE PressedWidget = new();
+	[NetworkName("m_Driving")]
 	public EHANDLE Driving = new();
+	[NetworkName("m_DrivingMode")]
 	public int DrivingMode;
+	[NetworkName("m_PlayerClass")]
 	public int PlayerClass;
+	[NetworkName("m_bCanZoom")]
 	public bool CanZoom = true;
+	[NetworkName("m_bCanWalk")]
 	public bool CanWalk = true;
+	[NetworkName("m_bIsTyping")]
 	public bool IsTyping;
+	[NetworkName("m_StepSize")]
 	public float StepSize = 18;
+	[NetworkName("m_JumpPower")]
 	public float JumpPower = 200;
+	[NetworkName("m_ViewOffsetDucked")]
 	public Vector3 ViewOffsetDucked;
+	[NetworkName("m_fGestureEndTime")]
 	public float GestureEndTime;
+	[NetworkName("m_PlayerColor")]
 	public Vector3 PlayerColor = new(255, 255, 255);
+	[NetworkName("m_WeaponColor")]
 	public Vector3 WeaponColor = new(255, 255, 255);
+	[NetworkName("m_Hands")]
 	public EHANDLE Hands = new();
+	[NetworkName("m_iMaxArmor")]
 	public int MaxArmor;
+	[NetworkName("m_flGravity")]
 	public float Gravity;
+	[NetworkName("m_bSprintEnabled")]
 	public bool SprintEnabled;
 
 	public override void PlayerRunCommand(UserCmd ucmd, IMoveHelper moveHelper) {

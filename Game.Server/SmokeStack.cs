@@ -6,11 +6,15 @@ namespace Game.Server;
 using FIELD = FIELD<SmokeStack>;
 
 public struct SmokeStackLightInfo{
+	[NetworkName("m_vPos")]
 	public Vector3 Pos;
+	[NetworkName("m_vColor")]
 	public Vector3 Color;
+	[NetworkName("m_flIntensity")]
 	public float Intensity;
 }
 
+[NetworkName("CSmokeStack")]
 public class SmokeStack : BaseParticleEntity
 {
 	public static readonly SendTable DT_SmokeStack = new(DT_BaseParticleEntity, [
@@ -33,22 +37,36 @@ public class SmokeStack : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(Twist)), 0, PropFlags.NoScale),
 		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(MaterialModel)), 16),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("SmokeStack", DT_SmokeStack).WithManualClassID(StaticClassIndices.CSmokeStack);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_SmokeStack);
 
+	[NetworkName("m_SpreadSpeed")]
 	public float SpreadSpeed;
+	[NetworkName("m_Speed")]
 	public new float Speed;
+	[NetworkName("m_StartSize")]
 	public float StartSize;
+	[NetworkName("m_EndSize")]
 	public float EndSize;
+	[NetworkName("m_Rate")]
 	public float Rate;
+	[NetworkName("m_JetLength")]
 	public float JetLength;
+	[NetworkName("m_bEmit")]
 	public bool Emit;
+	[NetworkName("m_flBaseSpread")]
 	public float BaseSpread;
+	[NetworkName("m_flRollSpeed")]
 	public float RollSpeed;
 
+	[NetworkName("m_AmbientLight")]
 	public SmokeStackLightInfo AmbientLight;
+	[NetworkName("m_DirLight")]
 	public SmokeStackLightInfo DirLight;
 
+	[NetworkName("m_vWind")]
 	public Vector3 Wind;
+	[NetworkName("m_flTwist")]
 	public float Twist;
+	[NetworkName("m_iMaterialModel")]
 	public int MaterialModel;
 }

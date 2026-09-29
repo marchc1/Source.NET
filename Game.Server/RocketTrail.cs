@@ -4,13 +4,14 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<RocketTrail>;
+[NetworkName("RocketTrail")]
 public class RocketTrail : BaseParticleEntity
 {
 	public static readonly SendTable DT_RocketTrail = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpawnRate)), 8, 0),
-		SendPropVector(FIELD.OF(nameof(StartColor)), 8, 0),
-		SendPropVector(FIELD.OF(nameof(EndColor)), 8, 0),
-		SendPropFloat(FIELD.OF(nameof(ParticleLifetime)), 16, PropFlags.RoundUp),
+		SendPropFloat(FIELD.OF(nameof(SpawnRate)), 8, 0, 1, 1024),
+		SendPropVector(FIELD.OF(nameof(StartColor)), 8, 0, 0, 1),
+		SendPropVector(FIELD.OF(nameof(EndColor)), 8, 0, 0, 1),
+		SendPropFloat(FIELD.OF(nameof(ParticleLifetime)), 16, PropFlags.RoundUp, 0.1f, 100),
 		SendPropFloat(FIELD.OF(nameof(StopEmitTime)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MinSpeed)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MaxSpeed)), 0, PropFlags.NoScale),
@@ -23,21 +24,36 @@ public class RocketTrail : BaseParticleEntity
 		SendPropBool(FIELD.OF(nameof(Damaged))),
 		SendPropFloat(FIELD.OF(nameof(FlareScale)), 0, PropFlags.NoScale),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("RocketTrail", DT_RocketTrail).WithManualClassID(StaticClassIndices.RocketTrail);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_RocketTrail);
 
+	[NetworkName("m_SpawnRate")]
 	public float SpawnRate;
+	[NetworkName("m_StartColor")]
 	public Vector3 StartColor;
+	[NetworkName("m_EndColor")]
 	public Vector3 EndColor;
+	[NetworkName("m_ParticleLifetime")]
 	public float ParticleLifetime;
+	[NetworkName("m_StopEmitTime")]
 	public float StopEmitTime;
+	[NetworkName("m_MinSpeed")]
 	public float MinSpeed;
+	[NetworkName("m_MaxSpeed")]
 	public float MaxSpeed;
+	[NetworkName("m_StartSize")]
 	public float StartSize;
+	[NetworkName("m_EndSize")]
 	public float EndSize;
+	[NetworkName("m_SpawnRadius")]
 	public float SpawnRadius;
+	[NetworkName("m_bEmit")]
 	public bool Emit;
+	[NetworkName("m_nAttachment")]
 	public int Attachment;
+	[NetworkName("m_Opacity")]
 	public float Opacity;
+	[NetworkName("m_bDamaged")]
 	public bool Damaged;
+	[NetworkName("m_flFlareScale")]
 	public float FlareScale;
 }

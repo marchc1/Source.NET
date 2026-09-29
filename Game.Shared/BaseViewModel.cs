@@ -19,6 +19,7 @@ using System.Numerics;
 using DEFINE = Source.DEFINE<BaseViewModel>;
 using FIELD = Source.FIELD<BaseViewModel>;
 
+[NetworkName("CBaseViewModel")]
 public partial class
 #if CLIENT_DLL
 	C_BaseViewModel
@@ -78,7 +79,7 @@ public partial class
 			SendPropInt(FIELD.OF(nameof(ResetEventsParity)), (int)EntityEffects.ParityBits, PropFlags.Unsigned ),
 			SendPropInt(FIELD.OF(nameof(MuzzleFlashParity)), (int)EntityEffects.MuzzleflashBits, PropFlags.Unsigned ),
 
-			SendPropFloat(FIELD.OF_ARRAYINDEX(nameof(PoseParameter), 0), 8, 0, 0.0f, 1.0f),
+			SendPropFloat(FIELD.OF_SENDINFO_ARRAY(nameof(PoseParameter)), 8, 0, 0.0f, 1.0f),
 			SendPropArray(FIELD.OF_ARRAY(nameof(PoseParameter))),
 #endif
 		]);
@@ -108,15 +109,19 @@ public partial class
 			model.SetCycle(0);
 		}
 	}
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseViewModel", null, null, DT_BaseViewModel).WithManualClassID(StaticClassIndices.CBaseViewModel);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseViewModel);
 #else
 #pragma warning disable CS0109 // Member does not hide an inherited member; new keyword is not required
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseViewModel", DT_BaseViewModel).WithManualClassID(StaticClassIndices.CBaseViewModel);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseViewModel);
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
+	[NetworkName("m_nViewModelIndex")]
 	public int _ViewModelIndex;
+	[NetworkName("m_hOwner")]
 	public EHANDLE Owner = new();
+	[NetworkName("m_hWeapon")]
 	public Handle<BaseCombatWeapon> Weapon = new();
+	[NetworkName("m_nAnimationParity")]
 	public int AnimationParity;
 
 	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();

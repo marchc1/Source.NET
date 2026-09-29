@@ -9,6 +9,7 @@ namespace Game.Client;
 using FIELD = FIELD<C_TEBeamSpline>;
 
 
+[NetworkName("CTEBeamSpline")]
 public class C_TEBeamSpline : C_BaseTempEntity
 {
 	public const int MAX_SPLINE_POINTS = 16;
@@ -17,9 +18,11 @@ public class C_TEBeamSpline : C_BaseTempEntity
 		RecvPropVector(FIELD.OF_ARRAYINDEX(nameof(Points), 0)),
 		RecvPropArray(FIELD.OF_ARRAY(nameof(Points))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamSpline", DT_TEBeamSpline).AsEvent<C_TEBeamSpline>().WithManualClassID(StaticClassIndices.CTEBeamSpline);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBeamSpline).AsEvent<C_TEBeamSpline>();
 
+	[NetworkName("m_nPoints")]
 	public int NumPoints;
+	[NetworkName("m_vecPoints")]
 	public InlineArrayMaxSplinePoints<Vector3> Points;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

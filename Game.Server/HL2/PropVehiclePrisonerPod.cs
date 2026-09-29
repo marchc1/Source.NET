@@ -7,6 +7,7 @@ using System.Numerics;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<PropVehiclePrisonerPod>;
+[NetworkName("CPropVehiclePrisonerPod")]
 public class PropVehiclePrisonerPod : PhysicsProp
 {
 	public static readonly SendTable DT_PropVehiclePrisonerPod = new(DT_PhysicsProp, [
@@ -17,12 +18,18 @@ public class PropVehiclePrisonerPod : PhysicsProp
 		SendPropBool(FIELD.OF(nameof(LimitView))),
 		SendPropBool(FIELD.OF(nameof(Locked))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("PropVehiclePrisonerPod", DT_PropVehiclePrisonerPod).WithManualClassID(StaticClassIndices.CPropVehiclePrisonerPod);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropVehiclePrisonerPod);
 
+	[NetworkName("m_hPlayer")]
 	public EHANDLE Player = new();
+	[NetworkName("m_bEnterAnimOn")]
 	public bool EnterAnimOn = new();
+	[NetworkName("m_bExitAnimOn")]
 	public bool ExitAnimOn = new();
+	[NetworkName("m_vecEyeExitEndpoint")]
 	public Vector3 EyeExitEndpoint = new();
+	[NetworkName("m_bLimitView")]
 	public bool LimitView = new();
+	[NetworkName("m_bLocked")]
 	public bool Locked;
 }

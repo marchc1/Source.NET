@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_Strider>;
+[NetworkName("CNPC_Strider")]
 public class NPC_Strider : AI_BaseNPC
 {
 	public static readonly SendTable DT_NPC_Strider = new(DT_AI_BaseNPC, [
@@ -15,8 +16,10 @@ public class NPC_Strider : AI_BaseNPC
 		SendPropVector(FIELD.OF_ARRAYINDEX(nameof(IKTarget), 4), 0, PropFlags.Coord),
 		SendPropVector(FIELD.OF_ARRAYINDEX(nameof(IKTarget), 5), 0, PropFlags.Coord),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("NPC_Strider", DT_NPC_Strider).WithManualClassID(StaticClassIndices.CNPC_Strider);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_NPC_Strider);
 
+	[NetworkName("m_vecHitPos")]
 	public Vector3 HitPos;
+	[NetworkName("m_vecIKTarget")]
 	public InlineArray6<Vector3> IKTarget;
 }

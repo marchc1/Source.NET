@@ -6,22 +6,38 @@ namespace Game.Server;
 
 using FIELD = FIELD<PropVehicleChoreoGeneric>;
 
+[NetworkName("CPropVehicleChoreoGeneric")]
 public class PropVehicleChoreoGeneric : DynamicProp
 {
+	[NetworkName("m_hPlayer")]
 	public EHANDLE Player;
+	[NetworkName("m_bEnterAnimOn")]
 	public bool EnterAnimOn;
+	[NetworkName("m_bExitAnimOn")]
 	public bool ExitAnimOn;
+	[NetworkName("m_bForceEyesToAttachment")]
 	public bool ForceEyesToAttachment;
+	[NetworkName("m_vecEyeExitEndpoint")]
 	public Vector3 EyeExitEndpoint;
+	[NetworkName("m_vehicleView.bClampEyeAngles")]
 	public bool VehicleViewClampEyeAngles;
+	[NetworkName("m_vehicleView.flPitchCurveZero")]
 	public float VehicleViewPitchCurveZero;
+	[NetworkName("m_vehicleView.flPitchCurveLinear")]
 	public float VehicleViewPitchCurveLinear;
+	[NetworkName("m_vehicleView.flRollCurveZero")]
 	public float VehicleViewRollCurveZero;
+	[NetworkName("m_vehicleView.flRollCurveLinear")]
 	public float VehicleViewRollCurveLinear;
+	[NetworkName("m_vehicleView.flFOV")]
 	public float VehicleViewFOV;
+	[NetworkName("m_vehicleView.flYawMin")]
 	public float VehicleViewYawMin;
+	[NetworkName("m_vehicleView.flYawMax")]
 	public float VehicleViewYawMax;
+	[NetworkName("m_vehicleView.flPitchMin")]
 	public float VehicleViewPitchMin;
+	[NetworkName("m_vehicleView.flPitchMax")]
 	public float VehicleViewPitchMax;
 
 	public static readonly SendTable DT_PropVehicleChoreoGeneric = new(DT_DynamicProp, [
@@ -41,5 +57,5 @@ public class PropVehicleChoreoGeneric : DynamicProp
 		SendPropFloat(FIELD.OF(nameof(VehicleViewPitchMin)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(VehicleViewPitchMax)), 0, PropFlags.NoScale),
 	]);
-	public static new readonly ServerClass ServerClass = new ServerClass("PropVehicleChoreoGeneric", DT_PropVehicleChoreoGeneric).WithManualClassID(Shared.StaticClassIndices.CPropVehicleChoreoGeneric);
+	public static new readonly ServerClass ServerClass = new ServerClass(DT_PropVehicleChoreoGeneric);
 }

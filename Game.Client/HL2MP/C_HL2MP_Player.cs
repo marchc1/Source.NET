@@ -17,6 +17,7 @@ using FIELD = FIELD<C_HL2MP_Player>;
 using FIELD_RD = FIELD<C_HL2MPRagdoll>;
 
 [LinkEntityToClass("player")]
+[NetworkName("CHL2MP_Player")]
 public partial class C_HL2MP_Player : C_BaseHLPlayer
 {
 	static ConVar cl_playermodel = new("none", FCvar.UserInfo | FCvar.Archive | FCvar.ServerCanExecute, "Default Player Model");
@@ -26,19 +27,19 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		DEFINE.PRED_FIELD( nameof(IsWalking), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;
 
-	public static readonly RecvTable DT_HL2MPLocalPlayerExclusive = new([
-		RecvPropVector(FIELD.OF_NAMED(nameof(NetworkOrigin), nameof(Origin))),
+	public static readonly RecvTable DT_HL2MPLocalPlayerExclusive = new(nameof(DT_HL2MPLocalPlayerExclusive), [
+		RecvPropVector(FIELD.OF_NAMED(nameof(NetworkOrigin), "m_vecOrigin")),
 
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0)),
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1)),
-	]); public static readonly ClientClass CC_HL2MPLocalPlayerExclusive = new ClientClass("HL2MPLocalPlayerExclusive", null, null, DT_HL2MPLocalPlayerExclusive);
+	]);
 
-	public static readonly RecvTable DT_HL2MPNonLocalPlayerExclusive = new([
-		RecvPropVector(FIELD.OF_NAMED(nameof(NetworkOrigin), nameof(Origin))),
+	public static readonly RecvTable DT_HL2MPNonLocalPlayerExclusive = new(nameof(DT_HL2MPNonLocalPlayerExclusive), [
+		RecvPropVector(FIELD.OF_NAMED(nameof(NetworkOrigin), "m_vecOrigin")),
 
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0)),
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1)),
-	]); public static readonly ClientClass CC_HL2MPNonLocalPlayerExclusive = new ClientClass("HL2MPNonLocalPlayerExclusive", null, null, DT_HL2MPNonLocalPlayerExclusive);
+	]);
 
 
 	public static readonly RecvTable DT_HL2MP_Player = new(DT_BasePlayer, [
@@ -48,16 +49,19 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		RecvPropInt(FIELD.OF(nameof(SpawnInterpCounter))),
 		RecvPropBool(FIELD.OF(nameof(IsWalking)))
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)
-															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_HL2MP_Player);
 
 	public readonly HL2MPPlayerAnimState PlayerAnimState;
+	[NetworkName("m_angEyeAngles")]
 	public QAngle AngEyeAngles;
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
+	[NetworkName("m_hRagdoll")]
 	public new EHANDLE Ragdoll = new();
+	[NetworkName("m_iSpawnInterpCounter")]
 	public int SpawnInterpCounter;
 	public int SpawnInterpCounterCache;
 	public int PlayerSoundType;
+	[NetworkName("m_fIsWalking")]
 	public bool IsWalking;
 
 	public C_HL2MP_Player() : base() {
@@ -114,6 +118,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public override ref readonly QAngle GetRenderAngles() => ref PlayerAnimState.GetRenderAngles();
 }
 
+[NetworkName("CHL2MPRagdoll")]
 public class C_HL2MPRagdoll : C_BaseAnimatingOverlay
 {
 	public static readonly RecvTable DT_HL2MPRagdoll = new([
@@ -124,9 +129,12 @@ public class C_HL2MPRagdoll : C_BaseAnimatingOverlay
 		RecvPropVector(FIELD_RD.OF(nameof(Force))),
 		RecvPropVector(FIELD_RD.OF(nameof(RagdollVelocity)))
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("HL2MPRagdoll", null, null, DT_HL2MPRagdoll).WithManualClassID(StaticClassIndices.CHL2MPRagdoll);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_HL2MPRagdoll);
 
+	[NetworkName("m_vecRagdollOrigin")]
 	public Vector3 RagdollOrigin;
+	[NetworkName("m_hPlayer")]
 	public EHANDLE Player = new();
+	[NetworkName("m_vecRagdollVelocity")]
 	public Vector3 RagdollVelocity;
 }

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_FireSmoke>;
+[NetworkName("CFireSmoke")]
 public class C_FireSmoke : C_BaseEntity
 {
 	public static readonly RecvTable DT_FireSmoke = new(DT_BaseEntity, [
@@ -16,12 +17,18 @@ public class C_FireSmoke : C_BaseEntity
 		RecvPropInt(FIELD.OF(nameof(FlameModelIndex))),
 		RecvPropInt(FIELD.OF(nameof(FlameFromAboveModelIndex))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("FireSmoke", DT_FireSmoke).WithManualClassID(StaticClassIndices.CFireSmoke);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_FireSmoke);
 
+	[NetworkName("m_flStartScale")]
 	public float StartScale;
+	[NetworkName("m_flScale")]
 	public float Scale;
+	[NetworkName("m_flScaleTime")]
 	public float ScaleTime;
+	[NetworkName("m_nFlags")]
 	public int Flags;
+	[NetworkName("m_nFlameModelIndex")]
 	public int FlameModelIndex;
+	[NetworkName("m_nFlameFromAboveModelIndex")]
 	public int FlameFromAboveModelIndex;
 }

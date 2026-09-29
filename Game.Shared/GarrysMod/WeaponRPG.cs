@@ -8,6 +8,7 @@ using FIELD = Source.FIELD<WeaponRPG>;
 
 [LinkEntityToClass("weapon_rpg")]
 [PrecacheWeaponRegister("weapon_rpg")]
+[NetworkName("CWeaponRPG")]
 public class WeaponRPG : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -33,20 +34,26 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponRPG", null, null, DT_WeaponRPG).WithManualClassID(StaticClassIndices.CWeaponRPG);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponRPG);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponRPG), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponRPG", DT_WeaponRPG).WithManualClassID(StaticClassIndices.CWeaponRPG);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponRPG);
 #endif
+	[NetworkName("m_bInitialStateUpdate")]
 	public bool InitialStateUpdate;
+	[NetworkName("m_bGuiding")]
 	public bool Guiding;
+	[NetworkName("m_bHideGuiding")]
 	public bool HideGuiding;
+	[NetworkName("m_hMissile")]
 	public EHANDLE Missile = new();
+	[NetworkName("m_vecLaserDot")]
 	public Vector3 LaserDot;
 	public override float GetFireRate() => 1f;
 }
 
 [LinkEntityToClass("env_laserdot")]
+[NetworkName("CLaserDot")]
 public class LaserDot : BaseEntity
 {
 	public static readonly
@@ -57,9 +64,9 @@ public class LaserDot : BaseEntity
 #endif
 		DT_LaserDot = new(DT_BaseEntity, []);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("LaserDot", null, null, DT_LaserDot).WithManualClassID(StaticClassIndices.CLaserDot);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_LaserDot);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("LaserDot", DT_LaserDot).WithManualClassID(StaticClassIndices.CLaserDot);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_LaserDot);
 #endif
 }
 #endif

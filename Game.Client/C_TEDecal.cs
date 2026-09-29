@@ -6,6 +6,7 @@ using Source.Engine;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEDecal>;
+[NetworkName("CTEDecal")]
 public class C_TEDecal : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEDecal = new(DT_BaseTempEntity, [
@@ -15,12 +16,17 @@ public class C_TEDecal : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(Hitbox))),
 		RecvPropInt(FIELD.OF(nameof(Index))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEDecal", DT_TEDecal).AsEvent<C_TEDecal>().WithManualClassID(StaticClassIndices.CTEDecal);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vecStart")]
 	public Vector3 Start;
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nHitbox")]
 	public int Hitbox;
+	[NetworkName("m_nIndex")]
 	public int Index;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

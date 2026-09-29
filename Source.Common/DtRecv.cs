@@ -165,7 +165,7 @@ public static class RecvPropHelpers
 	}
 
 	private static RecvProp RecvPropVariableLengthArray(ArrayLengthRecvProxyFn? fn, DynamicArrayAccessor accessor) {
-		return InternalRecvPropArray(accessor.Length, accessor.Name, null);
+		return InternalRecvPropArray(accessor.Length, accessor.NetworkName, null);
 	}
 
 	public static RecvProp RecvPropString(IFieldAccessor field, int bufferSize = -1, PropFlags flags = 0, RecvVarProxyFn? proxyFn = null) {
@@ -222,7 +222,7 @@ public static class RecvPropHelpers
 		lengthProp = RecvPropInt($"lengthprop{maxElements}", 0, RecvProxy_UtlVectorLength);
 		lengthProp.SetExtraData(extraData);
 
-		string lengthProxyTableName = DtUtlVectorCommon.AllocateUniqueDataTableName(false, $"_LPT_{field.Name}_{maxElements}");
+		string lengthProxyTableName = DtUtlVectorCommon.AllocateUniqueDataTableName(false, $"_LPT_{((field as DynamicAccessor)?.NetworkName ?? field.Name)}_{maxElements}");
 		RecvTable lengthTable = new RecvTable(lengthProxyTableName, [lengthProp]);
 		props[0] = RecvPropDataTable("lengthproxy", null, lengthTable, 0, DataTableRecvProxy_LengthProxy);
 		props[0].SetExtraData(extraData);
@@ -244,7 +244,7 @@ public static class RecvPropHelpers
 			}
 		}
 
-		RecvTable table = new RecvTable(DtUtlVectorCommon.AllocateUniqueDataTableName(false, $"_ST_{field.Name}_{maxElements}"), props); 
+		RecvTable table = new RecvTable(DtUtlVectorCommon.AllocateUniqueDataTableName(false, $"_ST_{((field as DynamicAccessor)?.NetworkName ?? field.Name)}_{maxElements}"), props); 
 		ret.SetDataTable(table);
 		return ret;
 	}
@@ -316,10 +316,10 @@ public static class RecvPropHelpers
 			props[i] = arrayProp.Copy();
 			props[i].FieldInfo = new DynamicArrayIndexAccessor(field, i);
 			props[i].NameOverride = ClientElementNames[i];
-			props[i].SetParentArrayPropName(field.Name);
+			props[i].SetParentArrayPropName(((field as DynamicAccessor)?.NetworkName ?? field.Name));
 		}
 
-		RecvTable table = new RecvTable(field.Name, props);
+		RecvTable table = new RecvTable(((field as DynamicAccessor)?.NetworkName ?? field.Name), props);
 		ret.SetDataTable(table);
 
 		return ret;
@@ -398,7 +398,7 @@ public class RecvProp : IDataTableProp
 	public DataTableRecvVarProxyFn GetDataTableProxyFn() => DataTableProxyFn;
 	public void SetDataTableProxyFn(DataTableRecvVarProxyFn fn) => DataTableProxyFn = fn;
 
-	public ReadOnlySpan<char> GetName() => NameOverride ?? FieldInfo?.Name ?? "<??UNNAMED??>";
+	public ReadOnlySpan<char> GetName() => NameOverride ?? (FieldInfo as DynamicAccessor)?.NetworkName ?? FieldInfo?.Name ?? "<??UNNAMED??>";
 
 	public bool IsSigned() => (Flags & PropFlags.Unsigned) == 0;
 	public bool IsExcludeProp() => (Flags & PropFlags.Exclude) != 0;

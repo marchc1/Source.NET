@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TESmoke>;
+[NetworkName("CTESmoke")]
 public class C_TESmoke : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TESmoke = new(DT_BaseTempEntity, [
@@ -12,11 +13,15 @@ public class C_TESmoke : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Scale))),
 		RecvPropInt(FIELD.OF(nameof(FrameRate))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TESmoke", DT_TESmoke).WithManualClassID(StaticClassIndices.CTESmoke);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TESmoke);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_fScale")]
 	public float Scale;
+	[NetworkName("m_nFrameRate")]
 	public int FrameRate;
 }
 

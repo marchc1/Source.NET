@@ -6,28 +6,30 @@ namespace Game.Server;
 
 using FIELD = FIELD<EnvWind>;
 using FIELD_EWS = FIELD<EnvWindShared>;
+[NetworkName("CEnvWind")]
 public class EnvWind : BaseEntity
 {
-	public static readonly SendTable DT_EnvWindShared = new([
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinWind))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxWind))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinGust))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxGust))),
+	public static readonly SendTable DT_EnvWindShared = new(nameof(DT_EnvWindShared), [
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinWind)), 10, PropFlags.Unsigned),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxWind)), 10, PropFlags.Unsigned),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinGust)), 10, PropFlags.Unsigned),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxGust)), 10, PropFlags.Unsigned),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.MinGustDelay))),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.MaxGustDelay))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.GustDirChange))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindSeed))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindDir))),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.GustDirChange)), 9, PropFlags.Unsigned),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindSeed)), 32, PropFlags.Unsigned),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindDir)), 9, PropFlags.Unsigned),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindSpeed))),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.StartTime))),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.GustDuration))),
+		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindRadius)), 32, PropFlags.NoScale),
 	]);
-	public static readonly ServerClass CC_EnvWindShared = new("EnvWindShared", DT_EnvWindShared);
 
 	public static readonly SendTable DT_EnvWind = new([
-		SendPropDataTable(nameof(EnvWindShared), FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared),
+		SendPropDataTable("m_EnvWindShared", FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("EnvWind", DT_EnvWind).WithManualClassID(StaticClassIndices.CEnvWind);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvWind);
 
+	[NetworkName("m_EnvWindShared")]
 	public readonly EnvWindShared EnvWindShared = new();
 }

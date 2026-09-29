@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponHgun>;
+[NetworkName("CWeaponHgun")]
 public class WeaponHgun : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -20,11 +21,13 @@ public class WeaponHgun : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponHgun", null, null, DT_WeaponHgun).WithManualClassID(StaticClassIndices.CWeaponHgun);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponHgun);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponHgun", DT_WeaponHgun).WithManualClassID(StaticClassIndices.CWeaponHgun);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponHgun);
 #endif
+	[NetworkName("m_flRechargeTime")]
 	public TimeUnit_t RechargeTime;
+	[NetworkName("m_iFirePhase")]
 	public int FirePhase;
 }
 #endif

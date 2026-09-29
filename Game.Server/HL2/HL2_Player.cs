@@ -13,15 +13,16 @@ namespace Game.Server.HL2;
 using FIELD = Source.FIELD<HL2_Player>;
 
 [PrecacheRegister("player")]
+[NetworkName("CHL2_Player")]
 public class HL2_Player : BaseMultiplayerPlayer
 {
 	public static readonly SendTable DT_HL2_Player = new(DT_BasePlayer, [
-		SendPropDataTable(nameof(HL2Local), FIELD.OF(nameof(HL2Local)), HL2PlayerLocalData.DT_HL2Local, SendProxy_SendLocalDataTable),
+		SendPropDataTable("m_HL2Local", FIELD.OF(nameof(HL2Local)), HL2PlayerLocalData.DT_HL2Local, SendProxy_SendLocalDataTable),
 		SendPropBool(FIELD.OF(nameof(m_bIsSprinting)))
 	]);
-	public static new readonly ServerClass ServerClass = new ServerClass("HL2_Player", DT_HL2_Player)
-															.WithManualClassID(StaticClassIndices.CHL2_Player);
+	public static new readonly ServerClass ServerClass = new ServerClass(DT_HL2_Player);
 
+	[NetworkName("m_HL2Local")]
 	public readonly HL2PlayerLocalData HL2Local = new();
 
 #if HL2MP
@@ -38,6 +39,7 @@ public class HL2_Player : BaseMultiplayerPlayer
 
 	bool SprintEnabled;
 
+	[NetworkName("m_fIsSprinting")]
 	public bool m_bIsSprinting;
 	public bool m_bIsWalking;
 	public bool m_bPlayUseDenySound;

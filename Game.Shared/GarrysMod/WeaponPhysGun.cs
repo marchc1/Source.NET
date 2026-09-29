@@ -39,6 +39,7 @@ using Class =
 
 [LinkEntityToClass("weapon_physgun")]
 [PrecacheWeaponRegister("weapon_physgun")]
+[NetworkName("CWeaponPhysGun")]
 public partial class
 #if CLIENT_DLL
 	C_WeaponPhysGun : C_BaseHL2MPCombatWeapon
@@ -64,14 +65,17 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("WeaponPhysGun", DT_WeaponPhysGun).WithManualClassID(StaticClassIndices.CWeaponPhysGun);
+		= new Class(DT_WeaponPhysGun);
 
 #if CLIENT_DLL
 	public static readonly new DataMap PredMap = new([], typeof(C_WeaponPhysGun), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
+	[NetworkName("m_hPhysBeam")]
 	public EHANDLE PhysBeam = new();
+	[NetworkName("m_vHitPosLocal")]
 	public Vector3 HitPosLocal;
+	[NetworkName("m_hGrabbedEntity")]
 	public EHANDLE GrabbedEntity = new();
 
 	public override void Activate() {

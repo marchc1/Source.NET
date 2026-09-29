@@ -6,6 +6,7 @@ using System.Numerics;
 namespace Game.Shared.GarrysMod;
 
 using FIELD = Source.FIELD<HL2MPMachineGun>;
+[NetworkName("CHL2MPMachineGun")]
 public class HL2MPMachineGun : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -22,10 +23,11 @@ public class HL2MPMachineGun : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("HL2MPMachineGun", null, null, DT_HL2MPMachineGun).WithManualClassID(StaticClassIndices.CHL2MPMachineGun);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_HL2MPMachineGun);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("HL2MPMachineGun", DT_HL2MPMachineGun).WithManualClassID(StaticClassIndices.CHL2MPMachineGun);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_HL2MPMachineGun);
 #endif
+	[NetworkName("m_nShotsFired")]
 	public int ShotsFired;
 
 	public void DoMachineGunKick(BasePlayer player, float dampEasy, float maxVerticleKickAngle, TimeUnit_t fireDurationTime, TimeUnit_t slideLimitTime) {

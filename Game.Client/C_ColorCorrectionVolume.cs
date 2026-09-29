@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_ColorCorrectionVolume>;
+[NetworkName("CColorCorrectionVolume")]
 public class C_ColorCorrectionVolume : C_BaseEntity
 {
 	public static readonly RecvTable DT_ColorCorrectionVolume = new([
@@ -14,11 +15,16 @@ public class C_ColorCorrectionVolume : C_BaseEntity
 		RecvPropString(FIELD.OF(nameof(LookupFilename))),
 		RecvPropInt(FIELD.OF(nameof(ModelIndex))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("ColorCorrectionVolume", DT_ColorCorrectionVolume).WithManualClassID(StaticClassIndices.CColorCorrectionVolume);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_ColorCorrectionVolume);
 
+	[NetworkName("m_bEnabled")]
 	public bool Enabled;
+	[NetworkName("m_MaxWeight")]
 	public float MaxWeight;
+	[NetworkName("m_FadeDuration")]
 	public float FadeDuration;
+	[NetworkName("m_Weight")]
 	public float Weight;
+	[NetworkName("m_lookupFilename")]
 	public InlineArrayMaxPath<char> LookupFilename;
 }

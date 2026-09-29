@@ -53,6 +53,7 @@ namespace Game.Server
 #endif
 
 {
+	[NetworkName("CWeaponHL2MPBase")]
 	public partial class
 #if CLIENT_DLL
 		C_WeaponHL2MPBase
@@ -69,7 +70,7 @@ namespace Game.Server
 #else
 		ServerClass
 #endif
-			= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
+			= new Class(DT_WeaponHL2MPBase);
 
 #if CLIENT_DLL
 		public static readonly new DataMap PredMap = new([], typeof(WeaponHL2MPBase), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
@@ -118,6 +119,7 @@ namespace Game.Server
 	// BaseHL2MPCombatWeapon
 	// ====================================================================================================== //
 
+	[NetworkName("CBaseHL2MPCombatWeapon")]
 	public partial class
 #if CLIENT_DLL
 		C_BaseHL2MPCombatWeapon
@@ -134,7 +136,7 @@ namespace Game.Server
 #else
 		ServerClass
 #endif
-			= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
+			= new Class(DT_BaseHL2MPCombatWeapon);
 
 		protected bool Lowered;
 		protected TimeUnit_t RaiseTime;

@@ -5,6 +5,7 @@ using System.Numerics;
 using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEMuzzleFlash>;
+[NetworkName("CTEMuzzleFlash")]
 public class C_TEMuzzleFlash : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEMuzzleFlash = new(DT_BaseTempEntity, [
@@ -13,11 +14,15 @@ public class C_TEMuzzleFlash : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Scale))),
 		RecvPropInt(FIELD.OF(nameof(Type))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEMuzzleFlash", DT_TEMuzzleFlash).WithManualClassID(StaticClassIndices.CTEMuzzleFlash);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEMuzzleFlash);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vecAngles")]
 	public Vector3 Angles;
+	[NetworkName("m_flScale")]
 	public float Scale;
+	[NetworkName("m_nType")]
 	public int Type;
 }
 

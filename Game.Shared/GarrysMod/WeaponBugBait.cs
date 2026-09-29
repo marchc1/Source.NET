@@ -5,6 +5,7 @@ using FIELD = Source.FIELD<WeaponBugBait>;
 
 [LinkEntityToClass("weapon_bugbait")]
 [PrecacheWeaponRegister("weapon_bugbait")]
+[NetworkName("CWeaponBugBait")]
 public class WeaponBugBait : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -23,13 +24,15 @@ public class WeaponBugBait : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponBugBait", null, null, DT_WeaponBugBait).WithManualClassID(StaticClassIndices.CWeaponBugBait);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponBugBait);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponBugBait), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponBugBait", DT_WeaponBugBait).WithManualClassID(StaticClassIndices.CWeaponBugBait);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponBugBait);
 #endif
+	[NetworkName("m_bRedraw")]
 	public bool Redraw;
+	[NetworkName("m_bDrawBackFinished")]
 	public bool DrawbackFinished;
 }
 #endif

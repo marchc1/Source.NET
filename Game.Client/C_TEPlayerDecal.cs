@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEPlayerDecal>;
+[NetworkName("CTEPlayerDecal")]
 public class C_TEPlayerDecal : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEPlayerDecal = new(DT_BaseTempEntity, [
@@ -18,12 +19,13 @@ public class C_TEPlayerDecal : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(Entity))),
 		RecvPropInt(FIELD.OF(nameof(Player))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEPlayerDecal", DT_TEPlayerDecal).AsEvent<C_TEPlayerDecal>().WithManualClassID(StaticClassIndices.CTEPlayerDecal);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEPlayerDecal);
 
-	public static readonly ConVar cl_playerspraydisable = new("cl_playerspraydisable", "0", FCvar.Archive, "Disable player sprays.");
-
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nPlayer")]
 	public int Player;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

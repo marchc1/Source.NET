@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponShotgun_HL1>;
+[NetworkName("CWeaponShotgun_HL1")]
 public class WeaponShotgun_HL1 : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -20,11 +21,13 @@ public class WeaponShotgun_HL1 : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponShotgun_HL1", null, null, DT_WeaponShotgun_HL1).WithManualClassID(StaticClassIndices.CWeaponShotgun_HL1);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponShotgun_HL1);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponShotgun_HL1", DT_WeaponShotgun_HL1).WithManualClassID(StaticClassIndices.CWeaponShotgun_HL1);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponShotgun_HL1);
 #endif
+	[NetworkName("m_flPumpTime")]
 	public float PumpTime;
+	[NetworkName("m_fInSpecialReload")]
 	public float InSpecialReload;
 }
 #endif

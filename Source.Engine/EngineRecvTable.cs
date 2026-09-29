@@ -308,15 +308,15 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 	// at compile time. But for right now during indev this is fine.
 #if DUMP_DECODE_DEBUGGING_INFO
 	static readonly HashSet<ulong> OKDatatables = [
-		"DT_World".Hash(),
+		"DT_WORLD".Hash(),
 		"DT_GMOD_Player".Hash(),
 		"DT_PlayerResource".Hash(),
 		"DT_GMODGameRulesProxy".Hash(),
 		"DT_EnvTonemapController".Hash(),
 		"DT_PredictedViewModel".Hash(),
 		"DT_WeaponSWEP".Hash(),
-		"DT_SENT_Point".Hash(),
-		"DT_SENT_Anim".Hash(),
+		"DT_SENT_point".Hash(),
+		"DT_SENT_anim".Hash(),
 		"DT_WeaponPhysGun".Hash(),
 		"DT_BaseEntity".Hash(),
 		"DT_PhysBeam".Hash(),

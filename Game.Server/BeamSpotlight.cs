@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<BeamSpotlight>;
+[NetworkName("CBeamSpotlight")]
 public class BeamSpotlight : BaseEntity
 {
 	public static readonly SendTable DT_BeamSpotlight = new(DT_BaseEntity, [
@@ -16,14 +17,22 @@ public class BeamSpotlight : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(RotationSpeed)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(RotationAxis)), 2, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("BeamSpotlight", DT_BeamSpotlight).WithManualClassID(StaticClassIndices.CBeamSpotlight);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BeamSpotlight);
 
+	[NetworkName("m_nHaloIndex")]
 	public int HaloIndex;
+	[NetworkName("m_bSpotlightOn")]
 	public int SpotlightOn;
+	[NetworkName("m_bHasDynamicLight")]
 	public int HasDynamicLight;
+	[NetworkName("m_flSpotlightMaxLength")]
 	public float SpotlightMaxLength;
+	[NetworkName("m_flSpotlightGoalWidth")]
 	public float SpotlightGoalWidth;
+	[NetworkName("m_flHDRColorScale")]
 	public float HDRColorScale;
+	[NetworkName("m_flRotationSpeed")]
 	public float RotationSpeed;
+	[NetworkName("m_nRotationAxis")]
 	public int RotationAxis;
 }

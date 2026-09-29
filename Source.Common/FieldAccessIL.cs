@@ -10,6 +10,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Source.Common
 {
@@ -591,6 +592,48 @@ namespace Source.Common
 		public virtual int Index => -1;
 
 		public string Name { get; }
+
+		string? networkName;
+		public string? NetworkNameOverride { init => networkName = value; }
+		public string NetworkName => networkName ??= BuildNetworkName();
+
+		string BuildNetworkName() {
+			bool anyNamed = false;
+			foreach (MemberInfo member in Members) {
+				if (member is IndexInfo)
+					continue;
+				MemberInfo target = member.Name.StartsWith("__nv_") ? member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static) ?? member : member;
+				if (target is not IndexInfo && target.GetCustomAttribute<NetworkNameAttribute>() != null)
+					anyNamed = true;
+			}
+			if (!anyNamed)
+				return Name;
+
+			StringBuilder name = new();
+			for (int i = 0; i < Members.Count; i++) {
+				MemberInfo member = Members[i];
+				if (member is IndexInfo index) {
+					name.Append('[').Append(index.Index).Append(']');
+					continue;
+				}
+
+				if (member.Name.StartsWith("__nv_"))
+					member = member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static) ?? member;
+
+				string memberName = member.GetCustomAttribute<NetworkNameAttribute>()?.Name ?? member.Name;
+				if (i + 1 < Members.Count && Members[i + 1] is IndexInfo next && memberName.Contains("{0}")) {
+					memberName = string.Format(memberName, next.Index);
+					i++;
+				}
+
+				if (memberName.Length == 0)
+					continue;
+				if (name.Length > 0)
+					name.Append('.');
+				name.Append(memberName);
+			}
+			return name.ToString();
+		}
 		Type IFieldAccessor.DeclaringType => TargetType;
 		Type IFieldAccessor.FieldType => StoringType;
 
@@ -838,9 +881,13 @@ namespace Source
 	public static class FIELD<T>
 	{
 		public static DynamicAccessor OF(ReadOnlySpan<char> expression) => new(typeof(T), expression);
-		public static DynamicAccessor OF_NAMED(ReadOnlySpan<char> expression, ReadOnlySpan<char> name) => new(typeof(T), expression, name);
+		public static DynamicAccessor OF_NAMED(ReadOnlySpan<char> expression, ReadOnlySpan<char> name) => new(typeof(T), expression, name) { NetworkNameOverride = new(name) };
 		public static DynamicArrayAccessor OF_ARRAY(ReadOnlySpan<char> expression) => new(typeof(T), expression);
 		public static DynamicArrayIndexAccessor OF_ARRAYINDEX(ReadOnlySpan<char> expression, int index = 0) => new(OF_ARRAY(expression), index);
+		public static DynamicArrayIndexAccessor OF_SENDINFO_ARRAY(ReadOnlySpan<char> expression) {
+			DynamicArrayAccessor array = OF_ARRAY(expression);
+			return new(array, 0) { NetworkNameOverride = array.NetworkName };
+		}
 		public static DynamicArrayIndexAccessor OF_VECTORELEM(ReadOnlySpan<char> expression, int index) => new(OF_ARRAY(expression), index, isVectorElem: true);
 		public static DynamicArrayAccessor OF_LIST(ReadOnlySpan<char> expression, int max) => new(typeof(T), expression, isList: max);
 	}

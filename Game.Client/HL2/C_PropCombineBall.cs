@@ -15,6 +15,7 @@ using System.Text;
 using FIELD = Source.FIELD<Game.Client.HL2.C_PropCombineBall>;
 namespace Game.Client.HL2;
 
+[NetworkName("CPropCombineBall")]
 public class C_PropCombineBall : C_BaseAnimating
 {
 	public static readonly RecvTable DT_PropCombineBall = new(DT_BaseAnimating, [
@@ -23,12 +24,16 @@ public class C_PropCombineBall : C_BaseAnimating
 		RecvPropBool(FIELD.OF(nameof(Held))),
 		RecvPropBool(FIELD.OF(nameof(Launched))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("PropCombineBall", DT_PropCombineBall).WithManualClassID(StaticClassIndices.CPropCombineBall);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_PropCombineBall);
 
 	public Vector3 LastOrigin;
+	[NetworkName("m_bEmit")]
 	public bool Emit;
+	[NetworkName("m_flRadius")]
 	public float Radius;
+	[NetworkName("m_bHeld")]
 	public bool Held;
+	[NetworkName("m_bLaunched")]
 	public bool Launched;
 
 	IMaterial? FlickerMaterial;

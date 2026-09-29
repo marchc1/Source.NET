@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<MaterialModifyControl>;
+[NetworkName("CMaterialModifyControl")]
 public class MaterialModifyControl : BaseEntity
 {
 	public static readonly SendTable DT_MaterialModifyControl = new(DT_BaseEntity, [
@@ -20,18 +21,30 @@ public class MaterialModifyControl : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(FloatLerpTransitionTime)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(ModifyMode)), 2, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("MaterialModifyControl", DT_MaterialModifyControl).WithManualClassID(StaticClassIndices.CMaterialModifyControl);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_MaterialModifyControl);
 
+	[NetworkName("m_szMaterialName")]
 	public InlineArray255<char> SzMaterialName;
+	[NetworkName("m_szMaterialVar")]
 	public InlineArray255<char> SzMaterialVar;
+	[NetworkName("m_szMaterialVarValue")]
 	public InlineArray255<char> SzMaterialVarValue;
+	[NetworkName("m_iFrameStart")]
 	public int FrameStart;
+	[NetworkName("m_iFrameEnd")]
 	public int FrameEnd;
+	[NetworkName("m_bWrap")]
 	public bool Wrap;
+	[NetworkName("m_flFramerate")]
 	public float Framerate;
+	[NetworkName("m_bNewAnimCommandsSemaphore")]
 	public bool NewAnimCommandsSemaphore;
+	[NetworkName("m_flFloatLerpStartValue")]
 	public float FloatLerpStartValue;
+	[NetworkName("m_flFloatLerpEndValue")]
 	public float FloatLerpEndValue;
+	[NetworkName("m_flFloatLerpTransitionTime")]
 	public float FloatLerpTransitionTime;
+	[NetworkName("m_nModifyMode")]
 	public int ModifyMode;
 }

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ParticleSmokeGrenade>;
+[NetworkName("ParticleSmokeGrenade")]
 public class ParticleSmokeGrenade : BaseParticleEntity
 {
 	public static readonly SendTable DT_ParticleSmokeGrenade = new(DT_BaseParticleEntity, [
@@ -12,10 +13,14 @@ public class ParticleSmokeGrenade : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(FadeEndTime)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(CurrentStage))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("ParticleSmokeGrenade", DT_ParticleSmokeGrenade).WithManualClassID(StaticClassIndices.ParticleSmokeGrenade);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_ParticleSmokeGrenade);
 
+	[NetworkName("m_flSpawnTime")]
 	public float SpawnTime;
+	[NetworkName("m_FadeStartTime")]
 	public float FadeStartTime;
+	[NetworkName("m_FadeEndTime")]
 	public float FadeEndTime;
+	[NetworkName("m_CurrentStage")]
 	public bool CurrentStage;
 }

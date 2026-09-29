@@ -26,6 +26,7 @@ using Class =
 	ServerClass;
 #endif
 
+[NetworkName("CWeaponSWEP")]
 public partial class
 #if CLIENT_DLL
     C_WeaponSWEP : C_BaseHL2MPCombatWeapon
@@ -35,10 +36,10 @@ public partial class
 {
 	public static readonly Table DT_WeaponSWEP = new(DT_BaseHL2MPCombatWeapon, [
 #if CLIENT_DLL
-		RecvPropDataTable("ScriptedEntity", DT_ScriptedEntity),
+		RecvPropDataTable("m_ScriptedEntity", DT_ScriptedEntity),
 		RecvPropString(FIELD.OF(nameof(HoldType)))
 #elif GAME_DLL
-		SendPropDataTable("ScriptedEntity", DT_ScriptedEntity),
+		SendPropDataTable("m_ScriptedEntity", DT_ScriptedEntity),
 		SendPropString(FIELD.OF(nameof(HoldType)))
 #endif
 	]);
@@ -49,12 +50,13 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("WeaponSWEP", DT_WeaponSWEP).WithManualClassID(StaticClassIndices.CWeaponSWEP);
+		= new Class(DT_WeaponSWEP);
 
 #if CLIENT_DLL
 	public static readonly new DataMap PredMap = new([], typeof(C_WeaponSWEP), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
+	[NetworkName("m_strHoldType")]
 	public InlineArray64<char> HoldType;
 
 }
