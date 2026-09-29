@@ -86,11 +86,11 @@ public class ClientClass
 			createFn = (_, _) => throw new NotImplementedException($"ClientClass did not define how to create type '{t.Name}'");
 	}
 
-	public ClientClass(ReadOnlySpan<char> networkName, RecvTable recvTable, [CallerArgumentExpression(nameof(recvTable))] string? nameOfTable = null) {
+	public ClientClass(RecvTable recvTable, [CallerArgumentExpression(nameof(recvTable))] string? nameOfTable = null) {
 		Type t = WhoCalledMe(skipFrames: 2) ?? throw new NullReferenceException("This doesnt work as well as we hoped!");
 		AssembleDynamicCreateFn(t, ref CreateFn);
 
-		NetworkName = new(networkName);
+		NetworkName = NetworkNameAttribute.Get(t);
 		RecvTable = recvTable;
 
 		if (nameOfTable != null)
@@ -100,15 +100,14 @@ public class ClientClass
 		Head = this;
 		ClassID = -1;
 	}
-	public ClientClass(ReadOnlySpan<char> networkName, CreateClientClassFn? createFn, CreateEventFn? createEventFn, RecvTable recvTable, [CallerArgumentExpression(nameof(recvTable))] string? nameOfTable = null) {
-		if (createFn == null) {
-			Type t = WhoCalledMe(skipFrames: 2) ?? throw new NullReferenceException("This doesnt work as well as we hoped!");
+	public ClientClass(CreateClientClassFn? createFn, CreateEventFn? createEventFn, RecvTable recvTable, [CallerArgumentExpression(nameof(recvTable))] string? nameOfTable = null) {
+		Type t = WhoCalledMe(skipFrames: 2) ?? throw new NullReferenceException("This doesnt work as well as we hoped!");
+		if (createFn == null)
 			AssembleDynamicCreateFn(t, ref createFn);
-		}
 
 		CreateFn = createFn;
 		CreateEventFn = createEventFn;
-		NetworkName = new(networkName);
+		NetworkName = NetworkNameAttribute.Get(t);
 		RecvTable = recvTable;
 
 		if (nameOfTable != null)

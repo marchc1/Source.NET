@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEGlowSprite>;
+[NetworkName("CTEGlowSprite")]
 public class C_TEGlowSprite : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEGlowSprite = new(DT_BaseTempEntity, [
@@ -13,12 +14,17 @@ public class C_TEGlowSprite : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Life))),
 		RecvPropInt(FIELD.OF(nameof(Brightness))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEGlowSprite", DT_TEGlowSprite).WithManualClassID(StaticClassIndices.CTEGlowSprite);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEGlowSprite);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_fScale")]
 	public float Scale;
+	[NetworkName("m_fLife")]
 	public float Life;
+	[NetworkName("m_nBrightness")]
 	public int Brightness;
 }
 

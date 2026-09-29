@@ -7,8 +7,11 @@ using FIELD = FIELD<EntityParticleTrail>;
 
 public class EntityParticleTrailInfo
 {
+	[NetworkName("m_flLifetime")]
 	public float Lifetime;
+	[NetworkName("m_flStartSize")]
 	public float StartSize;
+	[NetworkName("m_flEndSize")]
 	public float EndSize;
 
 	public static readonly SendTable DT_EntityParticleTrailInfo = new("DT_EntityParticleTrailInfo", [
@@ -19,16 +22,20 @@ public class EntityParticleTrailInfo
 }
 
 // Datatable-accurate stub (gmod DT_EntityParticleTrail, baseclass DT_BaseParticleEntity).
+[NetworkName("CEntityParticleTrail")]
 public class EntityParticleTrail : BaseParticleEntity
 {
+	[NetworkName("m_iMaterialName")]
 	public int MaterialName;
+	[NetworkName("m_Info")]
 	public EntityParticleTrailInfo Info = new();
+	[NetworkName("m_hConstraintEntity")]
 	public EHANDLE ConstraintEntity;
 
 	public static readonly SendTable DT_EntityParticleTrail = new(DT_BaseParticleEntity, [
 		SendPropInt(FIELD.OF(nameof(MaterialName)), 10, PropFlags.Unsigned),
-		SendPropDataTable(nameof(Info), FIELD.OF(nameof(Info)), EntityParticleTrailInfo.DT_EntityParticleTrailInfo),
+		SendPropDataTable("m_Info", FIELD.OF(nameof(Info)), EntityParticleTrailInfo.DT_EntityParticleTrailInfo),
 		SendPropEHandle(FIELD.OF(nameof(ConstraintEntity))),
 	]);
-	public static new readonly ServerClass ServerClass = new ServerClass("EntityParticleTrail", DT_EntityParticleTrail).WithManualClassID(Game.Shared.StaticClassIndices.CEntityParticleTrail);
+	public static new readonly ServerClass ServerClass = new ServerClass(DT_EntityParticleTrail);
 }

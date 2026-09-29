@@ -16,6 +16,7 @@ using System.Numerics;
 namespace Game.Shared;
 
 using FIELD = Source.FIELD<FuncLadder>;
+[NetworkName("CFuncLadder")]
 public partial class FuncLadder : BaseEntity
 {
 	static readonly List<FuncLadder> s_Ladders = [];
@@ -51,15 +52,19 @@ public partial class FuncLadder : BaseEntity
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("FuncLadder", null, null, DT_FuncLadder).WithManualClassID(StaticClassIndices.CFuncLadder);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_FuncLadder);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("FuncLadder", DT_FuncLadder).WithManualClassID(StaticClassIndices.CFuncLadder);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_FuncLadder);
 #endif
 
+	[NetworkName("m_vecPlayerMountPositionTop")]
 	public Vector3 PlayerMountPositionTop;
+	[NetworkName("m_vecPlayerMountPositionBottom")]
 	public Vector3 PlayerMountPositionBottom;
+	[NetworkName("m_vecLadderDir")]
 	public Vector3 LadderDir;
 	readonly List<InfoLadderDismountHandle> Dismounts = [];
+	[NetworkName("m_bFakeLadder")]
 	public bool FakeLadder;
 	public bool Disabled;
 

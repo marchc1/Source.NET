@@ -10,7 +10,7 @@ using FIELD = FIELD<PlayerLocalData>;
 
 public class PlayerLocalData
 {
-	public static readonly SendTable DT_Local = new([
+	public static readonly SendTable DT_Local = new(nameof(DT_Local), [
 		SendPropArray3(FIELD.OF_ARRAY(nameof(AreaBits)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaBits)), 8, PropFlags.Unsigned)),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(AreaPortalBits)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaPortalBits)), 8, PropFlags.Unsigned)),
 		SendPropInt(FIELD.OF(nameof(HideHUD)), (int)HideHudBits.BitCount, PropFlags.Unsigned),
@@ -27,7 +27,7 @@ public class PlayerLocalData
 		SendPropInt(FIELD.OF(nameof(DrawViewmodel)), 1, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(WearingSuit)), 1, PropFlags.Unsigned),
 		SendPropBool(FIELD.OF(nameof(Poisoned))),
-		SendPropFloat(FIELD.OF(nameof(StepSize)), 16, PropFlags.RoundUp, 0.0f, 128.0f),
+		SendPropFloat(FIELD.OF(nameof(StepSize)), 16, PropFlags.RoundUp, 0.0f, 512.0f),
 		SendPropInt(FIELD.OF(nameof(AllowAutoMovement)),1, PropFlags.Unsigned),
 
 		SendPropInt(FIELD.OF("Skybox3D.Scale"), 12),
@@ -68,43 +68,72 @@ public class PlayerLocalData
 		SendPropFloat(FIELD.OF(nameof(DuckSpeed))),
 		SendPropFloat(FIELD.OF(nameof(UnDuckSpeed))),
 		SendPropBool(FIELD.OF(nameof(DuckToggled))),
-	]); public static readonly ServerClass CC_Local = new("Local", DT_Local);
+	]);
 
+	[NetworkName("m_fSprintSpeed")]
 	public float SprintSpeed;
+	[NetworkName("m_fWalkSpeed")]
 	public float WalkSpeed;
+	[NetworkName("m_fSlowWalkSpeed")]
 	public float SlowWalkSpeed;
+	[NetworkName("m_fLadderSpeed")]
 	public float LadderSpeed;
+	[NetworkName("m_fCrouchedWalkSpeed")]
 	public float CrouchedWalkSpeed;
+	[NetworkName("m_fDuckSpeed")]
 	public float DuckSpeed;
+	[NetworkName("m_fUnDuckSpeed")]
 	public float UnDuckSpeed;
+	[NetworkName("m_bDuckToggled")]
 	public bool DuckToggled;
 
 	// TODO: NETWORK VARS!!!!!
+	[NetworkName("m_chAreaBits")]
 	public InlineArrayMaxAreaStateBytes<byte> AreaBits;
+	[NetworkName("m_chAreaPortalBits")]
 	public InlineArrayMaxAreaPortalStateBytes<byte> AreaPortalBits;
+	[NetworkName("m_iHideHUD")]
 	public bool HideHUD;
+	[NetworkName("m_flFOVRate")]
 	public float FOVRate;
+	[NetworkName("m_bDucked")]
 	public bool Ducked;
+	[NetworkName("m_bDucking")]
 	public bool Ducking;
+	[NetworkName("m_bInDuckJump")]
 	public bool InDuckJump;
+	[NetworkName("m_flDucktime")]
 	public double DuckTime;
+	[NetworkName("m_flDuckJumpTime")]
 	public double DuckJumpTime;
+	[NetworkName("m_flJumpTime")]
 	public double JumpTime;
 	public int StepSide;
+	[NetworkName("m_flFallVelocity")]
 	public float FallVelocity;
 	public int OldButtons;
 	public int OldForwardMove;
+	[NetworkName("m_vecPunchAngle")]
 	public QAngle PunchAngle;
+	[NetworkName("m_vecPunchAngleVel")]
 	public QAngle PunchAngleVel;
+	[NetworkName("m_bDrawViewmodel")]
 	public bool DrawViewmodel;
+	[NetworkName("m_bWearingSuit")]
 	public bool WearingSuit;
+	[NetworkName("m_bPoisoned")]
 	public bool Poisoned;
+	[NetworkName("m_flStepSize")]
 	public float StepSize;
+	[NetworkName("m_bAllowAutoMovement")]
 	public bool AllowAutoMovement;
 	public bool SlowMovement;
 
+	[NetworkName("m_skybox3d")]
 	public Sky3DParams Skybox3D = new();
+	[NetworkName("m_PlayerFog")]
 	public FogPlayerParams PlayerFog = new();
+	[NetworkName("m_audio")]
 	public AudioParams Audio = new();
 
 	public static void ClientData_Update(BasePlayer pl) {

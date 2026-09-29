@@ -87,13 +87,15 @@ public static class TriggerGlobals
 }
 
 [LinkEntityToClass("trigger")]
+[NetworkName("CBaseTrigger")]
 public class BaseTrigger : BaseToggle
 {
 	public static readonly SendTable DT_BaseTrigger = new(DT_BaseToggle, [
 		SendPropBool(FIELD_BT.OF(nameof(ClientSidePredicted))),
 		SendPropInt(FIELD_BT.OF(nameof(SpawnFlags)), 32, PropFlags.NoScale)
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseTrigger", DT_BaseTrigger).WithManualClassID(StaticClassIndices.CBaseTrigger);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseTrigger);
+	[NetworkName("m_bClientSidePredicted")]
 	public bool ClientSidePredicted;
 
 	public bool Disabled;

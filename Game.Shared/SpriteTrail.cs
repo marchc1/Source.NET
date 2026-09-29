@@ -4,6 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<SpriteTrail>;
+[NetworkName("CSpriteTrail")]
 public class SpriteTrail : Sprite
 {
 	public static readonly
@@ -34,18 +35,26 @@ public class SpriteTrail : Sprite
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("SpriteTrail", null, null, DT_SpriteTrail).WithManualClassID(StaticClassIndices.CSpriteTrail);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_SpriteTrail);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("SpriteTrail", DT_SpriteTrail).WithManualClassID(StaticClassIndices.CSpriteTrail);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_SpriteTrail);
 #endif
 
+	[NetworkName("m_flLifeTime")]
 	public TimeUnit_t LifeTime;
+	[NetworkName("m_flStartWidth")]
 	public float StartWidth;
+	[NetworkName("m_flEndWidth")]
 	public float EndWidth;
+	[NetworkName("m_flStartWidthVariance")]
 	public float StartWidthVariance;
+	[NetworkName("m_flTextureRes")]
 	public float TextureRes;
+	[NetworkName("m_flMinFadeLength")]
 	public float FadeLength;
+	[NetworkName("m_vecSkyboxOrigin")]
 	public Vector3 SkyboxOrigin;
+	[NetworkName("m_flSkyboxScale")]
 	public float SkyboxScale;
 }
 #endif

@@ -8,6 +8,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<ShadowControl>;
 
+[NetworkName("CShadowControl")]
 public class ShadowControl : BaseEntity
 {
 	public static readonly SendTable DT_ShadowControl = new([
@@ -17,11 +18,16 @@ public class ShadowControl : BaseEntity
 		SendPropBool(FIELD.OF(nameof(DisableShadows))),
 		SendPropBool(FIELD.OF(nameof(EnableLocalLightShadows))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("ShadowControl", DT_ShadowControl).WithManualClassID(StaticClassIndices.CShadowControl);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_ShadowControl);
 
+	[NetworkName("m_shadowDirection")]
 	public Vector3 ShadowDirection;
+	[NetworkName("m_shadowColor")]
 	public Color ShadowColor;
+	[NetworkName("m_flShadowMaxDist")]
 	public float ShadowMaxDist;
+	[NetworkName("m_bDisableShadows")]
 	public bool DisableShadows;
+	[NetworkName("m_bEnableLocalLightShadows")]
 	public bool EnableLocalLightShadows;
 }

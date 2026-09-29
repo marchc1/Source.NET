@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBSPDecal>;
+[NetworkName("CTEBSPDecal")]
 public class C_TEBSPDecal : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEBSPDecal = new(DT_BaseTempEntity, [
@@ -11,10 +12,13 @@ public class C_TEBSPDecal : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(Entity))),
 		RecvPropInt(FIELD.OF(nameof(Index))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBSPDecal", DT_TEBSPDecal).WithManualClassID(StaticClassIndices.CTEBSPDecal);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBSPDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nIndex")]
 	public int Index;
 }
 

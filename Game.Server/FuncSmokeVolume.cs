@@ -11,6 +11,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncSmokeVolume>;
 
+[NetworkName("CFuncSmokeVolume")]
 public class FuncSmokeVolume : BaseParticleEntity
 {
 	public static readonly SendTable DT_FuncSmokeVolume = new(DT_BaseParticleEntity, [
@@ -25,15 +26,24 @@ public class FuncSmokeVolume : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(Density)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(SpawnFlags)), 8, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("FuncSmokeVolume", DT_FuncSmokeVolume).WithManualClassID(StaticClassIndices.CFuncSmokeVolume);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_FuncSmokeVolume);
 
+	[NetworkName("m_Color1")]
 	public Color Color1;
+	[NetworkName("m_Color2")]
 	public Color Color2;
+	[NetworkName("m_MaterialName")]
 	public InlineArray255<char> MaterialName;
+	[NetworkName("m_ParticleDrawWidth")]
 	public float ParticleDrawWidth;
+	[NetworkName("m_ParticleSpacingDistance")]
 	public float ParticleSpacingDistance;
+	[NetworkName("m_DensityRampSpeed")]
 	public float DensityRampSpeed;
+	[NetworkName("m_RotationSpeed")]
 	public float RotationSpeed;
+	[NetworkName("m_MovementSpeed")]
 	public float MovementSpeed;
+	[NetworkName("m_Density")]
 	public float Density;
 }

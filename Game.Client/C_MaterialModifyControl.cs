@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_MaterialModifyControl>;
+[NetworkName("CMaterialModifyControl")]
 public class C_MaterialModifyControl : C_BaseEntity
 {
 	public static readonly RecvTable DT_MaterialModifyControl = new(DT_BaseEntity, [
@@ -20,18 +21,30 @@ public class C_MaterialModifyControl : C_BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(FloatLerpTransitionTime))),
 		RecvPropInt(FIELD.OF(nameof(ModifyMode))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("MaterialModifyControl", DT_MaterialModifyControl).WithManualClassID(StaticClassIndices.CMaterialModifyControl);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_MaterialModifyControl);
 
+	[NetworkName("m_szMaterialName")]
 	public InlineArray255<char> SzMaterialName;
+	[NetworkName("m_szMaterialVar")]
 	public InlineArray255<char> SzMaterialVar;
+	[NetworkName("m_szMaterialVarValue")]
 	public InlineArray255<char> SzMaterialVarValue;
+	[NetworkName("m_iFrameStart")]
 	public int FrameStart;
+	[NetworkName("m_iFrameEnd")]
 	public int FrameEnd;
+	[NetworkName("m_bWrap")]
 	public bool Wrap;
+	[NetworkName("m_flFramerate")]
 	public float Framerate;
+	[NetworkName("m_bNewAnimCommandsSemaphore")]
 	public bool NewAnimCommandsSemaphore;
+	[NetworkName("m_flFloatLerpStartValue")]
 	public float FloatLerpStartValue;
+	[NetworkName("m_flFloatLerpEndValue")]
 	public float FloatLerpEndValue;
+	[NetworkName("m_flFloatLerpTransitionTime")]
 	public float FloatLerpTransitionTime;
+	[NetworkName("m_nModifyMode")]
 	public int ModifyMode;
 }

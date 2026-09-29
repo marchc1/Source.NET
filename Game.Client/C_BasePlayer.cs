@@ -39,6 +39,7 @@ public struct C_PredictionError
 
 
 [LinkEntityToClass("player")]
+[NetworkName("CBasePlayer")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
 	const int FLASHLIGHT_DISTANCE = 1000;
@@ -48,9 +49,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public static readonly DataMap PM_PlayerState = new(typeof(PlayerState), [
 		DEFINE<PlayerState>.PRED_FIELD( nameof(PlayerState.DeadFlag), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);
-	public static readonly RecvTable DT_PlayerState = new([
+	public static readonly RecvTable DT_PlayerState = new(nameof(DT_PlayerState), [
 		RecvPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)))
-	]); public static readonly ClientClass CC_PlayerState = new("PlayerState", null, null, DT_PlayerState);
+	]);
 
 	public static readonly new DataMap PredMap = new(typeof(C_BasePlayer), C_BaseCombatCharacter.PredMap, [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(Local), PlayerLocalData.PredMap ),
@@ -141,8 +142,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		return GetWaterLevel() >= Shared.WaterLevel.Eyes;
 	}
 
-	public static readonly RecvTable DT_LocalPlayerExclusive = new([
-		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
+	public static readonly RecvTable DT_LocalPlayerExclusive = new(nameof(DT_LocalPlayerExclusive), [
+		RecvPropDataTable("m_Local", FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
 		RecvPropFloat(FIELD.OF(nameof(Friction))),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), RecvPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)))),
 		RecvPropInt(FIELD.OF(nameof(TickBase))),
@@ -335,7 +336,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	}
 
-	public static readonly ClientClass CC_LocalPlayerExclusive = new ClientClass("LocalPlayerExclusive", null, null, DT_LocalPlayerExclusive);
 
 	public static readonly RecvTable DT_BasePlayer = new(DT_BaseCombatCharacter, [
 		RecvPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState, proxyFn: DataTableRecvProxy_PointerDataTable),
@@ -360,7 +360,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 		RecvPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
 		RecvPropDataTable("localdata", DT_LocalPlayerExclusive),
-	]); public static readonly new ClientClass ClientClass = new ClientClass("BasePlayer", null, null, DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
+	]); public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BasePlayer);
 
 
 	static C_BasePlayer? localPlayer;
@@ -497,34 +497,59 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 
 	internal readonly PlayerState pl = new();
+	[NetworkName("m_Local")]
 	public readonly PlayerLocalData Local = new();
+	[NetworkName("m_hVehicle")]
 	EHANDLE Vehicle = new();
+	[NetworkName("m_hUseEntity")]
 	EHANDLE UseEntity = new();
+	[NetworkName("m_hObserverTarget")]
 	EHANDLE ObserverTarget = new();
+	[NetworkName("m_hZoomOwner")]
 	EHANDLE ZoomOwner = new();
+	[NetworkName("m_hConstraintEntity")]
 	public EHANDLE ConstraintEntity = new();
+	[NetworkName("m_hTonemapController")]
 	EHANDLE TonemapController = new();
+	[NetworkName("m_hViewEntity")]
 	EHANDLE ViewEntity = new();
+	[NetworkName("m_hViewModel")]
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
+	[NetworkName("m_bDisableWorldClicking")]
 	bool DisableWorldClicking;
+	[NetworkName("m_flMaxspeed")]
 	public float Maxspeed;
 	int BonusProgress;
 	int BonusChallenge;
+	[NetworkName("m_iObserverMode")]
 	public int ObserverMode;
+	[NetworkName("m_iFOV")]
 	public int FOV;
+	[NetworkName("m_iFOVStart")]
 	public int FOVStart;
+	[NetworkName("m_flFOVTime")]
 	public TimeUnit_t FOVTime;
+	[NetworkName("m_iDefaultFOV")]
 	public float DefaultFOV;
+	[NetworkName("m_vecConstraintCenter")]
 	public Vector3 ConstraintCenter;
+	[NetworkName("m_flConstraintRadius")]
 	public float ConstraintRadius;
+	[NetworkName("m_flConstraintWidth")]
 	public float ConstraintWidth;
+	[NetworkName("m_flConstraintSpeedFactor")]
 	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
+	[NetworkName("m_hColorCorrectionCtrl")]
 	EHANDLE ColorCorrectionCtrl = new();
+	[NetworkName("m_bUseWeaponsInVehicle")]
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
+	[NetworkName("m_flDeathTime")]
 	public double DeathTime;
+	[NetworkName("m_flLaggedMovementValue")]
 	public double LaggedMovementValue;
+	[NetworkName("m_nTickBase")]
 	public int TickBase;
 	public long FinalPredictedTick;
 	InlineArray32<char> AnimExtension;

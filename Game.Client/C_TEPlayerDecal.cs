@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEPlayerDecal>;
+[NetworkName("CTEPlayerDecal")]
 public class C_TEPlayerDecal : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEPlayerDecal = new(DT_BaseTempEntity, [
@@ -11,10 +12,13 @@ public class C_TEPlayerDecal : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(Entity))),
 		RecvPropInt(FIELD.OF(nameof(Player))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEPlayerDecal", DT_TEPlayerDecal).WithManualClassID(StaticClassIndices.CTEPlayerDecal);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEPlayerDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nPlayer")]
 	public int Player;
 }
 

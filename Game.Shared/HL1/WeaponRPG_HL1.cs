@@ -5,6 +5,7 @@ using System.Drawing;
 namespace Game.Shared.HL1;
 using FIELD_RPG = Source.FIELD<WeaponRPG_HL1>;
 using FIELD_LASER = Source.FIELD<LaserDot_HL1>;
+[NetworkName("CWeaponRPG_HL1")]
 public class WeaponRPG_HL1 : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -25,15 +26,19 @@ public class WeaponRPG_HL1 : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponRPG_HL1", null, null, DT_WeaponRPG_HL1).WithManualClassID(StaticClassIndices.CWeaponRPG_HL1);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponRPG_HL1);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponRPG_HL1", DT_WeaponRPG_HL1).WithManualClassID(StaticClassIndices.CWeaponRPG_HL1);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponRPG_HL1);
 #endif
+	[NetworkName("m_bIntialStateUpdate")]
 	public bool InitialStateUpdate;
+	[NetworkName("m_bGuiding")]
 	public bool Guiding;
+	[NetworkName("m_bLaserDotSuspended")]
 	public bool LaserDotSuspended;
 }
 
+[NetworkName("CLaserDot_HL1")]
 public class LaserDot_HL1 : BaseEntity
 {
 	public static readonly
@@ -50,10 +55,11 @@ public class LaserDot_HL1 : BaseEntity
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("LaserDot_HL1", null, null, DT_LaserDot_HL1).WithManualClassID(StaticClassIndices.CLaserDot_HL1);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_LaserDot_HL1);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("LaserDot_HL1", DT_LaserDot_HL1).WithManualClassID(StaticClassIndices.CLaserDot_HL1);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_LaserDot_HL1);
 #endif
+	[NetworkName("m_bIsOn")]
 	public bool IsOn;
 }
 #endif

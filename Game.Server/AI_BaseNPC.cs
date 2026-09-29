@@ -38,6 +38,7 @@ public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vecto
 	}
 }
 
+[NetworkName("CAI_BaseNPC")]
 public class AI_BaseNPC : BaseCombatCharacter
 {
 	public static ReadOnlySpan<char> GetActivityName(Activity actID) {
@@ -58,19 +59,25 @@ public class AI_BaseNPC : BaseCombatCharacter
 		SendPropBool(FIELD.OF(nameof(IsMoving))),
 		SendPropBool(FIELD.OF(nameof(FadeCorpse))),
 		SendPropInt(FIELD.OF(nameof(DeathPose)), 12),
-		SendPropInt(FIELD.OF(nameof(DeathFrame)), 12),
+		SendPropInt(FIELD.OF(nameof(DeathFrame)), 5),
 		SendPropBool(FIELD.OF(nameof(ImportantRagdoll))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("AI_BaseNPC", DT_AI_BaseNPC).WithManualClassID(StaticClassIndices.CAI_BaseNPC);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_AI_BaseNPC);
 
+	[NetworkName("m_bPerformAvoidance")]
 	public bool PerformAvoidance;
+	[NetworkName("m_bIsMoving")]
 	public bool IsMoving;
+	[NetworkName("m_bFadeCorpse")]
 	public bool FadeCorpse;
+	[NetworkName("m_iDeathPose")]
 	public int DeathPose;
+	[NetworkName("m_iDeathFrame")]
 	public int DeathFrame;
 	public bool SpeedModActive;
 	public int SpeedModRadius;
 	public int SpeedModSpeed;
+	[NetworkName("m_bImportanRagdoll")]
 	public bool ImportantRagdoll;
 	public float TimePingEffect;
 }

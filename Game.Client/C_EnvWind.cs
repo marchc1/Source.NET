@@ -6,9 +6,10 @@ namespace Game.Client;
 
 using FIELD = FIELD<C_EnvWind>;
 using FIELD_EWS = FIELD<EnvWindShared>;
+[NetworkName("CEnvWind")]
 public class C_EnvWind : C_BaseEntity
 {
-	public static readonly RecvTable DT_EnvWindShared = new([
+	public static readonly RecvTable DT_EnvWindShared = new(nameof(DT_EnvWindShared), [
 		RecvPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinWind))),
 		RecvPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxWind))),
 		RecvPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinGust))),
@@ -21,13 +22,14 @@ public class C_EnvWind : C_BaseEntity
 		RecvPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindSpeed))),
 		RecvPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.StartTime))),
 		RecvPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.GustDuration))),
+		RecvPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindRadius))),
 	]);
-	public static readonly ClientClass CC_EnvWindShared = new("EnvWindShared", DT_EnvWindShared);
 
 	public static readonly RecvTable DT_EnvWind = new([
-		RecvPropDataTable(nameof(EnvWindShared), FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(EnvWindShared))))
+		RecvPropDataTable("m_EnvWindShared", FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(EnvWindShared))))
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("EnvWind", DT_EnvWind).WithManualClassID(StaticClassIndices.CEnvWind);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_EnvWind);
 
+	[NetworkName("m_EnvWindShared")]
 	public readonly EnvWindShared EnvWindShared = new();
 }

@@ -10,6 +10,7 @@ using FIELD = Source.FIELD<Game.Client.C_World>;
 namespace Game.Client;
 
 [LinkEntityToClass("worldspawn")]
+[NetworkName("CWorld")]
 public class C_World : C_BaseEntity
 {
 	[ImplementClientClassFactory]
@@ -23,7 +24,7 @@ public class C_World : C_BaseEntity
 
 	}
 
-	public static readonly RecvTable DT_World = new(DT_BaseEntity, [
+	public static readonly RecvTable DT_WORLD = new(DT_BaseEntity, [
 		RecvPropVector(FIELD.OF(nameof(WorldMins))),
 		RecvPropVector(FIELD.OF(nameof(WorldMaxs))),
 		RecvPropInt(FIELD.OF(nameof(StartDark))),
@@ -34,8 +35,7 @@ public class C_World : C_BaseEntity
 		RecvPropString(FIELD.OF(nameof(DetailSpriteMaterial))),
 	]);
 
-	public static new readonly ClientClass ClientClass = new ClientClass("World", null, null, DT_World)
-																		.WithManualClassID(StaticClassIndices.CWorld);
+	public static new readonly ClientClass ClientClass = new ClientClass(null, null, DT_WORLD);
 
 	public override bool Init(int entNum, int serialNum) {
 		WaveHeight = 0.0f;
@@ -51,13 +51,21 @@ public class C_World : C_BaseEntity
 	}
 
 	float WaveHeight;
+	[NetworkName("m_WorldMins")]
 	Vector3 WorldMins;
+	[NetworkName("m_WorldMaxs")]
 	Vector3 WorldMaxs;
+	[NetworkName("m_bStartDark")]
 	bool StartDark;
+	[NetworkName("m_flMaxOccludeeArea")]
 	float MaxOccludeeArea;
+	[NetworkName("m_flMinOccluderArea")]
 	float MinOccluderArea;
+	[NetworkName("m_flMaxPropScreenSpaceWidth")]
 	float MaxPropScreenSpaceWidth;
+	[NetworkName("m_flMinPropScreenSpaceWidth")]
 	float MinPropScreenSpaceWidth;
+	[NetworkName("m_iszDetailSpriteMaterial")]
 	InlineArray256<char> DetailSpriteMaterial;
 	bool ColdWorld;
 

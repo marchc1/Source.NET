@@ -10,6 +10,7 @@ namespace Game.Server;
 
 using FIELD = Source.FIELD<BaseCombatCharacter>;
 
+[NetworkName("CBaseCombatCharacter")]
 public partial class BaseCombatCharacter : BaseFlex
 {
 	public bool ForceServerRagdoll;
@@ -38,10 +39,9 @@ public partial class BaseCombatCharacter : BaseFlex
 	public virtual Vector3 HeadDirection3D() => BodyDirection2D(); // No head motion so just return body dir
 	public virtual Vector3 EyeDirection3D() => HeadDirection3D(); // No eye motion so just return head dir
 
-	public static readonly SendTable DT_BCCLocalPlayerExclusive = new([
+	public static readonly SendTable DT_BCCLocalPlayerExclusive = new(nameof(DT_BCCLocalPlayerExclusive), [
 		SendPropTime64(FIELD.OF(nameof(NextAttack))),
 	]);
-	public static readonly ServerClass CC_BCCLocalPlayerExclusive = new ServerClass("BCCLocalPlayerExclusive", DT_BCCLocalPlayerExclusive);
 
 	public static readonly SendTable DT_BaseCombatCharacter = new(DT_BaseFlex, [
 		SendPropDataTable( "bcc_localdata", DT_BCCLocalPlayerExclusive, SendProxy_SendBaseCombatCharacterLocalDataTable ),
@@ -53,12 +53,18 @@ public partial class BaseCombatCharacter : BaseFlex
 	public TimeUnit_t GetNextAttack() => NextAttack;
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
+	[NetworkName("m_flNextAttack")]
 	public TimeUnit_t NextAttack;
 	public float ImpactEnergyScale;
+	[NetworkName("m_hLastWeapon")]
 	public Handle<BaseCombatWeapon> LastWeapon = new();
+	[NetworkName("m_hActiveWeapon")]
 	public Handle<BaseCombatWeapon> ActiveWeapon = new();
+	[NetworkName("m_hMyWeapons")]
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
+	[NetworkName("m_iAmmo")]
 	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
+	[NetworkName("m_bloodColor")]
 	public Color BloodColor;
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
@@ -87,7 +93,7 @@ public partial class BaseCombatCharacter : BaseFlex
 	public int WeaponCount() => MAX_WEAPONS;
 	public BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
 
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseCombatCharacter);
 
 	public override void DoMuzzleFlash() {
 		BaseCombatWeapon? weapon = GetActiveWeapon();

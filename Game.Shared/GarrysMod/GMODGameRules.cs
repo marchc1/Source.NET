@@ -33,6 +33,7 @@ public static class GMOD_GameRules_Globals
 #if GAME_DLL
 [LinkEntityToClass("gmod_gamerules")]
 #endif
+[NetworkName("CGMODGameRulesProxy")]
 public class
 #if CLIENT_DLL
 	C_GMODGameRulesProxy
@@ -80,9 +81,9 @@ public class
 	]);
 #endif
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("GMODGameRulesProxy", null, null, DT_GMODGameRulesProxy).WithManualClassID(StaticClassIndices.CGMODGameRulesProxy);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_GMODGameRulesProxy);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("GMODGameRulesProxy", DT_GMODGameRulesProxy).WithManualClassID(StaticClassIndices.CGMODGameRulesProxy);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_GMODGameRulesProxy);
 #endif
 }
 
@@ -97,7 +98,9 @@ public class
 {
 	public override ReadOnlySpan<char> Name() => "GMODGameRules";
 
+	[NetworkName("m_fTimeScale")]
 	public float TimeScale;
+	[NetworkName("m_iSkillLevel")]
 	public int SkillLevel;
 
 #if GAME_DLL

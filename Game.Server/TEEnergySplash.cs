@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEEnergySplash>;
+[NetworkName("CTEEnergySplash")]
 public class TEEnergySplash(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEEnergySplash = new([
@@ -11,9 +12,12 @@ public class TEEnergySplash(ReadOnlySpan<char> name) : BaseTempEntity(name)
 		SendPropVector(FIELD.OF(nameof(Dir)), 0, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(Explosive)), 1, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEEnergySplash", DT_TEEnergySplash).WithManualClassID(StaticClassIndices.CTEEnergySplash);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEEnergySplash);
 
+	[NetworkName("m_vecPos")]
 	public Vector3 Pos;
+	[NetworkName("m_vecDir")]
 	public Vector3 Dir;
+	[NetworkName("m_bExplosive")]
 	public int Explosive;
 }

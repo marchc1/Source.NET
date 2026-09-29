@@ -6,6 +6,7 @@ using Source.Common;
 namespace Game.Client;
 using FIELD = FIELD<C_ParticleSystem>;
 
+[NetworkName("CParticleSystem")]
 public class C_ParticleSystem : C_BaseEntity
 {
 	public static readonly RecvTable DT_ParticleSystem = new([
@@ -21,13 +22,19 @@ public class C_ParticleSystem : C_BaseEntity
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(ControlPointParents)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(ControlPointParents), 0))),
 		RecvPropBool(FIELD.OF(nameof(WeatherEffect))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("ParticleSystem", DT_ParticleSystem).WithManualClassID(StaticClassIndices.CParticleSystem);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_ParticleSystem);
+	[NetworkName("m_iEffectIndex")]
 	public int EffectIndex;
+	[NetworkName("m_bActive")]
 	public bool Active;
+	[NetworkName("m_flStartTime")]
 	public TimeUnit_t StartTime;
+	[NetworkName("m_bWeatherEffect")]
 	public bool WeatherEffect;
 
+	[NetworkName("m_hControlPointEnts")]
 	public InlineArrayNewMaxControlPoints<EHANDLE> ControlPointEnts = new();
+	[NetworkName("m_iControlPointParents")]
 	public InlineArrayNewMaxControlPoints<byte> ControlPointParents = new();
 }
 

@@ -8,14 +8,14 @@ namespace Game.Client.HL2;
 using DEFINE = Source.DEFINE<C_BaseHLPlayer>;
 using FIELD = Source.FIELD<C_BaseHLPlayer>;
 
+[NetworkName("CHL2_Player")]
 public partial class C_BaseHLPlayer : C_BasePlayer
 {
 	public static readonly RecvTable DT_HL2_Player = new(DT_BasePlayer, [
-		RecvPropDataTable(nameof(HL2Local), FIELD.OF(nameof(HL2Local)), C_HL2PlayerLocalData.DT_HL2Local, 0, DataTableRecvProxy_PointerDataTable),
+		RecvPropDataTable("m_HL2Local", FIELD.OF(nameof(HL2Local)), C_HL2PlayerLocalData.DT_HL2Local, 0, DataTableRecvProxy_PointerDataTable),
 		RecvPropBool(FIELD.OF(nameof(m_bIsSprinting)))
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("HL2_Player", null, null, DT_HL2_Player)
-															.WithManualClassID(StaticClassIndices.CHL2_Player);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_HL2_Player);
 
 	public static readonly new DataMap PredMap = new(typeof(C_BaseHLPlayer), C_BasePlayer.PredMap, [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(HL2Local), C_HL2PlayerLocalData.PredMap ),
@@ -35,7 +35,9 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 
 	public void ExitLadder(){ }
 
+	[NetworkName("m_HL2Local")]
 	public readonly C_HL2PlayerLocalData HL2Local = new();
+	[NetworkName("m_fIsSprinting")]
 	public bool m_bIsSprinting;
 	public bool m_bPlayUseDenySound;
 

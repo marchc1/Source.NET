@@ -162,7 +162,7 @@ namespace Source.CodeAnalysis.NetworkVars
 			sb.Append(indent).AppendLine("{");
 			foreach (PropertyModel p in props) {
 				sb.Append(indent).Append("\tpublic static readonly global::Source.Common.IFieldAccessor ").Append(p.PropertyName)
-					.Append(" = global::Source.FIELD<").Append(type.TypeFullyQualified).Append(">.OF_NAMED(\"__nv_").Append(p.PropertyName).Append("\", \"").Append(p.PropertyName).AppendLine("\");");
+					.Append(" = new global::Source.Common.DynamicAccessor(typeof(").Append(type.TypeFullyQualified).Append("), \"__nv_").Append(p.PropertyName).Append("\", \"").Append(p.PropertyName).AppendLine("\");");
 			}
 			sb.Append(indent).AppendLine("}");
 

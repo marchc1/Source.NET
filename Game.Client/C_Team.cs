@@ -43,6 +43,7 @@ public static class TeamGlobals
 }
 
 
+[NetworkName("CTeam")]
 public class C_Team : C_BaseEntity
 {
 	public static readonly RecvTable DT_Team = new([
@@ -52,7 +53,7 @@ public class C_Team : C_BaseEntity
 		RecvPropString( FIELD.OF(nameof(Teamname))),
 
 		RecvPropInt( "player_array_element", 0, RecvProxy_PlayerList ),
-		RecvPropArray2(RecvProxyArrayLength_PlayerArray, Constants.MAX_PLAYERS, "player_array")
+		RecvPropArray2(RecvProxyArrayLength_PlayerArray, Constants.MAX_PLAYERS, "\"player_array\"")
 	]);
 
 	private static void RecvProxyArrayLength_PlayerArray(object instance, int objectID, int currentArrayLength) {
@@ -67,16 +68,20 @@ public class C_Team : C_BaseEntity
 		team.Players[data.Element] = data.Value.Int;
 	}
 
-	public static readonly new ClientClass ClientClass = new ClientClass("Team", null, null, DT_Team).WithManualClassID(StaticClassIndices.CTeam);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_Team);
 
 	public readonly List<int> Players = [];
+	[NetworkName("m_szTeamname")]
 	public InlineArray32<char> Teamname;
+	[NetworkName("m_iScore")]
 	public int Score;
+	[NetworkName("m_iRoundsWon")]
 	public int RoundsWon;
 
 	public int Deaths;
 	public int Ping;
 	public int Packetloss;
+	[NetworkName("m_iTeamNum")]
 	public new int TeamNum;
 
 	public void RemoveAllPlayers() => Players.Clear();

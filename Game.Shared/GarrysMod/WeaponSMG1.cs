@@ -6,6 +6,7 @@ using FIELD = Source.FIELD<WeaponSMG1>;
 
 [LinkEntityToClass("weapon_smg1")]
 [PrecacheWeaponRegister("weapon_smg1")]
+[NetworkName("CWeaponSMG1")]
 public class WeaponSMG1 : HL2MPMachineGun
 {
 	public static readonly
@@ -22,10 +23,10 @@ public class WeaponSMG1 : HL2MPMachineGun
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSMG1", null, null, DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponSMG1);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponSMG1), HL2MPMachineGun.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSMG1", DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponSMG1);
 #endif
 	public override float GetFireRate() => 0.075f;
 	public override Activity GetPrimaryAttackActivity() {

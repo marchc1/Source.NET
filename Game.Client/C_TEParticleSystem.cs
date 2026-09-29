@@ -5,6 +5,7 @@ using System.Numerics;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEParticleSystem>;
+[NetworkName("CTEParticleSystem")]
 public class C_TEParticleSystem : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEParticleSystem = new(DT_BaseTempEntity, [
@@ -12,7 +13,8 @@ public class C_TEParticleSystem : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Origin), 1)),
 		RecvPropFloat(FIELD.OF_VECTORELEM(nameof(Origin), 2)),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEParticleSystem", DT_TEParticleSystem).WithManualClassID(StaticClassIndices.CTEParticleSystem);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEParticleSystem);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
 }

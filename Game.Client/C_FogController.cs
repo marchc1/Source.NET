@@ -6,8 +6,10 @@ using Source.Common;
 namespace Game.Server;
 using FIELD = Source.FIELD<C_FogController>;
 
+[NetworkName("CFogController")]
 public class C_FogController : C_BaseEntity
 {
+	[NetworkName("m_fog")]
 	public FogParams Fog;
 	public static readonly RecvTable DT_FogController = new([
 		RecvPropInt(FIELD.OF("Fog.Enable")),
@@ -32,5 +34,5 @@ public class C_FogController : C_BaseEntity
 		RecvPropFloat(FIELD.OF("Fog.Duration")),
 		RecvPropFloat(FIELD.OF("Fog.HDRColorScale")),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("FogController", DT_FogController).WithManualClassID(StaticClassIndices.CFogController);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_FogController);
 }

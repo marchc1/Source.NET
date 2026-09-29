@@ -4,14 +4,17 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEWorldDecal>;
+[NetworkName("CTEWorldDecal")]
 public class TEWorldDecal(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEWorldDecal = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(Index)), 9, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEWorldDecal", DT_TEWorldDecal).WithManualClassID(StaticClassIndices.CTEWorldDecal);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEWorldDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nIndex")]
 	public int Index;
 }

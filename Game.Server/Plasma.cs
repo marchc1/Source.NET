@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Plasma>;
+[NetworkName("CPlasma")]
 public class Plasma : BaseEntity
 {
 	public static readonly SendTable DT_Plasma = new(DT_BaseEntity, [
@@ -14,12 +15,18 @@ public class Plasma : BaseEntity
 		SendPropInt(FIELD.OF(nameof(PlasmaModelIndex2)), 14, 0),
 		SendPropInt(FIELD.OF(nameof(GlowModelIndex)), 14, 0),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("Plasma", DT_Plasma).WithManualClassID(StaticClassIndices.CPlasma);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Plasma);
 
+	[NetworkName("m_flScale")]
 	public float Scale;
+	[NetworkName("m_flScaleTime")]
 	public float ScaleTime;
+	[NetworkName("m_nFlags")]
 	public int Flags;
+	[NetworkName("m_nPlasmaModelIndex")]
 	public int PlasmaModelIndex;
+	[NetworkName("m_nPlasmaModelIndex2")]
 	public int PlasmaModelIndex2;
+	[NetworkName("m_nGlowModelIndex")]
 	public int GlowModelIndex;
 }

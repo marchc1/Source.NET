@@ -5,6 +5,7 @@ using FIELD = Source.FIELD<WeaponSLAM>;
 
 [LinkEntityToClass("weapon_slam")]
 [PrecacheWeaponRegister("weapon_slam")]
+[NetworkName("CWeapon_SLAM")]
 public class WeaponSLAM : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -13,7 +14,7 @@ public class WeaponSLAM : BaseHL2MPCombatWeapon
 #else
 		SendTable
 #endif
-		DT_WeaponSLAM = new(DT_BaseHL2MPCombatWeapon, [
+		DT_Weapon_SLAM = new(DT_BaseHL2MPCombatWeapon, [
 #if CLIENT_DLL
 			RecvPropInt(FIELD.OF(nameof(SlamState))),
 			RecvPropBool(FIELD.OF(nameof(DetonatorArmed))),
@@ -37,19 +38,28 @@ public class WeaponSLAM : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSLAM", null, null, DT_WeaponSLAM).WithManualClassID(StaticClassIndices.CWeapon_SLAM);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_Weapon_SLAM);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponSLAM), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSLAM", DT_WeaponSLAM).WithManualClassID(StaticClassIndices.CWeapon_SLAM);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Weapon_SLAM);
 #endif
+	[NetworkName("m_tSlamState")]
 	public int SlamState;
+	[NetworkName("m_bDetonatorArmed")]
 	public bool DetonatorArmed;
+	[NetworkName("m_bNeedDetonatorDraw")]
 	public bool NeedDetonatorDraw;
+	[NetworkName("m_bNeedDetonatorHolster")]
 	public bool NeedDetonatorHolster;
+	[NetworkName("m_bNeedReload")]
 	public bool NeedReload;
+	[NetworkName("m_bClearReload")]
 	public bool ClearReload;
+	[NetworkName("m_bThrowSatchel")]
 	public bool ThrowSatchel;
+	[NetworkName("m_bAttachSatchel")]
 	public bool AttachSatchel;
+	[NetworkName("m_bAttachTripmine")]
 	public bool AttachTripmine;
 }
 #endif

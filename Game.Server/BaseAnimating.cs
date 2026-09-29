@@ -16,16 +16,19 @@ namespace Game.Server;
 using FIELD = Source.FIELD<Game.Server.BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Server.InfoLightingRelative>;
 
+[NetworkName("CInfoLightingRelative")]
 public partial class InfoLightingRelative : BaseEntity
 {
 	public static readonly SendTable DT_InfoLightingRelative = new(DT_BaseEntity, [
 		SendPropEHandle(FIELD_ILR.OF(nameof(LightingLandmark)))
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_InfoLightingRelative);
 
+	[NetworkName("m_hLightingLandmark")]
 	public EHANDLE LightingLandmark = new();
 }
 
+[NetworkName("CBaseAnimating")]
 public class BaseAnimating : BaseEntity
 {
 	public const int ANIMATION_SKIN_BITS = 10;
@@ -34,10 +37,9 @@ public class BaseAnimating : BaseEntity
 	public const int ANIMATION_POSEPARAMETER_BITS = 11;
 	public const int ANIMATION_PLAYBACKRATE_BITS = 8;
 
-	public static readonly SendTable DT_ServerAnimationData = new([
+	public static readonly SendTable DT_ServerAnimationData = new(nameof(DT_ServerAnimationData), [
 		SendPropFloat(FIELD.OF(nameof(Cycle)), ANIMATION_CYCLE_BITS, PropFlags.ChangesOften|PropFlags.RoundDown, -1.0f, 1.0f)
 	]);
-	public static readonly ServerClass CC_ServerAnimationData = new ServerClass("ServerAnimationData", DT_ServerAnimationData);
 	public static readonly SendTable DT_BaseAnimating = new(DT_BaseEntity, [
 		SendPropInt( FIELD.OF(nameof(ForceBone)), 8, 0 ),
 		SendPropVector( FIELD.OF(nameof(Force)), 0, PropFlags.NoScale ),
@@ -77,36 +79,60 @@ public class BaseAnimating : BaseEntity
 		SendPropEHandle(FIELD.OF(nameof(FlexManipulator))),
 		SendPropVector(FIELD.OF(nameof(OverrideViewTarget)), 0, PropFlags.NoScale),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseAnimating", DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseAnimating);
 
+	[NetworkName("m_nForceBone")]
 	public int ForceBone;
+	[NetworkName("m_vecForce")]
 	public Vector3 Force;
+	[NetworkName("m_nSkin")]
 	public int Skin;
+	[NetworkName("m_nBody")]
 	public int Body;
+	[NetworkName("m_nHitboxSet")]
 	public int HitboxSet;
 
+	[NetworkName("m_flModelScale")]
 	public float ModelScale = 1.0f;
+	[NetworkName("m_flPoseParameter")]
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;
 	public int EventSequence;
+	[NetworkName("m_flEncodedController")]
 	public InlineArrayMaxStudioBoneCtrls<float> EncodedController;
 	public InlineArrayMaxStudioBoneCtrls<float> OldEncodedController;
+	[NetworkName("m_nSequence")]
 	public int Sequence;
+	[NetworkName("m_flPlaybackRate")]
 	public TimeUnit_t PlaybackRate;
+	[NetworkName("m_bClientSideAnimation")]
 	public bool ClientSideAnimation;
+	[NetworkName("m_bClientSideFrameReset")]
 	public bool ClientSideFrameReset;
+	[NetworkName("m_nNewSequenceParity")]
 	public int NewSequenceParity;
+	[NetworkName("m_nResetEventsParity")]
 	public int ResetEventsParity;
+	[NetworkName("m_nMuzzleFlashParity")]
 	public int MuzzleFlashParity;
+	[NetworkName("m_hLightingOrigin")]
 	public EHANDLE LightingOrigin = new();
+	[NetworkName("m_hLightingOriginRelative")]
 	public EHANDLE LightingOriginRelative = new();
+	[NetworkName("m_pBoneManipulator")]
 	public EHANDLE BoneManipulator = new();
+	[NetworkName("m_pFlexManipulator")]
 	public EHANDLE FlexManipulator = new();
+	[NetworkName("m_fadeMinDist")]
 	public float FadeMinDist;
+	[NetworkName("m_fadeMaxDist")]
 	public float FadeMaxDist;
+	[NetworkName("m_flFadeScale")]
 	public float FadeScale;
+	[NetworkName("m_flCycle")]
 	public TimeUnit_t Cycle;
+	[NetworkName("m_OverrideViewTarget")]
 	public Vector3 OverrideViewTarget;
 
 	public override void SetModel(ReadOnlySpan<char> modelName) {

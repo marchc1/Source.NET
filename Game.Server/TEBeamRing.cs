@@ -4,14 +4,17 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBeamRing>;
+[NetworkName("CTEBeamRing")]
 public class TEBeamRing(ReadOnlySpan<char> name) : BaseBeam(name)
 {
 	public static readonly SendTable DT_TEBeamRing = new(DT_BaseBeam, [
 		SendPropInt(FIELD.OF(nameof(StartEntity)), 13, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(EndEntity)), 13, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEBeamRing", DT_TEBeamRing).WithManualClassID(StaticClassIndices.CTEBeamRing);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEBeamRing);
 
+	[NetworkName("m_nStartEntity")]
 	public int StartEntity;
+	[NetworkName("m_nEndEntity")]
 	public int EndEntity;
 }

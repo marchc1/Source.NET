@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TESprite>;
+[NetworkName("CTESprite")]
 public class C_TESprite : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TESprite = new(DT_BaseTempEntity, [
@@ -12,11 +13,15 @@ public class C_TESprite : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Scale))),
 		RecvPropInt(FIELD.OF(nameof(Brightness))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TESprite", DT_TESprite).WithManualClassID(StaticClassIndices.CTESprite);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TESprite);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_fScale")]
 	public float Scale;
+	[NetworkName("m_nBrightness")]
 	public int Brightness;
 }
 

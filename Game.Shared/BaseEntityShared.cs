@@ -107,7 +107,7 @@ public partial class
 		SendPropString(FIELD.OF(nameof(ScriptName)))
 #endif
 	]);
-	public static readonly Class CC_ScriptedEntity = new("ScriptedEntity", DT_ScriptedEntity);
+	[NetworkName("m_strScriptName")]
 	public InlineArrayMaxPath<char> ScriptName;
 
 	public bool IsAnimatedEveryTick() => AnimatedEveryTick;
@@ -163,6 +163,7 @@ public partial class
 
 	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
 
+	[NetworkName("m_bIsPlayerSimulated")]
 	protected bool b_IsPlayerSimulated;
 	public bool IsPlayerSimulated() => b_IsPlayerSimulated;
 

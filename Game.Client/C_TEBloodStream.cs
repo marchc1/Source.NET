@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBloodStream>;
+[NetworkName("CTEBloodStream")]
 public class C_TEBloodStream : C_TEParticleSystem
 {
 	public static readonly RecvTable DT_TEBloodStream = new(DT_TEParticleSystem, [
@@ -14,13 +15,19 @@ public class C_TEBloodStream : C_TEParticleSystem
 		RecvPropInt(FIELD.OF(nameof(A))),
 		RecvPropInt(FIELD.OF(nameof(Amount))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBloodStream", DT_TEBloodStream).WithManualClassID(StaticClassIndices.CTEBloodStream);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBloodStream);
 
+	[NetworkName("m_vecDirection")]
 	public Vector3 Direction;
+	[NetworkName("r")]
 	public int R;
+	[NetworkName("g")]
 	public int G;
+	[NetworkName("b")]
 	public int B;
+	[NetworkName("a")]
 	public int A;
+	[NetworkName("m_nAmount")]
 	public int Amount;
 }
 

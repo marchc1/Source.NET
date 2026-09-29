@@ -51,11 +51,11 @@ public static class StaticClassIndicesHelpers
 		values.Sort();
 		Span<bool> implemented = stackalloc bool[values.Length];
 		for (ClientClass? clc = ClientClass.Head; clc != null; clc = clc.Next)
-			if (clc.ClassID != -1)
-				implemented[clc.ClassID] = true;
+			if (Enum.TryParse(clc.NetworkName, out StaticClassIndices classID))
+				implemented[(int)classID] = true;
 		for (ServerClass? svc = ServerClass.Head; svc != null; svc = svc.Next)
-			if (svc.ClassID != -1)
-				implemented[svc.ClassID] = true;
+			if (Enum.TryParse(svc.NetworkName, out StaticClassIndices classID))
+				implemented[(int)classID] = true;
 
 		for (int i = 0; i < values.Length; i++)
 			writer.WriteLine($"- [{(implemented[i] ? 'x' : ' ')}] Class #{i}: {names[i]}");
@@ -488,5 +488,6 @@ public enum StaticClassIndices
 	RocketTrail,
 	SmokeTrail,
 	SporeExplosion,
+	SporeTrail,
 }
 #endif

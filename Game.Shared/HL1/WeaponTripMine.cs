@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponTripMine>;
+[NetworkName("CWeaponTripMine")]
 public class WeaponTripMine : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -20,11 +21,13 @@ public class WeaponTripMine : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponTripMine", null, null, DT_WeaponTripMine).WithManualClassID(StaticClassIndices.CWeaponTripMine);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponTripMine);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponTripMine", DT_WeaponTripMine).WithManualClassID(StaticClassIndices.CWeaponTripMine);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponTripMine);
 #endif
+	[NetworkName("m_iGroundIndex")]
 	public float GroundIndex;
+	[NetworkName("m_iPickedUpIndex")]
 	public float PickedUpIndex;
 }
 #endif

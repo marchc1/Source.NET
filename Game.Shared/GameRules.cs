@@ -59,6 +59,7 @@ public enum GameRulesPlayerRelationship
 	Neutral
 }
 
+[NetworkName("CGameRulesProxy")]
 public class
 #if CLIENT_DLL
 	C_GameRulesProxy
@@ -82,10 +83,10 @@ public class
 #endif
 		DT_GameRulesProxy = new([]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("GameRulesProxy", null, null, DT_GameRulesProxy).WithManualClassID(StaticClassIndices.CGameRulesProxy);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_GameRulesProxy);
 #else
 #pragma warning disable CS0109 // Member does not hide an inherited member; new keyword is not required
-	public static readonly new ServerClass ServerClass = new ServerClass("GameRulesProxy", DT_GameRulesProxy).WithManualClassID(StaticClassIndices.CGameRulesProxy);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_GameRulesProxy);
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
 

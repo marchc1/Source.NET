@@ -26,32 +26,53 @@ public class EffectData
 	public const int MAX_EFFECT_DISPATCH_STRING_BITS = 10;
 	public const int MAX_EFFECT_DISPATCH_STRINGS = 1 << MAX_EFFECT_DISPATCH_STRING_BITS;
 
+	[NetworkName("m_vOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vStart")]
 	public Vector3 Start;
+	[NetworkName("m_vNormal")]
 	public Vector3 Normal;
+	[NetworkName("m_vAngles")]
 	public QAngle Angles;
+	[NetworkName("m_fFlags")]
 	public int Flags;
 #if CLIENT_DLL
 	public BaseHandle Entity = new();
 #else
 #endif
+	[NetworkName("entindex")]
 	public int EntIndex;
 
+	[NetworkName("m_flScale")]
 	public float Scale;
+	[NetworkName("m_flMagnitude")]
 	public float Magnitude;
+	[NetworkName("m_flRadius")]
 	public float Radius;
+	[NetworkName("m_nAttachmentIndex")]
 	public int AttachmentIndex;
+	[NetworkName("m_nSurfaceProp")]
 	public short SurfaceProp;
+	[NetworkName("m_iEffectName")]
 	public int EffectName;
+	[NetworkName("m_nMaterial")]
 	public int Material;
+	[NetworkName("m_nDamageType")]
 	public int DamageType;
+	[NetworkName("m_nHitBox")]
 	public int HitBox;
+	[NetworkName("m_nColor")]
 	public byte Color;
 
+	[NetworkName("m_bCustomColors")]
 	public bool HasCustomColors;
+	[NetworkName("m_CustomColors")]
 	public ParticleEffectsColors CustomColors;
+	[NetworkName("m_bControlPoint1")]
 	public bool HasControlPoint1;
+	[NetworkName("m_ControlPoint1")]
 	public ParticleEffectsControlPoint ControlPoint1;
+	[NetworkName("m_bAllowOverride")]
 	public bool AllowOverride;
 
 #if CLIENT_DLL
@@ -98,7 +119,7 @@ public class EffectData
 		SendPropFloat(FIELD.OF($"{nameof(Start)}[0]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
 		SendPropFloat(FIELD.OF($"{nameof(Start)}[1]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
 		SendPropFloat(FIELD.OF($"{nameof(Start)}[2]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropQAngles(FIELD.OF(nameof(Angles)), 7),
+		SendPropQAngles(FIELD.OF(nameof(Angles)), 7, PropFlags.RoundDown),
 		SendPropVector(FIELD.OF(nameof(Normal)), 0, PropFlags.Normal | PropFlags.VarInt),
 		SendPropInt(FIELD.OF(nameof(Flags)), MAX_EFFECT_FLAG_BITS, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(Magnitude)), 12, PropFlags.RoundDown, 0.0f, 1023.0f),

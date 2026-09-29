@@ -5,6 +5,7 @@ using System.Numerics;
 using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEProjectedDecal>;
+[NetworkName("CTEProjectedDecal")]
 public class C_TEProjectedDecal : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEProjectedDecal = new(DT_BaseTempEntity, [
@@ -13,11 +14,15 @@ public class C_TEProjectedDecal : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(LDistance))),
 		RecvPropInt(FIELD.OF(nameof(Index))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEProjectedDecal", DT_TEProjectedDecal).WithManualClassID(StaticClassIndices.CTEProjectedDecal);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEProjectedDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_angRotation")]
 	public Vector3 Rotation;
+	[NetworkName("m_flDistance")]
 	public float LDistance;
+	[NetworkName("m_nIndex")]
 	public int Index;
 }
 

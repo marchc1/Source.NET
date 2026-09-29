@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBeamRingPoint>;
+[NetworkName("CTEBeamRingPoint")]
 public class C_TEBeamRingPoint : C_BaseBeam
 {
 	public static readonly RecvTable DT_TEBeamRingPoint = new(DT_BaseBeam, [
@@ -11,10 +12,13 @@ public class C_TEBeamRingPoint : C_BaseBeam
 		RecvPropFloat(FIELD.OF(nameof(LStartRadius))),
 		RecvPropFloat(FIELD.OF(nameof(LEndRadius))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamRingPoint", DT_TEBeamRingPoint).WithManualClassID(StaticClassIndices.CTEBeamRingPoint);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBeamRingPoint);
 
+	[NetworkName("m_vecCenter")]
 	public Vector3 Center;
+	[NetworkName("m_flStartRadius")]
 	public float LStartRadius;
+	[NetworkName("m_flEndRadius")]
 	public float LEndRadius;
 }
 

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBubbles>;
+[NetworkName("CTEBubbles")]
 public class C_TEBubbles : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEBubbles = new(DT_BaseTempEntity, [
@@ -14,13 +15,19 @@ public class C_TEBubbles : C_BaseTempEntity
 		RecvPropInt(FIELD.OF(nameof(Count))),
 		RecvPropFloat(FIELD.OF(nameof(Speed))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBubbles", DT_TEBubbles).WithManualClassID(StaticClassIndices.CTEBubbles);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBubbles);
 
+	[NetworkName("m_vecMins")]
 	public Vector3 Mins;
+	[NetworkName("m_vecMaxs")]
 	public Vector3 Maxs;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_fHeight")]
 	public float Height;
+	[NetworkName("m_nCount")]
 	public int Count;
+	[NetworkName("m_fSpeed")]
 	public float Speed;
 }
 

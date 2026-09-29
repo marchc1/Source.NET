@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_PropScalable>;
+[NetworkName("CPropScalable")]
 public class C_PropScalable : C_BaseAnimating
 {
 	public static readonly RecvTable DT_PropScalable = new(DT_BaseAnimating, [
@@ -20,15 +21,24 @@ public class C_PropScalable : C_BaseAnimating
 		RecvPropFloat(FIELD.OF(nameof(GoalTimeY))),
 		RecvPropFloat(FIELD.OF(nameof(GoalTimeZ))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("PropScalable", DT_PropScalable).WithManualClassID(StaticClassIndices.CPropScalable);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_PropScalable);
 
+	[NetworkName("m_flScaleX")]
 	public float ScaleX;
+	[NetworkName("m_flScaleY")]
 	public float ScaleY;
+	[NetworkName("m_flScaleZ")]
 	public float ScaleZ;
+	[NetworkName("m_flLerpTimeX")]
 	public float LerpTimeX;
+	[NetworkName("m_flLerpTimeY")]
 	public float LerpTimeY;
+	[NetworkName("m_flLerpTimeZ")]
 	public float LerpTimeZ;
+	[NetworkName("m_flGoalTimeX")]
 	public float GoalTimeX;
+	[NetworkName("m_flGoalTimeY")]
 	public float GoalTimeY;
+	[NetworkName("m_flGoalTimeZ")]
 	public float GoalTimeZ;
 }

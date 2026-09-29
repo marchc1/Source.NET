@@ -6,15 +6,18 @@ using Game.Shared;
 namespace Game.Client;
 
 using FIELD = FIELD<C_TEBeamEnts>;
+[NetworkName("CTEBeamEnts")]
 public class C_TEBeamEnts : C_BaseBeam
 {
 	public static readonly RecvTable DT_TEBeamEnts = new(DT_BaseBeam, [
 		RecvPropInt(FIELD.OF(nameof(StartEntity))),
 		RecvPropInt(FIELD.OF(nameof(EndEntity))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamEnts", DT_TEBeamEnts).AsEvent<C_TEBeamEnts>().WithManualClassID(StaticClassIndices.CTEBeamEnts);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBeamEnts).AsEvent<C_TEBeamEnts>();
 
+	[NetworkName("m_nStartEntity")]
 	public int StartEntity;
+	[NetworkName("m_nEndEntity")]
 	public int EndEntity;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

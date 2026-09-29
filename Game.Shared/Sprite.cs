@@ -4,6 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<Sprite>;
+[NetworkName("CSprite")]
 public class Sprite : BaseEntity
 {
 	public static readonly
@@ -31,9 +32,9 @@ public class Sprite : BaseEntity
 		SendPropInt(FIELD.OF(nameof(Attachment)), 8),
 		SendPropFloat(FIELD.OF(nameof(ScaleTime)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(SpriteScale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(GlowProxySize)), 6, PropFlags.RoundUp, 1, 64),
+		SendPropFloat(FIELD.OF(nameof(GlowProxySize)), 6, PropFlags.RoundUp, 0.0f, 64.0f),
 		SendPropFloat(FIELD.OF(nameof(HDRColorScale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpriteFramerate)), 8, PropFlags.RoundUp, 0.2f, 60f),
+		SendPropFloat(FIELD.OF(nameof(SpriteFramerate)), 8, PropFlags.RoundUp, 0, 60.0f),
 		SendPropFloat(FIELD.OF(nameof(Frame)), 20, PropFlags.RoundDown, 0, 256),
 		SendPropFloat(FIELD.OF(nameof(BrightnessTime)), 0, PropFlags.NoScale, 0, 0),
 		SendPropInt(FIELD.OF(nameof(Brightness)), 8, PropFlags.Unsigned),
@@ -41,22 +42,34 @@ public class Sprite : BaseEntity
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("Sprite", null, null, DT_Sprite).WithManualClassID(StaticClassIndices.CSprite);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_Sprite);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("Sprite", DT_Sprite).WithManualClassID(StaticClassIndices.CSprite);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Sprite);
 #endif
+	[NetworkName("m_hAttachedToEntity")]
 	public EHANDLE AttachedToEntity = new();
+	[NetworkName("m_nAttachment")]
 	public int Attachment;
+	[NetworkName("m_flScaleTime")]
 	public TimeUnit_t ScaleTime;
+	[NetworkName("m_flSpriteScale")]
 	public float SpriteScale;
+	[NetworkName("m_flGlowProxySize")]
 	public float GlowProxySize;
+	[NetworkName("m_flHDRColorScale")]
 	public float HDRColorScale;
+	[NetworkName("m_flSpriteFramerate")]
 	public TimeUnit_t SpriteFramerate;
+	[NetworkName("m_flFrame")]
 	public TimeUnit_t Frame;
+	[NetworkName("m_flBrightnessTime")]
 	public TimeUnit_t BrightnessTime;
+	[NetworkName("m_nBrightness")]
 	public int Brightness;
+	[NetworkName("m_bWorldSpaceScale")]
 	public bool WorldSpaceScale;
 }
+[NetworkName("CSpriteOriented")]
 public class SpriteOriented : Sprite
 {
 	public static readonly
@@ -73,9 +86,9 @@ public class SpriteOriented : Sprite
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("SpriteOriented", null, null, DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_SpriteOriented);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("SpriteOriented", DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_SpriteOriented);
 #endif
 }
 #endif

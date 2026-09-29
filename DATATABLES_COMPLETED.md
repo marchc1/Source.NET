@@ -41,15 +41,15 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #38: CEmbers
 - [x] Class #39: CEntityDissolve
 - [x] Class #40: CEntityFlame
-- [ ] Class #41: CEntityParticleTrail
+- [x] Class #41: CEntityParticleTrail
 - [x] Class #42: CEnvAmbientLight
 - [x] Class #43: CEnvDetailController
-- [ ] Class #44: CEnvHeadcrabCanister
+- [x] Class #44: CEnvHeadcrabCanister
 - [x] Class #45: CEnvParticleScript
 - [x] Class #46: CEnvProjectedTexture
 - [x] Class #47: CEnvQuadraticBeam
 - [x] Class #48: CEnvScreenEffect
-- [ ] Class #49: CEnvScreenOverlay
+- [x] Class #49: CEnvScreenOverlay
 - [x] Class #50: CEnvStarfield
 - [x] Class #51: CEnvTonemapController
 - [x] Class #52: CEnvWind
@@ -126,17 +126,17 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #123: CPropJeep
 - [x] Class #124: CPropJeepEpisodic
 - [x] Class #125: CPropScalable
-- [ ] Class #126: CPropVehicleChoreoGeneric
+- [x] Class #126: CPropVehicleChoreoGeneric
 - [x] Class #127: CPropVehicleDriveable
 - [x] Class #128: CPropVehiclePrisonerPod
-- [ ] Class #129: CRagdollManager
+- [x] Class #129: CRagdollManager
 - [x] Class #130: CRagdollProp
-- [ ] Class #131: CRagdollPropAttached
+- [x] Class #131: CRagdollPropAttached
 - [x] Class #132: CRopeKeyframe
 - [x] Class #133: CRotorWashEmitter
 - [x] Class #134: CRpgRocket
-- [ ] Class #135: CSceneEntity
-- [ ] Class #136: CScriptIntro
+- [x] Class #135: CSceneEntity
+- [x] Class #136: CScriptIntro
 - [x] Class #137: CSENT_AI
 - [x] Class #138: CSENT_anim
 - [x] Class #139: CSENT_point
@@ -249,3 +249,4 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #246: RocketTrail
 - [x] Class #247: SmokeTrail
 - [x] Class #248: SporeExplosion
+- [x] Class #249: SporeTrail

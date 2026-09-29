@@ -10,6 +10,7 @@ using FIELD = Source.FIELD<Game.Client.C_BaseFlex>;
 namespace Game.Client;
 
 public interface IHasLocalToGlobalFlexSettings;
+[NetworkName("CBaseFlex")]
 public partial class C_BaseFlex : C_BaseAnimatingOverlay, IHasLocalToGlobalFlexSettings
 {
 	readonly Source.Common.Audio.MouthInfo mouth = new();
@@ -27,10 +28,15 @@ public partial class C_BaseFlex : C_BaseAnimatingOverlay, IHasLocalToGlobalFlexS
 		RecvPropVector  ( FIELD.OF(nameof(Lean))),
 		RecvPropVector  ( FIELD.OF(nameof(Shift))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseFlex", null, null, DT_BaseFlex).WithManualClassID(StaticClassIndices.CBaseFlex);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseFlex);
+	[NetworkName("m_flexWeight")]
 	public InlineArray96<float> FlexWeight;
+	[NetworkName("m_blinktoggle")]
 	public int BlinkToggle;
+	[NetworkName("m_viewtarget")]
 	public Vector3 ViewTarget;
+	[NetworkName("m_vecLean")]
 	public Vector3 Lean;
+	[NetworkName("m_vecShift")]
 	public Vector3 Shift;
 }

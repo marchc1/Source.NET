@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_Precipitation>;
+[NetworkName("CPrecipitation")]
 public class C_Precipitation : C_BaseEntity
 {
 	public static readonly RecvTable DT_Precipitation = new(DT_BaseEntity, [
@@ -13,11 +14,16 @@ public class C_Precipitation : C_BaseEntity
 		RecvPropString(FIELD.OF(nameof(ParticleNameOuter))),
 		RecvPropFloat(FIELD.OF(nameof(ParticleDist))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("Precipitation", DT_Precipitation).WithManualClassID(StaticClassIndices.CPrecipitation);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_Precipitation);
 
+	[NetworkName("m_nPrecipType")]
 	public int PrecipType;
+	[NetworkName("m_sParticleNameClose")]
 	public InlineArray512<char> ParticleNameClose;
+	[NetworkName("m_sParticleNameInner")]
 	public InlineArray512<char> ParticleNameInner;
+	[NetworkName("m_sParticleNameOuter")]
 	public InlineArray512<char> ParticleNameOuter;
+	[NetworkName("m_flParticleDist")]
 	public float ParticleDist;
 }

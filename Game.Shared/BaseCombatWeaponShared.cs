@@ -114,6 +114,7 @@ public struct DmgAccumulator
 	private bool Active;
 }
 
+[NetworkName("CBaseCombatWeapon")]
 public partial class
 #if CLIENT_DLL
 		C_BaseCombatWeapon : C_BaseAnimating
@@ -160,7 +161,7 @@ public partial class
 #if !CLIENT_DLL && !GAME_DLL // God intellisense is annoying me. Fixme when we can get Intellisense to shut up about Game.Shared (it never gets built)
 	public static readonly Table DT_BaseAnimating = new();
 #endif
-	public static readonly Table DT_LocalWeaponData = new([
+	public static readonly Table DT_LocalWeaponData = new(nameof(DT_LocalWeaponData), [
 #if CLIENT_DLL
 		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip1))),
 		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip2))),
@@ -176,9 +177,9 @@ public partial class
 		SendPropInt(FIELD.OF(nameof(nViewModelIndex)), BaseViewModel.VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
 		SendPropBool(FIELD.OF(nameof(FlipViewModel))),
 #endif
-	]); public static readonly Class SC_LocalWeaponData = new Class("LocalWeaponData", DT_LocalWeaponData);
+	]);
 
-	public static readonly Table DT_LocalActiveWeaponData = new([
+	public static readonly Table DT_LocalActiveWeaponData = new(nameof(DT_LocalActiveWeaponData), [
 #if CLIENT_DLL
 		RecvPropTime64(FIELD.OF(nameof(NextPrimaryAttack))),
 		RecvPropTime64(FIELD.OF(nameof(NextSecondaryAttack))),
@@ -190,7 +191,7 @@ public partial class
 		SendPropInt(FIELD.OF(nameof(NextThinkTick))),
 		SendPropTime64(FIELD.OF(nameof(TimeWeaponIdle))),
 #endif
-	]); public static readonly Class SC_LocalActiveWeaponData = new Class("LocalActiveWeaponData", DT_LocalActiveWeaponData);
+	]);
 
 	public static readonly Table DT_BaseCombatWeapon = new(DT_BaseAnimating, [
 #if CLIENT_DLL
@@ -249,7 +250,7 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("BaseCombatWeapon", DT_BaseCombatWeapon).WithManualClassID(StaticClassIndices.CBaseCombatWeapon);
+		= new Class(DT_BaseCombatWeapon);
 
 
 	public virtual bool CanBePickedUpByNPCs() => true;
@@ -294,27 +295,40 @@ public partial class
 		public float Value;
 	}
 
+	[NetworkName("m_iClip1")]
 	public int iClip1;
+	[NetworkName("m_iClip2")]
 	public int iClip2;
+	[NetworkName("m_iPrimaryAmmoType")]
 	public int PrimaryAmmoType;
+	[NetworkName("m_iSecondaryAmmoType")]
 	public int SecondaryAmmoType;
 	/// <summary>
 	/// View model index (entity offset)
 	/// </summary>
+	[NetworkName("m_nViewModelIndex")]
 	public int nViewModelIndex;
 	/// <summary>
 	/// View model index (art)
 	/// </summary>
+	[NetworkName("m_iViewModelIndex")]
 	public int iViewModelIndex;
+	[NetworkName("m_iWorldModelIndex")]
 	public int WorldModelIndex;
+	[NetworkName("m_bFlipViewModel")]
 	public bool FlipViewModel;
 
+	[NetworkName("m_flNextPrimaryAttack")]
 	public TimeUnit_t NextPrimaryAttack;
+	[NetworkName("m_flNextSecondaryAttack")]
 	public TimeUnit_t NextSecondaryAttack;
+	[NetworkName("m_flTimeWeaponIdle")]
 	public TimeUnit_t TimeWeaponIdle;
 
+	[NetworkName("m_iState")]
 	public int State;
 	public string? WeaponName; // Equiv of m_iszName in SDK
+	[NetworkName("m_hOwner")]
 	public EHANDLE Owner = new();
 
 	Activity Activity;

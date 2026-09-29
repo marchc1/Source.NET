@@ -25,6 +25,7 @@ using Class =
 	ServerClass;
 #endif
 
+[NetworkName("CSENT_anim")]
 public partial class
 #if CLIENT_DLL
 	C_SENT_Anim : C_BaseAnimatingOverlay
@@ -32,11 +33,11 @@ public partial class
 	SENT_Anim 	: BaseAnimatingOverlay
 #endif
 {
-	public static readonly Table DT_SENT_Anim = new(DT_BaseAnimatingOverlay, [
+	public static readonly Table DT_SENT_anim = new(DT_BaseAnimatingOverlay, [
 #if CLIENT_DLL
-		RecvPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		RecvPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #elif GAME_DLL
-		SendPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		SendPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #endif
 	]);
 
@@ -46,6 +47,6 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("SENT_Anim", DT_SENT_Anim).WithManualClassID(StaticClassIndices.CSENT_anim);
+		= new Class(DT_SENT_anim);
 }
 #endif

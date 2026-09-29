@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Source.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -22,12 +23,16 @@ public enum ParticleAttachment : byte
 
 public struct ParticleEffectsColors
 {
+	[NetworkName("m_vecColor1")]
 	public Vector3 Color1;
+	[NetworkName("m_vecColor2")]
 	public Vector3 Color2;
 }
 
 public struct ParticleEffectsControlPoint
 {
+	[NetworkName("m_eParticleAttachment")]
 	public byte ParticleAttachment;
+	[NetworkName("m_vecOffset")]
 	public Vector3 Offset;
 }

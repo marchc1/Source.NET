@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_RocketTrail>;
+[NetworkName("RocketTrail")]
 public class C_RocketTrail : C_BaseParticleEntity
 {
 	public static readonly RecvTable DT_RocketTrail = new(DT_BaseParticleEntity, [
@@ -23,21 +24,36 @@ public class C_RocketTrail : C_BaseParticleEntity
 		RecvPropBool(FIELD.OF(nameof(Damaged))),
 		RecvPropFloat(FIELD.OF(nameof(FlareScale))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("RocketTrail", DT_RocketTrail).WithManualClassID(StaticClassIndices.RocketTrail);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_RocketTrail);
 
+	[NetworkName("m_SpawnRate")]
 	public float SpawnRate;
+	[NetworkName("m_StartColor")]
 	public Vector3 StartColor;
+	[NetworkName("m_EndColor")]
 	public Vector3 EndColor;
+	[NetworkName("m_ParticleLifetime")]
 	public float ParticleLifetime;
+	[NetworkName("m_StopEmitTime")]
 	public float StopEmitTime;
+	[NetworkName("m_MinSpeed")]
 	public float MinSpeed;
+	[NetworkName("m_MaxSpeed")]
 	public float MaxSpeed;
+	[NetworkName("m_StartSize")]
 	public float StartSize;
+	[NetworkName("m_EndSize")]
 	public float EndSize;
+	[NetworkName("m_SpawnRadius")]
 	public float SpawnRadius;
+	[NetworkName("m_bEmit")]
 	public bool Emit;
+	[NetworkName("m_nAttachment")]
 	public int Attachment;
+	[NetworkName("m_Opacity")]
 	public float Opacity;
+	[NetworkName("m_bDamaged")]
 	public bool Damaged;
+	[NetworkName("m_flFlareScale")]
 	public float FlareScale;
 }

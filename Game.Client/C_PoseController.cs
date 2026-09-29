@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_PoseController>;
+[NetworkName("CPoseController")]
 public class C_PoseController : C_BaseEntity
 {
 	public static readonly RecvTable DT_PoseController = new(DT_BaseEntity, [
@@ -19,18 +20,29 @@ public class C_PoseController : C_BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(FModRate))),
 		RecvPropFloat(FIELD.OF(nameof(FModAmplitude))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("PoseController", DT_PoseController).WithManualClassID(StaticClassIndices.CPoseController);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_PoseController);
 
 	public const int MAX_POSE_CONTROLLED_PROPS = 4;
+	[NetworkName("m_hProps")]
 	public InlineArray4<EHANDLE> HProps;
+	[NetworkName("m_chPoseIndex")]
 	public InlineArray4<byte> ChPoseIndex;
+	[NetworkName("m_bPoseValueParity")]
 	public bool PoseValueParity;
+	[NetworkName("m_fPoseValue")]
 	public float PoseValue;
+	[NetworkName("m_fInterpolationTime")]
 	public float InterpolationTime;
+	[NetworkName("m_bInterpolationWrap")]
 	public bool InterpolationWrap;
+	[NetworkName("m_fCycleFrequency")]
 	public float CycleFrequency;
+	[NetworkName("m_nFModType")]
 	public int FModType;
+	[NetworkName("m_fFModTimeOffset")]
 	public float FModTimeOffset;
+	[NetworkName("m_fFModRate")]
 	public float FModRate;
+	[NetworkName("m_fFModAmplitude")]
 	public float FModAmplitude;
 }

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Flare>;
+[NetworkName("CFlare")]
 public class Flare : BaseCombatCharacter
 {
 	public static readonly SendTable DT_Flare = new(DT_BaseCombatCharacter, [
@@ -13,11 +14,16 @@ public class Flare : BaseCombatCharacter
 		SendPropBool(FIELD.OF(nameof(Smoke))),
 		SendPropBool(FIELD.OF(nameof(PropFlare))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("Flare", DT_Flare).WithManualClassID(StaticClassIndices.CFlare);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_Flare);
 
+	[NetworkName("m_flTimeBurnOut")]
 	public float TimeBurnOut;
+	[NetworkName("m_flScale")]
 	public float Scale;
+	[NetworkName("m_bLight")]
 	public bool Light;
+	[NetworkName("m_bSmoke")]
 	public bool Smoke;
+	[NetworkName("m_bPropFlare")]
 	public bool PropFlare;
 }

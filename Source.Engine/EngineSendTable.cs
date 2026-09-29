@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.HighPerformance;
+﻿using System.Text;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Bitbuffers;
@@ -48,7 +49,7 @@ public static class EngineSendTable
 	}
 
 	private static uint SendTable_CRCTable(ref CRC32_t crc, SendTable table) {
-		CRC32.ProcessBuffer(ref crc, table.NetTableName.AsSpan(), strlen(table.NetTableName));
+		CRC32.ProcessBuffer(ref crc, Encoding.ASCII.GetBytes(table.NetTableName!).AsSpan());
 
 		CRC32.ProcessBuffer(ref crc, table.Props?.Length ?? 0);
 
@@ -57,14 +58,14 @@ public static class EngineSendTable
 			SendProp prop = table.Props[iProp];
 
 			CRC32.ProcessBuffer(ref crc, (int)prop.Type);
-			CRC32.ProcessBuffer(ref crc, prop.GetName(), strlen(prop.GetName()));
+			CRC32.ProcessBuffer(ref crc, Encoding.ASCII.GetBytes(prop.GetName().ToArray()).AsSpan());
 			CRC32.ProcessBuffer(ref crc, (int)prop.GetFlags());
 
 			if (prop.Type == SendPropType.DataTable)
-				CRC32.ProcessBuffer(ref crc, prop.GetDataTable()!.NetTableName.AsSpan(), strlen(prop.GetDataTable()!.NetTableName));
+				CRC32.ProcessBuffer(ref crc, Encoding.ASCII.GetBytes(prop.GetDataTable()!.NetTableName!).AsSpan());
 			else {
 				if (prop.IsExcludeProp())
-					CRC32.ProcessBuffer(ref crc, prop.GetExcludeDTName(), strlen(prop.GetExcludeDTName()));
+					CRC32.ProcessBuffer(ref crc, Encoding.ASCII.GetBytes(prop.GetExcludeDTName().ToArray()).AsSpan());
 				else if (prop.GetPropType() == SendPropType.Array)
 					CRC32.ProcessBuffer(ref crc, prop.GetNumElements());
 				else {

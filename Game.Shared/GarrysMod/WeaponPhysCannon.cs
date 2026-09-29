@@ -23,6 +23,7 @@ using FIELD = Source.FIELD<WeaponPhysCannon>;
 
 [LinkEntityToClass("weapon_physcannon")]
 [PrecacheWeaponRegister("weapon_physcannon")]
+[NetworkName("CWeaponPhysCannon")]
 public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 {
 
@@ -181,27 +182,34 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			SendPropBool(FIELD.OF(nameof(Active))),
 			SendPropEHandle(FIELD.OF(nameof(AttachedObject))),
 			SendPropVector(FIELD.OF(nameof(AttachedPositionObjectSpace)), 0, PropFlags.Coord),
-			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 0), 11, PropFlags.RoundDown),
-			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 1), 11, PropFlags.RoundDown),
-			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 2), 11, PropFlags.RoundDown),
+			SendPropAngle(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 0), 11, PropFlags.RoundDown),
+			SendPropAngle(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 1), 11, PropFlags.RoundDown),
+			SendPropAngle(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 2), 11, PropFlags.RoundDown),
 			SendPropInt(FIELD.OF(nameof(EffectState)), 4),
 			SendPropBool(FIELD.OF(nameof(Open))),
 			SendPropBool(FIELD.OF(nameof(PhyscannonState))),
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponPhysCannon", null, null, DT_WeaponPhysCannon).WithManualClassID(StaticClassIndices.CWeaponPhysCannon);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponPhysCannon);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponPhysCannon), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponPhysCannon", DT_WeaponPhysCannon).WithManualClassID(StaticClassIndices.CWeaponPhysCannon);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponPhysCannon);
 #endif
+	[NetworkName("m_bActive")]
 	public bool Active;
+	[NetworkName("m_hAttachedObject")]
 	public EHANDLE AttachedObject = new();
+	[NetworkName("m_attachedPositionObjectSpace")]
 	public Vector3 AttachedPositionObjectSpace;
+	[NetworkName("m_attachedAnglesPlayerSpace")]
 	public QAngle AttachedAnglesPlayerSpace;
+	[NetworkName("m_EffectState")]
 	public int EffectState;
+	[NetworkName("m_bOpen")]
 	public bool Open;
+	[NetworkName("m_bPhyscannonState")]
 	public bool PhyscannonState;
 #if CLIENT_DLL
 	public bool OldOpen;

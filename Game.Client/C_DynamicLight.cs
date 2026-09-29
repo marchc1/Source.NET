@@ -11,6 +11,7 @@ namespace Game.Client;
 
 using FIELD = FIELD<C_DynamicLight>;
 
+[NetworkName("CDynamicLight")]
 public class C_DynamicLight : C_BaseEntity
 {
 	public static readonly RecvTable DT_DynamicLight = new(DT_BaseEntity, [
@@ -22,14 +23,21 @@ public class C_DynamicLight : C_BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(OuterAngle))),
 		RecvPropFloat(FIELD.OF(nameof(SpotRadius))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("DynamicLight", DT_DynamicLight).WithManualClassID(StaticClassIndices.CDynamicLight);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_DynamicLight);
 
+	[NetworkName("m_Flags")]
 	public int Flags;
+	[NetworkName("m_LightStyle")]
 	public int LightStyle;
+	[NetworkName("m_Radius")]
 	public float Radius;
+	[NetworkName("m_Exponent")]
 	public int Exponent;
+	[NetworkName("m_InnerAngle")]
 	public float InnerAngle;
+	[NetworkName("m_OuterAngle")]
 	public float OuterAngle;
+	[NetworkName("m_SpotRadius")]
 	public float SpotRadius;
 
 	DLight? DynamicLight;

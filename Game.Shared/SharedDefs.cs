@@ -453,17 +453,6 @@ public static class SharedDefs
 
 	public const int kActivityLookup_Unknown = -2;          // hasn't been searched for
 	public const int kActivityLookup_Missing = -1;          // has been searched for but wasn't found
-
-
-	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
-		clientClass.ClassID = (int)classID;
-		return clientClass;
-	}
-
-	public static ServerClass WithManualClassID(this ServerClass clientClass, StaticClassIndices classID) {
-		clientClass.ClassID = (int)classID;
-		return clientClass;
-	}
 }
 
 public enum WeaponState

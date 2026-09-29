@@ -4,6 +4,7 @@ namespace Source.Common;
 
 public class PlayerState
 {
+	[NetworkName("deadflag")]
 	public bool DeadFlag;
 	public QAngle ViewingAngle;
 

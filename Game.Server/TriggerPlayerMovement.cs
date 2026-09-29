@@ -6,10 +6,11 @@ namespace Game.Server;
 
 using FIELD = FIELD<TriggerPlayerMovement>;
 [LinkEntityToClass("trigger_playermovement")]
+[NetworkName("CTriggerPlayerMovement")]
 public class TriggerPlayerMovement : BaseTrigger
 {
 	public static readonly SendTable DT_TriggerPlayerMovement = new(DT_BaseTrigger, []);
-	public static readonly new ServerClass ServerClass = new ServerClass("TriggerPlayerMovement", DT_TriggerPlayerMovement).WithManualClassID(StaticClassIndices.CTriggerPlayerMovement);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TriggerPlayerMovement);
 
 	const int SF_TRIGGER_MOVE_AUTODISABLE = 0x80;      // disable auto movement
 	const int SF_TRIGGER_AUTO_DUCK = 0x800;    // Duck automatically

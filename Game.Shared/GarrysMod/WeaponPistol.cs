@@ -7,6 +7,7 @@ using FIELD = Source.FIELD<WeaponPistol>;
 
 [LinkEntityToClass("weapon_pistol")]
 [PrecacheWeaponRegister("weapon_pistol")]
+[NetworkName("CWeaponPistol")]
 public class WeaponPistol : HL2MPMachineGun
 {
 	public static readonly
@@ -29,14 +30,18 @@ public class WeaponPistol : HL2MPMachineGun
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponPistol", null, null, DT_WeaponPistol).WithManualClassID(StaticClassIndices.CWeaponPistol);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponPistol);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponPistol), HL2MPMachineGun.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponPistol", DT_WeaponPistol).WithManualClassID(StaticClassIndices.CWeaponPistol);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponPistol);
 #endif
+	[NetworkName("m_flSoonestPrimaryAttack")]
 	public TimeUnit_t SoonestPrimaryAttack;
+	[NetworkName("m_flLastAttackTime")]
 	public TimeUnit_t LastAttackTime;
+	[NetworkName("m_flAccuracyPenalty")]
 	public TimeUnit_t AccuracyPenalty;
+	[NetworkName("m_nNumShotsFired")]
 	public int NumShotsFired;
 	public override float GetFireRate() => 0.5f;
 	public const TimeUnit_t PISTOL_FASTEST_REFIRE_TIME = 0.1;

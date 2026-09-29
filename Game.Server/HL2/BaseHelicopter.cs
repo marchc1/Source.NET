@@ -7,12 +7,14 @@ namespace Game.Server;
 
 using FIELD = FIELD<BaseHelicopter>;
 
+[NetworkName("CBaseHelicopter")]
 public class BaseHelicopter : AI_TrackPather
 {
 	public static readonly SendTable DT_BaseHelicopter = new(DT_AI_BaseNPC, [
 		SendPropFloat(FIELD.OF(nameof(StartupTime)), 0, PropFlags.NoScale)
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseHelicopter", DT_BaseHelicopter).WithManualClassID(StaticClassIndices.CBaseHelicopter);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseHelicopter);
 
+	[NetworkName("m_flStartupTime")]
 	public TimeUnit_t StartupTime;
 }

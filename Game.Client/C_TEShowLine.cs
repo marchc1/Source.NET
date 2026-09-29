@@ -4,13 +4,15 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEShowLine>;
+[NetworkName("CTEShowLine")]
 public class C_TEShowLine : C_TEParticleSystem
 {
 	public static readonly RecvTable DT_TEShowLine = new(DT_TEParticleSystem, [
 		RecvPropVector(FIELD.OF(nameof(End))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEShowLine", DT_TEShowLine).WithManualClassID(StaticClassIndices.CTEShowLine);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEShowLine);
 
+	[NetworkName("m_vecEnd")]
 	public Vector3 End;
 }
 

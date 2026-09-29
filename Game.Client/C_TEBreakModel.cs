@@ -5,6 +5,7 @@ using System.Numerics;
 using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEBreakModel>;
+[NetworkName("CTEBreakModel")]
 public class C_TEBreakModel : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEBreakModel = new(DT_BaseTempEntity, [
@@ -20,16 +21,25 @@ public class C_TEBreakModel : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Time))),
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBreakModel", DT_TEBreakModel).WithManualClassID(StaticClassIndices.CTEBreakModel);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEBreakModel);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_angRotation")]
 	public QAngle Rotation;
+	[NetworkName("m_vecSize")]
 	public Vector3 Size;
+	[NetworkName("m_vecVelocity")]
 	public Vector3 Velocity;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_nRandomization")]
 	public int Randomization;
+	[NetworkName("m_nCount")]
 	public int Count;
+	[NetworkName("m_fTime")]
 	public float Time;
+	[NetworkName("m_nFlags")]
 	public int Flags;
 }
 

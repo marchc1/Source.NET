@@ -9,6 +9,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<C_Sun>;
 
+[NetworkName("CSun")]
 public class C_Sun : C_BaseEntity
 {
 	public static readonly RecvTable DT_Sun = new([
@@ -23,15 +24,23 @@ public class C_Sun : C_BaseEntity
 		// todo: RecvProxy_HDRColorScale
 		RecvPropFloat(FIELD.OF(nameof(HDRColorScale))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("Sun", DT_Sun).WithManualClassID(StaticClassIndices.CSun);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_Sun);
 
+	[NetworkName("m_clrRender")]
 	public Color Render;
+	[NetworkName("m_clrOverlay")]
 	public Color Overlay;
+	[NetworkName("m_vDirection")]
 	public Vector3 Direction;
+	[NetworkName("m_bOn")]
 	public bool On;
+	[NetworkName("m_nSize")]
 	public int Size;
+	[NetworkName("m_nOverlaySize")]
 	public int OverlaySize;
+	[NetworkName("m_nMaterial")]
 	public int Material;
+	[NetworkName("m_nOverlayMaterial")]
 	public int OverlayMaterial;
 	public int HDRColorScale;
 }

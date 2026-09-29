@@ -25,6 +25,7 @@ using Class =
 	ServerClass;
 #endif
 
+[NetworkName("CSENT_AI")]
 public partial class
 #if CLIENT_DLL
 	C_SENT_AI : C_AI_BaseNPC
@@ -34,9 +35,9 @@ public partial class
 {
 	public static readonly Table DT_SENT_AI = new(DT_AI_BaseNPC, [
 #if CLIENT_DLL
-		RecvPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		RecvPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #elif GAME_DLL
-		SendPropDataTable("ScriptedEntity", DT_ScriptedEntity)
+		SendPropDataTable("m_ScriptedEntity", DT_ScriptedEntity)
 #endif
 	]);
 
@@ -46,6 +47,6 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("SENT_AI", DT_SENT_AI).WithManualClassID(StaticClassIndices.CSENT_AI);
+		= new Class(DT_SENT_AI);
 }
 #endif

@@ -10,6 +10,7 @@ using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_ColorCorrection>;
 
+[NetworkName("CColorCorrection")]
 public class C_ColorCorrection : C_BaseEntity
 {
 	public static readonly RecvTable DT_ColorCorrection = new([
@@ -25,18 +26,28 @@ public class C_ColorCorrection : C_BaseEntity
 		RecvPropBool(FIELD.OF(nameof(ClientSide))),
 		RecvPropBool(FIELD.OF(nameof(Exclusive))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("ColorCorrection", DT_ColorCorrection).WithManualClassID(StaticClassIndices.CColorCorrection);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_ColorCorrection);
 
 
+	[NetworkName("m_MinFalloff")]
 	public float MinFalloff;
+	[NetworkName("m_MaxFalloff")]
 	public float MaxFalloff;
+	[NetworkName("m_flCurWeight")]
 	public float CurWeight;
+	[NetworkName("m_flMaxWeight")]
 	public float MaxWeight;
+	[NetworkName("m_flFadeInDuration")]
 	public float FadeInDuration;
+	[NetworkName("m_flFadeOutDuration")]
 	public float FadeOutDuration;
+	[NetworkName("m_netlookupFilename")]
 	public InlineArrayMaxPath<char> NetLookupFilename;
+	[NetworkName("m_bEnabled")]
 	public bool Enabled;
+	[NetworkName("m_bClientSide")]
 	public bool ClientSide;
+	[NetworkName("m_bExclusive")]
 	public bool Exclusive;
 }
 

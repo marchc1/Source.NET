@@ -7,20 +7,22 @@ namespace Game.Server;
 
 using FIELD = Source.FIELD<BaseAnimatingOverlay>;
 
+[NetworkName("CBaseAnimatingOverlay")]
 public class BaseAnimatingOverlay : BaseAnimating
 {
 	public const int MAX_OVERLAYS = 15;
 
 	static readonly ConVar ai_sequence_debug = new("ai_sequence_debug", "0");
 
-	public static readonly SendTable DT_OverlayVars = new([
-		SendPropList(FIELD.OF(nameof(AnimOverlay)), MAX_OVERLAYS, SendPropDataTable(null, AnimationLayerRef.DT_AnimationLayer))
-	]); public static readonly ServerClass SC_OverlayVars = new ServerClass("OverlayVars", DT_OverlayVars);
+	public static readonly SendTable DT_OverlayVars = new(nameof(DT_OverlayVars), [
+		SendPropList(FIELD.OF(nameof(AnimOverlay)), MAX_OVERLAYS, SendPropDataTable(null, AnimationLayerRef.DT_Animationlayer))
+	]);
 
 	public static readonly SendTable DT_BaseAnimatingOverlay = new(DT_BaseAnimating, [
-		SendPropDataTable("overlay_vars", DT_OverlayVars)
-	]); public static readonly new ServerClass ServerClass = new ServerClass("BaseAnimatingOverlay", DT_BaseAnimatingOverlay).WithManualClassID(StaticClassIndices.CBaseAnimatingOverlay);
+		SendPropDataTable("overlay_vars", 0, DT_OverlayVars)
+	]); public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseAnimatingOverlay);
 
+	[NetworkName("m_AnimOverlay")]
 	readonly List<AnimationLayerRef> AnimOverlay = [];
 
 	public AnimationLayerRef GetAnimOverlay(int i) {

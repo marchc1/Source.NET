@@ -5,6 +5,7 @@ using System.Numerics;
 using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEShatterSurface>;
+[NetworkName("CTEShatterSurface")]
 public class C_TEShatterSurface : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEShatterSurface = new(DT_BaseTempEntity, [
@@ -23,17 +24,27 @@ public class C_TEShatterSurface : C_BaseTempEntity
 		RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(UchBackColor), 1)),
 		RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(UchBackColor), 2)),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEShatterSurface", DT_TEShatterSurface).WithManualClassID(StaticClassIndices.CTEShatterSurface);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_TEShatterSurface);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vecAngles")]
 	public Vector3 Angles;
+	[NetworkName("m_vecForce")]
 	public Vector3 Force;
+	[NetworkName("m_vecForcePos")]
 	public Vector3 ForcePos;
+	[NetworkName("m_flWidth")]
 	public float Width;
+	[NetworkName("m_flHeight")]
 	public float Height;
+	[NetworkName("m_flShardSize")]
 	public float ShardSize;
+	[NetworkName("m_nSurfaceType")]
 	public int SurfaceType;
+	[NetworkName("m_uchFrontColor")]
 	public InlineArray3<byte> UchFrontColor;
+	[NetworkName("m_uchBackColor")]
 	public InlineArray3<byte> UchBackColor;
 }
 

@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponSnark>;
+[NetworkName("CWeaponSnark")]
 public class WeaponSnark : BaseHL1MPCombatWeapon
 {
 	public static readonly
@@ -18,10 +19,11 @@ public class WeaponSnark : BaseHL1MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSnark", null, null, DT_WeaponSnark).WithManualClassID(StaticClassIndices.CWeaponSnark);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponSnark);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSnark", DT_WeaponSnark).WithManualClassID(StaticClassIndices.CWeaponSnark);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponSnark);
 #endif
+	[NetworkName("m_bJustThrown")]
 	public bool JustThrown;
 }
 #endif

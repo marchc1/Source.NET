@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<AlyxEmpEffect>;
+[NetworkName("CAlyxEmpEffect")]
 public partial class AlyxEmpEffect : BaseEntity
 {
 	public static readonly SendTable DT_AlyxEmpEffect = new(DT_BaseEntity, [
@@ -11,9 +12,12 @@ public partial class AlyxEmpEffect : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(Duration)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(StartTime)), 0, PropFlags.NoScale),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("AlyxEmpEffect", DT_AlyxEmpEffect).WithManualClassID(StaticClassIndices.CAlyxEmpEffect);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_AlyxEmpEffect);
 
+	[NetworkName("m_nState")]
 	public int State;
+	[NetworkName("m_flDuration")]
 	public TimeUnit_t Duration;
+	[NetworkName("m_flStartTime")]
 	public TimeUnit_t StartTime;
 }

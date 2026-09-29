@@ -6,8 +6,10 @@ namespace Game.Server;
 using FIELD = Source.FIELD<FogController>;
 
 [LinkEntityToClass("env_fog_controller")]
+[NetworkName("CFogController")]
 public class FogController : BaseEntity
 {
+	[NetworkName("m_fog")]
 	public FogParams Fog;
 	public static readonly SendTable DT_FogController = new([
 		SendPropInt(FIELD.OF("Fog.Enable"), 1, PropFlags.Unsigned),
@@ -32,5 +34,5 @@ public class FogController : BaseEntity
 		SendPropFloat(FIELD.OF("Fog.Duration"), 0, PropFlags.NoScale, 0, 0),
 		SendPropFloat(FIELD.OF("Fog.HDRColorScale"), 0, PropFlags.NoScale, 0, 0),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("FogController", DT_FogController).WithManualClassID(StaticClassIndices.CFogController);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_FogController);
 }

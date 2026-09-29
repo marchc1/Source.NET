@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEFizz>;
+[NetworkName("CTEFizz")]
 public class TEFizz(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEFizz = new(DT_BaseTempEntity, [
@@ -12,10 +13,14 @@ public class TEFizz(ReadOnlySpan<char> name) : BaseTempEntity(name)
 		SendPropInt(FIELD.OF(nameof(Density)), 8, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Current)), 16, 0),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEFizz", DT_TEFizz).WithManualClassID(StaticClassIndices.CTEFizz);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEFizz);
 
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nModelIndex")]
 	public int ModelIndex;
+	[NetworkName("m_nDensity")]
 	public int Density;
+	[NetworkName("m_nCurrent")]
 	public int Current;
 }

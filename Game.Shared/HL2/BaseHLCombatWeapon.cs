@@ -18,6 +18,7 @@ public static class HLCombatWeaponGlobals
 	public static readonly ConVar sk_auto_reload_time = new("sk_auto_reload_time", "3", FCvar.Replicated);
 }
 
+[NetworkName("CBaseHLCombatWeapon")]
 public class BaseHLCombatWeapon : BaseCombatWeapon
 {
 	public static readonly
@@ -28,9 +29,9 @@ public class BaseHLCombatWeapon : BaseCombatWeapon
 #endif
 		DT_BaseHLCombatWeapon = new(DT_BaseCombatWeapon, []);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("BaseHLCombatWeapon", null, null, DT_BaseHLCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHLCombatWeapon);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseHLCombatWeapon);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("BaseHLCombatWeapon", DT_BaseHLCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHLCombatWeapon);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseHLCombatWeapon);
 #endif
 }
 #endif

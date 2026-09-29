@@ -20,7 +20,9 @@ using Source;
 using FIELD = Source.FIELD<HL2MPGameRulesProxy>;
 
 using Game.Shared;
+using Source.Common.Engine;
 
+[NetworkName("CHL2MPGameRulesProxy")]
 public class
 #if CLIENT_DLL
 	C_HL2MPGameRulesProxy
@@ -55,13 +57,20 @@ public class
 #if CLIENT_DLL
 			RecvPropDataTable(nameof(hl2mp_gamerules_data), FIELD.OF(nameof(hl2mp_gamerules_data)), DT_HL2MPRules, 0, DataTableRecvProxy_PointerDataTable)
 #else
-			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPRules)
+			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPRules, SendProxy_HL2MPRules)
 #endif
 		]);
+#if !CLIENT_DLL
+	public static object SendProxy_HL2MPRules(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
+		HL2MPGameRules rules = HL2MPRules();
+		Assert(rules != null);
+		return rules;
+	}
+#endif
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("HL2MPGameRulesProxy", null, null, DT_HL2MPGameRulesProxy).WithManualClassID(StaticClassIndices.CHL2MPGameRulesProxy);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_HL2MPGameRulesProxy);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("HL2MPGameRulesProxy", DT_HL2MPGameRulesProxy).WithManualClassID(StaticClassIndices.CHL2MPGameRulesProxy);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_HL2MPGameRulesProxy);
 #endif
 }
 
@@ -84,6 +93,7 @@ public class
 
 	}
 	public override ReadOnlySpan<char> Name() => "HL2MPGameRules";
+	[NetworkName("m_bTeamPlayEnabled")]
 	public bool TeamPlayEnabled;
 
 	public override bool ShouldCollide(CollisionGroup collisionGroup0, CollisionGroup collisionGroup1) {

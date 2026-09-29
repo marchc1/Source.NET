@@ -8,14 +8,16 @@ using FIELD = Source.FIELD<WeaponCrossbow>;
 #if !CLIENT_DLL
 
 [LinkEntityToClass("crossbow_bolt")]
+[NetworkName("CCrossbowBolt")]
 public class CrossbowBolt : BaseCombatCharacter {
 	public static readonly SendTable DT_CrossbowBolt = new(DT_BaseCombatCharacter, []);
-	public static readonly new ServerClass ServerClass = new ServerClass("CrossbowBolt", DT_CrossbowBolt).WithManualClassID(StaticClassIndices.CCrossbowBolt);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_CrossbowBolt);
 }
 #endif
 
 [LinkEntityToClass("weapon_crossbow")]
 [PrecacheWeaponRegister("weapon_crossbow")]
+[NetworkName("CWeaponCrossbow")]
 public class WeaponCrossbow : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -34,12 +36,14 @@ public class WeaponCrossbow : BaseHL2MPCombatWeapon
 #endif
 		]);
 #if CLIENT_DLL
-	public static readonly new ClientClass ClientClass = new ClientClass("WeaponCrossbow", null, null, DT_WeaponCrossbow).WithManualClassID(StaticClassIndices.CWeaponCrossbow);
+	public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_WeaponCrossbow);
 	public static readonly new DataMap PredMap = new([], typeof(WeaponCrossbow), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("WeaponCrossbow", DT_WeaponCrossbow).WithManualClassID(StaticClassIndices.CWeaponCrossbow);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponCrossbow);
 #endif
+	[NetworkName("m_bInZoom")]
 	public bool InZoom;
+	[NetworkName("m_bMustReload")]
 	public bool MustReload;
 }
 #endif

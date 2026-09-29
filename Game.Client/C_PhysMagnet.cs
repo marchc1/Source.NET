@@ -4,8 +4,9 @@ using Source.Common;
 
 namespace Game.Client;
 
+[NetworkName("CPhysMagnet")]
 public class C_PhysMagnet : C_BaseAnimating
 {
 	public static readonly RecvTable DT_PhysMagnet = new(DT_BaseAnimating, []);
-	public static readonly new ClientClass ClientClass = new ClientClass("PhysMagnet", DT_PhysMagnet).WithManualClassID(StaticClassIndices.CPhysMagnet);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_PhysMagnet);
 }

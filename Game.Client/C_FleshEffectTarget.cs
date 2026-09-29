@@ -4,14 +4,17 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_FleshEffectTarget>;
+[NetworkName("CFleshEffectTarget")]
 public class C_FleshEffectTarget : C_BaseEntity
 {
 	public static readonly RecvTable DT_FleshEffectTarget = new(DT_BaseEntity, [
 		RecvPropFloat(FIELD.OF(nameof(Radius))),
 		RecvPropFloat(FIELD.OF(nameof(ScaleTime))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("FleshEffectTarget", DT_FleshEffectTarget).WithManualClassID(StaticClassIndices.CFleshEffectTarget);
+	public static readonly new ClientClass ClientClass = new ClientClass(DT_FleshEffectTarget);
 
+	[NetworkName("m_flRadius")]
 	public float Radius;
+	[NetworkName("m_flScaleTime")]
 	public float ScaleTime;
 }

@@ -29,6 +29,7 @@ using Class =
 
 using FIELD = Source.FIELD<BaseParticleEntity>;
 
+[NetworkName("CBaseParticleEntity")]
 public partial class
 #if CLIENT_DLL
 	C_BaseParticleEntity: C_BaseEntity
@@ -37,7 +38,7 @@ public partial class
 #endif
 {
 	public static Table DT_BaseParticleEntity = new(DT_BaseEntity, []);
-	public static readonly Class Class = new Class("BaseParticleEntity", DT_BaseParticleEntity).WithManualClassID(StaticClassIndices.CBaseParticleEntity);
+	public static readonly Class Class = new Class(DT_BaseParticleEntity);
 }
 
 #endif

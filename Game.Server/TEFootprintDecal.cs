@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEFootprintDecal>;
+[NetworkName("CTEFootprintDecal")]
 public class TEFootprintDecal(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEFootprintDecal = new(DT_BaseTempEntity, [
@@ -12,11 +13,15 @@ public class TEFootprintDecal(ReadOnlySpan<char> name) : BaseTempEntity(name)
 		SendPropInt(FIELD.OF(nameof(Entity)), 11, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Index)), 8, PropFlags.Unsigned),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("TEFootprintDecal", DT_TEFootprintDecal).WithManualClassID(StaticClassIndices.CTEFootprintDecal);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_TEFootprintDecal);
 
+	[NetworkName("m_vecOrigin")]
 	public Vector3 Origin;
+	[NetworkName("m_vecDirection")]
 	public Vector3 Direction;
+	[NetworkName("m_nEntity")]
 	public int Entity;
+	[NetworkName("m_nIndex")]
 	public int Index;
 	public int ChMaterialType;
 }

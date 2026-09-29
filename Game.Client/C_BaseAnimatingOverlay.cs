@@ -9,10 +9,11 @@ using FIELD = Source.FIELD<Game.Client.C_BaseAnimatingOverlay>;
 
 namespace Game.Client;
 
+[NetworkName("CBaseAnimatingOverlay")]
 public partial class C_BaseAnimatingOverlay : C_BaseAnimating
 {
-	public static readonly RecvTable DT_OverlayVars = new([
-		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null!, AnimationLayerRef.DT_AnimationLayer))
+	public static readonly RecvTable DT_OverlayVars = new(nameof(DT_OverlayVars), [
+		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null!, AnimationLayerRef.DT_Animationlayer))
 	]);
 
 	public C_BaseAnimatingOverlay() : base() {
@@ -70,12 +71,12 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating
 		}
 	}
 
-	public static readonly ClientClass CC_OverlayVars = new ClientClass("OverlayVars", null, null, DT_OverlayVars);
 
 	public static readonly RecvTable DT_BaseAnimatingOverlay = new(DT_BaseAnimating, [
 		RecvPropDataTable("overlay_vars", DT_OverlayVars)
-	]); public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimatingOverlay", null, null, DT_BaseAnimatingOverlay);
+	]); public static readonly new ClientClass ClientClass = new ClientClass(null, null, DT_BaseAnimatingOverlay);
 
+	[NetworkName("m_AnimOverlay")]
 	readonly List<AnimationLayerRef> AnimOverlay = [];
 	readonly List<InterpolatedVar<AnimationLayer>> iv_AnimOverlay = [];
 	readonly float[] OverlayPrevEventCycle = new float[MAX_OVERLAYS];

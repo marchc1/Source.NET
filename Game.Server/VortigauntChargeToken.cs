@@ -4,12 +4,14 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VortigauntChargeToken>;
+[NetworkName("CVortigauntChargeToken")]
 public class VortigauntChargeToken : BaseEntity
 {
 	public static readonly SendTable DT_VortigauntChargeToken = new(DT_BaseEntity, [
 		SendPropBool(FIELD.OF(nameof(FadeOut))),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("VortigauntChargeToken", DT_VortigauntChargeToken).WithManualClassID(StaticClassIndices.CVortigauntChargeToken);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_VortigauntChargeToken);
 
+	[NetworkName("m_bFadeOut")]
 	public bool FadeOut;
 }

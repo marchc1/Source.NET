@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SteamJet>;
+[NetworkName("CSteamJet")]
 public class SteamJet : BaseParticleEntity
 {
 	public static readonly SendTable DT_SteamJet = new(DT_BaseParticleEntity, [
@@ -19,17 +20,28 @@ public class SteamJet : BaseParticleEntity
 		SendPropInt(FIELD.OF(nameof(Spawnflags)), 8, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(RollSpeed)), 0, PropFlags.NoScale),
 	]);
-	public static readonly new ServerClass ServerClass = new ServerClass("SteamJet", DT_SteamJet).WithManualClassID(StaticClassIndices.CSteamJet);
+	public static readonly new ServerClass ServerClass = new ServerClass(DT_SteamJet);
 
+	[NetworkName("m_SpreadSpeed")]
 	public float SpreadSpeed;
+	[NetworkName("m_Speed")]
 	public new float Speed;
+	[NetworkName("m_StartSize")]
 	public float StartSize;
+	[NetworkName("m_EndSize")]
 	public float EndSize;
+	[NetworkName("m_Rate")]
 	public float Rate;
+	[NetworkName("m_JetLength")]
 	public float JetLength;
+	[NetworkName("m_bEmit")]
 	public bool Emit;
+	[NetworkName("m_bFaceLeft")]
 	public bool FaceLeft;
+	[NetworkName("m_nType")]
 	public int Type;
+	[NetworkName("m_spawnflags")]
 	public int Spawnflags;
+	[NetworkName("m_flRollSpeed")]
 	public float RollSpeed;
 }

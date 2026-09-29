@@ -165,6 +165,7 @@ while (true) {
 	string? inheritDatatableName = inheritProp?.Inherited;
 	string? inheritCsClassName = inheritDatatableName != null ? inheritDatatableName[3..] /* to remove the DT_ */ : null;
 
+	writeBothLine($"[NetworkName(\"{cppname}\")]");
 	writeDependant(isSv => $"public class {(isSv ? svname : clname)}");
 	if (inheritDatatableName != null) {
 		string clInheritClassName = "C_" + inheritCsClassName!;
@@ -256,7 +257,7 @@ while (true) {
 	writeDependant(sv => sv ? "ServerClass" : "ClientClass");
 	writeBoth(" ");
 	writeDependant(sv => sv ? "ServerClass" : "ClientClass");
-	writeDependantLine(sv => $" = new {(sv ? "ServerClass" : "ClientClass")}(\"{noprefix}\", {dtname}).WithManualClassID(StaticClassIndices.{cppname});");
+	writeDependantLine(sv => $" = new {(sv ? "ServerClass" : "ClientClass")}({dtname});");
 
 	// Try writing fields
 	if (fields.Count > 0)
