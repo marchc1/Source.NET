@@ -78,6 +78,7 @@ public interface IRenderView
 	void SceneEnd();
 	void Draw3DDebugOverlays();
 	void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint visFlags);
+	Span<byte> GetAreaBits();
 	IWorldRenderList? CreateWorldList();
 	void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight);
 	void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust);

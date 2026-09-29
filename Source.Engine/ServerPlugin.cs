@@ -1,4 +1,6 @@
-﻿using Source.Common;
+﻿global using static Source.Engine.SvPluginGlobals;
+
+using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
@@ -10,6 +12,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Source.Engine;
+
+public static class SvPluginGlobals {
+	public static readonly ServerPlugin s_ServerPlugin = new();
+	public static readonly ServerPlugin g_pServerPluginHandler = s_ServerPlugin;
+}
 
 // todo: review this
 public class Plugin
@@ -121,11 +128,11 @@ public class ServerPlugin : IServerPluginHelpers
 		throw new NotImplementedException();
 	}
 
-	void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID) {
+	public void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID) {
 		throw new NotImplementedException();
 	}
 
-	void OnQueryCvarValueFinished(QueryCvarCookie_t cookie, Edict playerEntity, QueryCvarValueStatus status, ReadOnlySpan<char> cvar, ReadOnlySpan<char> cvarValue) {
+	public void OnQueryCvarValueFinished(QueryCvarCookie_t cookie, Edict playerEntity, QueryCvarValueStatus status, ReadOnlySpan<char> cvar, ReadOnlySpan<char> cvarValue) {
 		throw new NotImplementedException();
 	}
 

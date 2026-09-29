@@ -119,18 +119,27 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
-	// 	SV.ServerGameClients.ClientCommandKeyValues(Edict, msg.KeyValues);
-	// 	return true;
-	// }
+	protected override bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
+		SV.ServerGameClients!.ClientCommandKeyValues(Edict, msg.KeyValues!);
+		return true;
+	}
 
-	// bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) { }
+	protected override bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) {
+		if (msg.Cookie > 0) 
+			g_pServerPluginHandler?.OnQueryCvarValueFinished(msg.Cookie, Edict, msg.StatusCode, msg.CvarName, msg.CvarValue);
 
-	// bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) { }
+		return true;
+	}
 
-	// bool ProcessFileMD5Check(CLC_FileMD5Check msg) { }
+	protected override bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) {
+		return false; // todo
+	}
 
-	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { }
+	protected override bool ProcessFileMD5Check(CLC_FileMD5Check msg) {
+		return false; // todo
+	}
+
+	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { } // seems to be removed?
 
 	void DownloadCustomizations() { }
 

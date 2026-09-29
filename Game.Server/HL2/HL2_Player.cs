@@ -142,7 +142,7 @@ public class HL2_Player : BaseMultiplayerPlayer
 	}
 
 	public override void Spawn() {
-#if HL2MP
+#if !HL2MP
 #if !PORTAL
 		SetModel("models/player.mdl");
 #endif

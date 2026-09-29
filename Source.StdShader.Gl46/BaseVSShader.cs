@@ -11,7 +11,7 @@ namespace Source.StdShader.Gl46;
 public partial class BaseVSShader : BaseShader
 {
 	public static bool IsTextureSet(int index, Span<IMaterialVar> parms) {
-		return index != -1 && parms[index].GetTextureValue() != null;
+		return index != -1 && parms[index].IsTexture();
 	}
 	public static bool IsBoolSet(int index, Span<IMaterialVar> parms) {
 		return index != -1 && parms[index].GetIntValue() != 0;

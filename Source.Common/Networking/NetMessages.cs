@@ -12,6 +12,10 @@ using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using System.Text;
 using Source.Common.Commands;
+using Source.Common.Formats.Keyvalues;
+using Source.Common.Utilities;
+using System.Buffers;
+using System.Runtime.CompilerServices;
 
 public static class NetMessageExtensions
 {
@@ -1106,6 +1110,340 @@ public class SVC_TempEntities : NetMessage
 		return $"svc_TempEntities: number {NumEntries}, bytes {Bits2Bytes(Length)}";
 	}
 }
+public class CLC_RespondCvarValue : NetMessage
+{
+	public QueryCvarCookie_t Cookie;
+
+	public ReadOnlySpan<char> CvarName {
+		get => pointNameToBuffer ? NameBuffer.SliceNullTerminatedString() : cvarName;
+		set {
+			if (pointNameToBuffer) strcpy(NameBuffer, value); else cvarName = new(value);
+		}
+	}
+	public ReadOnlySpan<char> CvarValue {
+		get => pointValueToBuffer ? ValueBuffer.SliceNullTerminatedString() : cvarValue;
+		set {
+			if (pointValueToBuffer) strcpy(ValueBuffer, value); else cvarValue = new(value);
+		}
+	}
+	public QueryCvarValueStatus StatusCode;
+
+	string? cvarName;
+	string? cvarValue;
+	readonly char[] NameBuffer = new char[256];
+	readonly char[] ValueBuffer = new char[256];
+	bool pointNameToBuffer;
+	bool pointValueToBuffer;
+
+	public CLC_RespondCvarValue() : base(CLC.RespondCvarValue) { }
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+
+		buffer.WriteSBitLong(Cookie, 32);
+		buffer.WriteSBitLong((int)StatusCode, 4);
+
+		buffer.WriteString(CvarName);
+		buffer.WriteString(CvarValue);
+
+		return !buffer.Overflowed;
+	}
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Cookie = buffer.ReadSBitLong(32);
+		StatusCode = (QueryCvarValueStatus)buffer.ReadSBitLong(4);
+
+		// Read the name.
+		buffer.ReadString(NameBuffer);
+		pointNameToBuffer = true;
+
+		// Read the value.
+		buffer.ReadString(ValueBuffer);
+		pointValueToBuffer = true;
+
+		return !buffer.Overflowed;
+	}
+}
+
+internal static class NetFileFuncs
+{
+
+	public static readonly string[] g_MostCommonPathIDs = [
+		"GAME",
+		"MOD"
+	];
+
+	public static readonly string[] g_MostCommonPrefixes = [
+		"materials",
+		"models",
+		"sounds",
+		"scripts"
+	];
+
+	public static int FindCommonPathID(ReadOnlySpan<char> pathID) {
+		for (int i = 0; i < g_MostCommonPathIDs.Length; i++) {
+			if (stricmp(pathID, g_MostCommonPathIDs[i]) == 0)
+				return i;
+		}
+		return -1;
+	}
+
+	public static int FindCommonPrefix(ReadOnlySpan<char> str) {
+		for (int i = 0; i < g_MostCommonPrefixes.Length; i++) {
+			if (stristr(str, g_MostCommonPrefixes[i]) == str) {
+				int iNextChar = (int)strlen(g_MostCommonPrefixes[i]);
+				if (str[iNextChar] == '/' || str[iNextChar] == '\\')
+					return i;
+			}
+		}
+		return -1;
+	}
+}
+
+public class CLC_FileCRCCheck : NetMessage
+{
+	public InlineArrayMaxPath<char> PathID;
+	public InlineArrayMaxPath<char> Filename;
+	public MD5Value MD5;
+	public CRC32_t CRCIOs;
+	public int FileHashType;
+	public int FileLen;
+	public int PackFileNumber;
+	public int PackFileID;
+	public int FileFraction;
+
+	public CLC_FileCRCCheck() : base(CLC.FileCRCCheck) { }
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+
+		// Reserved for future use.
+		buffer.WriteOneBit(0);
+
+		// Just write a couple bits for the path ID if it's one of the common ones.
+		int iCode = NetFileFuncs.FindCommonPathID(PathID);
+		if (iCode == -1) {
+			buffer.WriteUBitLong(0, 2);
+			buffer.WriteString(PathID);
+		}
+		else {
+			buffer.WriteUBitLong((uint)(iCode + 1), 2);
+		}
+
+		iCode = NetFileFuncs.FindCommonPrefix(Filename);
+		if (iCode == -1) {
+			buffer.WriteUBitLong(0, 3);
+			buffer.WriteChar(1); // so we can detect the new message version
+			buffer.WriteString(Filename);
+		}
+		else {
+			buffer.WriteUBitLong((uint)(iCode + 1), 3);
+			buffer.WriteChar(1); // so we can detect the new message version
+			buffer.WriteString(Filename[(int)(strlen(NetFileFuncs.g_MostCommonPrefixes[iCode]) + 1)..]);
+		}
+
+		buffer.WriteBits(const_reinterpret<MD5Value, byte>(new(in MD5)), Unsafe.SizeOf<MD5Value>() * 8);
+		buffer.WriteUBitLong(CRCIOs, 32);
+		buffer.WriteUBitLong((uint)FileHashType, 32);
+		buffer.WriteUBitLong((uint)FileLen, 32);
+		buffer.WriteUBitLong((uint)PackFileNumber, 32);
+		buffer.WriteUBitLong((uint)PackFileID, 32);
+		buffer.WriteUBitLong((uint)FileFraction, 32);
+		return !buffer.Overflowed;
+	}
+	public override bool ReadFromBuffer(bf_read buffer) {
+		buffer.ReadOneBit();
+
+		// Read the path ID.
+		int iCode = (int)buffer.ReadUBitLong(2);
+		if (iCode == 0) {
+			buffer.ReadString(PathID);
+		}
+		else if ((iCode - 1) < NetFileFuncs.g_MostCommonPathIDs.Length) {
+			strcpy(PathID, NetFileFuncs.g_MostCommonPathIDs[iCode - 1]);
+		}
+		else {
+			AssertMsg(false, "Invalid path ID code in CLC_FileCRCCheck");
+			return false;
+		}
+
+		// Prefix string
+		iCode = (int)buffer.ReadUBitLong(3);
+
+		// Read filename, and check for the new message format version?
+		Span<char> szTemp = stackalloc char[MAX_PATH];
+		int c = buffer.ReadChar();
+		bool bNewVersion = false;
+		if (c == 1) {
+			bNewVersion = true;
+			buffer.ReadString(szTemp);
+		}
+		else {
+			szTemp[0] = (char)c;
+			buffer.ReadString(szTemp[1..]);
+		}
+		if (iCode == 0) {
+			strcpy(Filename, szTemp);
+		}
+		else if ((iCode - 1) < NetFileFuncs.g_MostCommonPrefixes.Length) {
+			sprintf(Filename, "%s%c%s").S(NetFileFuncs.g_MostCommonPrefixes[iCode - 1]).C(StrTools.CORRECT_PATH_SEPARATOR).S(szTemp);
+		}
+		else {
+			AssertMsg(false, "Invalid prefix code in CLC_FileCRCCheck.");
+			return false;
+		}
+
+		if (bNewVersion) {
+			buffer.ReadBits(reinterpret<MD5Value, byte>(new(ref MD5)), Unsafe.SizeOf<MD5Value>() * 8);
+			CRCIOs = buffer.ReadUBitLong(32);
+			FileHashType = (int)buffer.ReadUBitLong(32);
+			FileLen = (int)buffer.ReadUBitLong(32);
+			PackFileNumber = (int)buffer.ReadUBitLong(32);
+			PackFileID = (int)buffer.ReadUBitLong(32);
+			FileFraction = (int)buffer.ReadUBitLong(32);
+		}
+		else {
+			/* m_CRC */
+			buffer.ReadUBitLong(32);
+			CRCIOs = buffer.ReadUBitLong(32);
+			FileHashType = (int)buffer.ReadUBitLong(32);
+		}
+
+		return !buffer.Overflowed;
+	}
+}
+public class CLC_FileMD5Check : NetMessage
+{
+	public InlineArrayMaxPath<char> PathID;
+	public InlineArrayMaxPath<char> Filename;
+	public MD5Value	MD5;
+
+	public CLC_FileMD5Check() : base(CLC.FileMD5Check) { }
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+
+		// Reserved for future use.
+		buffer.WriteOneBit(0);
+
+		// Just write a couple bits for the path ID if it's one of the common ones.
+		int iCode = NetFileFuncs.FindCommonPathID(PathID);
+		if (iCode == -1) {
+			buffer.WriteUBitLong(0, 2);
+			buffer.WriteString(PathID);
+		}
+		else {
+			buffer.WriteUBitLong((uint)iCode + 1, 2);
+		}
+
+		iCode = NetFileFuncs.FindCommonPrefix(Filename);
+		if (iCode == -1) {
+			buffer.WriteUBitLong(0, 3);
+			buffer.WriteString(Filename);
+		}
+		else {
+			buffer.WriteUBitLong((uint)iCode + 1, 3);
+			buffer.WriteString(Filename[((int)strlen(NetFileFuncs.g_MostCommonPrefixes[iCode]) + 1)..]);
+		}
+
+		buffer.WriteBytes(const_reinterpret<MD5Value, byte>(new(in MD5)));
+
+		return !buffer.Overflowed;
+	}
+	public override bool ReadFromBuffer(bf_read buffer) {
+		// Reserved for future use.
+		buffer.ReadOneBit();
+
+		// Read the path ID.
+		int iCode = (int)buffer.ReadUBitLong(2);
+		if (iCode == 0) {
+			buffer.ReadString(PathID);
+		}
+		else if ((iCode - 1) < NetFileFuncs.g_MostCommonPathIDs.Length) {
+			strcpy(PathID, NetFileFuncs.g_MostCommonPathIDs[iCode - 1]);
+		}
+		else {
+			AssertMsg(false, "Invalid path ID code in CLC_FileMD5Check");
+			return false;
+		}
+
+		// Read the filename.
+		iCode = (int)buffer.ReadUBitLong(3);
+		if (iCode == 0) {
+			buffer.ReadString(Filename);
+		}
+		else if ((iCode - 1) < NetFileFuncs.g_MostCommonPrefixes.Length) {
+			Span<char> szTemp= stackalloc char[MAX_PATH];
+			buffer.ReadString(szTemp);
+			sprintf(Filename,"%s%c%s").S(NetFileFuncs.g_MostCommonPrefixes[iCode - 1]).C(StrTools.CORRECT_PATH_SEPARATOR).S(szTemp);
+		}
+		else {
+			AssertMsg(false, "Invalid prefix code in CLC_FileMD5Check.");
+			return false;
+		}
+
+		buffer.ReadBytes(reinterpret<MD5Value, byte>(new(ref MD5)));
+
+		return !buffer.Overflowed;
+	}
+}
+
+public abstract class Base_CmdKeyValues(KeyValues? keyValues, byte type) : NetMessage(type)
+{
+	public KeyValues? GetKeyValues() => KeyValues;
+
+	public KeyValues? KeyValues = keyValues;
+	public override bool ReadFromBuffer(bf_read buffer) {
+		if (KeyValues == null)
+			KeyValues = new KeyValues("");
+
+		KeyValues.Clear();
+
+		int numBytes = buffer.ReadLong();
+		if (numBytes <= 0 || numBytes > buffer.BytesLeft)
+			return false; // don't read past the end of the buffer
+
+		byte[] pvBuffer = ArrayPool<byte>.Shared.Rent(numBytes);
+		buffer.ReadBits(pvBuffer, numBytes * 8);
+
+		UtlBuffer bufRead = new(pvBuffer, UtlBuffer.BufferFlags.ReadOnly);
+		if (!KeyValues.ReadAsBinary(bufRead)) {
+			Assert(false);
+			ArrayPool<byte>.Shared.Return(pvBuffer, true);
+			return false;
+		}
+
+		ArrayPool<byte>.Shared.Return(pvBuffer, true);
+		return !buffer.Overflowed;
+	}
+	public override bool WriteToBuffer(bf_write buffer) {
+		if (KeyValues == null)
+			return false;
+		buffer.WriteNetMessageType(this);
+
+		UtlBuffer bufData = new();
+		if (!KeyValues.WriteAsBinary(bufData)) {
+			Assert(false);
+			return false;
+		}
+
+		// Note how many we're sending
+		int numBytes = bufData.TellMaxPut();
+		buffer.WriteLong(numBytes);
+		buffer.WriteBits(bufData.Base(), numBytes * 8);
+
+		return !buffer.Overflowed;
+	}
+}
+
+public class CLC_CmdKeyValues : Base_CmdKeyValues
+{
+	public CLC_CmdKeyValues(KeyValues? keyValues = null) : base(keyValues, CLC.CmdKeyValues) { }
+
+}
+
+public class SVC_CmdKeyValues : Base_CmdKeyValues
+{
+	public SVC_CmdKeyValues(KeyValues? keyValues = null) : base(keyValues, CLC.CmdKeyValues) { }
+}
+// CLC_SaveReplay removed?
 /*
 public class SVC_SetPauseTimed(bool paused, TimeUnit_t expireTime) : NetMessage(SVC.SetPauseTimed)
 {

@@ -329,7 +329,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 
 		if (sv_sendtables.GetBool()) {
 			sv.FullSendTablesBuffer.EnsureCapacity(288000 /*NET_MAX_PAYLOAD*/);
-			sv.FullSendTables.StartWriting(sv.FullSendTablesBuffer.Base(), sv.FullSendTablesBuffer.Count());
+			sv.FullSendTables.StartWriting(sv.FullSendTablesBuffer.Base(), (nuint)sv.FullSendTablesBuffer.Count());
 
 			PackedEntities.WriteSendTables(pClasses, sv.FullSendTables);
 

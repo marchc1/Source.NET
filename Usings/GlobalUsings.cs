@@ -79,5 +79,6 @@ global using static Source.Common.Engine.ShadowGlobals;
 global using static Source.Common.SoundConstants;
 global using static Source.Common.Audio.AttenuationValues;
 global using static Source.Common.WorldSize;
+global using Byteswap = Source.Common.Byteswap<Source.Common.LittleEndianOrder>;
 
 [assembly: Source.Common.SourceDll]

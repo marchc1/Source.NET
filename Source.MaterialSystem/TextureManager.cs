@@ -108,8 +108,8 @@ public class TextureManager : ITextureManager
 		if (textureName.IsEmpty)
 			return null;
 
-		string cleanName = ITextureInternal.NormalizeTextureName(textureName);
-		if (TextureList.TryGetValue(cleanName.AsSpan().Hash(), out ITextureInternal? tex))
+		Span<char> cleanName = stackalloc char[MATERIAL_MAX_PATH];
+		if (TextureList.TryGetValue(ITextureInternal.NormalizeTextureName(textureName, cleanName).Hash(), out ITextureInternal? tex))
 			return tex;
 
 		return null;

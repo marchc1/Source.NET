@@ -141,9 +141,9 @@ public class ShadowStateGl46 : IShaderShadow
 		ShaderAPI!.BindPixelShader(in PixelShader);
 
 		// Bind UBO binding locations to their respective ranges in our UBO object
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBaseShader, BASE_UBO);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedVertexShader, VERTEX_UBO);
-		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedPixelShader, PIXEL_UBO);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.SharedBaseShader, BASE_UBO);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.SharedVertexShader, VERTEX_UBO);
+		UniformBufferBindings.Bind(UniformBufferBindingLocation.SharedPixelShader, PIXEL_UBO);
 
 		// Activate per-shader-instance uniforms...
 		ActivateShaderUniforms();

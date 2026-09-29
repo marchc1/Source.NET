@@ -798,6 +798,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		return "GAME";
 	}
 	public IMaterial FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext context, bool complain, ReadOnlySpan<char> complainPrefix) {
+		materialName = materialName.SliceNullTerminatedString();
 		Span<char> tempNameBuffer = stackalloc char[materialName.Length];
 		for (int i = 0; i < materialName.Length; i++) {
 			char c = materialName[i];

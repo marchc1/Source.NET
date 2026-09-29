@@ -122,6 +122,8 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	public void Init(int w, int h, int d, ImageFormat fmt, int flags, int frameCount) {
+		SetErrorTexture(false);
+
 		FreeShaderAPITextures();
 		ReleaseTextureHandles();
 
@@ -156,7 +158,8 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	private void SetName(ReadOnlySpan<char> fileName) {
-		Name = ITextureInternal.NormalizeTextureName(fileName);
+		Span<char> cleanName = stackalloc char[MATERIAL_MAX_PATH];
+		Name = new(ITextureInternal.NormalizeTextureName(fileName, cleanName));
 	}
 
 	static readonly ThreadLocal<IVTFTexture> VTFTextures = new();
@@ -206,7 +209,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		ushort nHeaderSize = IVTFTexture.FileHeaderSize(IVTFTexture.VTF_MAJOR_VERSION);
 		Span<byte> mem = stackalloc byte[nHeaderSize];
 		cacheFileName = cacheFileName.SliceNullTerminatedString();
-		if (!materials.FileSystem.ReadFile(cacheFileName, null, mem, nHeaderSize)) {
+		if (!materials.FileSystem.ReadFile(cacheFileName, null, mem, 0)) {
 			goto precacheFailed;
 		}
 		unsafe {
