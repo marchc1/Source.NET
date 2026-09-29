@@ -438,11 +438,12 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 	}
 
 	public static readonly ConVar r_DrawDisp = new("r_DrawDisp", "1", FCvar.Cheat, "Toggles rendering of displacment maps");
+	static InlineArrayMaxMapDispInfo<DispInfo> s_visibleDisps;
 	public static void DispInfo_RenderList(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool ortho, uint flags, RenderDepthMode depthMode) {
 		if (r_DrawDisp.GetInt() == 0 || listCount == 0)
 			return;
 
-		DispInfo[] visibleDisps = new DispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		Span<DispInfo?> visibleDisps = s_visibleDisps;
 
 		DispInfo_BuildPrimLists(sortGroup, list, listCount, depthMode != RenderDepthMode.Normal, visibleDisps, out int visibleDispCount);
 
@@ -488,7 +489,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		return false;
 	}
 
-	static void DispInfo_BuildPrimLists(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool depthOnly, DispInfo[] visibleDisps, out int visibleDispCount) {
+	static void DispInfo_BuildPrimLists(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool depthOnly, Span<DispInfo?> visibleDisps, out int visibleDispCount) {
 		visibleDispCount = 0;
 		bool debugConvars = !depthOnly ? DispInfoRenderDebugModes() : false;
 		for (int i = 0; i < listCount; i++) {
@@ -642,8 +643,8 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 #endif
 	}
 
-	static void DispInfo_BatchDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
-	static void DispInfo_DrawDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
+	static void DispInfo_BatchDecals(ReadOnlySpan<DispInfo?> visibleDisps, int visibleDispCount) => throw new NotImplementedException();
+	static void DispInfo_DrawDecals(ReadOnlySpan<DispInfo?> visibleDisps, int visibleDispCount) => throw new NotImplementedException();
 	static void DispInfo_DrawDebugInformation(Span<SurfaceHandle_t> list, int listCount) {
 		// => throw new NotImplementedException();
 	}

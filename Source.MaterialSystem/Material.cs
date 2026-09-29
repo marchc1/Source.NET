@@ -1,6 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
@@ -170,6 +171,8 @@ public class Material : IMaterialInternal
 	private void SetupErrorShader() {
 		throw new NotImplementedException();
 	}
+
+	static readonly ConVarRef mat_reduceparticles = new("mat_reduceparticles");
 
 	static int complainCount = 0;
 	public IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true) {
@@ -534,6 +537,69 @@ public class Material : IMaterialInternal
 		}
 	}
 
+	private KeyValues? CheckConditionalFakeShaderName(ReadOnlySpan<char> shaderName, ReadOnlySpan<char> suffixName, KeyValues keyValues) {
+		KeyValues? fallbackSection = keyValues.FindKey(suffixName);
+		if (fallbackSection != null)
+			return fallbackSection;
+
+		Span<char> nameBuf = stackalloc char[256];
+		int written = sprintf(nameBuf, "%s_%s").S(shaderName).S(suffixName);
+		return keyValues.FindKey(nameBuf[..written]);
+	}
+
+	private KeyValues? FindBuiltinFallbackBlock(ReadOnlySpan<char> shaderName, KeyValues keyValues) {
+		int dxSupportLevel = materials.HardwareConfig.GetDXSupportLevel();
+
+		if (dxSupportLevel < 90)
+			if (CheckConditionalFakeShaderName(shaderName, "<DX90", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel < 95)
+			if (CheckConditionalFakeShaderName(shaderName, "<DX95", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel < 90 || !materials.HardwareConfig.SupportsPixelShaders_2_b())
+			if (CheckConditionalFakeShaderName(shaderName, "<DX90_20b", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel >= 90 && materials.HardwareConfig.SupportsPixelShaders_2_b())
+			if (CheckConditionalFakeShaderName(shaderName, ">=DX90_20b", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel <= 90)
+			if (CheckConditionalFakeShaderName(shaderName, "<=DX90", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel >= 90)
+			if (CheckConditionalFakeShaderName(shaderName, ">=DX90", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel > 90)
+			if (CheckConditionalFakeShaderName(shaderName, ">DX90", keyValues) is KeyValues ret)
+				return ret;
+
+		if (materials.HardwareConfig.GetHDRType() != HDRType.None) {
+			if (CheckConditionalFakeShaderName(shaderName, "hdr_dx9", keyValues) is KeyValues ret)
+				return ret;
+			if (CheckConditionalFakeShaderName(shaderName, "hdr", keyValues) is KeyValues ret2)
+				return ret2;
+		}
+		else {
+			if (CheckConditionalFakeShaderName(shaderName, "ldr", keyValues) is KeyValues ret)
+				return ret;
+		}
+
+		if (materials.HardwareConfig.UsesSRGBCorrectBlending())
+			if (CheckConditionalFakeShaderName(shaderName, "srgb", keyValues) is KeyValues ret)
+				return ret;
+
+		if (dxSupportLevel >= 90)
+			if (CheckConditionalFakeShaderName(shaderName, "dx9", keyValues) is KeyValues ret)
+				return ret;
+
+		return null;
+	}
+
 	private KeyValues? InitializeShader(KeyValues keyValues, KeyValues? patchKeyValues, MaterialFindContext findContext) {
 		KeyValues currentFallback = keyValues;
 		KeyValues? fallbackSection = null;
@@ -567,7 +633,17 @@ public class Material : IMaterialInternal
 					return null;
 			}
 
-			varCount = ParseMaterialVars(shader, keyValues, fallbackSection, null, modelDefault, vars, findContext);
+			bool hasBuiltinFallbackBlock = false;
+			if (fallbackSection == null) {
+				fallbackSection = FindBuiltinFallbackBlock(shaderName, keyValues);
+				if (fallbackSection != null) {
+					hasBuiltinFallbackBlock = true;
+					fallbackSection.ChainKeyValue(keyValues);
+					currentFallback = fallbackSection;
+				}
+			}
+
+			varCount = ParseMaterialVars(shader, keyValues, fallbackSection, modelDefault, vars, findContext);
 			if (shader == null)
 				break;
 
@@ -579,6 +655,14 @@ public class Material : IMaterialInternal
 
 			if (true) { // Yeah, we support vertex and pixel shaders... do we even really need a flag for that....
 				modelDefault = (vars[(int)ShaderMaterialVars.Flags].GetIntValue() & (int)MaterialVarFlags.Model) != 0;
+			}
+
+			if (!hasBuiltinFallbackBlock) {
+				fallbackSection = keyValues.FindKey(shaderName);
+				if (fallbackSection != null) {
+					fallbackSection.ChainKeyValue(keyValues);
+					currentFallback = fallbackSection;
+				}
 			}
 
 			for (int i = 0; i < varCount; i++) {
@@ -593,7 +677,7 @@ public class Material : IMaterialInternal
 		return currentFallback;
 	}
 
-	private int ParseMaterialVars(IShader shader, KeyValues keyValues, KeyValues? fallbackSection, KeyValues? overrideKeyValues, bool modelDefault, IMaterialVar[] vars, MaterialFindContext findContext) {
+	private int ParseMaterialVars(IShader shader, KeyValues keyValues, KeyValues? overrideKeyValues, bool modelDefault, IMaterialVar[] vars, MaterialFindContext findContext) {
 		IMaterialVar? newVar;
 		Span<bool> overrides = stackalloc bool[256];
 		Span<bool> conditional = stackalloc bool[256];
@@ -675,7 +759,7 @@ public class Material : IMaterialInternal
 
 		nextVar:
 			var = var.GetNextKey();
-			if (var != null && parsingOverrides) {
+			if (var == null && parsingOverrides) {
 				var = keyValues.GetFirstSubKey();
 				parsingOverrides = false;
 			}
@@ -891,9 +975,30 @@ public class Material : IMaterialInternal
 			bool shouldSkip = true;
 			isConditional = true;
 
-			// There's more logic here, can implement it later
+			// parse the conditional part
+			ReadOnlySpan<char> cond = varName[..qPos];
+			bool toggle = false;
+			if (cond[0] == '!') {
+				cond = cond[1..];
+				toggle = true;
+			}
 
-			return shouldSkip;
+			if (0 == stricmp(cond, "lowfill"))
+				shouldSkip = !mat_reduceparticles.GetBool();
+			else if (0 == stricmp(cond, "hdr"))
+				shouldSkip = materials.HardwareConfig.GetHDRType() == HDRType.None;
+			else if (0 == stricmp(cond, "srgb"))
+				shouldSkip = !materials.HardwareConfig.UsesSRGBCorrectBlending();
+			else if (0 == stricmp(cond, "ldr"))
+				shouldSkip = materials.HardwareConfig.GetHDRType() != HDRType.None;
+			else if (0 == stricmp(cond, "360"))
+				shouldSkip = !IsX360();
+			else if (0 == stricmp(cond, "gameconsole"))
+				shouldSkip = !IsConsole();
+			else
+				Warning($"unrecognized conditional test {varName} in {GetName()}\n");
+
+			return shouldSkip ^ toggle;
 		}
 	}
 

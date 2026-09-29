@@ -581,10 +581,10 @@ public static class StrTools
 			}
 		}
 	}
-	public static void FixSlashes(Span<char> name) {
-		for (int i = 0; i < name.Length; i++) {
-			if (name[i] == INCORRECT_PATH_SEPARATOR)
-				name[i] = CORRECT_PATH_SEPARATOR;
+	public static void FixSlashes(Span<char> name, char separator = CORRECT_PATH_SEPARATOR) {
+		for (int i = 0; i < name.Length && name[i] != '\0'; i++) {
+			if (name[i] == INCORRECT_PATH_SEPARATOR || name[i] == CORRECT_PATH_SEPARATOR)
+				name[i] = separator;
 		}
 	}
 

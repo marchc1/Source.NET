@@ -22,10 +22,8 @@ public unsafe class VertexBufferGl46 : IDisposable
 	internal bool SoftwareVertexProcessing;
 	internal bool LateCreateShouldDiscard;
 
-	int vao = -1;
 	int vbo = -1;
 
-	internal uint VAO() => vao > 0 ? (uint)vao : throw new NullReferenceException("Vertex Array Object was null");
 	internal uint VBO() => vbo > 0 ? (uint)vbo : throw new NullReferenceException("Vertex Buffer Object was null");
 
 	public VertexBufferGl46(bool dynamic) {
@@ -116,144 +114,6 @@ public unsafe class VertexBufferGl46 : IDisposable
 		}
 	}
 
-	public void RecomputeVAO() {
-		// Unlike the VBO, we do not need to destroy everything when the state changes
-		if (this.vao == -1) {
-			this.vao = (int)glCreateVertexArray();
-			glObjectLabel(GL_VERTEX_ARRAY, (uint)this.vao, "MaterialSystem VertexBuffer");
-		}
-
-		// But we need a VBO first
-		if (vbo == -1)
-			RecomputeVBO();
-
-		uint vao = (uint)this.vao;
-		int offset = 0;
-
-		Span<uint> bindings = stackalloc uint[64];
-		int bindingsPtr = 0;
-
-		void ConfigureAttribute(Span<uint> bindings, OpenGL_ShaderInputAttribute attr, VertexElement element, int size) {
-			element.GetInformation(out int count, out VertexAttributeType type);
-			int elementSize = count * (int)type.SizeOf();
-
-			glEnableVertexArrayAttrib(vao, (uint)attr);
-			// These specific checks are annoying...
-			bool normalize = attr == OpenGL_ShaderInputAttribute.Color;
-			if (attr == OpenGL_ShaderInputAttribute.BoneIndex)
-				glVertexArrayAttribIFormat(vao, (uint)attr, count, (int)type, (uint)offset);
-			else
-				glVertexArrayAttribFormat(vao, (uint)attr, count, (int)type, normalize, (uint)offset);
-			bindings[bindingsPtr++] = (uint)attr;
-			offset += elementSize;
-		}
-
-		// Rewrote this to process attributes in the same order as ComputeVertexDescription
-
-		if ((VertexBufferFormat & VertexFormat.Position) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Position, VertexElement.Position, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Position);
-		}
-
-		if ((VertexBufferFormat & VertexFormat.BoneIndex) != 0) {
-			int numBoneWeights = VertexBufferFormat.GetBoneWeightsSize();
-			if (numBoneWeights > 0) {
-				VertexElement boneWeightElement = VertexElement.BoneWeights1 + (numBoneWeights - 1);
-				ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneWeights, boneWeightElement, numBoneWeights);
-			}
-			else {
-				glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
-			}
-
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneIndex, VertexElement.BoneIndex, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneIndex);
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
-		}
-
-		if ((VertexBufferFormat & VertexFormat.Normal) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Normal, VertexElement.Normal, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Normal);
-		}
-
-		if ((VertexBufferFormat & VertexFormat.Color) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Color, VertexElement.Color, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Color);
-		}
-
-		if ((VertexBufferFormat & VertexFormat.Specular) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Specular, VertexElement.Specular, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Specular);
-		}
-
-		Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
-		for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
-			int texCoordSize = VertexBufferFormat.GetTexCoordDimensionSize(i);
-			if (texCoordSize > 0) {
-				VertexElement element = (VertexElement)((int)texCoordElements[texCoordSize - 1] + i);
-				ConfigureAttribute(bindings, (OpenGL_ShaderInputAttribute)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i), element, texCoordSize);
-			}
-			else {
-				glDisableVertexArrayAttrib(vao, (uint)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i));
-			}
-		}
-
-		if ((VertexBufferFormat & VertexFormat.TangentS) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentS, VertexElement.TangentS, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentS);
-		}
-
-		if ((VertexBufferFormat & VertexFormat.TangentT) != 0) {
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentT, VertexElement.TangentT, 1);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentT);
-		}
-
-		int userDataSize = VertexBufferFormat.GetUserDataSize();
-		if (userDataSize > 0) {
-			VertexElement element = VertexElement.UserData1 + (userDataSize - 1);
-			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.UserData, element, userDataSize);
-		}
-		else {
-			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.UserData);
-		}
-
-		// todo
-		glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Wrinkle);
-
-		int vertexSize = offset;
-		glVertexArrayVertexBuffer(vao, 0, (uint)vbo, 0, vertexSize);
-
-		Assert(bindingsPtr < bindings.Length);
-		for (int i = 0; i < bindingsPtr; i++)
-			glVertexArrayAttribBinding(vao, bindings[i], 0);
-	}
-
-	internal void BindColorMesh(VertexBufferGl46 colorBuffer, int vertOffsetInBytes) {
-		VertexElement.Specular.GetInformation(out int count, out VertexAttributeType type);
-
-		glEnableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
-		glVertexArrayAttribFormat((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, count, (int)type, true, 0);
-		glVertexArrayAttribBinding((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, 1);
-		glVertexArrayVertexBuffer((uint)vao, 1, colorBuffer.VBO(), vertOffsetInBytes, colorBuffer.VertexSize);
-	}
-
-	internal void UnbindColorMesh() {
-		glDisableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
-	}
-
 	public int NextLockOffset() {
 		int nextOffset = VertexSize == 0 ? 0 : (Position + VertexSize - 1) / VertexSize;
 		nextOffset *= VertexSize;
@@ -269,7 +129,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 	int lastBufferSize = -1;
 
-	public unsafe void RecomputeVBO() {
+	public void RecomputeVBO() {
 		// Create the VBO if it doesn't exist
 		if (vbo == -1)
 			vbo = (int)glCreateBuffer();
@@ -284,7 +144,6 @@ public unsafe class VertexBufferGl46 : IDisposable
 			glNamedBufferData((uint)vbo, BufferSize, null, Dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 		}
 
-		RecomputeVAO();
 	}
 
 	public byte* Lock(int numVerts, out int baseVertexIndex) {
@@ -320,7 +179,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 		Locked = true;
 		Position = lockOffset;
-		return (byte*)((nint)SysmemBuffer + lockOffset);
+		return (byte*)glMapNamedBufferRange((uint)vbo, lockOffset, Math.Max(1, numVerts * VertexSize), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
 	}
 
 	public void Unlock(int vertexCount) {
@@ -330,7 +189,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 		int lockOffset = NextLockOffset();
 		int bufferSize = vertexCount * VertexSize;
 
-		glNamedBufferSubData((uint)vbo, Position, bufferSize, (void*)((nint)SysmemBuffer + Position));
+		glUnmapNamedBuffer((uint)vbo);
 		Position = lockOffset + bufferSize;
 		Locked = false;
 	}
@@ -346,14 +205,14 @@ public unsafe class VertexBufferGl46 : IDisposable
 		modifyOffset = firstVertex * VertexSize;
 		baseVertexIndex = firstVertex;
 		Locked = true;
-		return (byte*)((nint)SysmemBuffer + modifyOffset);
+		return (byte*)glMapNamedBufferRange((uint)vbo, modifyOffset, Math.Max(1, numVerts * VertexSize), GL_MAP_WRITE_BIT);
 	}
 
 	public void ModifyUnlock(int vertexCount) {
 		if (!Locked)
 			return;
 
-		glNamedBufferSubData((uint)vbo, modifyOffset, vertexCount * VertexSize, (void*)((nint)SysmemBuffer + modifyOffset));
+		glUnmapNamedBuffer((uint)vbo);
 		Locked = false;
 	}
 

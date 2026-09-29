@@ -90,7 +90,7 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	}
 
 	internal bool IsInPVS(CheckTransmitInfo info) {
-		throw new NotImplementedException();
+		return true; // TODO!
 	}
 
 	internal ServerNetworkProperty? GetNetworkParent() {
@@ -99,6 +99,6 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	}
 
 	internal void RecomputePVSInformation() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException(); // TODO!
 	}
 }

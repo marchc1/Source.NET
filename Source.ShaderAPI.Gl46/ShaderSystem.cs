@@ -268,7 +268,7 @@ public class ShaderSystem : IShaderSystemInternal
 
 		if (texture == null) {
 			if (!ShaderDevice.IsUsingGraphics())
-				Warning("Shader_t::LoadTexture: texture \"{name}.vtf\" doesn't exist\n");
+				Warning($"Shader_t::LoadTexture: texture \"{name}.vtf\" doesn't exist\n");
 			texture = MaterialSystem.GetErrorTexture();
 		}
 
