@@ -99,6 +99,7 @@ public static class GLRSurfGlobals
 	public const int FRUSTUM_CLIP_IN_AREA = unchecked((int)0x80000000);
 	public const int FRUSTUM_CLIP_ALL = FRUSTUM_CLIP_MASK;
 	public const int FRUSTUM_SUPPRESS_CLIPPING = FRUSTUM_CLIP_IN_AREA;
+	public const int BRUSHMODEL_DECAL_SORT_GROUP = (int)MatSortGroup.Max;
 
 	public static int r_surfacevisframe = 0;
 
@@ -123,10 +124,7 @@ public static class GLRSurfGlobals
 	public readonly static ConVar r_fastzrejectdisp = new("r_fastzrejectdisp", "0", 0, "Activates/deactivates fast z rejection on displacements (360 only). Only active when r_fastzreject is on.");
 	public readonly static ConVar r_frustumcullworld = new("r_frustumcullworld", "1", FCvar.Cheat);
 	public readonly static ConVar r_spewleaf = new("r_spewleaf", "0", 0);
-}
 
-public static class GLCvars
-{
 	public static int WireFrameMode() {
 		if (Host.CanCheat())
 			return mat_wireframe.GetInt();
@@ -241,7 +239,6 @@ public class WorldRenderList : IWorldRenderList
 
 public static class GLRSurf
 {
-	internal static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
 #if !SWDS
 	static readonly RenderView RenderView = (RenderView)Singleton<IRenderView>();
 #endif
@@ -277,7 +274,9 @@ public static class GLRSurf
 		if (shadowDepth)
 			return;
 
-		// todo
+		Render.DecalSurfaceDraw(renderContext, BRUSHMODEL_DECAL_SORT_GROUP);
+		g_ShadowMgr.DrawFlashlightDecals(BRUSHMODEL_DECAL_SORT_GROUP, false);
+		g_ShadowMgr.RenderProjectedTextures(brushToWorld);
 	}
 	public static void BuildMSurfaceVertexArrays(WorldBrushData brushData, SurfaceHandle_t surfID, float overbright, MeshBuilder builder) => throw new NotImplementedException();
 
@@ -360,7 +359,8 @@ public static class GLRSurf
 
 		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
 
-		// DecalSurfaceAdd // todo
+		if (ModelLoader.SurfaceHasDecals(ref surface))
+			Render.DecalSurfaceAdd(surfID, sortGroup);
 
 		int materialSortID = ModelLoader.MSurf_MaterialSortID(ref surface);
 
@@ -666,7 +666,7 @@ public static class GLRSurf
 		mesh.Draw();
 	}
 	static void Shader_DrawChainsWireframe(List<SurfaceHandle_t> surfaceList) {
-		int wireFrameMode = GLCvars.WireFrameMode();
+		int wireFrameMode = WireFrameMode();
 
 		switch (wireFrameMode) {
 			case 3:
@@ -694,7 +694,7 @@ public static class GLRSurf
 	static void Shader_DrawChainBumpBasis(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
 	static void Shader_DrawLuxels(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
 	static void ComputeDebugSettings() {
-		g_ShaderDebug.Wireframe = GLCvars.ShouldDrawInWireFrameMode() || (r_drawworld.GetInt() == 2);
+		g_ShaderDebug.Wireframe = ShouldDrawInWireFrameMode() || (r_drawworld.GetInt() == 2);
 		g_ShaderDebug.Normals = mat_normals.GetBool();
 		g_ShaderDebug.Luxels = mat_luxels.GetBool();
 		g_ShaderDebug.BumpBasis = mat_bumpbasis.GetBool();
@@ -845,7 +845,9 @@ public static class GLRSurf
 
 		ResetWorldRenderList(renderList);
 
-		// TODO decal/overlaymgr
+		Render.DecalSurfacesInit(false);
+
+		// TODO overlaymgr
 
 		g_ShadowMgr.ClearShadowRenderList();
 	}
@@ -914,9 +916,11 @@ public static class GLRSurf
 			g_ShadowMgr.SetFlashlightStencilMasks(flashlightMask);
 			g_ShadowMgr.RenderFlashlights(flashlightMask);
 
-			// OverlayMgr + DecalSurfaceDraw // todo
-
+			// overlaymgr todo
 			g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask);
+			// overlaymgr todo
+
+			Render.DecalSurfaceDraw(renderCtx, sortGroup);
 
 			g_ShadowMgr.DrawFlashlightDecals(sortGroup, flashlightMask);
 
@@ -1597,11 +1601,20 @@ public class BrushBatchRender
 					ref BrushRenderSurface surface = ref render.Surfaces![batch.FirstSurface + k];
 					if (backface[(int)surface.PlaneIndex])
 						continue;
+
 					SurfaceHandle_t surfID = firstSurfID + surface.SurfaceIndex;
+					ref BSPMSurface2 surface2 = ref ModelLoader.SurfaceHandleFromIndex(surfID);
 
 					BuildIndicesForSurface(ref meshBuilder, surfID);
 
-					// todo
+					if (ModelLoader.SurfaceHasDecals(ref surface2) && depthMode == RenderDepthMode.Normal)
+						Render.DecalSurfaceAdd(surfID, BRUSHMODEL_DECAL_SORT_GROUP);
+
+					if (depthMode == RenderDepthMode.Normal) {
+						ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surface2);
+						if (decalHandle != SHADOW_DECAL_HANDLE_INVALID)
+							g_ShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle);
+					}
 				}
 
 				meshBuilder.End(false, true);
@@ -1803,7 +1816,25 @@ public class BrushBatchRender
 			}
 
 			if (node.DecalSurfaceCount != 0) {
-				// todo
+				for (j = 0; j < node.DecalSurfaceCount; j++) {
+					SurfaceHandle_t surfID = renderT.DecalSurfaces[node.FirstDecalSurface + j];
+					ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+					Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoDraw) == 0);
+
+					if (ModelLoader.SurfaceHasDecals(ref surface))
+						Render.DecalSurfaceAdd(surfID, BRUSHMODEL_DECAL_SORT_GROUP);
+
+					ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surface);
+					if (decalHandle != SHADOW_DECAL_HANDLE_INVALID)
+						g_ShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle);
+				}
+
+				Render.DecalSurfaceDraw(renderContext, BRUSHMODEL_DECAL_SORT_GROUP);
+
+				Render.DecalSurfacesInit(true);
+
+				g_ShadowMgr.RenderProjectedTextures();
 			}
 
 			if (g_ShaderDebug.AnyDebug) {

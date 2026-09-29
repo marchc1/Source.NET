@@ -142,7 +142,7 @@ public static class DispMapload
 	}
 
 	static void AddEmptyMesh(Model world, DispGroup combo, Span<BSPDDispInfo> mapDisps, Span<int> dispInfos, int nDisps, int totalVerts, int totalIndices) {
-		MatRenderContextPtr pRenderContext = new(SourceDllMain.materials);
+		MatRenderContextPtr pRenderContext = new(materials);
 
 		GroupMesh pMesh = new GroupMesh();
 		combo.Meshes.Add(pMesh);
@@ -439,7 +439,7 @@ public static class DispMapload
 	}
 
 	static void DispInfo_ReleaseMaterialSystemObjects(Model? world) {
-		using MatRenderContextPtr renderContext = new(SourceDllMain.materials);
+		using MatRenderContextPtr renderContext = new(materials);
 
 		foreach (DispGroup group in g_DispGroups) {
 			foreach (GroupMesh mesh in group.Meshes)

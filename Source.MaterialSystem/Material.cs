@@ -1074,6 +1074,14 @@ public class Material : IMaterialInternal
 	}
 
 	public bool InMaterialPage() => false;
+	public void GetMaterialOffset(Span<float> offset) {
+		offset[0] = 0.0f;
+		offset[1] = 0.0f;
+	}
+	public void GetMaterialScale(Span<float> scale) {
+		scale[0] = 1.0f;
+		scale[1] = 1.0f;
+	}
 	public IMaterial GetMaterialPage() => null;
 
 	public float GetMappingWidth() {
@@ -1094,6 +1102,13 @@ public class Material : IMaterialInternal
 	public void Refresh() {
 		if (materials.ShaderDevice.IsUsingGraphics()) {
 			Uncache();
+			Precache();
+		}
+	}
+
+	public void RefreshPreservingMaterialVars() {
+		if (materials.ShaderDevice.IsUsingGraphics()) {
+			Uncache(true);
 			Precache();
 		}
 	}

@@ -82,10 +82,11 @@ public sealed class MaterialVar : IMaterialVar
 
 	public override ReadOnlySpan<char> GetName() {
 		if (!Name.IsValid()) {
-			Warning("m_pName is NULL for CMaterialVar\n");
+			Warning("CMaterialVar::GetName: Name is NULL for MaterialVar\n");
 			return "";
 		}
-		return MaterialVarSymbols.String(Name);
+
+		return Name.String();
 	}
 
 	public override IMaterial GetOwningMaterial() {

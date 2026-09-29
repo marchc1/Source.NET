@@ -439,12 +439,15 @@ public interface IMaterial
 	bool IsRealTimeVersion();
 	bool InMaterialPage();
 	IMaterial GetMaterialPage();
+	void GetMaterialOffset(Span<float> offset);
+	void GetMaterialScale(Span<float> scale);
 	float GetMappingWidth();
 	float GetMappingHeight();
 	void GetReflectivity(out Vector3 reflect);
 	bool TryFindVar(ReadOnlySpan<char> varName, [NotNullWhen(true)] out IMaterialVar? found, bool complain = true);
 	IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true);
 	void Refresh();
+	void RefreshPreservingMaterialVars();
 	void ColorModulate(float r, float g, float b);
 	void GetColorModulation(out float r, out float g, out float b);
 	void AlphaModulate(float alpha);

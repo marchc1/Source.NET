@@ -44,7 +44,7 @@ public static class RenderAccessors
 
 public partial class Render(
 	CommonHostState host_state,
-	IMaterialSystem materials,
+	// IMaterialSystem materials,
 	Host Host,
 	MatSysInterface MaterialSystem,
 	ClientGlobalVariables gpGlobals
@@ -340,7 +340,6 @@ public partial class Render(
 			MatSysInterface.LightStyleFrame[i] = FrameCount;
 		}
 	}
-	private void DecalInit() { }
 	private void LoadSkys() {
 		bool success = true;
 		Span<char> requestedsky = stackalloc char[128];
@@ -1426,10 +1425,6 @@ public partial class Render(
 				}
 			}
 		}
-	}
-
-	public void DecalTermAll() {
-
 	}
 
 	public void UnloadSkys() {

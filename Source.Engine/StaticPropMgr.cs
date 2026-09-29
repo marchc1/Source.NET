@@ -215,7 +215,8 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void AddDecalToStaticProp(Vector3 rayStart, Vector3 rayEnd, int staticPropIndex, int decalIndex, bool doTrace, Trace tr) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		DevWarning("AddDecalToStaticProp not implemented\n");
 	}
 
 	public void AddColorDecalToStaticProp(Vector3 rayStart, Vector3 rayEnd, int staticPropIndex, int decalIndex, bool doTrace, Trace tr, bool useColor, Color color) {

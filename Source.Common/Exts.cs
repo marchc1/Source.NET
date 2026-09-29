@@ -1,4 +1,4 @@
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using K4os.Hash.xxHash;
 
@@ -365,6 +365,15 @@ public class ObjectPool<T> where T : IPoolableObject, new()
 		return instance;
 	}
 
+	public int Count() {
+		int count = 0;
+		foreach (KeyValuePair<T, bool> kvp in valueStates)
+			if (kvp.Value)
+				count++;
+
+		return count;
+	}
+
 	public bool IsMemoryPoolAllocated(T value) => valueStates.TryGetValue(value, out _);
 	public void Free(T value) {
 		if (value == null)
@@ -393,6 +402,7 @@ public sealed class PooledLinkedList<T> where T : struct
 	int _freeHead = -1;
 	int _capacity;
 	int _count;
+	int _growSize;
 
 	public const int INVALID_INDEX = -1;
 
@@ -401,7 +411,7 @@ public sealed class PooledLinkedList<T> where T : struct
 		_nodes = new Node[_capacity];
 		for (int i = _capacity - 1; i >= 0; --i) {
 			_nodes[i].Next = _freeHead;
-			_nodes[i].Prev = -1;
+			_nodes[i].Prev = i;
 			_freeHead = i;
 		}
 	}
@@ -440,10 +450,19 @@ public sealed class PooledLinkedList<T> where T : struct
 		if (prev != -1) _nodes[prev].Next = next;
 		if (next != -1) _nodes[next].Prev = prev;
 		_nodes[index].Next = _freeHead;
-		_nodes[index].Prev = -1;
+		_nodes[index].Prev = index;
 		_nodes[index].Data = default;
 		_freeHead = index;
 		_count--;
+	}
+
+	public bool IsValidIndex(int index) => index >= 0 && index < _capacity && (_nodes[index].Prev != index || _nodes[index].Next == index);
+
+	public void SetGrowSize(int growSize) => _growSize = growSize;
+
+	public void EnsureCapacity(int num) {
+		if (num > _capacity)
+			Grow(num);
 	}
 
 	public void Clear() {
@@ -452,17 +471,17 @@ public sealed class PooledLinkedList<T> where T : struct
 		for (int i = _capacity - 1; i >= 0; --i) {
 			_nodes[i] = default;
 			_nodes[i].Next = _freeHead;
-			_nodes[i].Prev = -1;
+			_nodes[i].Prev = i;
 			_freeHead = i;
 		}
 	}
 
-	void Grow() {
-		int newCap = _capacity * 2;
+	void Grow(int num = 0) {
+		int newCap = Math.Max(num, _growSize > 0 ? _capacity + _growSize : _capacity * 2);
 		Array.Resize(ref _nodes, newCap);
 		for (int i = newCap - 1; i >= _capacity; --i) {
 			_nodes[i].Next = _freeHead;
-			_nodes[i].Prev = -1;
+			_nodes[i].Prev = i;
 			_freeHead = i;
 		}
 		_capacity = newCap;

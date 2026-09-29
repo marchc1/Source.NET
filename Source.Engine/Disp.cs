@@ -15,6 +15,7 @@ public static class Disp
 	public const int MAX_STATIC_BUFFER_INDICES = (8 * 1024);
 	public const int MAX_DISP_DECALS = 32;
 
+	public const DispDecalHandle DISP_DECAL_HANDLE_INVALID = unchecked((DispDecalHandle)~0);
 	public const DispShadowHandle DISP_SHADOW_HANDLE_INVALID = unchecked((DispShadowHandle)~0);
 	public const DispDecalFragmentHandle DISP_DECAL_FRAGMENT_HANDLE_INVALID = unchecked((DispDecalFragmentHandle)~0);
 	public const DispShadowFragmentHandle DISP_SHADOW_FRAGMENT_HANDLE_INVALID = unchecked((DispShadowFragmentHandle)~0);
@@ -103,7 +104,7 @@ public struct DispDecal
 {
 	public DispDecalBase Base;
 
-	// public Decal? Decal;
+	public Decal? Decal;
 	public InlineArray2<float> DecalWorldScale;
 	public InlineArray3<Vector3> TextureSpaceBasis;
 	public float Size;

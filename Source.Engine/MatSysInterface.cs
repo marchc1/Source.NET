@@ -1,4 +1,4 @@
-global using static Source.Engine.MatSysVars;
+﻿global using static Source.Engine.MatSysVars;
 
 using CommunityToolkit.HighPerformance;
 
@@ -275,6 +275,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		MaterialEmpty = GL_LoadMaterial("debug/debugempty", MaterialDefines.TEXTURE_GROUP_OTHER)!;
 #if !SWDS
 		MaterialWireframe = GL_LoadMaterial("debug/debugwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
+		MaterialDecalWireframe = GL_LoadMaterial("debug/debugdecalwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
 		MaterialWorldWireframe = GL_LoadMaterial("debug/debugworldwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
 		MaterialWorldWireframeZBuffer = GL_LoadMaterial("debug/debugworldwireframezbuffer", MaterialDefines.TEXTURE_GROUP_OTHER);
 		MaterialShadowBuild = GL_LoadMaterial("engine/shadowbuild", MaterialDefines.TEXTURE_GROUP_OTHER);
@@ -581,7 +582,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 	}
 
-	private static bool TangentSpaceSurfaceSetup(ref BSPMSurface2 surfID, out Vector3 tVect) {
+	public static bool TangentSpaceSurfaceSetup(ref BSPMSurface2 surfID, out Vector3 tVect) {
 		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).TextureVecsTexelsPerWorldUnits[0].AsVector3D(), out Vector3 sVect);
 		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).TextureVecsTexelsPerWorldUnits[1].AsVector3D(), out tVect);
 		MathLib.VectorNormalize(ref sVect);
@@ -592,7 +593,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		return false;
 	}
 
-	private static void TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, Vector3 normal, ref Vector3 vect, bool negate) {
+	public static void TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, Vector3 normal, ref Vector3 vect, bool negate) {
 		MathLib.CrossProduct(normal, vect, out tangentS);
 		MathLib.VectorNormalize(ref tangentS);
 		MathLib.CrossProduct(tangentS, normal, out tangentT);
@@ -629,7 +630,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
-	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
+	public int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
 	internal void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
@@ -846,13 +847,17 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public IMaterial MaterialEmpty;
 #if !SWDS
 	public IMaterial? MaterialWireframe;
+	public IMaterial? MaterialDecalWireframe;
 	public IMaterial? MaterialWorldWireframe;
 	public IMaterial? MaterialWorldWireframeZBuffer;
 	public IMaterial? MaterialShadowBuild;
 #endif
 
+	public void GL_UnloadMaterial(IMaterial? material) => material?.DecrementReferenceCount();
+
 	public IMaterial GL_LoadMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName) {
 		IMaterial? material = GL_LoadMaterialNoRef(name, textureGroupName);
+		material?.IncrementReferenceCount();
 		return material;
 	}
 

@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
@@ -338,6 +338,22 @@ public unsafe struct VertexBuilder
 		}
 	}
 
+	internal void TexCoord1f(int stage, float s) {
+		float* pDst = stage switch {
+			0 => CurrTexCoord0,
+			1 => CurrTexCoord1,
+			2 => CurrTexCoord2,
+			3 => CurrTexCoord3,
+			4 => CurrTexCoord4,
+			5 => CurrTexCoord5,
+			6 => CurrTexCoord6,
+			7 => CurrTexCoord7,
+			_ => null
+		};
+		if (pDst == null) return;
+		*pDst = s;
+	}
+
 	internal void TexCoord2f(int stage, float s, float t) {
 		float* pDst = stage switch {
 			0 => CurrTexCoord0,
@@ -645,6 +661,18 @@ public struct IndexBuilder
 		AdvanceIndices(3);
 	}
 
+	public unsafe void FastPolygon(int startVert, int triangleCount) {
+		ushort* index = &Desc.Indices[CurrentIndex];
+		startVert += IndexOffset;
+		triangleCount *= (int)Desc.IndexSize;
+		for (int v = 0; v < triangleCount; ++v) {
+			*index++ = (ushort)startVert;
+			*index++ = (ushort)(startVert + v + 1);
+			*index++ = (ushort)(startVert + v + 2);
+		}
+		AdvanceIndices(triangleCount * 3);
+	}
+
 	public unsafe void FastQuad(int startVert) {
 		startVert += IndexOffset;
 		Desc.Indices[CurrentIndex + 0] = (ushort)startVert;
@@ -887,7 +915,7 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Specular4ubv(ReadOnlySpan<byte> c) => throw new NotImplementedException();
 
 	// texture coordinate setting
-	public void TexCoord1f(int stage, float s) => throw new NotImplementedException();
+	public void TexCoord1f(int stage, float s) => VertexBuilder.TexCoord1f(stage, s);
 	public void TexCoord2f(int stage, float s, float t) => VertexBuilder.TexCoord2f(stage, s, t);
 	public void TexCoord2fv(int stage, ReadOnlySpan<float> st) => VertexBuilder.TexCoord2f(stage, st[0], st[1]);
 	public void TexCoord2fv(int stage, in Vector2 vec) => VertexBuilder.TexCoord2f(stage, vec.X, vec.Y);
@@ -929,6 +957,7 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Index(ushort index) => IndexBuilder.Index(index);
 
 	public void FastIndex(ushort index) => IndexBuilder.FastIndex(index);
+	public void FastPolygon(int startVert, int triangleCount) => IndexBuilder.FastPolygon(startVert, triangleCount);
 	public void FastTriangle(int startVert) => IndexBuilder.FastTriangle(startVert);
 
 

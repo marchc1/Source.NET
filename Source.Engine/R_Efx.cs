@@ -15,14 +15,30 @@ public class VEfx : IVEfx
 
 	public ReadOnlySpan<char> DrawDecalNameFromIndex(int index) => throw new NotImplementedException();
 
-	public void DecalShoot(int textureIndex, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, in Vector3 saxis, int flags) {
+	public void DecalShoot(int textureIndex, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, Vector3? saxis, int flags) {
 		Color white = new(255, 255, 255, 255);
-		DecalColorShoot(textureIndex, entity, model, in modelOrigin, in modelAngles, in position, in saxis, flags, in white);
+		DecalColorShoot(textureIndex, entity, model, in modelOrigin, in modelAngles, in position, saxis, flags, in white);
 	}
 
-	public void DecalColorShoot(int textureIndex, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, in Vector3 saxis, int flags, in Color rgbaColor) => throw new NotImplementedException();
+	public void DecalColorShoot(int textureIndex, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, Vector3? saxis, int flags, in Color rgbaColor) {
+		Vector3 localPosition = position;
+		if (entity != 0) {
+			MathLib.AngleMatrix(in modelAngles, in modelOrigin, out Matrix3x4 matrix);
+			MathLib.VectorITransform(in position, in matrix, out localPosition);
+		}
 
-	public void PlayerDecalShoot(IMaterial material, object? userData, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, in Vector3 saxis, int flags, in Color rgbaColor) => throw new NotImplementedException();
+		Render.DecalShoot(textureIndex, entity, model, in localPosition, saxis, (FDecal)flags, in rgbaColor, null);
+	}
+
+	public void PlayerDecalShoot(IMaterial material, object? userData, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, Vector3? saxis, int flags, in Color rgbaColor) {
+		Vector3 localPosition = position;
+		if (entity != 0) {
+			MathLib.AngleMatrix(in modelAngles, in modelOrigin, out Matrix3x4 matrix);
+			MathLib.VectorITransform(in position, in matrix, out localPosition);
+		}
+
+		Render.PlayerDecalShoot(material, userData, entity, model, in localPosition, saxis, (FDecal)flags, in rgbaColor);
+	}
 
 	public DLight AllocDlight(int key) => CL.AllocDlight(key);
 
