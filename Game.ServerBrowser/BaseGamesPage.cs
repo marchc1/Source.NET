@@ -87,8 +87,6 @@ class CheckBoxWithStatus : CheckButton
 
 public class BaseGamesPage : PropertyPage, IGameList
 {
-	const int MAX_MAP_NAME = 128;
-
 	public static ConVar sb_mod_suggested_maxplayers = new("sb_mod_suggested_maxplayers", "0", FCvar.Hidden);
 	static ConVar sb_filter_incompatible_versions = new("sb_filter_incompatible_versions",
 #if DEBUG
@@ -356,7 +354,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 			int index = QuicklistServerList.Count;
 			QuicklistServerList.Add(key, serverList);
 
-			ReadOnlySpan<char> friendlyName = stackalloc char[MAX_MAP_NAME];
+			ReadOnlySpan<char> friendlyName = stackalloc char[Source.Constants.MAX_MAP_NAME];
 			ReadOnlySpan<char> friendlyGameTypeName = ServerBrowser.Instance!.GetMapFriendlyNameAndGameType(cMapName, out friendlyName);
 
 			if (QuickList != null) {

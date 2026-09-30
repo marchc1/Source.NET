@@ -238,6 +238,10 @@ public static class Constants
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
 
+	public const int MAX_MAP_NAME = 128;
+	public const int MAX_MAP_NAME_SAVE = 32;
+	public const int MAX_DISPLAY_MAP_NAME = 32;
+
 	/// <summary>
 	/// Most Source games have this at 20; Garry's Mod has it at 24
 	/// </summary>

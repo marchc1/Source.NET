@@ -569,10 +569,51 @@ public unsafe class bf_read : BitBuffer
 		str = ReadString(maxLen, bLine);
 		return !Overflowed;
 	}
+	public bool ReadString(Span<char> str, bool bLine, out int outNumChars) {
+		Assert(!str.IsEmpty);
+		int maxLen = str.Length;
+
+		bool bTooSmall = false;
+		int iChar = 0;
+		while (true) {
+			char val = (char)ReadChar();
+			if (val == 0)
+				break;
+			else if (bLine && val == '\n')
+				break;
+
+			if (iChar < (maxLen - 1)) {
+				str[iChar] = val;
+				++iChar;
+			}
+			else {
+				bTooSmall = true;
+			}
+		}
+
+		// Make sure it's null-terminated.
+		Assert(iChar < maxLen);
+		str[iChar] = '\0';
+		outNumChars = iChar;
+
+		return !Overflowed && !bTooSmall;
+	}
+
+	public string ReadAndAllocateString() => ReadAndAllocateString(out _);
+	public string ReadAndAllocateString(out bool overflow){
+		Span<char> str = stackalloc char[2048];
+
+		overflow = !ReadString(str, false, out int chars);
+		return new string(str[..chars]);
+	}
+
 	public int ReadString(Span<char> target, bool bLine = false) {
+		if (target.Length < 1) return 0;
 		Span<byte> data = stackalloc byte[target.Length];
 		int bytes = ReadString(data, bLine);
-		return Encoding.ASCII.GetChars(data[..bytes], target);
+		int chars = Encoding.ASCII.GetChars(data[..bytes], target[..^1]);
+		target[chars] = '\0';
+		return chars;
 	}
 	public int ReadString(Span<byte> target, bool bLine = false) {
 		Assert(target.Length != 0);

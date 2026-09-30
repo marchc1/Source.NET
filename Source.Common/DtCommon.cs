@@ -22,6 +22,9 @@ public class FastLocalTransferInfo
 
 public static class DtCommon
 {
+	public const int SPROP_NUMFLAGBITS_NETWORKED = 16;
+	public const int SPROP_NUMFLAGBITS = 17;
+
 	public static int NumBitsForCount(int maxElements) {
 		int bits = 0;
 		while (maxElements > 0) {
