@@ -6,11 +6,11 @@ using Source.Common;
 namespace Game.Server.NextBot;
 
 [LinkEntityToClass("func_nav_prerequisite")]
-class FuncNavPrerequisite : BaseTrigger
+partial class FuncNavPrerequisite : BaseTrigger
 {
 	int Task;
 	string TaskEntityName;
 	float TaskValue;
-	bool Disabled;
+	[NetworkVar] public partial bool Disabled { get; set; }
 	EHANDLE TaskEntity;
 }

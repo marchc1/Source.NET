@@ -496,7 +496,7 @@ public class ShaderSystem : IShaderSystemInternal
 			if (combos.IsEmpty)
 				Msg($"Compiled shader: {name} ({typeName})\n");
 			else
-				Msg($"Compiled shader: {name} ({typeName}) [{combos}]\n");
+				Msg($"Compiled shader: {name} ({typeName}) [{string.Join(';', combos.ToString().Split(';').Where(x => !x.EndsWith(" 0")))}]\n");
 		}
 
 		return pShader;

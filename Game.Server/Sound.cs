@@ -302,13 +302,13 @@ public static class SoundGlobals
 }
 
 [LinkEntityToClass("ambient_generic")]
-public class AmbientGeneric : PointEntity
+public partial class AmbientGeneric : PointEntity
 {
 	public const int SF_AMBIENT_SOUND_EVERYWHERE = 1;
 	public const int SF_AMBIENT_SOUND_START_SILENT = 16;
 	public const int SF_AMBIENT_SOUND_NOT_LOOPING = 32;
 
-	public float Radius;
+	[NetworkVar] public partial float Radius { get; set; }
 	public float MaxRadius;
 	public SoundLevel SoundLevel;     // dB value
 	public DynPitchVol Dpv;

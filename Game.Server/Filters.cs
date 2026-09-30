@@ -259,9 +259,9 @@ public class FilterMassGreater : BaseFilter
 //	> FilterDamageType
 // ###################################################################
 [LinkEntityToClass("filter_damage_type")]
-public class FilterDamageType : BaseFilter
+public partial class FilterDamageType : BaseFilter
 {
-	protected int DamageType;
+	[NetworkVar] public partial int DamageType { get; set; }
 
 	public static readonly new DataMap DataDesc = new(typeof(FilterDamageType), BaseFilter.DataDesc, [
 		// Keyfields

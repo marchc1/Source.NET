@@ -8,51 +8,51 @@ namespace Game.Server;
 using FIELD = Source.FIELD<PropVehicleDriveable>;
 
 [NetworkName("CPropVehicleDriveable")]
-public class PropVehicleDriveable : BaseAnimating
+public partial class PropVehicleDriveable : BaseAnimating
 {
 	public static readonly SendTable DT_PropVehicleDriveable = new(DT_BaseAnimating, [
-		SendPropEHandle(FIELD.OF(nameof(Player))),
-		SendPropInt(FIELD.OF(nameof(Speed)), 8),
-		SendPropInt(FIELD.OF(nameof(RPM)), 13),
-		SendPropFloat(FIELD.OF(nameof(Throttle)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(BoostTimeLeft)), 8),
-		SendPropBool(FIELD.OF(nameof(HasBoost))),
-		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
-		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
-		SendPropBool(FIELD.OF(nameof(UnableToFire))),
-		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
-		SendPropBool(FIELD.OF(nameof(HasGun))),
-		SendPropVector(FIELD.OF(nameof(GunCrosshair)), 0, PropFlags.Coord),
-		SendPropBool(FIELD.OF(nameof(Locked))),
+		SendPropEHandle(PropVehicleDriveable.NetworkVarFields.Player),
+		SendPropInt(NetworkVarFields.Speed, 8),
+		SendPropInt(NetworkVarFields.RPM, 13),
+		SendPropFloat(NetworkVarFields.Throttle, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.BoostTimeLeft, 8),
+		SendPropBool(NetworkVarFields.HasBoost),
+		SendPropBool(NetworkVarFields.EnterAnimOn),
+		SendPropBool(NetworkVarFields.ExitAnimOn),
+		SendPropBool(NetworkVarFields.UnableToFire),
+		SendPropVector(NetworkVarFields.EyeExitEndpoint, 0, PropFlags.Coord),
+		SendPropBool(NetworkVarFields.HasGun),
+		SendPropVector(NetworkVarFields.GunCrosshair, 0, PropFlags.Coord),
+		SendPropBool(NetworkVarFields.Locked),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropVehicleDriveable);
 
 	[NetworkName("m_hPlayer")]
-	public EHANDLE Player = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Player { get; }
 	[NetworkName("m_nSpeed")]
-	public new int Speed;
+	[NetworkVar] public new partial int Speed { get; set; }
 	[NetworkName("m_nRPM")]
-	public int RPM;
+	[NetworkVar] public partial int RPM { get; set; }
 	[NetworkName("m_flThrottle")]
-	public float Throttle;
+	[NetworkVar] public partial float Throttle { get; set; }
 	[NetworkName("m_nBoostTimeLeft")]
-	public int BoostTimeLeft;
+	[NetworkVar] public partial int BoostTimeLeft { get; set; }
 	[NetworkName("m_nHasBoost")]
-	public bool HasBoost;
+	[NetworkVar] public partial bool HasBoost { get; set; }
 	public bool ScannerDisabledWeapons;
 	public bool ScannerDisabledVehicle;
 	[NetworkName("m_bEnterAnimOn")]
-	public bool EnterAnimOn;
+	[NetworkVar] public partial bool EnterAnimOn { get; set; }
 	[NetworkName("m_bExitAnimOn")]
-	public bool ExitAnimOn;
+	[NetworkVar] public partial bool ExitAnimOn { get; set; }
 	[NetworkName("m_bUnableToFire")]
-	public bool UnableToFire;
+	[NetworkVar] public partial bool UnableToFire { get; set; }
 	[NetworkName("m_vecEyeExitEndpoint")]
-	public Vector3 EyeExitEndpoint;
+	[NetworkVar] public partial Vector3 EyeExitEndpoint { get; set; }
 	[NetworkName("m_bHasGun")]
-	public bool HasGun;
+	[NetworkVar] public partial bool HasGun { get; set; }
 	[NetworkName("m_vecGunCrosshair")]
-	public Vector3 GunCrosshair;
+	[NetworkVar] public partial Vector3 GunCrosshair { get; set; }
 	[NetworkName("m_bLocked")]
-	public bool Locked;
+	[NetworkVar] public partial bool Locked { get; set; }
 }

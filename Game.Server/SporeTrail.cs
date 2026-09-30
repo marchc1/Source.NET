@@ -6,31 +6,31 @@ namespace Game.Server;
 using FIELD = FIELD<SporeTrail>;
 [LinkEntityToClass("env_sporetrail")]
 [NetworkName("SporeTrail")]
-public class SporeTrail : BaseParticleEntity
+public partial class SporeTrail : BaseParticleEntity
 {
 	public static readonly SendTable DT_SporeTrail = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpawnRate)), 8, 0, 1, 1024),
-		SendPropVector(FIELD.OF(nameof(EndColor)), 8, 0, 0, 1),
-		SendPropFloat(FIELD.OF(nameof(ParticleLifetime)), 16, PropFlags.RoundUp, 0.1f, 100),
-		SendPropFloat(FIELD.OF(nameof(StartSize)), -1, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(EndSize)), -1, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpawnRadius)), -1, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Emit))),
+		SendPropFloat(NetworkVarFields.SpawnRate, 8, 0, 1, 1024),
+		SendPropVector(NetworkVarFields.EndColor, 8, 0, 0, 1),
+		SendPropFloat(NetworkVarFields.ParticleLifetime, 16, PropFlags.RoundUp, 0.1f, 100),
+		SendPropFloat(NetworkVarFields.StartSize, -1, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.EndSize, -1, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpawnRadius, -1, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Emit),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_SporeTrail);
 
 	[NetworkName("m_flSpawnRate")]
-	public float SpawnRate;
+	[NetworkVar] public partial float SpawnRate { get; set; }
 	[NetworkName("m_vecEndColor")]
-	public Vector3 EndColor;
+	[NetworkVar] public partial Vector3 EndColor { get; set; }
 	[NetworkName("m_flParticleLifetime")]
-	public float ParticleLifetime;
+	[NetworkVar] public partial float ParticleLifetime { get; set; }
 	[NetworkName("m_flStartSize")]
-	public float StartSize;
+	[NetworkVar] public partial float StartSize { get; set; }
 	[NetworkName("m_flEndSize")]
-	public float EndSize;
+	[NetworkVar] public partial float EndSize { get; set; }
 	[NetworkName("m_flSpawnRadius")]
-	public float SpawnRadius;
+	[NetworkVar] public partial float SpawnRadius { get; set; }
 	[NetworkName("m_bEmit")]
-	public bool Emit;
+	[NetworkVar] public partial bool Emit { get; set; }
 }

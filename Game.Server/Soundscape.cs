@@ -25,12 +25,12 @@ public struct SoundscapeUpdate
 // ----------------------------------------------------------------------------- //
 
 [LinkEntityToClass("env_soundscape")]
-public class EnvSoundscape : PointEntity
+public partial class EnvSoundscape : PointEntity
 {
 	public static readonly ConVar soundscape_debug = new("soundscape_debug", "0", FCvar.Cheat, "When on, draws lines to all env_soundscape entities. Green lines show the active soundscape, red lines show soundscapes that aren't in range, and white lines show soundscapes that are in range, but not the active soundscape.");
 
 	public OutputEvent OnPlay = new();
-	public float Radius;
+	[NetworkVar] public partial float Radius { get; set; }
 	public string? SoundscapeName;
 	public int SoundscapeIndex;
 	public int SoundscapeEntityId;
@@ -40,7 +40,7 @@ public class EnvSoundscape : PointEntity
 	// those of this soundscape.
 	public Handle<EnvSoundscape> ProxySoundscape = new();
 
-	bool Disabled;
+	[NetworkVar] public partial bool Disabled { get; set; }
 
 	public static readonly new DataMap DataDesc = new(typeof(EnvSoundscape), PointEntity.DataDesc, [
 		DEFINE<EnvSoundscape>.KEYFIELD(nameof(Radius), FieldType.Float, "radius"),
@@ -152,7 +152,7 @@ public class EnvSoundscape : PointEntity
 		return SetTransmitState(EdictFlags.Always);
 	}
 
-	public void WriteAudioParamsTo(ref AudioParams audio) {
+	public void WriteAudioParamsTo(AudioParams.NetworkVar audio) {
 		audio.Ent.Set(this);
 		audio.SoundscapeIndex = SoundscapeIndex;
 		audio.LocalBits = 0;
@@ -162,7 +162,7 @@ public class EnvSoundscape : PointEntity
 				BaseEntity? entity = gEntList.FindEntityByName(null, PositionNames[i], this, this);
 				if (entity != null) {
 					audio.LocalBits |= 1 << i;
-					audio.LocalSound[i] = entity.GetAbsOrigin();
+					audio.LocalSound.Set(i, entity.GetAbsOrigin());
 				}
 			}
 		}
@@ -210,8 +210,8 @@ public class EnvSoundscape : PointEntity
 				Util.TraceLine(target, update.PlayerPosition, Mask.SolidBrushOnly | Mask.Water, update.Player, Source.CollisionGroup.None, out Trace tr);
 
 				if (tr.Fraction == 1 && !tr.StartSolid) {
-					ref AudioParams audio = ref update.Player!.GetAudioParams();
-					WriteAudioParamsTo(ref audio);
+					AudioParams.NetworkVar audio = update.Player!.GetAudioParams();
+					WriteAudioParamsTo(audio);
 					update.CurrentSoundscape = this;
 					update.InRange = true;
 					update.CurrentDistance = range;
@@ -226,7 +226,7 @@ public class EnvSoundscape : PointEntity
 			DebugOverlay.Box(GetAbsOrigin(), new(-10, -10, -10), new(10, 10, 10), 255, 0, 255, 64, persist);
 
 			if (update.Player != null) {
-				ref AudioParams audio = ref update.Player.GetAudioParams();
+				AudioParams.NetworkVar audio = update.Player.GetAudioParams();
 				if (audio.Ent.Get() != this) {
 					if (InRangeOfPlayer(update.Player))
 						DebugOverlay.Line(GetAbsOrigin(), update.Player.WorldSpaceCenter(), 255, 255, 255, true, persist);
@@ -345,7 +345,7 @@ public class EnvSoundscapeTriggerable : EnvSoundscape
 
 		// Add us to the player's list of soundscapes and
 		player.TriggerSoundscapeList.Insert(0, new EHANDLE().Set(this));
-		WriteAudioParamsTo(ref player.GetAudioParams());
+		WriteAudioParamsTo(player.GetAudioParams());
 	}
 
 	public void DelegateEndTouch(BaseEntity ent) {
@@ -357,7 +357,7 @@ public class EnvSoundscapeTriggerable : EnvSoundscape
 		while (player.TriggerSoundscapeList.Count > 0) {
 			if (player.TriggerSoundscapeList[0].Get() is EnvSoundscapeTriggerable ss) {
 				// Make this one current.
-				ss.WriteAudioParamsTo(ref player.GetAudioParams());
+				ss.WriteAudioParamsTo(player.GetAudioParams());
 				return;
 			}
 			else

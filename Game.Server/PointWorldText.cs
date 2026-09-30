@@ -5,34 +5,34 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PointWorldText>;
 [NetworkName("CPointWorldText")]
-public class PointWorldText : BaseEntity
+public partial class PointWorldText : BaseEntity
 {
 	public static readonly SendTable DT_PointWorldText = new(DT_BaseEntity, [
 		SendPropString(FIELD.OF(nameof(SzText))),
-		SendPropInt(FIELD.OF(nameof(ColTextColor)), 32, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(TextSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(TextSpacingX)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(TextSpacingY)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Orientation)), 3, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(Rainbow))),
-		SendPropBool(FIELD.OF(nameof(TextEnabled))),
+		SendPropInt(NetworkVarFields.ColTextColor, 32, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.TextSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.TextSpacingX, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.TextSpacingY, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Orientation, 3, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.Rainbow),
+		SendPropBool(NetworkVarFields.TextEnabled),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PointWorldText);
 
 	[NetworkName("m_szText")]
 	public InlineArray512<char> SzText;
 	[NetworkName("m_colTextColor")]
-	public int ColTextColor;
+	[NetworkVar] public partial int ColTextColor { get; set; }
 	[NetworkName("m_flTextSize")]
-	public float TextSize;
+	[NetworkVar] public partial float TextSize { get; set; }
 	[NetworkName("m_flTextSpacingX")]
-	public float TextSpacingX;
+	[NetworkVar] public partial float TextSpacingX { get; set; }
 	[NetworkName("m_flTextSpacingY")]
-	public float TextSpacingY;
+	[NetworkVar] public partial float TextSpacingY { get; set; }
 	[NetworkName("m_nOrientation")]
-	public int Orientation;
+	[NetworkVar] public partial int Orientation { get; set; }
 	[NetworkName("m_bRainbow")]
-	public bool Rainbow;
+	[NetworkVar] public partial bool Rainbow { get; set; }
 	[NetworkName("m_bTextEnabled")]
-	public bool TextEnabled;
+	[NetworkVar] public partial bool TextEnabled { get; set; }
 }

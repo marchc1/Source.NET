@@ -10,7 +10,7 @@ using FIELD = FIELD<PlayerLocalData>;
 using DEFINE = Source.DEFINE<Game.Client.PlayerLocalData>;
 
 
-public class PlayerLocalData
+public partial class PlayerLocalData
 {
 	public static readonly DataMap PredMap = new(typeof(PlayerLocalData), [
 		// DEFINE.FIELD( nameof(StepSide), FieldType.Integer ),
@@ -146,10 +146,10 @@ public class PlayerLocalData
 	public int OldButtons;
 	public int OldForwardMove;
 	[NetworkName("m_vecPunchAngle")]
-	public QAngle PunchAngle;
+	[NetworkVar] public partial QAngle PunchAngle { get; set; }
 	public readonly InterpolatedVar<QAngle> iv_PunchAngle;
 	[NetworkName("m_vecPunchAngleVel")]
-	public QAngle PunchAngleVel;
+	[NetworkVar] public partial QAngle PunchAngleVel { get; set; }
 	public readonly InterpolatedVar<QAngle> iv_PunchAngleVel;
 	[NetworkName("m_bDrawViewmodel")]
 	public bool DrawViewmodel;

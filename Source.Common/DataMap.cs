@@ -745,7 +745,7 @@ namespace Source
 	public static class DEFINE<T>
 	{
 		static int SIZE_OF_ARRAY(ReadOnlySpan<char> fieldName) {
-			var field = typeof(T).GetField(new(fieldName), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+			var field = GetField_R(typeof(T), new(fieldName));
 			if (field == null)
 				throw new NullReferenceException();
 
@@ -757,7 +757,7 @@ namespace Source
 		}
 
 		public static FieldInfo GetField_R(Type t, string name){
-			var f = t.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var f = t.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance) ?? t.GetField("__nv_" + name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 			if (f != null)
 				return f;
 

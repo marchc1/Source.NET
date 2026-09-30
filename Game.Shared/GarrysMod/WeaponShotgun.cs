@@ -10,7 +10,7 @@ using FIELD = Source.FIELD<WeaponShotgun>;
 [LinkEntityToClass("weapon_shotgun")]
 [PrecacheWeaponRegister("weapon_shotgun")]
 [NetworkName("CWeaponShotgun")]
-public class WeaponShotgun : BaseHL2MPCombatWeapon
+public partial class WeaponShotgun : BaseHL2MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -25,10 +25,10 @@ public class WeaponShotgun : BaseHL2MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(DelayedFire2))),
 			RecvPropBool(FIELD.OF(nameof(DelayedReload))),
 #else
-			SendPropBool(FIELD.OF(nameof(NeedPump))),
-			SendPropBool(FIELD.OF(nameof(DelayedFire1))),
-			SendPropBool(FIELD.OF(nameof(DelayedFire2))),
-			SendPropBool(FIELD.OF(nameof(DelayedReload))),
+			SendPropBool(NetworkVarFields.NeedPump),
+			SendPropBool(NetworkVarFields.DelayedFire1),
+			SendPropBool(NetworkVarFields.DelayedFire2),
+			SendPropBool(NetworkVarFields.DelayedReload),
 #endif
 		]);
 #if CLIENT_DLL
@@ -38,13 +38,13 @@ public class WeaponShotgun : BaseHL2MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponShotgun);
 #endif
 	[NetworkName("m_bNeedPump")]
-	public bool NeedPump;
+	[NetworkVar] public partial bool NeedPump { get; set; }
 	[NetworkName("m_bDelayedFire1")]
-	public bool DelayedFire1;
+	[NetworkVar] public partial bool DelayedFire1 { get; set; }
 	[NetworkName("m_bDelayedFire2")]
-	public bool DelayedFire2;
+	[NetworkVar] public partial bool DelayedFire2 { get; set; }
 	[NetworkName("m_bDelayedReload")]
-	public bool DelayedReload;
+	[NetworkVar] public partial bool DelayedReload { get; set; }
 	public WeaponShotgun() {
 		ReloadsSingly = true;
 

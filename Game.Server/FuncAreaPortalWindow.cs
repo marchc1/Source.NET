@@ -8,22 +8,22 @@ namespace Game.Server;
 using FIELD = FIELD<FuncAreaPortalWindow>;
 
 [NetworkName("CFuncAreaPortalWindow")]
-public class FuncAreaPortalWindow : BaseEntity
+public partial class FuncAreaPortalWindow : BaseEntity
 {
 	public static readonly SendTable DT_FuncAreaPortalWindow = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(FadeDist)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FadeStartDist)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(TranslucencyLimit)), 0, PropFlags.NoScale),
-		SendPropModelIndex(FIELD.OF(nameof(BackgroundModelIndex))),
+		SendPropFloat(NetworkVarFields.FadeDist, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FadeStartDist, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.TranslucencyLimit, 0, PropFlags.NoScale),
+		SendPropModelIndex(NetworkVarFields.BackgroundModelIndex),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_FuncAreaPortalWindow);
 
 	[NetworkName("m_flFadeDist")]
-	public float FadeDist;
+	[NetworkVar] public partial float FadeDist { get; set; }
 	[NetworkName("m_flFadeStartDist")]
-	public float FadeStartDist;
+	[NetworkVar] public partial float FadeStartDist { get; set; }
 	[NetworkName("m_flTranslucencyLimit")]
-	public float TranslucencyLimit;
+	[NetworkVar] public partial float TranslucencyLimit { get; set; }
 	[NetworkName("m_iBackgroundModelIndex")]
-	public int BackgroundModelIndex;
+	[NetworkVar] public partial int BackgroundModelIndex { get; set; }
 }

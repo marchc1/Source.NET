@@ -5,30 +5,30 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Fish>;
 [NetworkName("CFish")]
-public class Fish : BaseAnimating
+public partial class Fish : BaseAnimating
 {
 	public static readonly SendTable DT_CFish = new([
-		SendPropVector(FIELD.OF(nameof(PoolOrigin)), 0, PropFlags.Coord),
-		SendPropFloat(FIELD.OF(nameof(Le)), 7, 0, 0.0f, 360.0f),
-		SendPropFloat(FIELD.OF(nameof(X)), 7, 0, -255.0f, 255.0f),
-		SendPropFloat(FIELD.OF(nameof(Y)), 7, 0, -255.0f, 255.0f),
-		SendPropFloat(FIELD.OF(nameof(Z)), 0, PropFlags.Coord | PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(WaterLevel)), 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.PoolOrigin, 0, PropFlags.Coord),
+		SendPropFloat(NetworkVarFields.Le, 7, 0, 0.0f, 360.0f),
+		SendPropFloat(NetworkVarFields.X, 7, 0, -255.0f, 255.0f),
+		SendPropFloat(NetworkVarFields.Y, 7, 0, -255.0f, 255.0f),
+		SendPropFloat(NetworkVarFields.Z, 0, PropFlags.Coord | PropFlags.NoScale),
+		SendPropInt(BaseEntity.NetworkVarFields.ModelIndex, 14, 0),
+		SendPropInt(BaseEntity.NetworkVarFields.LifeState, 3, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.WaterLevel, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_CFish);
 
 	[NetworkName("m_poolOrigin")]
-	public Vector3 PoolOrigin;
+	[NetworkVar] public partial Vector3 PoolOrigin { get; set; }
 	[NetworkName("m_angle")]
-	public float Le;
+	[NetworkVar] public partial float Le { get; set; }
 	[NetworkName("m_x")]
-	public float X;
+	[NetworkVar] public partial float X { get; set; }
 	[NetworkName("m_y")]
-	public float Y;
+	[NetworkVar] public partial float Y { get; set; }
 	[NetworkName("m_z")]
-	public float Z;
+	[NetworkVar] public partial float Z { get; set; }
 	[NetworkName("m_waterLevel")]
-	public new float WaterLevel;
+	[NetworkVar] public new partial float WaterLevel { get; set; }
 }

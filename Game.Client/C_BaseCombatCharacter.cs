@@ -48,7 +48,7 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public InlineArrayNewMaxWeapons<Handle<C_BaseCombatWeapon>> MyWeapons = new();
 
 	[NetworkName("m_iAmmo")]
-	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxAmmoTypes<int>, int> Ammo { get; }
 
 	[NetworkName("m_bloodColor")]
 	public Color BloodColor;

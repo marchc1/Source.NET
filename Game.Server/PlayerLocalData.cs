@@ -8,57 +8,57 @@ namespace Game.Server;
 
 using FIELD = FIELD<PlayerLocalData>;
 
-public class PlayerLocalData
+public partial class PlayerLocalData
 {
 	public static readonly SendTable DT_Local = new(nameof(DT_Local), [
-		SendPropArray3(FIELD.OF_ARRAY(nameof(AreaBits)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaBits)), 8, PropFlags.Unsigned)),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(AreaPortalBits)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaPortalBits)), 8, PropFlags.Unsigned)),
-		SendPropInt(FIELD.OF(nameof(HideHUD)), (int)HideHudBits.BitCount, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(FOVRate)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Ducked)), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(Ducking)), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(InDuckJump)), 1, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(DuckTime)), 12, PropFlags.RoundDown | PropFlags.ChangesOften, 0.0f, 2048.0f),
-		SendPropFloat(FIELD.OF(nameof(DuckJumpTime)), 12, PropFlags.RoundDown, 0.0f, 2048.0f),
-		SendPropFloat(FIELD.OF(nameof(JumpTime)), 12, PropFlags.RoundDown, 0.0f, 2048.0f),
-		SendPropFloat(FIELD.OF(nameof(FallVelocity)), 32, PropFlags.NoScale | PropFlags.ChangesOften, -4096.0f, 4096.0f),
-		SendPropVector(FIELD.OF(nameof(PunchAngle)), -1,  PropFlags.NoScale|PropFlags.ChangesOften),
-		SendPropVector(FIELD.OF(nameof(PunchAngleVel)), -1,  PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(DrawViewmodel)), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(WearingSuit)), 1, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(Poisoned))),
-		SendPropFloat(FIELD.OF(nameof(StepSize)), 16, PropFlags.RoundUp, 0.0f, 512.0f),
-		SendPropInt(FIELD.OF(nameof(AllowAutoMovement)),1, PropFlags.Unsigned),
+		SendPropArray3(PlayerLocalData.NetworkVarFields.AreaBits, SendPropInt(PlayerLocalData.NetworkVarFields.AreaBits.AtIndex(0)!, 8, PropFlags.Unsigned)),
+		SendPropArray3(PlayerLocalData.NetworkVarFields.AreaPortalBits, SendPropInt(PlayerLocalData.NetworkVarFields.AreaPortalBits.AtIndex(0)!, 8, PropFlags.Unsigned)),
+		SendPropInt(PlayerLocalData.NetworkVarFields.HideHUD, (int)HideHudBits.BitCount, PropFlags.Unsigned),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.FOVRate, 0, PropFlags.NoScale),
+		SendPropInt(PlayerLocalData.NetworkVarFields.Ducked, 1, PropFlags.Unsigned),
+		SendPropInt(PlayerLocalData.NetworkVarFields.Ducking, 1, PropFlags.Unsigned),
+		SendPropInt(PlayerLocalData.NetworkVarFields.InDuckJump, 1, PropFlags.Unsigned),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.DuckTime, 12, PropFlags.RoundDown | PropFlags.ChangesOften, 0.0f, 2048.0f),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.DuckJumpTime, 12, PropFlags.RoundDown, 0.0f, 2048.0f),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.JumpTime, 12, PropFlags.RoundDown, 0.0f, 2048.0f),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.FallVelocity, 32, PropFlags.NoScale | PropFlags.ChangesOften, -4096.0f, 4096.0f),
+		SendPropVector(PlayerLocalData.NetworkVarFields.PunchAngle, -1,  PropFlags.NoScale|PropFlags.ChangesOften),
+		SendPropVector(PlayerLocalData.NetworkVarFields.PunchAngleVel, -1,  PropFlags.NoScale),
+		SendPropInt(PlayerLocalData.NetworkVarFields.DrawViewmodel, 1, PropFlags.Unsigned),
+		SendPropInt(PlayerLocalData.NetworkVarFields.WearingSuit, 1, PropFlags.Unsigned),
+		SendPropBool(PlayerLocalData.NetworkVarFields.Poisoned),
+		SendPropFloat(PlayerLocalData.NetworkVarFields.StepSize, 16, PropFlags.RoundUp, 0.0f, 512.0f),
+		SendPropInt(PlayerLocalData.NetworkVarFields.AllowAutoMovement,1, PropFlags.Unsigned),
 
-		SendPropInt(FIELD.OF("Skybox3D.Scale"), 12),
-		SendPropVector(FIELD.OF("Skybox3D.Origin"), -1, PropFlags.Coord),
-		SendPropInt(FIELD.OF("Skybox3D.Area"), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.Enable"), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.Blend"), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.Radial"), 1, PropFlags.Unsigned),
-		SendPropVector(FIELD.OF("Skybox3D.Fog.DirPrimary"), -1, PropFlags.Coord),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.ColorPrimary"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.ColorSecondary"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.ColorPrimaryHDR"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Skybox3D.Fog.ColorSecondaryHDR"), 32, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF("Skybox3D.Fog.Start"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Skybox3D.Fog.End"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Skybox3D.Fog.MaxDensity"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Skybox3D.Fog.HDRColorScale"), 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Skybox3D_Scale, 12),
+		SendPropVector(NetworkVarFields.Skybox3D_Origin, -1, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.Skybox3D_Area, 8, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_Enable, 1, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_Blend, 1, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_Radial, 1, PropFlags.Unsigned),
+		SendPropVector(NetworkVarFields.Skybox3D_Fog_DirPrimary, -1, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_ColorPrimary, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_ColorSecondary, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_ColorPrimaryHDR, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Skybox3D_Fog_ColorSecondaryHDR, 32, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Skybox3D_Fog_Start, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Skybox3D_Fog_End, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Skybox3D_Fog_MaxDensity, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Skybox3D_Fog_HDRColorScale, 0, PropFlags.NoScale),
 
-		SendPropEHandle( FIELD.OF("PlayerFog.Ctrl") ),
+		SendPropEHandle( NetworkVarFields.PlayerFog_Ctrl ),
 
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 0), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 1), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 2), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 3), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 4), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 5), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 6), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF_ARRAYINDEX("Audio.LocalSound", 7), -1, PropFlags.Coord),
-		SendPropInt(FIELD.OF("Audio.SoundscapeIndex"), 17, 0),
-		SendPropInt(FIELD.OF("Audio.LocalBits"), NUM_AUDIO_LOCAL_SOUNDS, PropFlags.Unsigned),
-		SendPropEHandle(FIELD.OF("Audio.Ent")),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(0)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(1)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(2)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(3)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(4)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(5)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(6)!, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.Audio_LocalSound.AtIndex(7)!, -1, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.Audio_SoundscapeIndex, 17, 0),
+		SendPropInt(NetworkVarFields.Audio_LocalBits, NUM_AUDIO_LOCAL_SOUNDS, PropFlags.Unsigned),
+		SendPropEHandle(NetworkVarFields.Audio_Ent),
 
 		SendPropFloat(FIELD.OF(nameof(SprintSpeed))),
 		SendPropFloat(FIELD.OF(nameof(WalkSpeed))),
@@ -89,52 +89,52 @@ public class PlayerLocalData
 
 	// TODO: NETWORK VARS!!!!!
 	[NetworkName("m_chAreaBits")]
-	public InlineArrayMaxAreaStateBytes<byte> AreaBits;
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxAreaStateBytes<byte>, byte> AreaBits { get; }
 	[NetworkName("m_chAreaPortalBits")]
-	public InlineArrayMaxAreaPortalStateBytes<byte> AreaPortalBits;
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxAreaPortalStateBytes<byte>, byte> AreaPortalBits { get; }
 	[NetworkName("m_iHideHUD")]
-	public bool HideHUD;
+	[NetworkVar] public partial bool HideHUD { get; set; }
 	[NetworkName("m_flFOVRate")]
-	public float FOVRate;
+	[NetworkVar] public partial float FOVRate { get; set; }
 	[NetworkName("m_bDucked")]
-	public bool Ducked;
+	[NetworkVar] public partial bool Ducked { get; set; }
 	[NetworkName("m_bDucking")]
-	public bool Ducking;
+	[NetworkVar] public partial bool Ducking { get; set; }
 	[NetworkName("m_bInDuckJump")]
-	public bool InDuckJump;
+	[NetworkVar] public partial bool InDuckJump { get; set; }
 	[NetworkName("m_flDucktime")]
-	public double DuckTime;
+	[NetworkVar] public partial double DuckTime { get; set; }
 	[NetworkName("m_flDuckJumpTime")]
-	public double DuckJumpTime;
+	[NetworkVar] public partial double DuckJumpTime { get; set; }
 	[NetworkName("m_flJumpTime")]
-	public double JumpTime;
+	[NetworkVar] public partial double JumpTime { get; set; }
 	public int StepSide;
 	[NetworkName("m_flFallVelocity")]
-	public float FallVelocity;
+	[NetworkVar] public partial float FallVelocity { get; set; }
 	public int OldButtons;
 	public int OldForwardMove;
 	[NetworkName("m_vecPunchAngle")]
-	public QAngle PunchAngle;
+	[NetworkVar] public partial QAngle PunchAngle { get; set; }
 	[NetworkName("m_vecPunchAngleVel")]
-	public QAngle PunchAngleVel;
+	[NetworkVar] public partial QAngle PunchAngleVel { get; set; }
 	[NetworkName("m_bDrawViewmodel")]
-	public bool DrawViewmodel;
+	[NetworkVar] public partial bool DrawViewmodel { get; set; }
 	[NetworkName("m_bWearingSuit")]
-	public bool WearingSuit;
+	[NetworkVar] public partial bool WearingSuit { get; set; }
 	[NetworkName("m_bPoisoned")]
-	public bool Poisoned;
+	[NetworkVar] public partial bool Poisoned { get; set; }
 	[NetworkName("m_flStepSize")]
-	public float StepSize;
+	[NetworkVar] public partial float StepSize { get; set; }
 	[NetworkName("m_bAllowAutoMovement")]
-	public bool AllowAutoMovement;
+	[NetworkVar] public partial bool AllowAutoMovement { get; set; }
 	public bool SlowMovement;
 
 	[NetworkName("m_skybox3d")]
-	public Sky3DParams Skybox3D = new();
+	[NetworkVarEmbedded] public partial Sky3DParams.NetworkVar Skybox3D { get; }
 	[NetworkName("m_PlayerFog")]
-	public FogPlayerParams PlayerFog = new();
+	[NetworkVarEmbedded] public partial FogPlayerParams.NetworkVar PlayerFog { get; }
 	[NetworkName("m_audio")]
-	public AudioParams Audio = new();
+	[NetworkVarEmbedded] public partial AudioParams.NetworkVar Audio { get; }
 
 	public static void ClientData_Update(BasePlayer pl) {
 		// TODO!
@@ -144,7 +144,8 @@ public class PlayerLocalData
 		// 	pl.Local.Skybox3D.CopyFrom(skyCamera.SkyboxData);
 		// }
 		// else if (skyCamera == null)
-		pl.Local.Skybox3D.Area = 255;
+		Sky3DParams.NetworkVar skybox3d = pl.Local.Skybox3D;
+		skybox3d.Area = 255;
 	}
 
 	public static void UpdateAllClientData() {

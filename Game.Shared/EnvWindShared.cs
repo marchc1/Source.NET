@@ -5,37 +5,37 @@ using System.Text;
 
 namespace Game.Shared;
 
-public class EnvWindShared
+public partial class EnvWindShared
 {
 	[NetworkName("m_flStartTime")]
-	public float StartTime;
+	[NetworkVar] public partial float StartTime { get; set; }
 	[NetworkName("m_iWindSeed")]
-	public int WindSeed;
+	[NetworkVar] public partial int WindSeed { get; set; }
 	[NetworkName("m_iMinWind")]
-	public int MinWind;
+	[NetworkVar] public partial int MinWind { get; set; }
 	[NetworkName("m_iMaxWind")]
-	public int MaxWind;
+	[NetworkVar] public partial int MaxWind { get; set; }
 	[NetworkName("m_iMinGust")]
-	public int MinGust;
+	[NetworkVar] public partial int MinGust { get; set; }
 	[NetworkName("m_iMaxGust")]
-	public int MaxGust;
+	[NetworkVar] public partial int MaxGust { get; set; }
 	[NetworkName("m_flMinGustDelay")]
-	public float MinGustDelay;
+	[NetworkVar] public partial float MinGustDelay { get; set; }
 	[NetworkName("m_flMaxGustDelay")]
-	public float MaxGustDelay;
+	[NetworkVar] public partial float MaxGustDelay { get; set; }
 	[NetworkName("m_flGustDuration")]
-	public float GustDuration;
+	[NetworkVar] public partial float GustDuration { get; set; }
 	[NetworkName("m_iGustDirChange")]
-	public int GustDirChange;
+	[NetworkVar] public partial int GustDirChange { get; set; }
 	public int GustSound;
 	public int WindDir;
 	public float WindSpeed;
 	[NetworkName("m_iInitialWindDir")]
-	public int InitialWindDir;
+	[NetworkVar] public partial int InitialWindDir { get; set; }
 	[NetworkName("m_flInitialWindSpeed")]
-	public float InitialWindSpeed;
+	[NetworkVar] public partial float InitialWindSpeed { get; set; }
 	[NetworkName("m_windRadius")]
-	public int WindRadius;
+	[NetworkVar] public partial int WindRadius { get; set; }
 
 	#if !CLIENT_DLL
 		// todo: onguststart/ongustend

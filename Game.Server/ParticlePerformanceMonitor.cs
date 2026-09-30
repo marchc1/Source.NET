@@ -5,16 +5,16 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ParticlePerformanceMonitor>;
 [NetworkName("CParticlePerformanceMonitor")]
-public class ParticlePerformanceMonitor : PointEntity
+public partial class ParticlePerformanceMonitor : PointEntity
 {
 	public static readonly SendTable DT_ParticlePerformanceMonitor = new(DT_BaseEntity, [
-		SendPropBool(FIELD.OF(nameof(DisplayPerf))),
-		SendPropBool(FIELD.OF(nameof(MeasurePerf))),
+		SendPropBool(NetworkVarFields.DisplayPerf),
+		SendPropBool(NetworkVarFields.MeasurePerf),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_ParticlePerformanceMonitor);
 
 	[NetworkName("m_bDisplayPerf")]
-	public bool DisplayPerf;
+	[NetworkVar] public partial bool DisplayPerf { get; set; }
 	[NetworkName("m_bMeasurePerf")]
-	public bool MeasurePerf;
+	[NetworkVar] public partial bool MeasurePerf { get; set; }
 }

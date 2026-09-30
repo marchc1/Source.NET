@@ -49,7 +49,7 @@ public class
 		RecvPropPredictableId(FIELD.OF(nameof(PredictableID))),
 		RecvPropBool(FIELD.OF(nameof(b_IsPlayerSimulated)))
 #else
-		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
+		SendPropPredictableId(BaseEntity.NetworkVarFields.PredictableId),
 		SendPropBool(FIELD.OF(nameof(b_IsPlayerSimulated)))
 #endif
 		]);

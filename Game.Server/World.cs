@@ -20,21 +20,21 @@ public static class WorldGlobals
 
 [LinkEntityToClass("worldspawn")]
 [NetworkName("CWorld")]
-public class World : BaseEntity
+public partial class World : BaseEntity
 {
 	public static World? g_WorldEntity { get; private set; }
 	public override int RequiredEdictIndex() => 0;
 	public static SendTable DT_WORLD = new([
 		SendPropDataTable("baseclass", DT_BaseEntity),
 
-		SendPropVector(FIELD.OF(nameof(WorldMins)), -1, PropFlags.Coord),
-		SendPropVector(FIELD.OF(nameof(WorldMaxs)), -1, PropFlags.Coord),
-		SendPropInt(FIELD.OF(nameof(StartDark)), 1, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(MaxOccludeeArea)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MinOccluderArea)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MaxPropScreenSpaceWidth)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MinPropScreenSpaceWidth)), 0, PropFlags.NoScale),
-		SendPropStringT(FIELD.OF(nameof(DetailSpriteMaterial))),
+		SendPropVector(NetworkVarFields.WorldMins, -1, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.WorldMaxs, -1, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.StartDark, 1, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.MaxOccludeeArea, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MinOccluderArea, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MaxPropScreenSpaceWidth, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MinPropScreenSpaceWidth, 0, PropFlags.NoScale),
+		SendPropStringT(NetworkVarFields.DetailSpriteMaterial),
 	]);
 
 	public World() {
@@ -149,20 +149,20 @@ public class World : BaseEntity
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WORLD);
 	float WaveHeight;
 	[NetworkName("m_WorldMins")]
-	Vector3 WorldMins;
+	[NetworkVar] public partial Vector3 WorldMins { get; set; }
 	[NetworkName("m_WorldMaxs")]
-	Vector3 WorldMaxs;
+	[NetworkVar] public partial Vector3 WorldMaxs { get; set; }
 	[NetworkName("m_bStartDark")]
-	bool StartDark;
+	[NetworkVar] public partial bool StartDark { get; set; }
 	[NetworkName("m_flMaxOccludeeArea")]
-	float MaxOccludeeArea;
+	[NetworkVar] public partial float MaxOccludeeArea { get; set; }
 	[NetworkName("m_flMinOccluderArea")]
-	float MinOccluderArea;
+	[NetworkVar] public partial float MinOccluderArea { get; set; }
 	[NetworkName("m_flMaxPropScreenSpaceWidth")]
-	float MaxPropScreenSpaceWidth;
+	[NetworkVar] public partial float MaxPropScreenSpaceWidth { get; set; }
 	[NetworkName("m_flMinPropScreenSpaceWidth")]
-	float MinPropScreenSpaceWidth;
+	[NetworkVar] public partial float MinPropScreenSpaceWidth { get; set; }
 	[NetworkName("m_iszDetailSpriteMaterial")]
-	string? DetailSpriteMaterial;
+	[NetworkVar] public partial string? DetailSpriteMaterial { get; set; }
 	bool ColdWorld;
 }

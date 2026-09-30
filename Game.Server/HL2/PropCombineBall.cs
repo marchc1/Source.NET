@@ -10,22 +10,22 @@ using FIELD = Source.FIELD<Game.Server.HL2.PropCombineBall>;
 namespace Game.Server.HL2;
 
 [NetworkName("CPropCombineBall")]
-public class PropCombineBall : BaseAnimating
+public partial class PropCombineBall : BaseAnimating
 {
 	public static readonly SendTable DT_PropCombineBall = new(DT_BaseAnimating, [
-		SendPropBool(FIELD.OF(nameof(Emit))),
-		SendPropFloat(FIELD.OF(nameof(Radius)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Held))),
-		SendPropBool(FIELD.OF(nameof(Launched))),
+		SendPropBool(NetworkVarFields.Emit),
+		SendPropFloat(NetworkVarFields.Radius, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Held),
+		SendPropBool(NetworkVarFields.Launched),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropCombineBall);
 
 	[NetworkName("m_bEmit")]
-	public bool Emit;
+	[NetworkVar] public partial bool Emit { get; set; }
 	[NetworkName("m_flRadius")]
-	public float Radius;
+	[NetworkVar] public partial float Radius { get; set; }
 	[NetworkName("m_bHeld")]
-	public bool Held;
+	[NetworkVar] public partial bool Held { get; set; }
 	[NetworkName("m_bLaunched")]
-	public bool Launched;
+	[NetworkVar] public partial bool Launched { get; set; }
 }

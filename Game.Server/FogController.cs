@@ -7,32 +7,32 @@ using FIELD = Source.FIELD<FogController>;
 
 [LinkEntityToClass("env_fog_controller")]
 [NetworkName("CFogController")]
-public class FogController : BaseEntity
+public partial class FogController : BaseEntity
 {
 	[NetworkName("m_fog")]
-	public FogParams Fog;
+	[NetworkVarEmbedded] public partial FogParams.NetworkVar Fog { get; }
 	public static readonly SendTable DT_FogController = new([
-		SendPropInt(FIELD.OF("Fog.Enable"), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.Blend"), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.Radial"), 1, PropFlags.Unsigned),
-		SendPropVector(FIELD.OF("Fog.DirPrimary"), 0, PropFlags.Coord),
-		SendPropInt(FIELD.OF("Fog.ColorPrimary"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.ColorSecondary"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.ColorPrimaryHDR"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.ColorSecondaryHDR"), 32, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF("Fog.Start"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Fog.End"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Fog.MaxDensity"), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF("Fog.FarZ"), 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Fog_Enable, 1, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_Blend, 1, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_Radial, 1, PropFlags.Unsigned),
+		SendPropVector(NetworkVarFields.Fog_DirPrimary, 0, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.Fog_ColorPrimary, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_ColorSecondary, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_ColorPrimaryHDR, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_ColorSecondaryHDR, 32, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Fog_Start, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Fog_End, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Fog_MaxDensity, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Fog_FarZ, 0, PropFlags.NoScale),
 
-		SendPropInt(FIELD.OF("Fog.ColorPrimaryLerpTo"), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF("Fog.ColorSecondaryLerpTo"), 32, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF("Fog.StartLerpTo"), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF("Fog.EndLerpTo"), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF("Fog.MaxDensityLerpTo"), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF("Fog.LerpTime"), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF("Fog.Duration"), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF("Fog.HDRColorScale"), 0, PropFlags.NoScale, 0, 0),
+		SendPropInt(NetworkVarFields.Fog_ColorPrimaryLerpTo, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Fog_ColorSecondaryLerpTo, 32, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Fog_StartLerpTo, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.Fog_EndLerpTo, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.Fog_MaxDensityLerpTo, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.Fog_LerpTime, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.Fog_Duration, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.Fog_HDRColorScale, 0, PropFlags.NoScale, 0, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_FogController);
 }

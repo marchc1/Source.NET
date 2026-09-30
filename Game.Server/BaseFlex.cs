@@ -9,29 +9,29 @@ namespace Game.Server;
 using FIELD = Source.FIELD<BaseFlex>;
 
 [NetworkName("CBaseFlex")]
-public class BaseFlex : BaseAnimatingOverlay {
+public partial class BaseFlex : BaseAnimatingOverlay {
 	public static readonly SendTable DT_BaseFlex = new(DT_BaseAnimatingOverlay, [
-		SendPropArray3  (FIELD.OF_ARRAY(nameof(FlexWeight)), SendPropFloat(FIELD.OF_ARRAY(nameof(FlexWeight)), 12, PropFlags.RoundDown, 0.0f, 1.0f )),
-		SendPropInt     (FIELD.OF(nameof(BlinkToggle)), 1, PropFlags.Unsigned ),
-		SendPropVector  (FIELD.OF(nameof(ViewTarget)), -1, PropFlags.Coord),
+		SendPropArray3  (BaseFlex.NetworkVarFields.FlexWeight, SendPropFloat(BaseFlex.NetworkVarFields.FlexWeight, 12, PropFlags.RoundDown, 0.0f, 1.0f )),
+		SendPropInt     (NetworkVarFields.BlinkToggle, 1, PropFlags.Unsigned ),
+		SendPropVector  (NetworkVarFields.ViewTarget, -1, PropFlags.Coord),
 
 		SendPropFloat   ( FIELD.OF_VECTORELEM(nameof(ViewOffset), 0), 0, PropFlags.NoScale ),
 		SendPropFloat   ( FIELD.OF_VECTORELEM(nameof(ViewOffset), 1), 0, PropFlags.NoScale ),
 		SendPropFloat   ( FIELD.OF_VECTORELEM(nameof(ViewOffset), 2), 0, PropFlags.NoScale ),
 
-		SendPropVector  ( FIELD.OF(nameof(Lean)), -1, PropFlags.Coord ),
-		SendPropVector  ( FIELD.OF(nameof(Shift)), -1, PropFlags.Coord ),
+		SendPropVector  ( NetworkVarFields.Lean, -1, PropFlags.Coord ),
+		SendPropVector  ( NetworkVarFields.Shift, -1, PropFlags.Coord ),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseFlex);
 
 	[NetworkName("m_flexWeight")]
-	public InlineArray96<float> FlexWeight;
+	[NetworkVar] public partial NetworkArray<InlineArray96<float>, float> FlexWeight { get; }
 	[NetworkName("m_blinktoggle")]
-	public int BlinkToggle;
+	[NetworkVar] public partial int BlinkToggle { get; set; }
 	[NetworkName("m_viewtarget")]
-	public Vector3 ViewTarget;
+	[NetworkVar] public partial Vector3 ViewTarget { get; set; }
 	[NetworkName("m_vecLean")]
-	public Vector3 Lean;
+	[NetworkVar] public partial Vector3 Lean { get; set; }
 	[NetworkName("m_vecShift")]
-	public Vector3 Shift;
+	[NetworkVar] public partial Vector3 Shift { get; set; }
 }

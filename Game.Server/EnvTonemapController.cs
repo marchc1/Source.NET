@@ -13,16 +13,16 @@ using DEFINE = Source.DEFINE<EnvTonemapController>;
 
 [LinkEntityToClass("env_tonemap_controller")]
 [NetworkName("CEnvTonemapController")]
-public class EnvTonemapController : PointEntity
+public partial class EnvTonemapController : PointEntity
 {
 	public static readonly SendTable DT_EnvTonemapController = new(DT_BaseEntity, [
-		SendPropBool(FIELD.OF(nameof(UseCustomAutoExposureMin))),
-		SendPropBool(FIELD.OF(nameof(UseCustomAutoExposureMax))),
-		SendPropBool(FIELD.OF(nameof(UseCustomBloomScale))),
-		SendPropFloat(FIELD.OF(nameof(CustomAutoExposureMin)), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF(nameof(CustomAutoExposureMax)), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF(nameof(CustomBloomScale)), 0, PropFlags.NoScale, 0, 0),
-		SendPropFloat(FIELD.OF(nameof(CustomBloomScaleMinimum)), 0, PropFlags.NoScale, 0, 0),
+		SendPropBool(NetworkVarFields.UseCustomAutoExposureMin),
+		SendPropBool(NetworkVarFields.UseCustomAutoExposureMax),
+		SendPropBool(NetworkVarFields.UseCustomBloomScale),
+		SendPropFloat(NetworkVarFields.CustomAutoExposureMin, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.CustomAutoExposureMax, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.CustomBloomScale, 0, PropFlags.NoScale, 0, 0),
+		SendPropFloat(NetworkVarFields.CustomBloomScaleMinimum, 0, PropFlags.NoScale, 0, 0),
 	]); public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvTonemapController);
 
 	public static readonly ConVar mat_hdr_tonemapscale = new("1.0", FCvar.Cheat, "The HDR tonemap scale. 1 = Use autoexposure, 0 = eyes fully closed, 16 = eyes wide open.");
@@ -30,22 +30,22 @@ public class EnvTonemapController : PointEntity
 	float BlendTonemapStart;
 	float BlendTonemapEnd;
 	TimeUnit_t BlendEndTime;
-	TimeUnit_t BlendStartTime;
+	[NetworkVar] public partial TimeUnit_t BlendStartTime { get; set; }
 
 	[NetworkName("m_bUseCustomAutoExposureMin")]
-	public bool UseCustomAutoExposureMin;
+	[NetworkVar] public partial bool UseCustomAutoExposureMin { get; set; }
 	[NetworkName("m_bUseCustomAutoExposureMax")]
-	public bool UseCustomAutoExposureMax;
+	[NetworkVar] public partial bool UseCustomAutoExposureMax { get; set; }
 	[NetworkName("m_bUseCustomBloomScale")]
-	public bool UseCustomBloomScale;
+	[NetworkVar] public partial bool UseCustomBloomScale { get; set; }
 	[NetworkName("m_flCustomAutoExposureMin")]
-	public float CustomAutoExposureMin;
+	[NetworkVar] public partial float CustomAutoExposureMin { get; set; }
 	[NetworkName("m_flCustomAutoExposureMax")]
-	public float CustomAutoExposureMax;
+	[NetworkVar] public partial float CustomAutoExposureMax { get; set; }
 	[NetworkName("m_flCustomBloomScale")]
-	public float CustomBloomScale;
+	[NetworkVar] public partial float CustomBloomScale { get; set; }
 	[NetworkName("m_flCustomBloomScaleMinimum")]
-	public float CustomBloomScaleMinimum;
+	[NetworkVar] public partial float CustomBloomScaleMinimum { get; set; }
 
 	public static readonly new DataMap DataDesc = new(typeof(EnvTonemapController), PointEntity.DataDesc, [
 		DEFINE.FIELD(nameof(BlendTonemapStart), FieldType.Float),

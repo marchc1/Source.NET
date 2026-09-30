@@ -3,7 +3,7 @@ using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponHgun>;
 [NetworkName("CWeaponHgun")]
-public class WeaponHgun : BaseHL1MPCombatWeapon
+public partial class WeaponHgun : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -16,8 +16,8 @@ public class WeaponHgun : BaseHL1MPCombatWeapon
 			RecvPropFloat(FIELD.OF(nameof(RechargeTime))),
 			RecvPropInt(FIELD.OF(nameof(FirePhase))),
 #else
-			SendPropFloat(FIELD.OF(nameof(RechargeTime)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(FirePhase)), 4, PropFlags.Unsigned),
+			SendPropFloat(NetworkVarFields.RechargeTime, 0, PropFlags.NoScale),
+			SendPropInt(NetworkVarFields.FirePhase, 4, PropFlags.Unsigned),
 #endif
 		]);
 #if CLIENT_DLL
@@ -26,8 +26,8 @@ public class WeaponHgun : BaseHL1MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponHgun);
 #endif
 	[NetworkName("m_flRechargeTime")]
-	public TimeUnit_t RechargeTime;
+	[NetworkVar] public partial TimeUnit_t RechargeTime { get; set; }
 	[NetworkName("m_iFirePhase")]
-	public int FirePhase;
+	[NetworkVar] public partial int FirePhase { get; set; }
 }
 #endif

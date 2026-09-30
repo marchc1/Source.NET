@@ -5,19 +5,19 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<MortarShell>;
 [NetworkName("CMortarShell")]
-public class MortarShell : BaseEntity
+public partial class MortarShell : BaseEntity
 {
 	public static readonly SendTable DT_MortarShell = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(Lifespan)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Radius)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(SurfaceNormal)), 0, PropFlags.VarInt | PropFlags.VarInt),
+		SendPropFloat(NetworkVarFields.Lifespan, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Radius, 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.SurfaceNormal, 0, PropFlags.VarInt | PropFlags.VarInt),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_MortarShell);
 
 	[NetworkName("m_flLifespan")]
-	public float Lifespan;
+	[NetworkVar] public partial float Lifespan { get; set; }
 	[NetworkName("m_flRadius")]
-	public float Radius;
+	[NetworkVar] public partial float Radius { get; set; }
 	[NetworkName("m_vecSurfaceNormal")]
-	public Vector3 SurfaceNormal;
+	[NetworkVar] public partial Vector3 SurfaceNormal { get; set; }
 }

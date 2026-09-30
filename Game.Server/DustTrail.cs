@@ -5,49 +5,49 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<DustTrail>;
 [NetworkName("DustTrail")]
-public class DustTrail : BaseParticleEntity
+public partial class DustTrail : BaseParticleEntity
 {
 	public static readonly SendTable DT_DustTrail = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpawnRate)), 8, 0, 1, 1024),
+		SendPropFloat(NetworkVarFields.SpawnRate, 8, 0, 1, 1024),
 		SendPropVector(FIELD.OF(nameof(Color)), 8, 0, 0, 1),
-		SendPropFloat(FIELD.OF(nameof(ParticleLifetime)), 16, PropFlags.RoundUp, 0.1f, 100),
-		SendPropFloat(FIELD.OF(nameof(StopEmitTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MinSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MaxSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MinDirectedSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(MaxDirectedSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(StartSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(EndSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpawnRadius)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Emit))),
-		SendPropFloat(FIELD.OF(nameof(Opacity)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ParticleLifetime, 16, PropFlags.RoundUp, 0.1f, 100),
+		SendPropFloat(NetworkVarFields.StopEmitTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MinSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MaxSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MinDirectedSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.MaxDirectedSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.StartSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.EndSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpawnRadius, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Emit),
+		SendPropFloat(NetworkVarFields.Opacity, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_DustTrail);
 
 	[NetworkName("m_SpawnRate")]
-	public float SpawnRate;
+	[NetworkVar] public partial float SpawnRate { get; set; }
 	[NetworkName("m_Color")]
 	public Vector3 Color;
 	[NetworkName("m_ParticleLifetime")]
-	public float ParticleLifetime;
+	[NetworkVar] public partial float ParticleLifetime { get; set; }
 	[NetworkName("m_StopEmitTime")]
-	public float StopEmitTime;
+	[NetworkVar] public partial float StopEmitTime { get; set; }
 	[NetworkName("m_MinSpeed")]
-	public float MinSpeed;
+	[NetworkVar] public partial float MinSpeed { get; set; }
 	[NetworkName("m_MaxSpeed")]
-	public float MaxSpeed;
+	[NetworkVar] public partial float MaxSpeed { get; set; }
 	[NetworkName("m_MinDirectedSpeed")]
-	public float MinDirectedSpeed;
+	[NetworkVar] public partial float MinDirectedSpeed { get; set; }
 	[NetworkName("m_MaxDirectedSpeed")]
-	public float MaxDirectedSpeed;
+	[NetworkVar] public partial float MaxDirectedSpeed { get; set; }
 	[NetworkName("m_StartSize")]
-	public float StartSize;
+	[NetworkVar] public partial float StartSize { get; set; }
 	[NetworkName("m_EndSize")]
-	public float EndSize;
+	[NetworkVar] public partial float EndSize { get; set; }
 	[NetworkName("m_SpawnRadius")]
-	public float SpawnRadius;
+	[NetworkVar] public partial float SpawnRadius { get; set; }
 	[NetworkName("m_bEmit")]
-	public bool Emit;
+	[NetworkVar] public partial bool Emit { get; set; }
 	[NetworkName("m_Opacity")]
-	public float Opacity;
+	[NetworkVar] public partial float Opacity { get; set; }
 }

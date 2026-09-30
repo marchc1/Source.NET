@@ -7,22 +7,22 @@ namespace Game.Server;
 using FIELD = FIELD<EnvWind>;
 using FIELD_EWS = FIELD<EnvWindShared>;
 [NetworkName("CEnvWind")]
-public class EnvWind : BaseEntity
+public partial class EnvWind : BaseEntity
 {
 	public static readonly SendTable DT_EnvWindShared = new(nameof(DT_EnvWindShared), [
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinWind)), 10, PropFlags.Unsigned),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxWind)), 10, PropFlags.Unsigned),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MinGust)), 10, PropFlags.Unsigned),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.MaxGust)), 10, PropFlags.Unsigned),
-		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.MinGustDelay))),
-		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.MaxGustDelay))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.GustDirChange)), 9, PropFlags.Unsigned),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindSeed)), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindDir)), 9, PropFlags.Unsigned),
-		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.InitialWindSpeed))),
-		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.StartTime))),
-		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.GustDuration))),
-		SendPropInt(FIELD_EWS.OF(nameof(EnvWindShared.WindRadius)), 32, PropFlags.NoScale),
+		SendPropInt(EnvWindShared.NetworkVarFields.MinWind, 10, PropFlags.Unsigned),
+		SendPropInt(EnvWindShared.NetworkVarFields.MaxWind, 10, PropFlags.Unsigned),
+		SendPropInt(EnvWindShared.NetworkVarFields.MinGust, 10, PropFlags.Unsigned),
+		SendPropInt(EnvWindShared.NetworkVarFields.MaxGust, 10, PropFlags.Unsigned),
+		SendPropFloat(EnvWindShared.NetworkVarFields.MinGustDelay),
+		SendPropFloat(EnvWindShared.NetworkVarFields.MaxGustDelay),
+		SendPropInt(EnvWindShared.NetworkVarFields.GustDirChange, 9, PropFlags.Unsigned),
+		SendPropInt(EnvWindShared.NetworkVarFields.WindSeed, 32, PropFlags.Unsigned),
+		SendPropInt(EnvWindShared.NetworkVarFields.InitialWindDir, 9, PropFlags.Unsigned),
+		SendPropFloat(EnvWindShared.NetworkVarFields.InitialWindSpeed),
+		SendPropFloat(EnvWindShared.NetworkVarFields.StartTime),
+		SendPropFloat(EnvWindShared.NetworkVarFields.GustDuration),
+		SendPropInt(EnvWindShared.NetworkVarFields.WindRadius, 32, PropFlags.NoScale),
 	]);
 
 	public static readonly SendTable DT_EnvWind = new([
@@ -31,5 +31,5 @@ public class EnvWind : BaseEntity
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvWind);
 
 	[NetworkName("m_EnvWindShared")]
-	public readonly EnvWindShared EnvWindShared = new();
+	[NetworkVarEmbedded] public partial EnvWindShared EnvWindShared { get; }
 }

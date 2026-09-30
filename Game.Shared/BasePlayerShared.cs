@@ -260,7 +260,11 @@ public partial class
 			PassengerRole role = vehicle.GetPassengerRole(this);
 
 			// Get our view for this frame
+#if CLIENT_DLL
 			vehicle.GetVehicleViewPosition(role, out VehicleViewOrigin, out VehicleViewAngles, out VehicleViewFOV);
+#else
+			vehicle.GetVehicleViewPosition(role, out VehicleViewOrigin, out VehicleViewAngles, out VehicleViewFOVForModify());
+#endif
 			VehicleViewSavedFrame = (int)gpGlobals.FrameCount;
 
 #if CLIENT_DLL

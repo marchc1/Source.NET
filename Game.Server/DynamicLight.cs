@@ -10,31 +10,31 @@ using static Source.Common.Networking.SVC_ClassInfo;
 using FIELD = FIELD<DynamicLight>;
 
 [NetworkName("CDynamicLight")]
-public class DynamicLight : BaseEntity
+public partial class DynamicLight : BaseEntity
 {
 	public static readonly SendTable DT_DynamicLight = new(DT_BaseEntity, [
-		SendPropInt(FIELD.OF(nameof(Flags)), 4, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(LightStyle)), 4, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(Radius)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Exponent)), 8),
-		SendPropFloat(FIELD.OF(nameof(InnerAngle)), 8, 0, 0.0f, 360.0f),
-		SendPropFloat(FIELD.OF(nameof(OuterAngle)), 8, 0, 0.0f, 360.0f),
-		SendPropFloat(FIELD.OF(nameof(SpotRadius)), 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Flags, 4, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.LightStyle, 4, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Radius, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Exponent, 8),
+		SendPropFloat(NetworkVarFields.InnerAngle, 8, 0, 0.0f, 360.0f),
+		SendPropFloat(NetworkVarFields.OuterAngle, 8, 0, 0.0f, 360.0f),
+		SendPropFloat(NetworkVarFields.SpotRadius, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_DynamicLight);
 
 	[NetworkName("m_Flags")]
-	public int Flags;
+	[NetworkVar] public partial int Flags { get; set; }
 	[NetworkName("m_LightStyle")]
-	public int LightStyle;
+	[NetworkVar] public partial int LightStyle { get; set; }
 	[NetworkName("m_Radius")]
-	public float Radius;
+	[NetworkVar] public partial float Radius { get; set; }
 	[NetworkName("m_Exponent")]
-	public int Exponent;
+	[NetworkVar] public partial int Exponent { get; set; }
 	[NetworkName("m_InnerAngle")]
-	public float InnerAngle;
+	[NetworkVar] public partial float InnerAngle { get; set; }
 	[NetworkName("m_OuterAngle")]
-	public float OuterAngle;
+	[NetworkVar] public partial float OuterAngle { get; set; }
 	[NetworkName("m_SpotRadius")]
-	public float SpotRadius;
+	[NetworkVar] public partial float SpotRadius { get; set; }
 }

@@ -162,6 +162,7 @@ public static class LocalTransfer
 
 			IFieldAccessor? field = prop.FieldInfo;
 			int elementCount = 1;
+			bool isArray = false;
 
 			if (prop.GetPropType() == SendPropType.Array) {
 				SendProp? arrayProp = prop.GetArrayProp();
@@ -170,6 +171,7 @@ public static class LocalTransfer
 
 				field = arrayProp.FieldInfo;
 				elementCount = prop.GetNumElements();
+				isArray = true;
 			}
 
 			if (field == null)
@@ -178,7 +180,7 @@ public static class LocalTransfer
 			bool isVectorElem = (prop.GetFlags() & PropFlags.IsAVectorElem) != 0;
 
 			for (int j = 0; j < elementCount; j++) {
-				IFieldAccessor elementField = field is IFieldAccessorIndexable indexable ? indexable.AtIndex(j) : field;
+				IFieldAccessor elementField = isArray && field is DynamicArrayIndexAccessor element ? element.BaseArrayAccessor.AtIndex(j)! : field is IFieldAccessorIndexable indexable ? indexable.AtIndex(j) : field;
 
 				if (isVectorElem)
 					AddPropOffsetToMap(precalc, i | PROP_INDEX_VECTOR_ELEM_MARKER, elementField);

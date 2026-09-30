@@ -10,33 +10,33 @@ namespace Game.Server;
 using FIELD = FIELD<ParticleSystem>;
 
 [NetworkName("CParticleSystem")]
-public class ParticleSystem : BaseEntity
+public partial class ParticleSystem : BaseEntity
 {
 	public static readonly SendTable DT_ParticleSystem = new([
-		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord | PropFlags.ChangesOften),
+		SendPropVector(BaseEntity.NetworkVarFields.Origin, 0, PropFlags.Coord | PropFlags.ChangesOften),
 		SendPropEHandle(FIELD.OF(nameof(OwnerEntity))),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
-		SendPropInt(FIELD.OF(nameof(ParentAttachment)), 8, PropFlags.Unsigned),
-		SendPropQAngles(FIELD.OF(nameof(Rotation)), 13, PropFlags.RoundDown | PropFlags.ChangesOften),
-		SendPropInt(FIELD.OF(nameof(EffectIndex)), 12, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(Active))),
-		SendPropFloat(FIELD.OF(nameof(StartTime)), 0, PropFlags.NoScale),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(ControlPointEnts)), SendPropEHandle(FIELD.OF_ARRAYINDEX(nameof(ControlPointEnts), 0))),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(ControlPointParents)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(ControlPointParents), 0), 3, PropFlags.Unsigned)),
-		SendPropBool(FIELD.OF(nameof(WeatherEffect))),
+		SendPropInt(BaseEntity.NetworkVarFields.ParentAttachment, 8, PropFlags.Unsigned),
+		SendPropQAngles(BaseEntity.NetworkVarFields.Rotation, 13, PropFlags.RoundDown | PropFlags.ChangesOften),
+		SendPropInt(NetworkVarFields.EffectIndex, 12, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.Active),
+		SendPropFloat(NetworkVarFields.StartTime, 0, PropFlags.NoScale),
+		SendPropArray3(ParticleSystem.NetworkVarFields.ControlPointEnts, SendPropEHandle(ParticleSystem.NetworkVarFields.ControlPointEnts.AtIndex(0)!)),
+		SendPropArray3(ParticleSystem.NetworkVarFields.ControlPointParents, SendPropInt(ParticleSystem.NetworkVarFields.ControlPointParents.AtIndex(0)!, 3, PropFlags.Unsigned)),
+		SendPropBool(NetworkVarFields.WeatherEffect),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_ParticleSystem);
 	[NetworkName("m_iEffectIndex")]
-	public int EffectIndex;
+	[NetworkVar] public partial int EffectIndex { get; set; }
 	[NetworkName("m_bActive")]
-	public bool Active;
+	[NetworkVar] public partial bool Active { get; set; }
 	[NetworkName("m_flStartTime")]
-	public TimeUnit_t StartTime;
+	[NetworkVar] public partial TimeUnit_t StartTime { get; set; }
 	[NetworkName("m_bWeatherEffect")]
-	public bool WeatherEffect;
+	[NetworkVar] public partial bool WeatherEffect { get; set; }
 
 	[NetworkName("m_hControlPointEnts")]
-	public InlineArrayNewMaxControlPoints<EHANDLE> ControlPointEnts = new();
+	[NetworkVar] public partial NetworkArray<InlineArrayNewMaxControlPoints<EHANDLE>, EHANDLE> ControlPointEnts { get; }
 	[NetworkName("m_iControlPointParents")]
-	public InlineArrayNewMaxControlPoints<byte> ControlPointParents = new();
+	[NetworkVar] public partial NetworkArray<InlineArrayNewMaxControlPoints<byte>, byte> ControlPointParents { get; }
 }

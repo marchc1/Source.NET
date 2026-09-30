@@ -5,22 +5,22 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvQuadraticBeam>;
 [NetworkName("CEnvQuadraticBeam")]
-public class EnvQuadraticBeam : BaseEntity
+public partial class EnvQuadraticBeam : BaseEntity
 {
 	public static readonly SendTable DT_QuadraticBeam = new(DT_BaseEntity, [
-		SendPropVector(FIELD.OF(nameof(TargetPosition)), 0, PropFlags.Coord),
-		SendPropVector(FIELD.OF(nameof(ControlPosition)), 0, PropFlags.Coord),
-		SendPropFloat(FIELD.OF(nameof(ScrollRate)), 8, 0, -4, 4),
-		SendPropFloat(FIELD.OF(nameof(Width)), 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.TargetPosition, 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.ControlPosition, 0, PropFlags.Coord),
+		SendPropFloat(NetworkVarFields.ScrollRate, 8, 0, -4, 4),
+		SendPropFloat(NetworkVarFields.Width, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_QuadraticBeam);
 
 	[NetworkName("m_targetPosition")]
-	public Vector3 TargetPosition;
+	[NetworkVar] public partial Vector3 TargetPosition { get; set; }
 	[NetworkName("m_controlPosition")]
-	public Vector3 ControlPosition;
+	[NetworkVar] public partial Vector3 ControlPosition { get; set; }
 	[NetworkName("m_scrollRate")]
-	public float ScrollRate;
+	[NetworkVar] public partial float ScrollRate { get; set; }
 	[NetworkName("m_flWidth")]
-	public float Width;
+	[NetworkVar] public partial float Width { get; set; }
 }

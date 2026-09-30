@@ -5,34 +5,34 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SlideshowDisplay>;
 [NetworkName("CSlideshowDisplay")]
-public class SlideshowDisplay : BaseEntity
+public partial class SlideshowDisplay : BaseEntity
 {
 	public static readonly SendTable DT_SlideshowDisplay = new(DT_BaseEntity, [
-		SendPropBool(FIELD.OF(nameof(Enabled))),
+		SendPropBool(NetworkVarFields.Enabled),
 		SendPropString(FIELD.OF(nameof(DisplayText))),
 		SendPropString(FIELD.OF(nameof(SlideshowDirectory))),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(ChCurrentSlideLists)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(ChCurrentSlideLists), 0), 8, PropFlags.Unsigned)),
-		SendPropFloat(FIELD.OF(nameof(MinSlideTime)), 11, 0, 0.0f, 20.0f),
-		SendPropFloat(FIELD.OF(nameof(MaxSlideTime)), 11, 0, 0.0f, 20.0f),
-		SendPropInt(FIELD.OF(nameof(CycleType)), 2, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(NoListRepeats))),
+		SendPropArray3(SlideshowDisplay.NetworkVarFields.ChCurrentSlideLists, SendPropInt(SlideshowDisplay.NetworkVarFields.ChCurrentSlideLists.AtIndex(0)!, 8, PropFlags.Unsigned)),
+		SendPropFloat(NetworkVarFields.MinSlideTime, 11, 0, 0.0f, 20.0f),
+		SendPropFloat(NetworkVarFields.MaxSlideTime, 11, 0, 0.0f, 20.0f),
+		SendPropInt(NetworkVarFields.CycleType, 2, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.NoListRepeats),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_SlideshowDisplay);
 
 	[NetworkName("m_bEnabled")]
-	public bool Enabled;
+	[NetworkVar] public partial bool Enabled { get; set; }
 	[NetworkName("m_szDisplayText")]
 	public InlineArray128<char> DisplayText;
 	[NetworkName("m_szSlideshowDirectory")]
 	public InlineArray128<char> SlideshowDirectory;
 	[NetworkName("m_chCurrentSlideLists")]
-	public InlineArray16<byte> ChCurrentSlideLists;
+	[NetworkVar] public partial NetworkArray<InlineArray16<byte>, byte> ChCurrentSlideLists { get; }
 	[NetworkName("m_fMinSlideTime")]
-	public float MinSlideTime;
+	[NetworkVar] public partial float MinSlideTime { get; set; }
 	[NetworkName("m_fMaxSlideTime")]
-	public float MaxSlideTime;
+	[NetworkVar] public partial float MaxSlideTime { get; set; }
 	[NetworkName("m_iCycleType")]
-	public int CycleType;
+	[NetworkVar] public partial int CycleType { get; set; }
 	[NetworkName("m_bNoListRepeats")]
-	public bool NoListRepeats;
+	[NetworkVar] public partial bool NoListRepeats { get; set; }
 }

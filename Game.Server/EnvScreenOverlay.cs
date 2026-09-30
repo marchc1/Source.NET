@@ -6,29 +6,29 @@ namespace Game.Server;
 using FIELD = FIELD<EnvScreenOverlay>;
 
 [NetworkName("CEnvScreenOverlay")]
-public class EnvScreenOverlay : BaseEntity
+public partial class EnvScreenOverlay : BaseEntity
 {
 	public const int MAX_SCREEN_OVERLAYS = 10;
 
 	[NetworkName("m_iszOverlayNames")]
-	public InlineArray10<InlineArray512<char>> OverlayNames;
+	[NetworkVar] public partial NetworkArray<InlineArray10<string?>, string?> OverlayNames { get; }
 	[NetworkName("m_flOverlayTimes")]
-	public InlineArray10<float> OverlayTimes;
+	[NetworkVar] public partial NetworkArray<InlineArray10<float>, float> OverlayTimes { get; }
 	[NetworkName("m_flStartTime")]
-	public float StartTime;
+	[NetworkVar] public partial float StartTime { get; set; }
 	[NetworkName("m_iDesiredOverlay")]
-	public int DesiredOverlay;
+	[NetworkVar] public partial int DesiredOverlay { get; set; }
 	[NetworkName("m_bIsActive")]
-	public bool IsActive;
+	[NetworkVar] public partial bool IsActive { get; set; }
 
 	public static readonly SendTable DT_EnvScreenOverlay = new(DT_BaseEntity, [
-		SendPropString(FIELD.OF_SENDINFO_ARRAY(nameof(OverlayNames))),
-		SendPropArray(FIELD.OF_ARRAY(nameof(OverlayNames))),
-		SendPropFloat(FIELD.OF_SENDINFO_ARRAY(nameof(OverlayTimes)), 11, PropFlags.RoundDown, -1.0f, 63.0f),
-		SendPropArray(FIELD.OF_ARRAY(nameof(OverlayTimes))),
-		SendPropFloat(FIELD.OF(nameof(StartTime)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(DesiredOverlay)), 5),
-		SendPropBool(FIELD.OF(nameof(IsActive))),
+		SendPropStringT(FIELD.OF_SENDINFO_ARRAY(NetworkVarFields.OverlayNames)),
+		SendPropArray(NetworkVarFields.OverlayNames),
+		SendPropFloat(FIELD.OF_SENDINFO_ARRAY(NetworkVarFields.OverlayTimes), 11, PropFlags.RoundDown, -1.0f, 63.0f),
+		SendPropArray(NetworkVarFields.OverlayTimes),
+		SendPropFloat(NetworkVarFields.StartTime, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.DesiredOverlay, 5),
+		SendPropBool(NetworkVarFields.IsActive),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_EnvScreenOverlay);
 }

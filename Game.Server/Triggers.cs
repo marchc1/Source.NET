@@ -88,17 +88,17 @@ public static class TriggerGlobals
 
 [LinkEntityToClass("trigger")]
 [NetworkName("CBaseTrigger")]
-public class BaseTrigger : BaseToggle
+public partial class BaseTrigger : BaseToggle
 {
 	public static readonly SendTable DT_BaseTrigger = new(DT_BaseToggle, [
-		SendPropBool(FIELD_BT.OF(nameof(ClientSidePredicted))),
-		SendPropInt(FIELD_BT.OF(nameof(SpawnFlags)), 32, PropFlags.NoScale)
+		SendPropBool(NetworkVarFields.ClientSidePredicted),
+		SendPropInt(BaseEntity.NetworkVarFields.SpawnFlags, 32, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseTrigger);
 	[NetworkName("m_bClientSidePredicted")]
-	public bool ClientSidePredicted;
+	[NetworkVar] public partial bool ClientSidePredicted { get; set; }
 
-	public bool Disabled;
+	[NetworkVar] public partial bool Disabled { get; set; }
 	public string? FilterName;
 	public Handle<BaseFilter> Filter = new();
 
@@ -1616,7 +1616,7 @@ public class TriggerProximity : BaseTrigger
 }
 
 [LinkEntityToClass("logic_proximity")]
-public class LogicProximity : PointEntity;
+public partial class LogicProximity : PointEntity;
 
 // ##################################################################################
 //	>> TriggerImpact
@@ -1625,12 +1625,12 @@ public class LogicProximity : PointEntity;
 //
 // ##################################################################################
 [LinkEntityToClass("trigger_impact")]
-public class TriggerImpact : TriggerMultiple
+public partial class TriggerImpact : TriggerMultiple
 {
 	const float TRIGGERIMPACT_VIEWKICK_SCALE = 0.1f;
 
-	float Magnitude;
-	float Noise;
+	[NetworkVar] public partial float Magnitude { get; set; }
+	[NetworkVar] public partial float Noise { get; set; }
 	float Viewkick;
 
 	// Outputs
@@ -1739,10 +1739,10 @@ public class ServerRagdollTrigger : BaseTrigger
 // Purpose: A trigger that adds impulse to touching entities
 //-----------------------------------------------------------------------------
 [LinkEntityToClass("trigger_apply_impulse")]
-public class TriggerApplyImpulse : BaseTrigger
+public partial class TriggerApplyImpulse : BaseTrigger
 {
 	Vector3 ImpulseDir;
-	float Force;
+	[NetworkVar] public partial float Force { get; set; }
 
 	public static readonly new DataMap DataDesc = new(typeof(TriggerApplyImpulse), BaseTrigger.DataDesc, [
 		DEFINE<TriggerApplyImpulse>.KEYFIELD(nameof(ImpulseDir), FieldType.Vector, "impulse_dir"),

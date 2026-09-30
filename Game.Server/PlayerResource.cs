@@ -14,35 +14,35 @@ public static class PlayerResourceGlobals{
 
 [LinkEntityToClass("player_manager")]
 [NetworkName("CPlayerResource")]
-public class PlayerResource : BaseEntity
+public partial class PlayerResource : BaseEntity
 {
 
 	public static readonly SendTable DT_PlayerResource = new([
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Ping)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Ping), 0), 12, PropFlags.Unsigned ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Score)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Score), 0), 32 ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Deaths)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Deaths), 0), 32 ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Connected)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Connected), 0), 1, PropFlags.Unsigned ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Team)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Team), 0), 16 ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Alive)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Alive), 0), 1, PropFlags.Unsigned ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Health)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Health), 0), 32, PropFlags.VarInt | PropFlags.Unsigned | PropFlags.Normal ) ),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Armor)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(Health), 0), 32, PropFlags.Unsigned) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Ping, SendPropInt(PlayerResource.NetworkVarFields.Ping.AtIndex(0)!, 12, PropFlags.Unsigned ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Score, SendPropInt(PlayerResource.NetworkVarFields.Score.AtIndex(0)!, 32 ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Deaths, SendPropInt(PlayerResource.NetworkVarFields.Deaths.AtIndex(0)!, 32 ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Connected, SendPropInt(PlayerResource.NetworkVarFields.Connected.AtIndex(0)!, 1, PropFlags.Unsigned ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Team, SendPropInt(PlayerResource.NetworkVarFields.Team.AtIndex(0)!, 16 ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Alive, SendPropInt(PlayerResource.NetworkVarFields.Alive.AtIndex(0)!, 1, PropFlags.Unsigned ) ),
+		SendPropArray3(PlayerResource.NetworkVarFields.Health, SendPropInt(PlayerResource.NetworkVarFields.Health.AtIndex(0)!, 32, PropFlags.VarInt | PropFlags.Unsigned | PropFlags.Normal ) ),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(Armor)), SendPropInt(PlayerResource.NetworkVarFields.Health.AtIndex(0)!, 32, PropFlags.Unsigned) ),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PlayerResource);
 
 	[NetworkName("m_iPing")]
-	InlineArrayMaxPlayersPlusOne<int> Ping = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<int>, int> Ping { get; }
 	[NetworkName("m_iScore")]
-	InlineArrayMaxPlayersPlusOne<int> Score = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<int>, int> Score { get; }
 	[NetworkName("m_iDeaths")]
-	InlineArrayMaxPlayersPlusOne<int> Deaths = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<int>, int> Deaths { get; }
 	[NetworkName("m_bConnected")]
-	InlineArrayMaxPlayersPlusOne<bool> Connected = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<bool>, bool> Connected { get; }
 	[NetworkName("m_iTeam")]
-	InlineArrayMaxPlayersPlusOne<int> Team = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<int>, int> Team { get; }
 	[NetworkName("m_bAlive")]
-	InlineArrayMaxPlayersPlusOne<bool> Alive = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayMaxPlayersPlusOne<bool>, bool> Alive { get; }
 	[NetworkName("m_iHealth")]
-	new InlineArrayMaxPlayersPlusOne<int> Health = new();
+	[NetworkVar] private new partial NetworkArray<InlineArrayMaxPlayersPlusOne<int>, int> Health { get; }
 	[NetworkName("m_iArmor")]
 	InlineArrayMaxPlayersPlusOne<int> Armor = new();
 }

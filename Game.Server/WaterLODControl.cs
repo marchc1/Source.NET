@@ -8,16 +8,16 @@ namespace Game.Server;
 using FIELD = FIELD<WaterLODControl>;
 
 [NetworkName("CWaterLODControl")]
-public class WaterLODControl : BaseEntity
+public partial class WaterLODControl : BaseEntity
 {
 	public static readonly SendTable DT_WaterLODControl = new([
-		SendPropFloat(FIELD.OF(nameof(CheapWaterStartDistance)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(CheapWaterEndDistance)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.CheapWaterStartDistance, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.CheapWaterEndDistance, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WaterLODControl);
 
 	[NetworkName("m_flCheapWaterStartDistance")]
-	public float CheapWaterStartDistance;
+	[NetworkVar] public partial float CheapWaterStartDistance { get; set; }
 	[NetworkName("m_flCheapWaterEndDistance")]
-	public float CheapWaterEndDistance;
+	[NetworkVar] public partial float CheapWaterEndDistance { get; set; }
 }

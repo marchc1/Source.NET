@@ -39,7 +39,7 @@ public ref struct TriggerTraceEnum(ref Ray ray, in TakeDamageInfo info, in Vecto
 }
 
 [NetworkName("CAI_BaseNPC")]
-public class AI_BaseNPC : BaseCombatCharacter
+public partial class AI_BaseNPC : BaseCombatCharacter
 {
 	public static ReadOnlySpan<char> GetActivityName(Activity actID) {
 		if (actID == Activity.ACT_INVALID)
@@ -54,30 +54,30 @@ public class AI_BaseNPC : BaseCombatCharacter
 	}
 
 	public static readonly SendTable DT_AI_BaseNPC = new(DT_BaseCombatCharacter, [
-		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(PerformAvoidance))),
-		SendPropBool(FIELD.OF(nameof(IsMoving))),
-		SendPropBool(FIELD.OF(nameof(FadeCorpse))),
-		SendPropInt(FIELD.OF(nameof(DeathPose)), 12),
-		SendPropInt(FIELD.OF(nameof(DeathFrame)), 5),
-		SendPropBool(FIELD.OF(nameof(ImportantRagdoll))),
+		SendPropInt(BaseEntity.NetworkVarFields.LifeState, 3, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.PerformAvoidance),
+		SendPropBool(NetworkVarFields.IsMoving),
+		SendPropBool(NetworkVarFields.FadeCorpse),
+		SendPropInt(NetworkVarFields.DeathPose, 12),
+		SendPropInt(NetworkVarFields.DeathFrame, 5),
+		SendPropBool(NetworkVarFields.ImportantRagdoll),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_AI_BaseNPC);
 
 	[NetworkName("m_bPerformAvoidance")]
-	public bool PerformAvoidance;
+	[NetworkVar] public partial bool PerformAvoidance { get; set; }
 	[NetworkName("m_bIsMoving")]
-	public bool IsMoving;
+	[NetworkVar] public partial bool IsMoving { get; set; }
 	[NetworkName("m_bFadeCorpse")]
-	public bool FadeCorpse;
+	[NetworkVar] public partial bool FadeCorpse { get; set; }
 	[NetworkName("m_iDeathPose")]
-	public int DeathPose;
+	[NetworkVar] public partial int DeathPose { get; set; }
 	[NetworkName("m_iDeathFrame")]
-	public int DeathFrame;
+	[NetworkVar] public partial int DeathFrame { get; set; }
 	public bool SpeedModActive;
 	public int SpeedModRadius;
 	public int SpeedModSpeed;
 	[NetworkName("m_bImportanRagdoll")]
-	public bool ImportantRagdoll;
+	[NetworkVar] public partial bool ImportantRagdoll { get; set; }
 	public float TimePingEffect;
 }

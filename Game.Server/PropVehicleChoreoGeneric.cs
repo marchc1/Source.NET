@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 using System.Numerics;
@@ -7,18 +8,18 @@ namespace Game.Server;
 using FIELD = FIELD<PropVehicleChoreoGeneric>;
 
 [NetworkName("CPropVehicleChoreoGeneric")]
-public class PropVehicleChoreoGeneric : DynamicProp
+public partial class PropVehicleChoreoGeneric : DynamicProp
 {
 	[NetworkName("m_hPlayer")]
-	public EHANDLE Player;
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Player { get; }
 	[NetworkName("m_bEnterAnimOn")]
-	public bool EnterAnimOn;
+	[NetworkVar] public partial bool EnterAnimOn { get; set; }
 	[NetworkName("m_bExitAnimOn")]
-	public bool ExitAnimOn;
+	[NetworkVar] public partial bool ExitAnimOn { get; set; }
 	[NetworkName("m_bForceEyesToAttachment")]
-	public bool ForceEyesToAttachment;
+	[NetworkVar] public partial bool ForceEyesToAttachment { get; set; }
 	[NetworkName("m_vecEyeExitEndpoint")]
-	public Vector3 EyeExitEndpoint;
+	[NetworkVar] public partial Vector3 EyeExitEndpoint { get; set; }
 	[NetworkName("m_vehicleView.bClampEyeAngles")]
 	public bool VehicleViewClampEyeAngles;
 	[NetworkName("m_vehicleView.flPitchCurveZero")]
@@ -41,11 +42,11 @@ public class PropVehicleChoreoGeneric : DynamicProp
 	public float VehicleViewPitchMax;
 
 	public static readonly SendTable DT_PropVehicleChoreoGeneric = new(DT_DynamicProp, [
-		SendPropEHandle(FIELD.OF(nameof(Player))),
-		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
-		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
-		SendPropBool(FIELD.OF(nameof(ForceEyesToAttachment))),
-		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
+		SendPropEHandle(NetworkVarFields.Player),
+		SendPropBool(NetworkVarFields.EnterAnimOn),
+		SendPropBool(NetworkVarFields.ExitAnimOn),
+		SendPropBool(NetworkVarFields.ForceEyesToAttachment),
+		SendPropVector(NetworkVarFields.EyeExitEndpoint, 0, PropFlags.Coord),
 		SendPropBool(FIELD.OF(nameof(VehicleViewClampEyeAngles))),
 		SendPropFloat(FIELD.OF(nameof(VehicleViewPitchCurveZero)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(VehicleViewPitchCurveLinear)), 0, PropFlags.NoScale),

@@ -65,31 +65,31 @@ public class BreakableProp : BaseProp
 
 [LinkEntityToClass("func_physbox_multiplayer")]
 [NetworkName("CPhysBoxMultiplayer")]
-public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
+public partial class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
 {
 	public static readonly SendTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
-		SendPropInt(FIELD_PBM.OF(nameof(PhysicsMode)), 1, PropFlags.Unsigned),
-		SendPropFloat(FIELD_PBM.OF(nameof(Mass)), 0, PropFlags.NoScale)
+		SendPropInt(NetworkVarFields.PhysicsMode, 1, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Mass, 0, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PhysBoxMultiplayer);
 	[NetworkName("m_iPhysicsMode")]
-	public int PhysicsMode;
+	[NetworkVar] public partial int PhysicsMode { get; set; }
 	[NetworkName("m_fMass")]
-	public float Mass;
+	[NetworkVar] public partial float Mass { get; set; }
 }
 
 [LinkEntityToClass("physics_prop")]
 [LinkEntityToClass("prop_physics")]
 [LinkEntityToClass("prop_physics_override")]
 [NetworkName("CPhysicsProp")]
-public class PhysicsProp : BreakableProp
+public partial class PhysicsProp : BreakableProp
 {
 	public static readonly SendTable DT_PhysicsProp = new(DT_BreakableProp, [
-		SendPropBool(FIELD_PP.OF(nameof(Awake)))
+		SendPropBool(NetworkVarFields.Awake)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PhysicsProp);
 	[NetworkName("m_bAwake")]
-	public bool Awake;
+	[NetworkVar] public partial bool Awake { get; set; }
 
 	public override void Spawn() {
 		// Condense classnames to one, except for "prop_physics_override"
@@ -130,49 +130,49 @@ public class PhysicsProp : BreakableProp
 [LinkEntityToClass("prop_dynamic")]
 [LinkEntityToClass("prop_dynamic_override")]
 [NetworkName("CDynamicProp")]
-public class DynamicProp : BreakableProp
+public partial class DynamicProp : BreakableProp
 {
 	public static readonly SendTable DT_DynamicProp = new(DT_BreakableProp, [
-		SendPropBool(FIELD_DP.OF(nameof(UseHitboxesForRenderBox)))
+		SendPropBool(NetworkVarFields.UseHitboxesForRenderBox)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_DynamicProp);
 	[NetworkName("m_bUseHitboxesForRenderBox")]
-	public bool UseHitboxesForRenderBox;
+	[NetworkVar] public partial bool UseHitboxesForRenderBox { get; set; }
 }
 
 [LinkEntityToClass("prop_physics_multiplayer")]
 [NetworkName("CPhysicsPropMultiplayer")]
-public class PhysicsPropMultiplayer : PhysicsProp
+public partial class PhysicsPropMultiplayer : PhysicsProp
 {
 	public static readonly SendTable DT_PhysicsPropMultiplayer = new(DT_PhysicsProp, [
-		SendPropInt(FIELD_PPM.OF(nameof(PhysicsMode)), 2, PropFlags.Unsigned),
-		SendPropFloat(FIELD_PPM.OF(nameof(Mass)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD_PPM.OF(nameof(CollisionMins)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD_PPM.OF(nameof(CollisionMaxs)), 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.PhysicsMode, 2, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Mass, 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.CollisionMins, 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.CollisionMaxs, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PhysicsPropMultiplayer);
 
 	[NetworkName("m_iPhysicsMode")]
-	public int PhysicsMode;
+	[NetworkVar] public partial int PhysicsMode { get; set; }
 	[NetworkName("m_fMass")]
-	public float Mass;
+	[NetworkVar] public partial float Mass { get; set; }
 	[NetworkName("m_collisionMins")]
-	public Vector3 CollisionMins;
+	[NetworkVar] public partial Vector3 CollisionMins { get; set; }
 	[NetworkName("m_collisionMaxs")]
-	public Vector3 CollisionMaxs;
+	[NetworkVar] public partial Vector3 CollisionMaxs { get; set; }
 }
 
 
 [NetworkName("CBasePropDoor")]
-public class BasePropDoor : DynamicProp
+public partial class BasePropDoor : DynamicProp
 {
 	[NetworkName("m_bLocked")]
-	bool Locked;
+	[NetworkVar] public partial bool Locked { get; set; }
 	[NetworkName("m_eDoorState")]
-	int DoorState;
+	[NetworkVar] public partial int DoorState { get; set; }
 	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, [
-		SendPropBool(FIELD_BPD.OF(nameof(Locked))),
-		SendPropInt(FIELD_BPD.OF(nameof(DoorState)), 3, PropFlags.Unsigned)
+		SendPropBool(NetworkVarFields.Locked),
+		SendPropInt(NetworkVarFields.DoorState, 3, PropFlags.Unsigned)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BasePropDoor);
 }

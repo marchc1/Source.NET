@@ -5,19 +5,19 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_AntlionGuard>;
 [NetworkName("CNPC_AntlionGuard")]
-public class NPC_AntlionGuard : AI_BaseNPC
+public partial class NPC_AntlionGuard : AI_BaseNPC
 {
 	public static readonly SendTable DT_NPC_AntlionGuard = new(DT_AI_BaseNPC, [
-		SendPropBool(FIELD.OF(nameof(CavernBreed))),
-		SendPropBool(FIELD.OF(nameof(InCavern))),
-		SendPropInt(FIELD.OF(nameof(BleedingLevel)), 2, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.CavernBreed),
+		SendPropBool(NetworkVarFields.InCavern),
+		SendPropInt(NetworkVarFields.BleedingLevel, 2, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_NPC_AntlionGuard);
 
 	[NetworkName("m_bCavernBreed")]
-	public bool CavernBreed;
+	[NetworkVar] public partial bool CavernBreed { get; set; }
 	[NetworkName("m_bInCavern")]
-	public bool InCavern;
+	[NetworkVar] public partial bool InCavern { get; set; }
 	[NetworkName("m_iBleedingLevel")]
-	public int BleedingLevel;
+	[NetworkVar] public partial int BleedingLevel { get; set; }
 }

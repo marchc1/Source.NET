@@ -5,28 +5,28 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<FireSmoke>;
 [NetworkName("CFireSmoke")]
-public class FireSmoke : BaseEntity
+public partial class FireSmoke : BaseEntity
 {
 	public static readonly SendTable DT_FireSmoke = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(StartScale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Scale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ScaleTime)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Flags)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(FlameModelIndex)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(FlameFromAboveModelIndex)), 14, 0),
+		SendPropFloat(NetworkVarFields.StartScale, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Scale, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ScaleTime, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Flags, 8, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.FlameModelIndex, 14, 0),
+		SendPropInt(NetworkVarFields.FlameFromAboveModelIndex, 14, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_FireSmoke);
 
 	[NetworkName("m_flStartScale")]
-	public float StartScale;
+	[NetworkVar] public partial float StartScale { get; set; }
 	[NetworkName("m_flScale")]
-	public float Scale;
+	[NetworkVar] public partial float Scale { get; set; }
 	[NetworkName("m_flScaleTime")]
-	public float ScaleTime;
+	[NetworkVar] public partial float ScaleTime { get; set; }
 	[NetworkName("m_nFlags")]
-	public int Flags;
+	[NetworkVar] public partial int Flags { get; set; }
 	[NetworkName("m_nFlameModelIndex")]
-	public int FlameModelIndex;
+	[NetworkVar] public partial int FlameModelIndex { get; set; }
 	[NetworkName("m_nFlameFromAboveModelIndex")]
-	public int FlameFromAboveModelIndex;
+	[NetworkVar] public partial int FlameFromAboveModelIndex { get; set; }
 }

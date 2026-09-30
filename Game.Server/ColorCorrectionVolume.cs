@@ -5,26 +5,26 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ColorCorrectionVolume>;
 [NetworkName("CColorCorrectionVolume")]
-public class ColorCorrectionVolume : BaseEntity
+public partial class ColorCorrectionVolume : BaseEntity
 {
 	public static readonly SendTable DT_ColorCorrectionVolume = new([
-		SendPropBool(FIELD.OF(nameof(Enabled))),
-		SendPropFloat(FIELD.OF(nameof(MaxWeight)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FadeDuration)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Weight)), 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Enabled),
+		SendPropFloat(NetworkVarFields.MaxWeight, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FadeDuration, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Weight, 0, PropFlags.NoScale),
 		SendPropString(FIELD.OF(nameof(LookupFilename))),
-		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
+		SendPropInt(BaseEntity.NetworkVarFields.ModelIndex, 14, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_ColorCorrectionVolume);
 
 	[NetworkName("m_bEnabled")]
-	public bool Enabled;
+	[NetworkVar] public partial bool Enabled { get; set; }
 	[NetworkName("m_MaxWeight")]
-	public float MaxWeight;
+	[NetworkVar] public partial float MaxWeight { get; set; }
 	[NetworkName("m_FadeDuration")]
-	public float FadeDuration;
+	[NetworkVar] public partial float FadeDuration { get; set; }
 	[NetworkName("m_Weight")]
-	public float Weight;
+	[NetworkVar] public partial float Weight { get; set; }
 	[NetworkName("m_lookupFilename")]
 	public InlineArrayMaxPath<char> LookupFilename;
 }

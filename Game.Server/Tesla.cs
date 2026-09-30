@@ -5,16 +5,16 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Tesla>;
 [NetworkName("CTesla")]
-public class Tesla : BaseEntity
+public partial class Tesla : BaseEntity
 {
 	public static readonly SendTable DT_Tesla = new(DT_BaseEntity, [
-		SendPropString(FIELD.OF(nameof(SoundName))),
-		SendPropString(FIELD.OF(nameof(SpriteName))),
+		SendPropStringT(NetworkVarFields.SoundName),
+		SendPropStringT(NetworkVarFields.SpriteName)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Tesla);
 
 	[NetworkName("m_SoundName")]
-	public InlineArray64<char> SoundName;
+	[NetworkVar] public partial string? SoundName { get; set; }
 	[NetworkName("m_iszSpriteName")]
-	public InlineArray256<char> SpriteName;
+	[NetworkVar] public partial string? SpriteName { get; set; }
 }

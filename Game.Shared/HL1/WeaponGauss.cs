@@ -3,7 +3,7 @@ using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponGauss>;
 [NetworkName("CWeaponGauss")]
-public class WeaponGauss : BaseHL1MPCombatWeapon
+public partial class WeaponGauss : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -20,8 +20,8 @@ public class WeaponGauss : BaseHL1MPCombatWeapon
 			RecvPropTime64(FIELD.OF(nameof(PlayAftershock))),
 			RecvPropTime64(FIELD.OF(nameof(NextAmmoBurn)))
 #else
-			SendPropInt(FIELD.OF(nameof(AttackState)), 2, PropFlags.Unsigned),
-			SendPropBool(FIELD.OF(nameof(PrimaryFire))),
+			SendPropInt(NetworkVarFields.AttackState, 2, PropFlags.Unsigned),
+			SendPropBool(NetworkVarFields.PrimaryFire),
 			SendPropFloat(FIELD.OF(nameof(StartCharge)), 0, PropFlags.NoScale),
 			SendPropFloat(FIELD.OF(nameof(AmmoStartCharge)), 0, PropFlags.NoScale),
 			SendPropTime64(FIELD.OF(nameof(PlayAftershock))),
@@ -34,9 +34,9 @@ public class WeaponGauss : BaseHL1MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponGauss);
 #endif
 	[NetworkName("m_nAttackState")]
-	public int AttackState;
+	[NetworkVar] public partial int AttackState { get; set; }
 	[NetworkName("m_bPrimaryFire")]
-	public bool PrimaryFire;
+	[NetworkVar] public partial bool PrimaryFire { get; set; }
 	[NetworkName("m_flStartCharge")]
 	public TimeUnit_t StartCharge;
 	[NetworkName("m_flAmmoStartCharge")]

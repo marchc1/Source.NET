@@ -5,19 +5,19 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_Portal_FloorTurret>;
 [NetworkName("CNPC_Portal_FloorTurret")]
-public class NPC_Portal_FloorTurret : AI_BaseNPC
+public partial class NPC_Portal_FloorTurret : AI_BaseNPC
 {
 	public static readonly SendTable DT_NPC_Portal_FloorTurret = new(DT_AI_BaseNPC, [
-		SendPropBool(FIELD.OF(nameof(OutOfAmmo))),
-		SendPropBool(FIELD.OF(nameof(LaserOn))),
-		SendPropInt(FIELD.OF(nameof(LaserHaloSprite)), 16, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.OutOfAmmo),
+		SendPropBool(NetworkVarFields.LaserOn),
+		SendPropInt(NetworkVarFields.LaserHaloSprite, 16, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_NPC_Portal_FloorTurret);
 
 	[NetworkName("m_bOutOfAmmo")]
-	public bool OutOfAmmo;
+	[NetworkVar] public partial bool OutOfAmmo { get; set; }
 	[NetworkName("m_bLaserOn")]
-	public bool LaserOn;
+	[NetworkVar] public partial bool LaserOn { get; set; }
 	[NetworkName("m_sLaserHaloSprite")]
-	public int LaserHaloSprite;
+	[NetworkVar] public partial int LaserHaloSprite { get; set; }
 }

@@ -5,25 +5,25 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PropCrane>;
 [NetworkName("CPropCrane")]
-public class PropCrane : BaseAnimating
+public partial class PropCrane : BaseAnimating
 {
 	public static readonly SendTable DT_PropCrane = new(DT_BaseAnimating, [
-		SendPropEHandle(FIELD.OF(nameof(Player))),
-		SendPropBool(FIELD.OF(nameof(MagnetOn))),
-		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
-		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
-		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
+		SendPropEHandle(PropCrane.NetworkVarFields.Player),
+		SendPropBool(NetworkVarFields.MagnetOn),
+		SendPropBool(NetworkVarFields.EnterAnimOn),
+		SendPropBool(NetworkVarFields.ExitAnimOn),
+		SendPropVector(NetworkVarFields.EyeExitEndpoint, 0, PropFlags.Coord),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropCrane);
 
 	[NetworkName("m_hPlayer")]
-	public EHANDLE Player = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Player { get; }
 	[NetworkName("m_bMagnetOn")]
-	public bool MagnetOn;
+	[NetworkVar] public partial bool MagnetOn { get; set; }
 	[NetworkName("m_bEnterAnimOn")]
-	public bool EnterAnimOn;
+	[NetworkVar] public partial bool EnterAnimOn { get; set; }
 	[NetworkName("m_bExitAnimOn")]
-	public bool ExitAnimOn;
+	[NetworkVar] public partial bool ExitAnimOn { get; set; }
 	[NetworkName("m_vecEyeExitEndpoint")]
-	public Vector3 EyeExitEndpoint;
+	[NetworkVar] public partial Vector3 EyeExitEndpoint { get; set; }
 }

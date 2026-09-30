@@ -5,13 +5,13 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VortigauntEffectDispel>;
 [NetworkName("CVortigauntEffectDispel")]
-public class VortigauntEffectDispel : BaseEntity
+public partial class VortigauntEffectDispel : BaseEntity
 {
 	public static readonly SendTable DT_VortigauntEffectDispel = new(DT_BaseEntity, [
-		SendPropBool(FIELD.OF(nameof(FadeOut))),
+		SendPropBool(NetworkVarFields.FadeOut),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_VortigauntEffectDispel);
 
 	[NetworkName("m_bFadeOut")]
-	public bool FadeOut;
+	[NetworkVar] public partial bool FadeOut { get; set; }
 }

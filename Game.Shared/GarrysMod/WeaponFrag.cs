@@ -6,7 +6,7 @@ using FIELD = Source.FIELD<WeaponFrag>;
 [LinkEntityToClass("weapon_frag")]
 [PrecacheWeaponRegister("weapon_frag")]
 [NetworkName("CWeaponFrag")]
-public class WeaponFrag : BaseHL2MPCombatWeapon
+public partial class WeaponFrag : BaseHL2MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -20,9 +20,9 @@ public class WeaponFrag : BaseHL2MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(DrawbackFinished))),
 			RecvPropInt(FIELD.OF(nameof(AttackPaused)))
 #else
-			SendPropBool(FIELD.OF(nameof(Redraw))),
-			SendPropBool(FIELD.OF(nameof(DrawbackFinished))),
-			SendPropInt(FIELD.OF(nameof(AttackPaused)), 4)
+			SendPropBool(NetworkVarFields.Redraw),
+			SendPropBool(NetworkVarFields.DrawbackFinished),
+			SendPropInt(NetworkVarFields.AttackPaused, 4)
 #endif
 		]);
 #if CLIENT_DLL
@@ -33,10 +33,10 @@ public class WeaponFrag : BaseHL2MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponFrag);
 #endif
 	[NetworkName("m_bRedraw")]
-	public bool Redraw;
+	[NetworkVar] public partial bool Redraw { get; set; }
 	[NetworkName("m_fDrawbackFinished")]
-	public bool DrawbackFinished;
+	[NetworkVar] public partial bool DrawbackFinished { get; set; }
 	[NetworkName("m_AttackPaused")]
-	public int AttackPaused;
+	[NetworkVar] public partial int AttackPaused { get; set; }
 }
 #endif

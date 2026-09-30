@@ -20,16 +20,16 @@ using FIELD_ILR = Source.FIELD<Game.Server.InfoLightingRelative>;
 public partial class InfoLightingRelative : BaseEntity
 {
 	public static readonly SendTable DT_InfoLightingRelative = new(DT_BaseEntity, [
-		SendPropEHandle(FIELD_ILR.OF(nameof(LightingLandmark)))
+		SendPropEHandle(InfoLightingRelative.NetworkVarFields.LightingLandmark)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_InfoLightingRelative);
 
 	[NetworkName("m_hLightingLandmark")]
-	public EHANDLE LightingLandmark = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> LightingLandmark { get; }
 }
 
 [NetworkName("CBaseAnimating")]
-public class BaseAnimating : BaseEntity
+public partial class BaseAnimating : BaseEntity
 {
 	public const int ANIMATION_SKIN_BITS = 10;
 	public const int ANIMATION_BODY_BITS = 32;
@@ -38,25 +38,25 @@ public class BaseAnimating : BaseEntity
 	public const int ANIMATION_PLAYBACKRATE_BITS = 8;
 
 	public static readonly SendTable DT_ServerAnimationData = new(nameof(DT_ServerAnimationData), [
-		SendPropFloat(FIELD.OF(nameof(Cycle)), ANIMATION_CYCLE_BITS, PropFlags.ChangesOften|PropFlags.RoundDown, -1.0f, 1.0f)
+		SendPropFloat(NetworkVarFields.Cycle, ANIMATION_CYCLE_BITS, PropFlags.ChangesOften|PropFlags.RoundDown, -1.0f, 1.0f)
 	]);
 	public static readonly SendTable DT_BaseAnimating = new(DT_BaseEntity, [
-		SendPropInt( FIELD.OF(nameof(ForceBone)), 8, 0 ),
-		SendPropVector( FIELD.OF(nameof(Force)), 0, PropFlags.NoScale ),
+		SendPropInt( NetworkVarFields.ForceBone, 8, 0 ),
+		SendPropVector( NetworkVarFields.Force, 0, PropFlags.NoScale ),
 
-		SendPropInt( FIELD.OF(nameof(Skin)), ANIMATION_SKIN_BITS),
-		SendPropInt( FIELD.OF(nameof(Body)), ANIMATION_BODY_BITS),
+		SendPropInt( NetworkVarFields.Skin, ANIMATION_SKIN_BITS),
+		SendPropInt( NetworkVarFields.Body, ANIMATION_BODY_BITS),
 
-		SendPropInt( FIELD.OF(nameof(HitboxSet)),ANIMATION_HITBOXSET_BITS, PropFlags.Unsigned ),
+		SendPropInt( NetworkVarFields.HitboxSet,ANIMATION_HITBOXSET_BITS, PropFlags.Unsigned ),
 
-		SendPropFloat( FIELD.OF(nameof(ModelScale)) ),
+		SendPropFloat( NetworkVarFields.ModelScale ),
 
-		SendPropArray3( FIELD.OF_ARRAY(nameof(PoseParameter)), SendPropFloat(null!, ANIMATION_POSEPARAMETER_BITS, 0, 0.0f, 1.0f ) ),
+		SendPropArray3( BaseAnimating.NetworkVarFields.PoseParameter, SendPropFloat(null!, ANIMATION_POSEPARAMETER_BITS, 0, 0.0f, 1.0f ) ),
 
-		SendPropInt( FIELD.OF(nameof(Sequence)), ANIMATION_SEQUENCE_BITS, PropFlags.Unsigned ),
-		SendPropFloat( FIELD.OF(nameof(PlaybackRate)), ANIMATION_PLAYBACKRATE_BITS, PropFlags.RoundUp, -4.0f, 12.0f ),
+		SendPropInt( NetworkVarFields.Sequence, ANIMATION_SEQUENCE_BITS, PropFlags.Unsigned ),
+		SendPropFloat( NetworkVarFields.PlaybackRate, ANIMATION_PLAYBACKRATE_BITS, PropFlags.RoundUp, -4.0f, 12.0f ),
 
-		SendPropArray3(FIELD.OF_ARRAY(nameof(EncodedController)), SendPropFloat(null!, 11, PropFlags.RoundDown, 0.0f, 1.0f ) ),
+		SendPropArray3(BaseAnimating.NetworkVarFields.EncodedController, SendPropFloat(null!, 11, PropFlags.RoundDown, 0.0f, 1.0f ) ),
 
 		SendPropInt( FIELD.OF(nameof( ClientSideAnimation )), 1, PropFlags.Unsigned ),
 		SendPropInt( FIELD.OF(nameof( ClientSideFrameReset )), 1, PropFlags.Unsigned ),
@@ -70,70 +70,74 @@ public class BaseAnimating : BaseEntity
 
 		SendPropDataTable( "serveranimdata", DT_ServerAnimationData, SendProxy_ClientSideAnimation ),
 
-		SendPropFloat( FIELD.OF(nameof(FadeMinDist) ), 0, PropFlags.NoScale ),
+		SendPropFloat( NetworkVarFields.FadeMinDist, 0, PropFlags.NoScale ),
 		SendPropFloat( FIELD.OF(nameof(FadeMaxDist )), 0, PropFlags.NoScale ),
 		SendPropFloat( FIELD.OF(nameof(FadeScale )), 0, PropFlags.NoScale ),
 
 		// Gmod specific
 		SendPropEHandle(FIELD.OF(nameof(BoneManipulator))),
 		SendPropEHandle(FIELD.OF(nameof(FlexManipulator))),
-		SendPropVector(FIELD.OF(nameof(OverrideViewTarget)), 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.OverrideViewTarget, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseAnimating);
 
 	[NetworkName("m_nForceBone")]
-	public int ForceBone;
+	[NetworkVar] public partial int ForceBone { get; set; }
 	[NetworkName("m_vecForce")]
-	public Vector3 Force;
+	[NetworkVar] public partial Vector3 Force { get; set; }
 	[NetworkName("m_nSkin")]
-	public int Skin;
+	[NetworkVar] public partial int Skin { get; set; }
 	[NetworkName("m_nBody")]
-	public int Body;
+	[NetworkVar] public partial int Body { get; set; }
 	[NetworkName("m_nHitboxSet")]
-	public int HitboxSet;
+	[NetworkVar] public partial int HitboxSet { get; set; }
 
 	[NetworkName("m_flModelScale")]
-	public float ModelScale = 1.0f;
+	[NetworkVar] public partial float ModelScale { get; set; }
+
+	public BaseAnimating() {
+		ModelScale = 1.0f;
+	}
 	[NetworkName("m_flPoseParameter")]
-	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxStudioPoseParam<float>, float> PoseParameter { get; }
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;
 	public int EventSequence;
 	[NetworkName("m_flEncodedController")]
-	public InlineArrayMaxStudioBoneCtrls<float> EncodedController;
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxStudioBoneCtrls<float>, float> EncodedController { get; }
 	public InlineArrayMaxStudioBoneCtrls<float> OldEncodedController;
 	[NetworkName("m_nSequence")]
-	public int Sequence;
+	[NetworkVar] public partial int Sequence { get; set; }
 	[NetworkName("m_flPlaybackRate")]
-	public TimeUnit_t PlaybackRate;
+	[NetworkVar] public partial TimeUnit_t PlaybackRate { get; set; }
 	[NetworkName("m_bClientSideAnimation")]
-	public bool ClientSideAnimation;
+	[NetworkVar] public partial bool ClientSideAnimation { get; set; }
 	[NetworkName("m_bClientSideFrameReset")]
-	public bool ClientSideFrameReset;
+	[NetworkVar] public partial bool ClientSideFrameReset { get; set; }
 	[NetworkName("m_nNewSequenceParity")]
-	public int NewSequenceParity;
+	[NetworkVar] public partial int NewSequenceParity { get; set; }
 	[NetworkName("m_nResetEventsParity")]
-	public int ResetEventsParity;
+	[NetworkVar] public partial int ResetEventsParity { get; set; }
 	[NetworkName("m_nMuzzleFlashParity")]
-	public int MuzzleFlashParity;
+	[NetworkVar] public partial int MuzzleFlashParity { get; set; }
 	[NetworkName("m_hLightingOrigin")]
-	public EHANDLE LightingOrigin = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> LightingOrigin { get; }
 	[NetworkName("m_hLightingOriginRelative")]
-	public EHANDLE LightingOriginRelative = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> LightingOriginRelative { get; }
 	[NetworkName("m_pBoneManipulator")]
 	public EHANDLE BoneManipulator = new();
 	[NetworkName("m_pFlexManipulator")]
 	public EHANDLE FlexManipulator = new();
 	[NetworkName("m_fadeMinDist")]
-	public float FadeMinDist;
+	[NetworkVar] public partial float FadeMinDist { get; set; }
 	[NetworkName("m_fadeMaxDist")]
-	public float FadeMaxDist;
+	[NetworkVar] public partial float FadeMaxDist { get; set; }
 	[NetworkName("m_flFadeScale")]
-	public float FadeScale;
+	[NetworkVar] public partial float FadeScale { get; set; }
 	[NetworkName("m_flCycle")]
-	public TimeUnit_t Cycle;
+	[NetworkVar] public partial TimeUnit_t Cycle { get; set; }
 	[NetworkName("m_OverrideViewTarget")]
-	public Vector3 OverrideViewTarget;
+	[NetworkVar] public partial Vector3 OverrideViewTarget { get; set; }
 
 	public override void SetModel(ReadOnlySpan<char> modelName) {
 		UnlockStudioHdr();
@@ -492,7 +496,7 @@ public class BaseAnimating : BaseEntity
 
 		if (parameter >= 0) {
 			value = BoneSetup.Studio_SetPoseParameter(studioHdr, parameter, value, out float newValue);
-			PoseParameter[parameter] = newValue;
+			PoseParameter.Set(parameter, newValue);
 		}
 
 		return value;

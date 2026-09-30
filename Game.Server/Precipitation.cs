@@ -5,19 +5,19 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Precipitation>;
 [NetworkName("CPrecipitation")]
-public class Precipitation : BaseEntity
+public partial class Precipitation : BaseEntity
 {
 	public static readonly SendTable DT_Precipitation = new(DT_BaseEntity, [
-		SendPropInt(FIELD.OF(nameof(PrecipType)), 4, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.PrecipType, 4, PropFlags.Unsigned),
 		SendPropString(FIELD.OF(nameof(ParticleNameClose))),
 		SendPropString(FIELD.OF(nameof(ParticleNameInner))),
 		SendPropString(FIELD.OF(nameof(ParticleNameOuter))),
-		SendPropFloat(FIELD.OF(nameof(ParticleDist)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ParticleDist, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Precipitation);
 
 	[NetworkName("m_nPrecipType")]
-	public int PrecipType;
+	[NetworkVar] public partial int PrecipType { get; set; }
 	[NetworkName("m_sParticleNameClose")]
 	public InlineArray512<char> ParticleNameClose;
 	[NetworkName("m_sParticleNameInner")]
@@ -25,5 +25,5 @@ public class Precipitation : BaseEntity
 	[NetworkName("m_sParticleNameOuter")]
 	public InlineArray512<char> ParticleNameOuter;
 	[NetworkName("m_flParticleDist")]
-	public float ParticleDist;
+	[NetworkVar] public partial float ParticleDist { get; set; }
 }

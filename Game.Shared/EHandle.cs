@@ -25,3 +25,40 @@ public static class HandleExts {
 		handle.Index = entity.Index;
 	}
 }
+
+public readonly ref struct NetworkHandle<T> where T : IHandleEntity
+{
+	readonly ref Handle<T> Value;
+	readonly INetworkStateChanged? Outer;
+	readonly IFieldAccessor Field;
+
+	public NetworkHandle(ref Handle<T> value, INetworkStateChanged? outer, IFieldAccessor field) {
+		Value = ref value;
+		Outer = outer;
+		Field = field;
+	}
+
+	public T? Get() => Value.Get();
+	public uint Index => Value.Index;
+	public bool IsValid() => Value.IsValid();
+	public int GetEntryIndex() => Value.GetEntryIndex();
+	public int GetSerialNumber() => Value.GetSerialNumber();
+
+	public Handle<T> Set(IHandleEntity? entity) => Set(new Handle<T>().Set(entity));
+
+	public Handle<T> Set(Handle<T> other) {
+		if (Value.Index != other.Index) {
+			Outer?.NetworkStateChanged(Field);
+			Value.Index = other.Index;
+		}
+		return Value;
+	}
+
+	public ref Handle<T> GetForModify() {
+		Outer?.NetworkStateChanged(Field);
+		return ref Value;
+	}
+
+	public static implicit operator Handle<T>(NetworkHandle<T> handle) => handle.Value;
+	public static implicit operator BaseHandle(NetworkHandle<T> handle) => handle.Value;
+}

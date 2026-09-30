@@ -40,32 +40,32 @@ public partial class BaseCombatCharacter : BaseFlex
 	public virtual Vector3 EyeDirection3D() => HeadDirection3D(); // No eye motion so just return head dir
 
 	public static readonly SendTable DT_BCCLocalPlayerExclusive = new(nameof(DT_BCCLocalPlayerExclusive), [
-		SendPropTime64(FIELD.OF(nameof(NextAttack))),
+		SendPropTime64(NetworkVarFields.NextAttack),
 	]);
 
 	public static readonly SendTable DT_BaseCombatCharacter = new(DT_BaseFlex, [
 		SendPropDataTable( "bcc_localdata", DT_BCCLocalPlayerExclusive, SendProxy_SendBaseCombatCharacterLocalDataTable ),
-		SendPropEHandle(FIELD.OF(nameof(ActiveWeapon))),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(MyWeapons)), SendPropEHandle( FIELD.OF_ARRAY(nameof(MyWeapons)))),
-		SendPropInt(FIELD.OF(nameof(BloodColor)), 5, 0)
+		SendPropEHandle(BaseCombatCharacter.NetworkVarFields.ActiveWeapon),
+		SendPropArray3(BaseCombatCharacter.NetworkVarFields.MyWeapons, SendPropEHandle( BaseCombatCharacter.NetworkVarFields.MyWeapons)),
+		SendPropInt(NetworkVarFields.BloodColor, 5, 0)
 	]);
 
 	public TimeUnit_t GetNextAttack() => NextAttack;
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
 	[NetworkName("m_flNextAttack")]
-	public TimeUnit_t NextAttack;
+	[NetworkVar] public partial TimeUnit_t NextAttack { get; set; }
 	public float ImpactEnergyScale;
 	[NetworkName("m_hLastWeapon")]
 	public Handle<BaseCombatWeapon> LastWeapon = new();
 	[NetworkName("m_hActiveWeapon")]
-	public Handle<BaseCombatWeapon> ActiveWeapon = new();
+	[NetworkVar] public partial NetworkHandle<BaseCombatWeapon> ActiveWeapon { get; }
 	[NetworkName("m_hMyWeapons")]
-	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
+	[NetworkVar] public partial NetworkArray<InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>>, Handle<BaseCombatWeapon>> MyWeapons { get; }
 	[NetworkName("m_iAmmo")]
-	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
+	[NetworkVar] public partial NetworkArray<InlineArrayMaxAmmoSlots<int>, int> Ammo { get; }
 	[NetworkName("m_bloodColor")]
-	public Color BloodColor;
+	[NetworkVar] public partial Color BloodColor { get; set; }
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		recipients.ClearAllRecipients();

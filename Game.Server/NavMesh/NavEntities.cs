@@ -29,13 +29,13 @@ class FuncNavBlocker
 	}
 }
 
-public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
+public partial class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 {
 	public static readonly SendTable DT_FuncNavObstruction = new([ // todo
 
 	]);
 
-	public bool Disabled;
+	[NetworkVar] public partial bool Disabled { get; set; }
 
 	int DrawDebugTextOverlays() {
 		throw new NotImplementedException();

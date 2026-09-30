@@ -217,15 +217,6 @@ public static class PredictionCopyImpl
 		return ManagedSizeOf(a) == ManagedSizeOf(b);
 	}
 
-	static bool IsNetworkArray(Type fieldType, [NotNullWhen(true)] out Type? arrayElementType) {
-		if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(NetworkArray<>)) {
-			arrayElementType = fieldType.GetGenericArguments()[0];
-			return true;
-		}
-		arrayElementType = null;
-		return false;
-	}
-
 	static void EmitConvertedReadOnlySpan(ILGenerator il, LocalBuilder typedObj, FieldInfo fieldInfo, Type actualType, Type elementType, int fieldSize) {
 		if (fieldSize == 1) {
 			LocalBuilder buf = il.DeclareLocal(elementType);
@@ -282,18 +273,6 @@ public static class PredictionCopyImpl
 	static void EmitObjectFieldAsReadOnlySpan(ILGenerator il, LocalBuilder typedObj, FieldInfo fieldInfo, Type elementType, int fieldSize) {
 		Type actualType = ResolveActualFieldType(fieldInfo, elementType);
 
-		if (IsNetworkArray(fieldInfo.FieldType, out Type? netArrayElemType)) {
-			FieldInfo valueField = fieldInfo.FieldType.GetField("Value")!;
-			il.LoggedEmit(OpCodes.Ldloc, typedObj);
-			il.LoggedEmit(OpCodes.Ldflda, fieldInfo);
-			il.LoggedEmit(OpCodes.Ldfld, valueField);
-			il.LoggedEmit(OpCodes.Newobj, typeof(ReadOnlySpan<>).MakeGenericType(netArrayElemType).GetConstructor([netArrayElemType.MakeArrayType()])!);
-			if (netArrayElemType != elementType) {
-				il.LoggedEmit(OpCodes.Call, castROSpanOpen.MakeGenericMethod(netArrayElemType, elementType));
-			}
-			return;
-		}
-
 		if (actualType == elementType) {
 			il.LoggedEmit(OpCodes.Ldloc, typedObj);
 			il.LoggedEmit(OpCodes.Ldflda, fieldInfo);
@@ -315,18 +294,6 @@ public static class PredictionCopyImpl
 	static void EmitObjectFieldAsSpan(ILGenerator il, LocalBuilder typedObj, FieldInfo fieldInfo, Type elementType, int fieldSize) {
 		Type actualType = ResolveActualFieldType(fieldInfo, elementType);
 		_pendingWriteBack = null;
-
-		if (IsNetworkArray(fieldInfo.FieldType, out Type? netArrayElemType)) {
-			FieldInfo valueField = fieldInfo.FieldType.GetField("Value")!;
-			il.LoggedEmit(OpCodes.Ldloc, typedObj);
-			il.LoggedEmit(OpCodes.Ldflda, fieldInfo);
-			il.LoggedEmit(OpCodes.Ldfld, valueField);
-			il.LoggedEmit(OpCodes.Newobj, typeof(Span<>).MakeGenericType(netArrayElemType).GetConstructor([netArrayElemType.MakeArrayType()])!);
-			if (netArrayElemType != elementType) {
-				il.LoggedEmit(OpCodes.Call, castSpanOpen.MakeGenericMethod(netArrayElemType, elementType));
-			}
-			return;
-		}
 
 		if (actualType == elementType) {
 			il.LoggedEmit(OpCodes.Ldloc, typedObj);

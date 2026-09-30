@@ -5,7 +5,7 @@ using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<SpriteTrail>;
 [NetworkName("CSpriteTrail")]
-public class SpriteTrail : Sprite
+public partial class SpriteTrail : Sprite
 {
 	public static readonly
 #if CLIENT_DLL
@@ -24,14 +24,14 @@ public class SpriteTrail : Sprite
 		RecvPropVector(FIELD.OF(nameof(SkyboxOrigin))),
 		RecvPropFloat(FIELD.OF(nameof(SkyboxScale))),
 #else
-		SendPropFloat(FIELD.OF(nameof(LifeTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(StartWidth)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(EndWidth)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(StartWidthVariance)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(TextureRes)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FadeLength)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(SkyboxOrigin)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SkyboxScale)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.LifeTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.StartWidth, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.EndWidth, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.StartWidthVariance, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.TextureRes, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FadeLength, 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.SkyboxOrigin, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SkyboxScale, 0, PropFlags.NoScale),
 #endif
 		]);
 #if CLIENT_DLL
@@ -41,20 +41,20 @@ public class SpriteTrail : Sprite
 #endif
 
 	[NetworkName("m_flLifeTime")]
-	public TimeUnit_t LifeTime;
+	[NetworkVar] public partial TimeUnit_t LifeTime { get; set; }
 	[NetworkName("m_flStartWidth")]
-	public float StartWidth;
+	[NetworkVar] public partial float StartWidth { get; set; }
 	[NetworkName("m_flEndWidth")]
-	public float EndWidth;
+	[NetworkVar] public partial float EndWidth { get; set; }
 	[NetworkName("m_flStartWidthVariance")]
-	public float StartWidthVariance;
+	[NetworkVar] public partial float StartWidthVariance { get; set; }
 	[NetworkName("m_flTextureRes")]
-	public float TextureRes;
+	[NetworkVar] public partial float TextureRes { get; set; }
 	[NetworkName("m_flMinFadeLength")]
-	public float FadeLength;
+	[NetworkVar] public partial float FadeLength { get; set; }
 	[NetworkName("m_vecSkyboxOrigin")]
-	public Vector3 SkyboxOrigin;
+	[NetworkVar] public partial Vector3 SkyboxOrigin { get; set; }
 	[NetworkName("m_flSkyboxScale")]
-	public float SkyboxScale;
+	[NetworkVar] public partial float SkyboxScale { get; set; }
 }
 #endif

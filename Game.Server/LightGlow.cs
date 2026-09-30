@@ -11,37 +11,37 @@ namespace Game.Server;
 using FIELD = FIELD<LightGlow>;
 
 [NetworkName("CLightGlow")]
-public class LightGlow : BaseEntity
+public partial class LightGlow : BaseEntity
 {
 	public static readonly SendTable DT_LightGlow = new([
-		SendPropInt(FIELD.OF(nameof(RenderColor)), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(HorizontalSize)), 16, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(VerticalSize)), 16, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(MinDist)), 16, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(MaxDist)), 16, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(OuterMaxDist)), 16, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(SpawnFlags)), 8, PropFlags.Unsigned),
-		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.Coord),
-		SendPropQAngles(FIELD.OF(nameof(Rotation)), 13, PropFlags.RoundDown),
+		SendPropInt(NetworkVarFields.RenderColor, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.HorizontalSize, 16, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.VerticalSize, 16, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.MinDist, 16, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.MaxDist, 16, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.OuterMaxDist, 16, PropFlags.Unsigned),
+		SendPropInt(BaseEntity.NetworkVarFields.SpawnFlags, 8, PropFlags.Unsigned),
+		SendPropVector(BaseEntity.NetworkVarFields.Origin, 0, PropFlags.Coord),
+		SendPropQAngles(BaseEntity.NetworkVarFields.Rotation, 13, PropFlags.RoundDown),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
-		SendPropFloat(FIELD.OF(nameof(GlowProxySize)), 6, PropFlags.RoundUp, 0.0f, 64.0f),
-		SendPropFloat(FIELD.OF(nameof(HDRColorScale)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.GlowProxySize, 6, PropFlags.RoundUp, 0.0f, 64.0f),
+		SendPropFloat(NetworkVarFields.HDRColorScale, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_LightGlow);
 
 	[NetworkName("m_clrRender")]
-	public Color RenderColor;
+	[NetworkVar] public partial Color RenderColor { get; set; }
 	[NetworkName("m_nHorizontalSize")]
-	public int HorizontalSize;
+	[NetworkVar] public partial int HorizontalSize { get; set; }
 	[NetworkName("m_nVerticalSize")]
-	public int VerticalSize;
+	[NetworkVar] public partial int VerticalSize { get; set; }
 	[NetworkName("m_nMinDist")]
-	public int MinDist;
+	[NetworkVar] public partial int MinDist { get; set; }
 	[NetworkName("m_nMaxDist")]
-	public int MaxDist;
+	[NetworkVar] public partial int MaxDist { get; set; }
 	[NetworkName("m_nOuterMaxDist")]
-	public int OuterMaxDist;
+	[NetworkVar] public partial int OuterMaxDist { get; set; }
 	[NetworkName("m_flGlowProxySize")]
-	public float GlowProxySize;
-	public float HDRColorScale;
+	[NetworkVar] public partial float GlowProxySize { get; set; }
+	[NetworkVar] public partial float HDRColorScale { get; set; }
 }

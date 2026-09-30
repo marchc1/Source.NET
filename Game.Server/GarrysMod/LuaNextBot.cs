@@ -11,7 +11,7 @@ public class LuaNextBot : NextBotCombatCharacter
 {
 	public static readonly SendTable DT_LuaNextBot = new(DT_NextBot, [
 		SendPropDataTable("m_ScriptedEntity", DT_ScriptedEntity),
-		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned)
+		SendPropInt(BaseEntity.NetworkVarFields.LifeState, 3, PropFlags.Unsigned)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_LuaNextBot);
 }

@@ -35,5 +35,6 @@
 	<!-- Analyzers -->
 	<ItemGroup>
 		<ProjectReference Include="../Source.CodeAnalysis/Source.CodeAnalysis/Source.CodeAnalysis.csproj" PrivateAssets="all" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+		<ProjectReference Include="..\Source.CodeAnalysis.NetworkVars\Source.CodeAnalysis.NetworkVars.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 </Project>

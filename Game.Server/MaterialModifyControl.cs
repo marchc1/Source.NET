@@ -5,21 +5,21 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<MaterialModifyControl>;
 [NetworkName("CMaterialModifyControl")]
-public class MaterialModifyControl : BaseEntity
+public partial class MaterialModifyControl : BaseEntity
 {
 	public static readonly SendTable DT_MaterialModifyControl = new(DT_BaseEntity, [
 		SendPropString(FIELD.OF(nameof(SzMaterialName))),
 		SendPropString(FIELD.OF(nameof(SzMaterialVar))),
 		SendPropString(FIELD.OF(nameof(SzMaterialVarValue))),
-		SendPropInt(FIELD.OF(nameof(FrameStart)), 8, 0),
-		SendPropInt(FIELD.OF(nameof(FrameEnd)), 8, 0),
-		SendPropBool(FIELD.OF(nameof(Wrap))),
-		SendPropFloat(FIELD.OF(nameof(Framerate)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(NewAnimCommandsSemaphore))),
-		SendPropFloat(FIELD.OF(nameof(FloatLerpStartValue)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FloatLerpEndValue)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FloatLerpTransitionTime)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(ModifyMode)), 2, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.FrameStart, 8, 0),
+		SendPropInt(NetworkVarFields.FrameEnd, 8, 0),
+		SendPropBool(NetworkVarFields.Wrap),
+		SendPropFloat(NetworkVarFields.Framerate, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.NewAnimCommandsSemaphore),
+		SendPropFloat(NetworkVarFields.FloatLerpStartValue, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FloatLerpEndValue, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FloatLerpTransitionTime, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.ModifyMode, 2, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_MaterialModifyControl);
 
@@ -30,21 +30,21 @@ public class MaterialModifyControl : BaseEntity
 	[NetworkName("m_szMaterialVarValue")]
 	public InlineArray255<char> SzMaterialVarValue;
 	[NetworkName("m_iFrameStart")]
-	public int FrameStart;
+	[NetworkVar] public partial int FrameStart { get; set; }
 	[NetworkName("m_iFrameEnd")]
-	public int FrameEnd;
+	[NetworkVar] public partial int FrameEnd { get; set; }
 	[NetworkName("m_bWrap")]
-	public bool Wrap;
+	[NetworkVar] public partial bool Wrap { get; set; }
 	[NetworkName("m_flFramerate")]
-	public float Framerate;
+	[NetworkVar] public partial float Framerate { get; set; }
 	[NetworkName("m_bNewAnimCommandsSemaphore")]
-	public bool NewAnimCommandsSemaphore;
+	[NetworkVar] public partial bool NewAnimCommandsSemaphore { get; set; }
 	[NetworkName("m_flFloatLerpStartValue")]
-	public float FloatLerpStartValue;
+	[NetworkVar] public partial float FloatLerpStartValue { get; set; }
 	[NetworkName("m_flFloatLerpEndValue")]
-	public float FloatLerpEndValue;
+	[NetworkVar] public partial float FloatLerpEndValue { get; set; }
 	[NetworkName("m_flFloatLerpTransitionTime")]
-	public float FloatLerpTransitionTime;
+	[NetworkVar] public partial float FloatLerpTransitionTime { get; set; }
 	[NetworkName("m_nModifyMode")]
-	public int ModifyMode;
+	[NetworkVar] public partial int ModifyMode { get; set; }
 }

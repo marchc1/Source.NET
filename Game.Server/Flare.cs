@@ -5,25 +5,25 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Flare>;
 [NetworkName("CFlare")]
-public class Flare : BaseCombatCharacter
+public partial class Flare : BaseCombatCharacter
 {
 	public static readonly SendTable DT_Flare = new(DT_BaseCombatCharacter, [
-		SendPropFloat(FIELD.OF(nameof(TimeBurnOut)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Scale)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Light))),
-		SendPropBool(FIELD.OF(nameof(Smoke))),
-		SendPropBool(FIELD.OF(nameof(PropFlare))),
+		SendPropFloat(NetworkVarFields.TimeBurnOut, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Scale, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Light),
+		SendPropBool(NetworkVarFields.Smoke),
+		SendPropBool(NetworkVarFields.PropFlare),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Flare);
 
 	[NetworkName("m_flTimeBurnOut")]
-	public float TimeBurnOut;
+	[NetworkVar] public partial float TimeBurnOut { get; set; }
 	[NetworkName("m_flScale")]
-	public float Scale;
+	[NetworkVar] public partial float Scale { get; set; }
 	[NetworkName("m_bLight")]
-	public bool Light;
+	[NetworkVar] public partial bool Light { get; set; }
 	[NetworkName("m_bSmoke")]
-	public bool Smoke;
+	[NetworkVar] public partial bool Smoke { get; set; }
 	[NetworkName("m_bPropFlare")]
-	public bool PropFlare;
+	[NetworkVar] public partial bool PropFlare { get; set; }
 }

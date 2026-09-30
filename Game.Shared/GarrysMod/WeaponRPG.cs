@@ -9,7 +9,7 @@ using FIELD = Source.FIELD<WeaponRPG>;
 [LinkEntityToClass("weapon_rpg")]
 [PrecacheWeaponRegister("weapon_rpg")]
 [NetworkName("CWeaponRPG")]
-public class WeaponRPG : BaseHL2MPCombatWeapon
+public partial class WeaponRPG : BaseHL2MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -26,11 +26,11 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 			RecvPropEHandle(FIELD.OF(nameof(Missile))),
 			RecvPropVector(FIELD.OF(nameof(LaserDot))),
 #else
-			SendPropBool(FIELD.OF(nameof(InitialStateUpdate))),
-			SendPropBool(FIELD.OF(nameof(Guiding))),
-			SendPropBool(FIELD.OF(nameof(HideGuiding))),
-			SendPropEHandle(FIELD.OF(nameof(Missile))),
-			SendPropVector(FIELD.OF(nameof(LaserDot)), 0, PropFlags.NoScale),
+			SendPropBool(NetworkVarFields.InitialStateUpdate),
+			SendPropBool(NetworkVarFields.Guiding),
+			SendPropBool(NetworkVarFields.HideGuiding),
+			SendPropEHandle(WeaponRPG.NetworkVarFields.Missile),
+			SendPropVector(NetworkVarFields.LaserDot, 0, PropFlags.NoScale),
 #endif
 		]);
 #if CLIENT_DLL
@@ -40,15 +40,15 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponRPG);
 #endif
 	[NetworkName("m_bInitialStateUpdate")]
-	public bool InitialStateUpdate;
+	[NetworkVar] public partial bool InitialStateUpdate { get; set; }
 	[NetworkName("m_bGuiding")]
-	public bool Guiding;
+	[NetworkVar] public partial bool Guiding { get; set; }
 	[NetworkName("m_bHideGuiding")]
-	public bool HideGuiding;
+	[NetworkVar] public partial bool HideGuiding { get; set; }
 	[NetworkName("m_hMissile")]
-	public EHANDLE Missile = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Missile { get; }
 	[NetworkName("m_vecLaserDot")]
-	public Vector3 LaserDot;
+	[NetworkVar] public partial Vector3 LaserDot { get; set; }
 	public override float GetFireRate() => 1f;
 }
 

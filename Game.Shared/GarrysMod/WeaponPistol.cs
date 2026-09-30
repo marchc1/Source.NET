@@ -8,7 +8,7 @@ using FIELD = Source.FIELD<WeaponPistol>;
 [LinkEntityToClass("weapon_pistol")]
 [PrecacheWeaponRegister("weapon_pistol")]
 [NetworkName("CWeaponPistol")]
-public class WeaponPistol : HL2MPMachineGun
+public partial class WeaponPistol : HL2MPMachineGun
 {
 	public static readonly
 #if CLIENT_DLL
@@ -23,10 +23,10 @@ public class WeaponPistol : HL2MPMachineGun
 			RecvPropFloat(FIELD.OF(nameof(AccuracyPenalty))),
 			RecvPropInt(FIELD.OF(nameof(NumShotsFired))),
 #else
-			SendPropTime64(FIELD.OF(nameof(SoonestPrimaryAttack))),
-			SendPropTime64(FIELD.OF(nameof(LastAttackTime))),
-			SendPropFloat(FIELD.OF(nameof(AccuracyPenalty)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(NumShotsFired)), 16),
+			SendPropTime64(NetworkVarFields.SoonestPrimaryAttack),
+			SendPropTime64(NetworkVarFields.LastAttackTime),
+			SendPropFloat(NetworkVarFields.AccuracyPenalty, 0, PropFlags.NoScale),
+			SendPropInt(NetworkVarFields.NumShotsFired, 16),
 #endif
 		]);
 #if CLIENT_DLL
@@ -36,13 +36,13 @@ public class WeaponPistol : HL2MPMachineGun
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponPistol);
 #endif
 	[NetworkName("m_flSoonestPrimaryAttack")]
-	public TimeUnit_t SoonestPrimaryAttack;
+	[NetworkVar] public partial TimeUnit_t SoonestPrimaryAttack { get; set; }
 	[NetworkName("m_flLastAttackTime")]
-	public TimeUnit_t LastAttackTime;
+	[NetworkVar] public partial TimeUnit_t LastAttackTime { get; set; }
 	[NetworkName("m_flAccuracyPenalty")]
-	public TimeUnit_t AccuracyPenalty;
+	[NetworkVar] public partial TimeUnit_t AccuracyPenalty { get; set; }
 	[NetworkName("m_nNumShotsFired")]
-	public int NumShotsFired;
+	[NetworkVar] public partial int NumShotsFired { get; set; }
 	public override float GetFireRate() => 0.5f;
 	public const TimeUnit_t PISTOL_FASTEST_REFIRE_TIME = 0.1;
 	public const TimeUnit_t PISTOL_FASTEST_DRY_REFIRE_TIME = 0.2;

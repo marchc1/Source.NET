@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 using System.Numerics;
@@ -7,62 +8,62 @@ namespace Game.Server;
 using FIELD = FIELD<ScriptIntro>;
 
 [NetworkName("CScriptIntro")]
-public class ScriptIntro : BaseEntity
+public partial class ScriptIntro : BaseEntity
 {
 	[NetworkName("m_vecCameraView")]
-	public Vector3 CameraView;
+	[NetworkVar] public partial Vector3 CameraView { get; set; }
 	[NetworkName("m_vecCameraViewAngles")]
-	public Vector3 CameraViewAngles;
+	[NetworkVar] public partial Vector3 CameraViewAngles { get; set; }
 	[NetworkName("m_iBlendMode")]
-	public int BlendMode;
+	[NetworkVar] public partial int BlendMode { get; set; }
 	[NetworkName("m_iNextBlendMode")]
-	public int NextBlendMode;
+	[NetworkVar] public partial int NextBlendMode { get; set; }
 	[NetworkName("m_flNextBlendTime")]
-	public Vector3 NextBlendTime;
+	[NetworkVar] public partial Vector3 NextBlendTime { get; set; }
 	[NetworkName("m_flBlendStartTime")]
-	public Vector3 BlendStartTime;
+	[NetworkVar] public partial Vector3 BlendStartTime { get; set; }
 	[NetworkName("m_bActive")]
-	public bool Active;
+	[NetworkVar] public partial bool Active { get; set; }
 	[NetworkName("m_iFOV")]
-	public int FOV;
+	[NetworkVar] public partial int FOV { get; set; }
 	[NetworkName("m_iNextFOV")]
-	public int NextFOV;
+	[NetworkVar] public partial int NextFOV { get; set; }
 	[NetworkName("m_iStartFOV")]
-	public int StartFOV;
+	[NetworkVar] public partial int StartFOV { get; set; }
 	[NetworkName("m_flNextFOVBlendTime")]
-	public Vector3 NextFOVBlendTime;
+	[NetworkVar] public partial Vector3 NextFOVBlendTime { get; set; }
 	[NetworkName("m_flFOVBlendStartTime")]
-	public Vector3 FOVBlendStartTime;
+	[NetworkVar] public partial Vector3 FOVBlendStartTime { get; set; }
 	[NetworkName("m_bAlternateFOV")]
-	public bool AlternateFOV;
+	[NetworkVar] public partial bool AlternateFOV { get; set; }
 	[NetworkName("m_flFadeAlpha")]
-	public float FadeAlpha;
+	[NetworkVar] public partial float FadeAlpha { get; set; }
 	[NetworkName("m_flFadeColor")]
-	public InlineArray3<float> FadeColor;
+	[NetworkVar] public partial NetworkArray<InlineArray3<float>, float> FadeColor { get; }
 	[NetworkName("m_flFadeDuration")]
-	public float FadeDuration;
+	[NetworkVar] public partial float FadeDuration { get; set; }
 	[NetworkName("m_hCameraEntity")]
-	public EHANDLE CameraEntity;
+	[NetworkVar] public partial NetworkHandle<BaseEntity> CameraEntity { get; }
 
 	public static readonly SendTable DT_ScriptIntro = new(DT_BaseEntity, [
-		SendPropVector(FIELD.OF(nameof(CameraView)), 0, PropFlags.Coord),
-		SendPropVector(FIELD.OF(nameof(CameraViewAngles)), 0, PropFlags.Coord),
-		SendPropInt(FIELD.OF(nameof(BlendMode)), 5),
-		SendPropInt(FIELD.OF(nameof(NextBlendMode)), 5),
-		SendPropVectorXY(FIELD.OF(nameof(NextBlendTime)), 0, PropFlags.NoScale),
-		SendPropVectorXY(FIELD.OF(nameof(BlendStartTime)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Active))),
-		SendPropInt(FIELD.OF(nameof(FOV)), 9),
-		SendPropInt(FIELD.OF(nameof(NextFOV)), 9),
-		SendPropInt(FIELD.OF(nameof(StartFOV)), 9),
-		SendPropVectorXY(FIELD.OF(nameof(NextFOVBlendTime)), 0, PropFlags.NoScale),
-		SendPropVectorXY(FIELD.OF(nameof(FOVBlendStartTime)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(AlternateFOV))),
-		SendPropFloat(FIELD.OF(nameof(FadeAlpha)), 10),
-		SendPropFloat(FIELD.OF_SENDINFO_ARRAY(nameof(FadeColor)), 0, PropFlags.NoScale),
-		SendPropArray(FIELD.OF_ARRAY(nameof(FadeColor))),
-		SendPropFloat(FIELD.OF(nameof(FadeDuration)), 10, PropFlags.RoundDown, 0.0f, 255.0f),
-		SendPropEHandle(FIELD.OF(nameof(CameraEntity))),
+		SendPropVector(NetworkVarFields.CameraView, 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.CameraViewAngles, 0, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.BlendMode, 5),
+		SendPropInt(NetworkVarFields.NextBlendMode, 5),
+		SendPropVectorXY(NetworkVarFields.NextBlendTime, 0, PropFlags.NoScale),
+		SendPropVectorXY(NetworkVarFields.BlendStartTime, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Active),
+		SendPropInt(NetworkVarFields.FOV, 9),
+		SendPropInt(NetworkVarFields.NextFOV, 9),
+		SendPropInt(NetworkVarFields.StartFOV, 9),
+		SendPropVectorXY(NetworkVarFields.NextFOVBlendTime, 0, PropFlags.NoScale),
+		SendPropVectorXY(NetworkVarFields.FOVBlendStartTime, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.AlternateFOV),
+		SendPropFloat(NetworkVarFields.FadeAlpha, 10),
+		SendPropFloat(FIELD.OF_SENDINFO_ARRAY(ScriptIntro.NetworkVarFields.FadeColor), 0, PropFlags.NoScale),
+		SendPropArray(ScriptIntro.NetworkVarFields.FadeColor),
+		SendPropFloat(NetworkVarFields.FadeDuration, 10, PropFlags.RoundDown, 0.0f, 255.0f),
+		SendPropEHandle(NetworkVarFields.CameraEntity),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_ScriptIntro);
 }

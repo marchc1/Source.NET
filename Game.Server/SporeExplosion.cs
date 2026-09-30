@@ -5,31 +5,31 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SporeExplosion>;
 [NetworkName("SporeExplosion")]
-public class SporeExplosion : BaseParticleEntity
+public partial class SporeExplosion : BaseParticleEntity
 {
 	public static readonly SendTable DT_SporeExplosion = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpawnRate)), 8, 0, 1, 1024),
-		SendPropFloat(FIELD.OF(nameof(ParticleLifetime)), 16, PropFlags.RoundUp, 0.1f, 100),
-		SendPropFloat(FIELD.OF(nameof(StartSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(EndSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpawnRadius)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Emit))),
-		SendPropBool(FIELD.OF(nameof(DontRemove))),
+		SendPropFloat(NetworkVarFields.SpawnRate, 8, 0, 1, 1024),
+		SendPropFloat(NetworkVarFields.ParticleLifetime, 16, PropFlags.RoundUp, 0.1f, 100),
+		SendPropFloat(NetworkVarFields.StartSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.EndSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpawnRadius, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Emit),
+		SendPropBool(NetworkVarFields.DontRemove),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_SporeExplosion);
 
 	[NetworkName("m_flSpawnRate")]
-	public float SpawnRate;
+	[NetworkVar] public partial float SpawnRate { get; set; }
 	[NetworkName("m_flParticleLifetime")]
-	public float ParticleLifetime;
+	[NetworkVar] public partial float ParticleLifetime { get; set; }
 	[NetworkName("m_flStartSize")]
-	public float StartSize;
+	[NetworkVar] public partial float StartSize { get; set; }
 	[NetworkName("m_flEndSize")]
-	public float EndSize;
+	[NetworkVar] public partial float EndSize { get; set; }
 	[NetworkName("m_flSpawnRadius")]
-	public float SpawnRadius;
+	[NetworkVar] public partial float SpawnRadius { get; set; }
 	[NetworkName("m_bEmit")]
-	public bool Emit;
+	[NetworkVar] public partial bool Emit { get; set; }
 	[NetworkName("m_bDontRemove")]
-	public bool DontRemove;
+	[NetworkVar] public partial bool DontRemove { get; set; }
 }

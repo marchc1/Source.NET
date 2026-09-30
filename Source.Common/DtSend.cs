@@ -200,7 +200,7 @@ public static class SendPropHelpers
 
 		for (int i = 0; i < elements; i++) {
 			props[i] = arrayProp.Copy();
-			props[i].FieldInfo = new DynamicArrayIndexAccessor(field, i);
+			props[i].FieldInfo = field.AtIndex(i)!;
 			props[i].NameOverride = ElementNames[i];
 			props[i].SetParentArrayPropName(((field as DynamicAccessor)?.NetworkName ?? field.Name));
 		}

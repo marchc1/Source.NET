@@ -9,19 +9,19 @@ using FIELD = Source.FIELD<InfoTeleporterCountdown>;
 public partial class InfoTeleporterCountdown : BaseEntity
 {
 	public static readonly SendTable DT_InfoTeleporterCountdown = new(DT_BaseEntity, [
-		SendPropBool(FIELD.OF(nameof(CountdownStarted))),
-		SendPropBool(FIELD.OF(nameof(Disabled))),
-		SendPropFloat(FIELD.OF(nameof(StartTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(TimeRemaining)), 0, PropFlags.NoScale)
+		SendPropBool(NetworkVarFields.CountdownStarted),
+		SendPropBool(NetworkVarFields.Disabled),
+		SendPropFloat(NetworkVarFields.StartTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.TimeRemaining, 0, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_InfoTeleporterCountdown);
 
 	[NetworkName("m_bCountdownStarted")]
-	public bool CountdownStarted;
+	[NetworkVar] public partial bool CountdownStarted { get; set; }
 	[NetworkName("m_bDisabled")]
-	public bool Disabled;
+	[NetworkVar] public partial bool Disabled { get; set; }
 	[NetworkName("m_flStartTime")]
-	public TimeUnit_t StartTime;
+	[NetworkVar] public partial TimeUnit_t StartTime { get; set; }
 	[NetworkName("m_flTimeRemaining")]
-	public TimeUnit_t TimeRemaining;
+	[NetworkVar] public partial TimeUnit_t TimeRemaining { get; set; }
 }

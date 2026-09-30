@@ -5,31 +5,31 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VGuiScreen>;
 [NetworkName("CVGuiScreen")]
-public class VGuiScreen : BaseEntity
+public partial class VGuiScreen : BaseEntity
 {
 	public static readonly SendTable DT_VGuiScreen = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(Width)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Height)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(AttachmentIndex)), 5, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(PanelName)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(ScreenFlags)), 5, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(OverlayMaterial)), 10, PropFlags.Unsigned),
-		SendPropEHandle(FIELD.OF(nameof(HPlayerOwner))),
+		SendPropFloat(NetworkVarFields.Width, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Height, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.AttachmentIndex, 5, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.PanelName, 8, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.ScreenFlags, 5, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.OverlayMaterial, 10, PropFlags.Unsigned),
+		SendPropEHandle(VGuiScreen.NetworkVarFields.HPlayerOwner),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_VGuiScreen);
 
 	[NetworkName("m_flWidth")]
-	public float Width;
+	[NetworkVar] public partial float Width { get; set; }
 	[NetworkName("m_flHeight")]
-	public float Height;
+	[NetworkVar] public partial float Height { get; set; }
 	[NetworkName("m_nAttachmentIndex")]
-	public int AttachmentIndex;
+	[NetworkVar] public partial int AttachmentIndex { get; set; }
 	[NetworkName("m_nPanelName")]
-	public int PanelName;
+	[NetworkVar] public partial int PanelName { get; set; }
 	[NetworkName("m_fScreenFlags")]
-	public int ScreenFlags;
+	[NetworkVar] public partial int ScreenFlags { get; set; }
 	[NetworkName("m_nOverlayMaterial")]
-	public int OverlayMaterial;
+	[NetworkVar] public partial int OverlayMaterial { get; set; }
 	[NetworkName("m_hPlayerOwner")]
-	public EHANDLE HPlayerOwner = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> HPlayerOwner { get; }
 }

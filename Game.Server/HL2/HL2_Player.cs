@@ -14,16 +14,16 @@ using FIELD = Source.FIELD<HL2_Player>;
 
 [PrecacheRegister("player")]
 [NetworkName("CHL2_Player")]
-public class HL2_Player : BaseMultiplayerPlayer
+public partial class HL2_Player : BaseMultiplayerPlayer
 {
 	public static readonly SendTable DT_HL2_Player = new(DT_BasePlayer, [
 		SendPropDataTable("m_HL2Local", FIELD.OF(nameof(HL2Local)), HL2PlayerLocalData.DT_HL2Local, SendProxy_SendLocalDataTable),
-		SendPropBool(FIELD.OF(nameof(m_bIsSprinting)))
+		SendPropBool(NetworkVarFields.m_bIsSprinting)
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_HL2_Player);
 
 	[NetworkName("m_HL2Local")]
-	public readonly HL2PlayerLocalData HL2Local = new();
+	[NetworkVarEmbedded] public partial HL2PlayerLocalData HL2Local { get; }
 
 #if HL2MP
 	const int HL2_WALK_SPEED = 150;
@@ -37,10 +37,10 @@ public class HL2_Player : BaseMultiplayerPlayer
 	TimeUnit_t LastDamageTime;
 	TimeUnit_t TargetFindTime;
 
-	bool SprintEnabled;
+	[NetworkVar] public partial bool SprintEnabled { get; set; }
 
 	[NetworkName("m_fIsSprinting")]
-	public bool m_bIsSprinting;
+	[NetworkVar] public partial bool m_bIsSprinting { get; set; }
 	public bool m_bIsWalking;
 	public bool m_bPlayUseDenySound;
 

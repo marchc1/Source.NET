@@ -5,16 +5,16 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<BoneFollower>;
 [NetworkName("CBoneFollower")]
-public class BoneFollower : BaseEntity
+public partial class BoneFollower : BaseEntity
 {
 	public static readonly SendTable DT_BoneFollower = new(DT_BaseEntity, [
-		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(SolidIndex)), 6, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.ModelIndex, 14, 0),
+		SendPropInt(NetworkVarFields.SolidIndex, 6, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BoneFollower);
 
 	[NetworkName("m_modelIndex")]
-	public new int ModelIndex;
+	[NetworkVar] public new partial int ModelIndex { get; set; }
 	[NetworkName("m_solidIndex")]
-	public int SolidIndex;
+	[NetworkVar] public partial int SolidIndex { get; set; }
 }

@@ -5,44 +5,44 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PoseController>;
 [NetworkName("CPoseController")]
-public class PoseController : BaseEntity
+public partial class PoseController : BaseEntity
 {
 	public static readonly SendTable DT_PoseController = new(DT_BaseEntity, [
-		SendPropArray3(FIELD.OF_ARRAY(nameof(HProps)), SendPropEHandle(FIELD.OF_ARRAYINDEX(nameof(HProps), 0))),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(ChPoseIndex)), SendPropInt(FIELD.OF_ARRAYINDEX(nameof(ChPoseIndex), 0), 5, PropFlags.Unsigned)),
-		SendPropBool(FIELD.OF(nameof(PoseValueParity))),
-		SendPropFloat(FIELD.OF(nameof(PoseValue)), 11, 0, 0.0f, 1.0f),
-		SendPropFloat(FIELD.OF(nameof(InterpolationTime)), 11, 0, 0.0f, 10.0f),
-		SendPropBool(FIELD.OF(nameof(InterpolationWrap))),
-		SendPropFloat(FIELD.OF(nameof(CycleFrequency)), 11, 0, -10.0f, 10.0f),
-		SendPropInt(FIELD.OF(nameof(FModType)), 3, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(FModTimeOffset)), 11, 0, -1.0f, 1.0f),
-		SendPropFloat(FIELD.OF(nameof(FModRate)), 11, 0, -10.0f, 10.0f),
-		SendPropFloat(FIELD.OF(nameof(FModAmplitude)), 11, 0, 0.0f, 10.0f),
+		SendPropArray3(PoseController.NetworkVarFields.HProps, SendPropEHandle(PoseController.NetworkVarFields.HProps.AtIndex(0)!)),
+		SendPropArray3(PoseController.NetworkVarFields.ChPoseIndex, SendPropInt(PoseController.NetworkVarFields.ChPoseIndex.AtIndex(0)!, 5, PropFlags.Unsigned)),
+		SendPropBool(NetworkVarFields.PoseValueParity),
+		SendPropFloat(NetworkVarFields.PoseValue, 11, 0, 0.0f, 1.0f),
+		SendPropFloat(NetworkVarFields.InterpolationTime, 11, 0, 0.0f, 10.0f),
+		SendPropBool(NetworkVarFields.InterpolationWrap),
+		SendPropFloat(NetworkVarFields.CycleFrequency, 11, 0, -10.0f, 10.0f),
+		SendPropInt(NetworkVarFields.FModType, 3, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.FModTimeOffset, 11, 0, -1.0f, 1.0f),
+		SendPropFloat(NetworkVarFields.FModRate, 11, 0, -10.0f, 10.0f),
+		SendPropFloat(NetworkVarFields.FModAmplitude, 11, 0, 0.0f, 10.0f),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PoseController);
 
 	public const int MAX_POSE_CONTROLLED_PROPS = 4;
 	[NetworkName("m_hProps")]
-	public InlineArray4<EHANDLE> HProps;
+	[NetworkVar] public partial NetworkArray<InlineArray4<EHANDLE>, EHANDLE> HProps { get; }
 	[NetworkName("m_chPoseIndex")]
-	public InlineArray4<byte> ChPoseIndex;
+	[NetworkVar] public partial NetworkArray<InlineArray4<byte>, byte> ChPoseIndex { get; }
 	[NetworkName("m_bPoseValueParity")]
-	public bool PoseValueParity;
+	[NetworkVar] public partial bool PoseValueParity { get; set; }
 	[NetworkName("m_fPoseValue")]
-	public float PoseValue;
+	[NetworkVar] public partial float PoseValue { get; set; }
 	[NetworkName("m_fInterpolationTime")]
-	public float InterpolationTime;
+	[NetworkVar] public partial float InterpolationTime { get; set; }
 	[NetworkName("m_bInterpolationWrap")]
-	public bool InterpolationWrap;
+	[NetworkVar] public partial bool InterpolationWrap { get; set; }
 	[NetworkName("m_fCycleFrequency")]
-	public float CycleFrequency;
+	[NetworkVar] public partial float CycleFrequency { get; set; }
 	[NetworkName("m_nFModType")]
-	public int FModType;
+	[NetworkVar] public partial int FModType { get; set; }
 	[NetworkName("m_fFModTimeOffset")]
-	public float FModTimeOffset;
+	[NetworkVar] public partial float FModTimeOffset { get; set; }
 	[NetworkName("m_fFModRate")]
-	public float FModRate;
+	[NetworkVar] public partial float FModRate { get; set; }
 	[NetworkName("m_fFModAmplitude")]
-	public float FModAmplitude;
+	[NetworkVar] public partial float FModAmplitude { get; set; }
 }

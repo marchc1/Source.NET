@@ -18,7 +18,7 @@ public class CrossbowBolt : BaseCombatCharacter {
 [LinkEntityToClass("weapon_crossbow")]
 [PrecacheWeaponRegister("weapon_crossbow")]
 [NetworkName("CWeaponCrossbow")]
-public class WeaponCrossbow : BaseHL2MPCombatWeapon
+public partial class WeaponCrossbow : BaseHL2MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -31,8 +31,8 @@ public class WeaponCrossbow : BaseHL2MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(InZoom))),
 			RecvPropBool(FIELD.OF(nameof(MustReload)))
 #else
-			SendPropBool(FIELD.OF(nameof(InZoom))),
-			SendPropBool(FIELD.OF(nameof(MustReload)))
+			SendPropBool(NetworkVarFields.InZoom),
+			SendPropBool(NetworkVarFields.MustReload)
 #endif
 		]);
 #if CLIENT_DLL
@@ -42,8 +42,8 @@ public class WeaponCrossbow : BaseHL2MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponCrossbow);
 #endif
 	[NetworkName("m_bInZoom")]
-	public bool InZoom;
+	[NetworkVar] public partial bool InZoom { get; set; }
 	[NetworkName("m_bMustReload")]
-	public bool MustReload;
+	[NetworkVar] public partial bool MustReload { get; set; }
 }
 #endif

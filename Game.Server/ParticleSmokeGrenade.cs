@@ -5,22 +5,22 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ParticleSmokeGrenade>;
 [NetworkName("ParticleSmokeGrenade")]
-public class ParticleSmokeGrenade : BaseParticleEntity
+public partial class ParticleSmokeGrenade : BaseParticleEntity
 {
 	public static readonly SendTable DT_ParticleSmokeGrenade = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpawnTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FadeStartTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(FadeEndTime)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(CurrentStage))),
+		SendPropFloat(NetworkVarFields.SpawnTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FadeStartTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.FadeEndTime, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.CurrentStage),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_ParticleSmokeGrenade);
 
 	[NetworkName("m_flSpawnTime")]
-	public float SpawnTime;
+	[NetworkVar] public partial float SpawnTime { get; set; }
 	[NetworkName("m_FadeStartTime")]
-	public float FadeStartTime;
+	[NetworkVar] public partial float FadeStartTime { get; set; }
 	[NetworkName("m_FadeEndTime")]
-	public float FadeEndTime;
+	[NetworkVar] public partial float FadeEndTime { get; set; }
 	[NetworkName("m_CurrentStage")]
-	public bool CurrentStage;
+	[NetworkVar] public partial bool CurrentStage { get; set; }
 }

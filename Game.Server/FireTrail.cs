@@ -5,16 +5,16 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<FireTrail>;
 [NetworkName("CFireTrail")]
-public class FireTrail : BaseParticleEntity
+public partial class FireTrail : BaseParticleEntity
 {
 	public static readonly SendTable DT_FireTrail = new(DT_BaseParticleEntity, [
-		SendPropInt(FIELD.OF(nameof(Attachment)), 32, 0),
-		SendPropFloat(FIELD.OF(nameof(Lifetime)), 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Attachment, 32, 0),
+		SendPropFloat(NetworkVarFields.Lifetime, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_FireTrail);
 
 	[NetworkName("m_nAttachment")]
-	public int Attachment;
+	[NetworkVar] public partial int Attachment { get; set; }
 	[NetworkName("m_flLifetime")]
-	public float Lifetime;
+	[NetworkVar] public partial float Lifetime { get; set; }
 }

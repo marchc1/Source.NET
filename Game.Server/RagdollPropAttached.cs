@@ -7,22 +7,22 @@ namespace Game.Server;
 using FIELD = FIELD<RagdollPropAttached>;
 
 [NetworkName("CRagdollPropAttached")]
-public class RagdollPropAttached : RagdollProp
+public partial class RagdollPropAttached : RagdollProp
 {
 	[NetworkName("m_boneIndexAttached")]
-	public int BoneIndexAttached;
+	[NetworkVar] public partial int BoneIndexAttached { get; set; }
 	[NetworkName("m_ragdollAttachedObjectIndex")]
-	public int RagdollAttachedObjectIndex;
+	[NetworkVar] public partial int RagdollAttachedObjectIndex { get; set; }
 	[NetworkName("m_attachmentPointBoneSpace")]
-	public Vector3 AttachmentPointBoneSpace;
+	[NetworkVar] public partial Vector3 AttachmentPointBoneSpace { get; set; }
 	[NetworkName("m_attachmentPointRagdollSpace")]
-	public Vector3 AttachmentPointRagdollSpace;
+	[NetworkVar] public partial Vector3 AttachmentPointRagdollSpace { get; set; }
 
 	public static readonly SendTable DT_Ragdoll_Attached = new(DT_Ragdoll, [
-		SendPropInt(FIELD.OF(nameof(BoneIndexAttached)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(RagdollAttachedObjectIndex)), 6, PropFlags.Unsigned),
-		SendPropVector(FIELD.OF(nameof(AttachmentPointBoneSpace)), 0, PropFlags.Coord),
-		SendPropVector(FIELD.OF(nameof(AttachmentPointRagdollSpace)), 0, PropFlags.Coord),
+		SendPropInt(NetworkVarFields.BoneIndexAttached, 8, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.RagdollAttachedObjectIndex, 6, PropFlags.Unsigned),
+		SendPropVector(NetworkVarFields.AttachmentPointBoneSpace, 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.AttachmentPointRagdollSpace, 0, PropFlags.Coord),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_Ragdoll_Attached);
 }

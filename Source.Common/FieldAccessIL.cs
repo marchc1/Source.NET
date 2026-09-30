@@ -134,32 +134,6 @@ namespace Source.Common
 								else
 									il.LoggedEmit(OpCodes.Call, getter);
 								break;
-							case IndexInfoBehavior.NetworkArray:
-								il.LoggedEmit(OpCodes.Ldfld, (accessor.Members[^2] as FieldInfo)!.FieldType!.GetField("Value")!);
-								il.LoggedEmit(OpCodes.Ldc_I4, index.Index);
-
-								if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
-									il.LoggedEmit(OpCodes.Ldelema, index.ElementType);
-
-									il.LoggedEmit(OpCodes.Ldobj, index.ElementType);
-								}
-								else {
-									if (index.ElementType == typeof(bool)) il.LoggedEmit(OpCodes.Ldelem_I1);
-									else if (index.ElementType == typeof(sbyte)) il.LoggedEmit(OpCodes.Ldelem_I1);
-									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldelem_I1);
-									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldelem_I2);
-									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldelem_I2);
-									else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Ldelem_I2);
-									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldelem_I4);
-									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldelem_I4);
-									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldelem_I8);
-									else if (index.ElementType == typeof(long)) il.LoggedEmit(OpCodes.Ldelem_I8);
-									else if (index.ElementType == typeof(float)) il.LoggedEmit(OpCodes.Ldelem_R4);
-									else if (index.ElementType == typeof(double)) il.LoggedEmit(OpCodes.Ldelem_R8);
-									else if (index.ElementType.IsClass) il.LoggedEmit(OpCodes.Ldelem_Ref);
-									else throw new NotSupportedException($"Unsupported element type: {index.ElementType}");
-								}
-								break;
 							case IndexInfoBehavior.InlineArray:
 								if (index.Index > 0) {
 									// Push the index
@@ -301,39 +275,6 @@ namespace Source.Common
 					break;
 				case IndexInfo index:
 					switch (index.Behavior) {
-						case IndexInfoBehavior.NetworkArray:
-							il.LoggedEmit(OpCodes.Ldfld, (accessor.Members[^2] as FieldInfo)!.FieldType!.GetField("Value")!);
-							il.LoggedEmit(OpCodes.Ldc_I4, index.Index);
-
-
-							if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
-								il.LoggedEmit(OpCodes.Ldelema, index.ElementType);
-
-								LoadValue(accessor, il);
-								PerformAutocast(accessor, il);
-
-								il.LoggedEmit(OpCodes.Stobj, index.ElementType);
-							}
-							else {
-								LoadValue(accessor, il);
-								PerformAutocast(accessor, il);
-
-								if (index.ElementType == typeof(bool)) il.LoggedEmit(OpCodes.Stelem_I1);
-								else if (index.ElementType == typeof(sbyte)) il.LoggedEmit(OpCodes.Stelem_I1);
-								else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stelem_I1);
-								else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stelem_I2);
-								else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stelem_I2);
-								else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Stelem_I2);
-								else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stelem_I4);
-								else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stelem_I4);
-								else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stelem_I8);
-								else if (index.ElementType == typeof(long)) il.LoggedEmit(OpCodes.Stelem_I8);
-								else if (index.ElementType == typeof(float)) il.LoggedEmit(OpCodes.Stelem_R4);
-								else if (index.ElementType == typeof(double)) il.LoggedEmit(OpCodes.Stelem_R8);
-								else if (index.ElementType.IsClass) il.LoggedEmit(OpCodes.Stelem_Ref);
-								else throw new NotSupportedException($"Unsupported element type: {index.ElementType}");
-							}
-							break;
 						case IndexInfoBehavior.InlineArray:
 							if (index.Index > 0) {
 								// Push the index
@@ -438,7 +379,6 @@ namespace Source.Common
 				target[i] = AtIndex(i)!.GetValue<T>(instanceFrom);
 		}
 		const int IS_LIST = -1;
-		const int IS_NETWORK_ARRAY = -2;
 
 		public DynamicArrayAccessor(Type targetType, ReadOnlySpan<char> expression, int isList = IS_LIST) : base(targetType, expression) {
 			var arrayAttr = StoringType.GetCustomAttribute<InlineArrayAttribute>();
@@ -449,12 +389,7 @@ namespace Source.Common
 				Info = new(StoringType.GetGenericArguments()[0], () => isList, true);
 			}
 			else {
-				var lastType = Members.Last();
-				NetworkArraySizeAttribute? netArraySize;
-				if (lastType is FieldInfo field && StoringType.IsGenericType && StoringType.GetGenericTypeDefinition() == typeof(NetworkArray<>) && (netArraySize = field.GetCustomAttribute<NetworkArraySizeAttribute>()) != null) {
-					Info = new(StoringType.GetGenericArguments()[0], () => netArraySize.Size);
-				}
-				else if (!DynamicArrayHelp.AcceptableTypes.TryGetValue(StoringType, out Info!))
+				if (!DynamicArrayHelp.AcceptableTypes.TryGetValue(StoringType, out Info!))
 					throw new Exception("Uh oh, we need a type def override");
 			}
 
@@ -490,8 +425,7 @@ namespace Source.Common
 	{
 		DirectElement,
 		InlineArray,
-		GenericArrayType,
-		NetworkArray
+		GenericArrayType
 	}
 
 	public sealed class IndexInfo : MemberInfo
@@ -533,10 +467,7 @@ namespace Source.Common
 
 			insideType = container.GetGenericArguments().FirstOrDefault();
 			if (insideType != null) {
-				if (container.GetGenericTypeDefinition() == typeof(NetworkArray<>))
-					behavior = IndexInfoBehavior.NetworkArray;
-				else
-					behavior = IndexInfoBehavior.GenericArrayType;
+				behavior = IndexInfoBehavior.GenericArrayType;
 				return;
 			}
 
@@ -602,7 +533,7 @@ namespace Source.Common
 			foreach (MemberInfo member in Members) {
 				if (member is IndexInfo)
 					continue;
-				MemberInfo target = member.Name.StartsWith("__nv_") ? member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static) ?? member : member;
+				MemberInfo target = member.Name.StartsWith("__nv_") ? member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly) ?? member : member;
 				if (target is not IndexInfo && target.GetCustomAttribute<NetworkNameAttribute>() != null)
 					anyNamed = true;
 			}
@@ -618,7 +549,7 @@ namespace Source.Common
 				}
 
 				if (member.Name.StartsWith("__nv_"))
-					member = member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static) ?? member;
+					member = member.DeclaringType!.GetProperty(member.Name[5..], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly) ?? member;
 
 				string memberName = member.GetCustomAttribute<NetworkNameAttribute>()?.Name ?? member.Name;
 				if (i + 1 < Members.Count && Members[i + 1] is IndexInfo next && memberName.Contains("{0}")) {
@@ -644,21 +575,29 @@ namespace Source.Common
 			if (index.IsEmpty)
 				return;
 
-			MemberInfo[] memberInfos = buildingTargetType!.GetMember(new string(index), BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic);
-			foreach (var member in memberInfos) {
-				switch (member) {
-					case FieldInfo field:
-						Members.Add(field);
-						buildingTargetType = field.FieldType;
-						return;
-					case PropertyInfo prop:
-						Members.Add(prop);
-						buildingTargetType = prop.PropertyType;
-						return;
+			string name = new(index);
+			for (Type? type = buildingTargetType; type != null; type = type.BaseType) {
+				FieldInfo? storage = type.GetField("__nv_" + name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+				if (storage != null) {
+					Members.Add(storage);
+					buildingTargetType = storage.FieldType;
+					return;
+				}
+				foreach (var member in type.GetMember(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)) {
+					switch (member) {
+						case FieldInfo field:
+							Members.Add(field);
+							buildingTargetType = field.FieldType;
+							return;
+						case PropertyInfo prop:
+							Members.Add(prop);
+							buildingTargetType = prop.PropertyType;
+							return;
+					}
 				}
 			}
 
-			throw new KeyNotFoundException($"Cannot find an appropriate member named '{index}' in the current target type '{buildingTargetType.Name}'. Ensure naming is correct.");
+			throw new KeyNotFoundException($"Cannot find an appropriate member named '{index}' in the current target type '{buildingTargetType!.Name}'. Ensure naming is correct.");
 		}
 		public DynamicAccessor(Type targetType, ReadOnlySpan<char> expression, ReadOnlySpan<char> name) : this(targetType, expression) {
 			Name = new(name);
@@ -884,10 +823,8 @@ namespace Source
 		public static DynamicAccessor OF_NAMED(ReadOnlySpan<char> expression, ReadOnlySpan<char> name) => new(typeof(T), expression, name) { NetworkNameOverride = new(name) };
 		public static DynamicArrayAccessor OF_ARRAY(ReadOnlySpan<char> expression) => new(typeof(T), expression);
 		public static DynamicArrayIndexAccessor OF_ARRAYINDEX(ReadOnlySpan<char> expression, int index = 0) => new(OF_ARRAY(expression), index);
-		public static DynamicArrayIndexAccessor OF_SENDINFO_ARRAY(ReadOnlySpan<char> expression) {
-			DynamicArrayAccessor array = OF_ARRAY(expression);
-			return new(array, 0) { NetworkNameOverride = array.NetworkName };
-		}
+		public static DynamicArrayIndexAccessor OF_SENDINFO_ARRAY(ReadOnlySpan<char> expression) => OF_SENDINFO_ARRAY(OF_ARRAY(expression));
+		public static DynamicArrayIndexAccessor OF_SENDINFO_ARRAY(DynamicArrayAccessor array) => new(array, 0) { NetworkNameOverride = array.NetworkName };
 		public static DynamicArrayIndexAccessor OF_VECTORELEM(ReadOnlySpan<char> expression, int index) => new(OF_ARRAY(expression), index, isVectorElem: true);
 		public static DynamicArrayAccessor OF_LIST(ReadOnlySpan<char> expression, int max) => new(typeof(T), expression, isList: max);
 	}

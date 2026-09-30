@@ -27,12 +27,12 @@ public partial class BaseGrenade : BaseProjectile
 			RecvPropVector(FIELD.OF(nameof(Velocity))),
 			RecvPropInt(FIELD.OF(nameof(Flags)))
 #else
-			SendPropFloat(FIELD.OF(nameof(Damage)), 10, PropFlags.RoundDown, 0, 256),
-			SendPropFloat(FIELD.OF(nameof(DmgRadius)), 10, PropFlags.RoundDown, 0, 1024),
-			SendPropBool(FIELD.OF(nameof(IsLive))),
-			SendPropEHandle(FIELD.OF(nameof(Thrower))),
+			SendPropFloat(NetworkVarFields.Damage, 10, PropFlags.RoundDown, 0, 256),
+			SendPropFloat(NetworkVarFields.DmgRadius, 10, PropFlags.RoundDown, 0, 1024),
+			SendPropBool(NetworkVarFields.IsLive),
+			SendPropEHandle(BaseGrenade.NetworkVarFields.Thrower),
 			SendPropVector(FIELD.OF(nameof(Velocity)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(Flags)), 16, PropFlags.Unsigned)
+			SendPropInt(NetworkVarFields.Flags, 16, PropFlags.Unsigned)
 #endif
 		]);
 #if CLIENT_DLL
@@ -41,14 +41,14 @@ public partial class BaseGrenade : BaseProjectile
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BaseGrenade);
 #endif
 	[NetworkName("m_flDamage")]
-	public float Damage;
+	[NetworkVar] public partial float Damage { get; set; }
 	[NetworkName("m_DmgRadius")]
-	public float DmgRadius;
+	[NetworkVar] public partial float DmgRadius { get; set; }
 	[NetworkName("m_bIsLive")]
-	public bool IsLive;
+	[NetworkVar] public partial bool IsLive { get; set; }
 	[NetworkName("m_hThrower")]
-	public EHANDLE Thrower = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Thrower { get; }
 	[NetworkName("m_fFlags")]
-	public int Flags;
+	[NetworkVar] public partial int Flags { get; set; }
 }
 #endif

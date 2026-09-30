@@ -22,12 +22,12 @@ public static class TeamGlobals
 }
 
 [NetworkName("CTeam")]
-public class Team : BaseEntity
+public partial class Team : BaseEntity
 {
 	public static readonly SendTable DT_Team = new([
 		SendPropInt(FIELD.OF(nameof(TeamNum)), 5),
-		SendPropInt(FIELD.OF(nameof(Score)), 0),
-		SendPropInt(FIELD.OF(nameof(RoundsWon)), 8),
+		SendPropInt(NetworkVarFields.Score, 0),
+		SendPropInt(NetworkVarFields.RoundsWon, 8),
 		SendPropString(FIELD.OF(nameof(Teamname))),
 
 		SendPropInt("player_array_element", 10, PropFlags.Unsigned, SendProxy_PlayerList, 4),
@@ -65,9 +65,9 @@ public class Team : BaseEntity
 	[NetworkName("m_szTeamname")]
 	public InlineArray32<char> Teamname;
 	[NetworkName("m_iScore")]
-	public int Score;
+	[NetworkVar] public partial int Score { get; set; }
 	[NetworkName("m_iRoundsWon")]
-	public int RoundsWon;
+	[NetworkVar] public partial int RoundsWon { get; set; }
 	public int Deaths;
 	public int LastSpawn;
 	[NetworkName("m_iTeamNum")]

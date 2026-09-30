@@ -5,16 +5,16 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvScreenEffect>;
 [NetworkName("CEnvScreenEffect")]
-public class EnvScreenEffect : BaseEntity
+public partial class EnvScreenEffect : BaseEntity
 {
 	public static readonly SendTable DT_EnvScreenEffect = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(Duration)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Type)), 12, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.Duration, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Type, 12, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvScreenEffect);
 
 	[NetworkName("m_flDuration")]
-	public float Duration;
+	[NetworkVar] public partial float Duration { get; set; }
 	[NetworkName("m_nType")]
-	public int Type;
+	[NetworkVar] public partial int Type { get; set; }
 }

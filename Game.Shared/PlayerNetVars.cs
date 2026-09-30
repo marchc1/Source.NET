@@ -10,57 +10,57 @@ public static class PlayerNetVars
 
 }
 
-public struct FogParams()
+public partial struct FogParams()
 {
 	[NetworkName("dirPrimary")]
-	public Vector3 DirPrimary;
+	[NetworkVar] public Vector3 DirPrimary;
 	[NetworkName("colorPrimary")]
-	public Color ColorPrimary;
+	[NetworkVar] public Color ColorPrimary;
 	[NetworkName("colorSecondary")]
-	public Color ColorSecondary;
+	[NetworkVar] public Color ColorSecondary;
 	[NetworkName("colorPrimaryHDR")]
-	public Color ColorPrimaryHDR;
+	[NetworkVar] public Color ColorPrimaryHDR;
 	[NetworkName("colorSecondaryHDR")]
-	public Color ColorSecondaryHDR;
+	[NetworkVar] public Color ColorSecondaryHDR;
 	[NetworkName("colorPrimaryLerpTo")]
-	public Color ColorPrimaryLerpTo;
+	[NetworkVar] public Color ColorPrimaryLerpTo;
 	[NetworkName("colorSecondaryLerpTo")]
-	public Color ColorSecondaryLerpTo;
+	[NetworkVar] public Color ColorSecondaryLerpTo;
 	[NetworkName("start")]
-	public float Start;
+	[NetworkVar] public float Start;
 	[NetworkName("end")]
-	public float End;
+	[NetworkVar] public float End;
 	[NetworkName("farz")]
-	public float FarZ;
+	[NetworkVar] public float FarZ;
 	[NetworkName("maxdensity")]
-	public float MaxDensity;
+	[NetworkVar] public float MaxDensity;
 	[NetworkName("startLerpTo")]
-	public float StartLerpTo;
+	[NetworkVar] public float StartLerpTo;
 	[NetworkName("endLerpTo")]
-	public float EndLerpTo;
+	[NetworkVar] public float EndLerpTo;
 	[NetworkName("maxdensityLerpTo")]
-	public float MaxDensityLerpTo;
+	[NetworkVar] public float MaxDensityLerpTo;
 	[NetworkName("lerptime")]
-	public TimeUnit_t LerpTime;
+	[NetworkVar] public TimeUnit_t LerpTime;
 	[NetworkName("duration")]
-	public TimeUnit_t Duration;
+	[NetworkVar] public TimeUnit_t Duration;
 	[NetworkName("enable")]
-	public bool Enable;
+	[NetworkVar] public bool Enable;
 	[NetworkName("blend")]
-	public bool Blend;
+	[NetworkVar] public bool Blend;
 	[NetworkName("radial")]
-	public bool Radial;
+	[NetworkVar] public bool Radial;
 	[NetworkName("HDRColorScale")]
-	public float HDRColorScale;
+	[NetworkVar] public float HDRColorScale;
 }
 
 
-public struct FogPlayerParams()
+public partial struct FogPlayerParams()
 {
 #if CLIENT_DLL || GAME_DLL
 	[NetworkName("m_hCtrl")]
-	public Handle<BaseEntity> Ctrl = new();
-	#endif
+	[NetworkVar] public Handle<BaseEntity> Ctrl = new();
+#endif
 	public float TransitionTime;
 
 	public Color OldColor;
@@ -74,27 +74,27 @@ public struct FogPlayerParams()
 
 
 
-public struct Sky3DParams()
+public partial struct Sky3DParams()
 {
 	[NetworkName("scale")]
-	public int Scale;
+	[NetworkVar] public int Scale;
 	[NetworkName("origin")]
-	public Vector3 Origin;
+	[NetworkVar] public Vector3 Origin;
 	[NetworkName("area")]
-	public int Area;
+	[NetworkVar] public int Area;
 
 	[NetworkName("fog")]
-	public FogParams Fog = new();
+	[NetworkVarEmbedded] public FogParams Fog = new();
 }
 
-public struct AudioParams()
+public partial struct AudioParams()
 {
 	[NetworkName("localSound")]
-	public InlineArrayNumLocalAudioSounds<Vector3> LocalSound;
+	[NetworkVar] public InlineArrayNumLocalAudioSounds<Vector3> LocalSound;
 	[NetworkName("soundscapeIndex")]
-	public int SoundscapeIndex;
+	[NetworkVar] public int SoundscapeIndex;
 	[NetworkName("localBits")]
-	public int LocalBits;
+	[NetworkVar] public int LocalBits;
 	[NetworkName("ent")]
-	public EHANDLE Ent = new();
+	[NetworkVar] public EHANDLE Ent = new();
 }

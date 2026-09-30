@@ -3,7 +3,7 @@ using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponHandGrenade>;
 [NetworkName("CWeaponHandGrenade")]
-public class WeaponHandGrenade : BaseHL1MPCombatWeapon
+public partial class WeaponHandGrenade : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -16,8 +16,8 @@ public class WeaponHandGrenade : BaseHL1MPCombatWeapon
 			RecvPropFloat(FIELD.OF(nameof(StartThrow))),
 			RecvPropFloat(FIELD.OF(nameof(ReleaseThrow))),
 #else
-			SendPropFloat(FIELD.OF(nameof(StartThrow)), 0, PropFlags.NoScale),
-			SendPropFloat(FIELD.OF(nameof(ReleaseThrow)), 0, PropFlags.NoScale),
+			SendPropFloat(NetworkVarFields.StartThrow, 0, PropFlags.NoScale),
+			SendPropFloat(NetworkVarFields.ReleaseThrow, 0, PropFlags.NoScale),
 #endif
 		]);
 #if CLIENT_DLL
@@ -26,8 +26,8 @@ public class WeaponHandGrenade : BaseHL1MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_WeaponHandGrenade);
 #endif
 	[NetworkName("m_flStartThrow")]
-	public TimeUnit_t StartThrow;
+	[NetworkVar] public partial TimeUnit_t StartThrow { get; set; }
 	[NetworkName("m_flReleaseThrow")]
-	public TimeUnit_t ReleaseThrow;
+	[NetworkVar] public partial TimeUnit_t ReleaseThrow { get; set; }
 }
 #endif

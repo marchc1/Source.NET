@@ -5,7 +5,7 @@ using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<Sprite>;
 [NetworkName("CSprite")]
-public class Sprite : BaseEntity
+public partial class Sprite : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL
@@ -28,17 +28,17 @@ public class Sprite : BaseEntity
 		RecvPropInt(FIELD.OF(nameof(Brightness))),
 		RecvPropBool(FIELD.OF(nameof(WorldSpaceScale)))
 #else
-		SendPropEHandle(FIELD.OF(nameof(AttachedToEntity))),
-		SendPropInt(FIELD.OF(nameof(Attachment)), 8),
-		SendPropFloat(FIELD.OF(nameof(ScaleTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpriteScale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(GlowProxySize)), 6, PropFlags.RoundUp, 0.0f, 64.0f),
-		SendPropFloat(FIELD.OF(nameof(HDRColorScale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(SpriteFramerate)), 8, PropFlags.RoundUp, 0, 60.0f),
-		SendPropFloat(FIELD.OF(nameof(Frame)), 20, PropFlags.RoundDown, 0, 256),
-		SendPropFloat(FIELD.OF(nameof(BrightnessTime)), 0, PropFlags.NoScale, 0, 0),
-		SendPropInt(FIELD.OF(nameof(Brightness)), 8, PropFlags.Unsigned),
-		SendPropBool(FIELD.OF(nameof(WorldSpaceScale)))
+		SendPropEHandle(Sprite.NetworkVarFields.AttachedToEntity),
+		SendPropInt(NetworkVarFields.Attachment, 8),
+		SendPropFloat(NetworkVarFields.ScaleTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpriteScale, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.GlowProxySize, 6, PropFlags.RoundUp, 0.0f, 64.0f),
+		SendPropFloat(NetworkVarFields.HDRColorScale, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpriteFramerate, 8, PropFlags.RoundUp, 0, 60.0f),
+		SendPropFloat(NetworkVarFields.Frame, 20, PropFlags.RoundDown, 0, 256),
+		SendPropFloat(NetworkVarFields.BrightnessTime, 0, PropFlags.NoScale, 0, 0),
+		SendPropInt(NetworkVarFields.Brightness, 8, PropFlags.Unsigned),
+		SendPropBool(NetworkVarFields.WorldSpaceScale)
 #endif
 		]);
 #if CLIENT_DLL
@@ -47,27 +47,27 @@ public class Sprite : BaseEntity
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Sprite);
 #endif
 	[NetworkName("m_hAttachedToEntity")]
-	public EHANDLE AttachedToEntity = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> AttachedToEntity { get; }
 	[NetworkName("m_nAttachment")]
-	public int Attachment;
+	[NetworkVar] public partial int Attachment { get; set; }
 	[NetworkName("m_flScaleTime")]
-	public TimeUnit_t ScaleTime;
+	[NetworkVar] public partial TimeUnit_t ScaleTime { get; set; }
 	[NetworkName("m_flSpriteScale")]
-	public float SpriteScale;
+	[NetworkVar] public partial float SpriteScale { get; set; }
 	[NetworkName("m_flGlowProxySize")]
-	public float GlowProxySize;
+	[NetworkVar] public partial float GlowProxySize { get; set; }
 	[NetworkName("m_flHDRColorScale")]
-	public float HDRColorScale;
+	[NetworkVar] public partial float HDRColorScale { get; set; }
 	[NetworkName("m_flSpriteFramerate")]
-	public TimeUnit_t SpriteFramerate;
+	[NetworkVar] public partial TimeUnit_t SpriteFramerate { get; set; }
 	[NetworkName("m_flFrame")]
-	public TimeUnit_t Frame;
+	[NetworkVar] public partial TimeUnit_t Frame { get; set; }
 	[NetworkName("m_flBrightnessTime")]
-	public TimeUnit_t BrightnessTime;
+	[NetworkVar] public partial TimeUnit_t BrightnessTime { get; set; }
 	[NetworkName("m_nBrightness")]
-	public int Brightness;
+	[NetworkVar] public partial int Brightness { get; set; }
 	[NetworkName("m_bWorldSpaceScale")]
-	public bool WorldSpaceScale;
+	[NetworkVar] public partial bool WorldSpaceScale { get; set; }
 }
 [NetworkName("CSpriteOriented")]
 public class SpriteOriented : Sprite

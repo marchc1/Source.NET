@@ -5,52 +5,52 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvProjectedTexture>;
 [NetworkName("CEnvProjectedTexture")]
-public class EnvProjectedTexture : BaseEntity
+public partial class EnvProjectedTexture : BaseEntity
 {
 	public static readonly SendTable DT_EnvProjectedTexture = new(DT_BaseEntity, [
-		SendPropEHandle(FIELD.OF(nameof(HTargetEntity))),
-		SendPropBool(FIELD.OF(nameof(State))),
-		SendPropFloat(FIELD.OF(nameof(LightFOV)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(EnableShadows))),
-		SendPropBool(FIELD.OF(nameof(LightOnlyTarget))),
-		SendPropBool(FIELD.OF(nameof(LightWorld))),
-		SendPropBool(FIELD.OF(nameof(CameraSpace))),
-		SendPropVector(FIELD.OF(nameof(LinearFloatLightColor)), 0, PropFlags.NoScale),
+		SendPropEHandle(EnvProjectedTexture.NetworkVarFields.HTargetEntity),
+		SendPropBool(NetworkVarFields.State),
+		SendPropFloat(NetworkVarFields.LightFOV, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.EnableShadows),
+		SendPropBool(NetworkVarFields.LightOnlyTarget),
+		SendPropBool(NetworkVarFields.LightWorld),
+		SendPropBool(NetworkVarFields.CameraSpace),
+		SendPropVector(NetworkVarFields.LinearFloatLightColor, 0, PropFlags.NoScale),
 		SendPropString(FIELD.OF(nameof(SpotlightTextureName))),
-		SendPropInt(FIELD.OF(nameof(SpotlightTextureFrame)), 14, 0),
-		SendPropFloat(FIELD.OF(nameof(NearZ)), 16, PropFlags.RoundDown, 0.0f, 500.0f),
-		SendPropFloat(FIELD.OF(nameof(FarZ)), 18, PropFlags.RoundDown, 0.0f, 56756.0f),
-		SendPropBool(FIELD.OF(nameof(ShadowQuality))),
-		SendPropInt(FIELD.OF(nameof(Style)), 8, 0),
+		SendPropInt(NetworkVarFields.SpotlightTextureFrame, 14, 0),
+		SendPropFloat(NetworkVarFields.NearZ, 16, PropFlags.RoundDown, 0.0f, 500.0f),
+		SendPropFloat(NetworkVarFields.FarZ, 18, PropFlags.RoundDown, 0.0f, 56756.0f),
+		SendPropBool(NetworkVarFields.ShadowQuality),
+		SendPropInt(NetworkVarFields.Style, 8, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvProjectedTexture);
 
 	[NetworkName("m_hTargetEntity")]
-	public EHANDLE HTargetEntity = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> HTargetEntity { get; }
 	[NetworkName("m_bState")]
-	public bool State;
+	[NetworkVar] public partial bool State { get; set; }
 	[NetworkName("m_flLightFOV")]
-	public float LightFOV;
+	[NetworkVar] public partial float LightFOV { get; set; }
 	[NetworkName("m_bEnableShadows")]
-	public bool EnableShadows;
+	[NetworkVar] public partial bool EnableShadows { get; set; }
 	[NetworkName("m_bLightOnlyTarget")]
-	public bool LightOnlyTarget;
+	[NetworkVar] public partial bool LightOnlyTarget { get; set; }
 	[NetworkName("m_bLightWorld")]
-	public bool LightWorld;
+	[NetworkVar] public partial bool LightWorld { get; set; }
 	[NetworkName("m_bCameraSpace")]
-	public bool CameraSpace;
+	[NetworkVar] public partial bool CameraSpace { get; set; }
 	[NetworkName("m_LinearFloatLightColor")]
-	public Vector3 LinearFloatLightColor;
+	[NetworkVar] public partial Vector3 LinearFloatLightColor { get; set; }
 	[NetworkName("m_SpotlightTextureName")]
 	public InlineArrayMaxPath<char> SpotlightTextureName;
 	[NetworkName("m_nSpotlightTextureFrame")]
-	public int SpotlightTextureFrame;
+	[NetworkVar] public partial int SpotlightTextureFrame { get; set; }
 	[NetworkName("m_flNearZ")]
-	public float NearZ;
+	[NetworkVar] public partial float NearZ { get; set; }
 	[NetworkName("m_flFarZ")]
-	public float FarZ;
+	[NetworkVar] public partial float FarZ { get; set; }
 	[NetworkName("m_nShadowQuality")]
-	public bool ShadowQuality;
+	[NetworkVar] public partial bool ShadowQuality { get; set; }
 	[NetworkName("m_iStyle")]
-	public int Style;
+	[NetworkVar] public partial int Style { get; set; }
 }

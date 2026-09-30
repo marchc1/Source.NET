@@ -5,43 +5,43 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SteamJet>;
 [NetworkName("CSteamJet")]
-public class SteamJet : BaseParticleEntity
+public partial class SteamJet : BaseParticleEntity
 {
 	public static readonly SendTable DT_SteamJet = new(DT_BaseParticleEntity, [
-		SendPropFloat(FIELD.OF(nameof(SpreadSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Speed)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(StartSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(EndSize)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(Rate)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(JetLength)), 0, PropFlags.NoScale),
-		SendPropBool(FIELD.OF(nameof(Emit))),
-		SendPropBool(FIELD.OF(nameof(FaceLeft))),
-		SendPropInt(FIELD.OF(nameof(Type)), 2, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(Spawnflags)), 8, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(RollSpeed)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SpreadSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Speed, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.StartSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.EndSize, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.Rate, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.JetLength, 0, PropFlags.NoScale),
+		SendPropBool(NetworkVarFields.Emit),
+		SendPropBool(NetworkVarFields.FaceLeft),
+		SendPropInt(NetworkVarFields.Type, 2, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Spawnflags, 8, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.RollSpeed, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_SteamJet);
 
 	[NetworkName("m_SpreadSpeed")]
-	public float SpreadSpeed;
+	[NetworkVar] public partial float SpreadSpeed { get; set; }
 	[NetworkName("m_Speed")]
-	public new float Speed;
+	[NetworkVar] public new partial float Speed { get; set; }
 	[NetworkName("m_StartSize")]
-	public float StartSize;
+	[NetworkVar] public partial float StartSize { get; set; }
 	[NetworkName("m_EndSize")]
-	public float EndSize;
+	[NetworkVar] public partial float EndSize { get; set; }
 	[NetworkName("m_Rate")]
-	public float Rate;
+	[NetworkVar] public partial float Rate { get; set; }
 	[NetworkName("m_JetLength")]
-	public float JetLength;
+	[NetworkVar] public partial float JetLength { get; set; }
 	[NetworkName("m_bEmit")]
-	public bool Emit;
+	[NetworkVar] public partial bool Emit { get; set; }
 	[NetworkName("m_bFaceLeft")]
-	public bool FaceLeft;
+	[NetworkVar] public partial bool FaceLeft { get; set; }
 	[NetworkName("m_nType")]
-	public int Type;
+	[NetworkVar] public partial int Type { get; set; }
 	[NetworkName("m_spawnflags")]
-	public int Spawnflags;
+	[NetworkVar] public partial int Spawnflags { get; set; }
 	[NetworkName("m_flRollSpeed")]
-	public float RollSpeed;
+	[NetworkVar] public partial float RollSpeed { get; set; }
 }

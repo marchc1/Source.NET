@@ -269,45 +269,45 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new(nameof(DT_LocalPlayerExclusive), [
 		SendPropDataTable("m_Local", FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local),
-		SendPropFloat(FIELD.OF(nameof(Friction)), 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
-		SendPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), SendPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)), 16, PropFlags.Unsigned)),
-		SendPropInt(FIELD.OF(nameof(TickBase)), -1, PropFlags.ChangesOften),
-		SendPropInt(FIELD.OF(nameof(NextThinkTick))),
+		SendPropFloat(BaseEntity.NetworkVarFields.Friction, 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
+		SendPropArray3(BaseCombatCharacter.NetworkVarFields.Ammo, SendPropInt(BaseCombatCharacter.NetworkVarFields.Ammo.AtIndex(0)!, 16, PropFlags.Unsigned)),
+		SendPropInt(NetworkVarFields.TickBase, -1, PropFlags.ChangesOften),
+		SendPropInt(BaseEntity.NetworkVarFields.NextThinkTick),
 		SendPropEHandle(FIELD.OF(nameof(LastWeapon))),
 		SendPropEHandle(FIELD.OF(nameof(GroundEntity)), PropFlags.ChangesOften),
 		SendPropVector(FIELD.OF(nameof(BaseVelocity)), 0, PropFlags.NoScale),
-		SendPropEHandle(FIELD.OF(nameof(ConstraintEntity))),
-		SendPropVector(FIELD.OF(nameof(ConstraintCenter)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ConstraintRadius)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ConstraintWidth)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ConstraintSpeedFactor)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(DeathTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(LaggedMovementValue)), 0, PropFlags.NoScale),
+		SendPropEHandle(BasePlayer.NetworkVarFields.ConstraintEntity),
+		SendPropVector(NetworkVarFields.ConstraintCenter, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ConstraintRadius, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ConstraintWidth, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ConstraintSpeedFactor, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.DeathTime, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.LaggedMovementValue, 0, PropFlags.NoScale),
 		SendPropEHandle(FIELD.OF(nameof(TonemapController))),
 		SendPropEHandle(FIELD.OF(nameof(ViewEntity))),
-		SendPropBool(FIELD.OF(nameof(DisableWorldClicking))),
+		SendPropBool(NetworkVarFields.DisableWorldClicking),
 	]);
 
 	public static readonly SendTable DT_BasePlayer = new(DT_BaseCombatCharacter, [
 		SendPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState, SendProxy_DataTableToDataTable),
-		SendPropEHandle(FIELD.OF(nameof(Vehicle))),
-		SendPropEHandle(FIELD.OF(nameof(UseEntity))),
-		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
+		SendPropEHandle(BasePlayer.NetworkVarFields.Vehicle),
+		SendPropEHandle(BasePlayer.NetworkVarFields.UseEntity),
+		SendPropInt(BaseEntity.NetworkVarFields.LifeState, 3, PropFlags.Unsigned ),
 		SendPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
-		SendPropFloat(FIELD.OF(nameof(Maxspeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
+		SendPropFloat(NetworkVarFields.Maxspeed, 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
 		SendPropInt(FIELD.OF("flags"), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
-		SendPropInt(FIELD.OF(nameof(ObserverMode)), 3, PropFlags.Unsigned),
-		SendPropEHandle(FIELD.OF(nameof(ObserverTarget))),
-		SendPropFloat(FIELD.OF(nameof(FOV)), 16, PropFlags.Unsigned, 0, 65536),
-		SendPropFloat(FIELD.OF(nameof(FOVStart)), 16, PropFlags.Unsigned, 0, 65536),
-		SendPropTime64(FIELD.OF(nameof(FOVTime))),
-		SendPropFloat(FIELD.OF(nameof(DefaultFOV)), 16, PropFlags.Unsigned, 0, 65536),
-		SendPropEHandle(FIELD.OF(nameof(ZoomOwner))),
+		SendPropInt(NetworkVarFields.ObserverMode, 3, PropFlags.Unsigned),
+		SendPropEHandle(BasePlayer.NetworkVarFields.ObserverTarget),
+		SendPropFloat(NetworkVarFields.FOV, 16, PropFlags.Unsigned, 0, 65536),
+		SendPropFloat(NetworkVarFields.FOVStart, 16, PropFlags.Unsigned, 0, 65536),
+		SendPropTime64(NetworkVarFields.FOVTime),
+		SendPropFloat(NetworkVarFields.DefaultFOV, 16, PropFlags.Unsigned, 0, 65536),
+		SendPropEHandle(BasePlayer.NetworkVarFields.ZoomOwner),
 
-		SendPropEHandle(FIELD.OF_SENDINFO_ARRAY(nameof(ViewModel))),
-		SendPropArray(FIELD.OF_ARRAY(nameof(ViewModel))),
+		SendPropEHandle(FIELD.OF_SENDINFO_ARRAY(BasePlayer.NetworkVarFields.ViewModel)),
+		SendPropArray(BasePlayer.NetworkVarFields.ViewModel),
 
-		SendPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
+		SendPropBool(NetworkVarFields.UseWeaponsInVehicle),
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
@@ -480,9 +480,9 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public readonly PlayerState pl = new();
 	[NetworkName("m_Local")]
-	public readonly PlayerLocalData Local = new();
+	[NetworkVarEmbedded] public partial PlayerLocalData Local { get; }
 
-	public ref AudioParams GetAudioParams() => ref Local.Audio;
+	public AudioParams.NetworkVar GetAudioParams() => Local.Audio;
 
 	// Used by env_soundscape_triggerable to manage when the player is touching multiple
 	// soundscape triggers simultaneously.
@@ -495,21 +495,21 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	[NetworkName("m_hVehicle")]
-	public EHANDLE Vehicle = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Vehicle { get; }
 	[NetworkName("m_hUseEntity")]
-	public EHANDLE UseEntity = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> UseEntity { get; }
 	[NetworkName("m_hObserverTarget")]
-	public EHANDLE ObserverTarget = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> ObserverTarget { get; }
 	[NetworkName("m_hZoomOwner")]
-	public EHANDLE ZoomOwner = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> ZoomOwner { get; }
 	[NetworkName("m_hConstraintEntity")]
-	public EHANDLE ConstraintEntity = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> ConstraintEntity { get; }
 	[NetworkName("m_hTonemapController")]
 	public EHANDLE TonemapController = new();
 	[NetworkName("m_hViewEntity")]
 	public EHANDLE ViewEntity = new();
 	[NetworkName("m_hViewModel")]
-	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
+	[NetworkVar] private partial NetworkArray<InlineArrayNewMaxViewmodels<Handle<BaseViewModel>>, Handle<BaseViewModel>> ViewModel { get; }
 	readonly List<Handle<BaseEntity>> SimulatedByThisPlayer = [];
 
 	public IServerVehicle? GetVehicle() => Vehicle.Get()?.GetServerVehicle();
@@ -519,39 +519,39 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	bool HasHaptics;
 	[NetworkName("m_bDisableWorldClicking")]
-	bool DisableWorldClicking;
+	[NetworkVar] public partial bool DisableWorldClicking { get; set; }
 	[NetworkName("m_flMaxspeed")]
-	float Maxspeed;
+	[NetworkVar] public partial float Maxspeed { get; set; }
 	[NetworkName("m_iObserverMode")]
-	int ObserverMode;
+	[NetworkVar] public partial int ObserverMode { get; set; }
 	[NetworkName("m_iFOV")]
-	int FOV;
+	[NetworkVar] public partial int FOV { get; set; }
 	[NetworkName("m_nTickBase")]
-	public int TickBase;
+	[NetworkVar] public partial int TickBase { get; set; }
 	[NetworkName("m_iFOVStart")]
-	int FOVStart;
+	[NetworkVar] public partial int FOVStart { get; set; }
 	[NetworkName("m_flFOVTime")]
-	TimeUnit_t FOVTime;
+	[NetworkVar] public partial TimeUnit_t FOVTime { get; set; }
 	[NetworkName("m_iDefaultFOV")]
-	float DefaultFOV;
+	[NetworkVar] public partial float DefaultFOV { get; set; }
 	[NetworkName("m_vecConstraintCenter")]
-	public Vector3 ConstraintCenter;
+	[NetworkVar] public partial Vector3 ConstraintCenter { get; set; }
 	[NetworkName("m_flConstraintRadius")]
-	public float ConstraintRadius;
+	[NetworkVar] public partial float ConstraintRadius { get; set; }
 	[NetworkName("m_flConstraintWidth")]
-	public float ConstraintWidth;
+	[NetworkVar] public partial float ConstraintWidth { get; set; }
 	[NetworkName("m_flConstraintSpeedFactor")]
-	public float ConstraintSpeedFactor;
+	[NetworkVar] public partial float ConstraintSpeedFactor { get; set; }
 	InlineArray18<char> LastPlaceName;
 	[NetworkName("m_hColorCorrectionCtrl")]
 	EHANDLE ColorCorrectionCtrl = new();
 	[NetworkName("m_bUseWeaponsInVehicle")]
-	bool UseWeaponsInVehicle;
+	[NetworkVar] public partial bool UseWeaponsInVehicle { get; set; }
 	public bool OnTarget;
 	[NetworkName("m_flDeathTime")]
-	public TimeUnit_t DeathTime;
+	[NetworkVar] public partial TimeUnit_t DeathTime { get; set; }
 	[NetworkName("m_flLaggedMovementValue")]
-	public double LaggedMovementValue;
+	[NetworkVar] public partial double LaggedMovementValue { get; set; }
 	public TimeUnit_t StepSoundTime;
 
 	InlineArray32<char> AnimExtension;
@@ -564,7 +564,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	TimeUnit_t AirFinished;
 	TimeUnit_t PainFinished;
 	public int NumCrouches;
-	public bool DuckToggled;
+	[NetworkVar] public partial bool DuckToggled { get; set; }
 	public bool PhysicsWasFrozen;
 	public bool AutoKickDisabled;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
@@ -607,7 +607,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public Vector3 VehicleViewOrigin;
 	public QAngle VehicleViewAngles;
-	public float VehicleViewFOV;
+	[NetworkVar] public partial float VehicleViewFOV { get; set; }
 	public int VehicleViewSavedFrame;
 
 	public int GetFOVForNetworking() {

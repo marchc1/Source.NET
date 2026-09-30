@@ -5,13 +5,13 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_CombineGunship>;
 [NetworkName("CNPC_CombineGunship")]
-public class NPC_CombineGunship : BaseHelicopter
+public partial class NPC_CombineGunship : BaseHelicopter
 {
 	public static readonly SendTable DT_CombineGunship = new(DT_BaseHelicopter, [
-		SendPropVector(FIELD.OF(nameof(HitPos)), 0, PropFlags.Coord),
+		SendPropVector(NetworkVarFields.HitPos, 0, PropFlags.Coord),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_CombineGunship);
 
 	[NetworkName("m_vecHitPos")]
-	public Vector3 HitPos;
+	[NetworkVar] public partial Vector3 HitPos { get; set; }
 }

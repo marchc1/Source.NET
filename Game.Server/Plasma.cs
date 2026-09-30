@@ -5,28 +5,28 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Plasma>;
 [NetworkName("CPlasma")]
-public class Plasma : BaseEntity
+public partial class Plasma : BaseEntity
 {
 	public static readonly SendTable DT_Plasma = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(Scale)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ScaleTime)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Flags)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(PlasmaModelIndex)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(PlasmaModelIndex2)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(GlowModelIndex)), 14, 0),
+		SendPropFloat(NetworkVarFields.Scale, 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ScaleTime, 0, PropFlags.NoScale),
+		SendPropInt(NetworkVarFields.Flags, 8, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.PlasmaModelIndex, 14, 0),
+		SendPropInt(NetworkVarFields.PlasmaModelIndex2, 14, 0),
+		SendPropInt(NetworkVarFields.GlowModelIndex, 14, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Plasma);
 
 	[NetworkName("m_flScale")]
-	public float Scale;
+	[NetworkVar] public partial float Scale { get; set; }
 	[NetworkName("m_flScaleTime")]
-	public float ScaleTime;
+	[NetworkVar] public partial float ScaleTime { get; set; }
 	[NetworkName("m_nFlags")]
-	public int Flags;
+	[NetworkVar] public partial int Flags { get; set; }
 	[NetworkName("m_nPlasmaModelIndex")]
-	public int PlasmaModelIndex;
+	[NetworkVar] public partial int PlasmaModelIndex { get; set; }
 	[NetworkName("m_nPlasmaModelIndex2")]
-	public int PlasmaModelIndex2;
+	[NetworkVar] public partial int PlasmaModelIndex2 { get; set; }
 	[NetworkName("m_nGlowModelIndex")]
-	public int GlowModelIndex;
+	[NetworkVar] public partial int GlowModelIndex { get; set; }
 }

@@ -8,28 +8,28 @@ using System.Numerics;
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<PropVehiclePrisonerPod>;
 [NetworkName("CPropVehiclePrisonerPod")]
-public class PropVehiclePrisonerPod : PhysicsProp
+public partial class PropVehiclePrisonerPod : PhysicsProp
 {
 	public static readonly SendTable DT_PropVehiclePrisonerPod = new(DT_PhysicsProp, [
-		SendPropEHandle(FIELD.OF(nameof(Player))),
-		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
-		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
-		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
+		SendPropEHandle(PropVehiclePrisonerPod.NetworkVarFields.Player),
+		SendPropBool(PropVehiclePrisonerPod.NetworkVarFields.EnterAnimOn),
+		SendPropBool(PropVehiclePrisonerPod.NetworkVarFields.ExitAnimOn),
+		SendPropVector(PropVehiclePrisonerPod.NetworkVarFields.EyeExitEndpoint, 0, PropFlags.Coord),
 		SendPropBool(FIELD.OF(nameof(LimitView))),
-		SendPropBool(FIELD.OF(nameof(Locked))),
+		SendPropBool(NetworkVarFields.Locked),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropVehiclePrisonerPod);
 
 	[NetworkName("m_hPlayer")]
-	public EHANDLE Player = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Player { get; }
 	[NetworkName("m_bEnterAnimOn")]
-	public bool EnterAnimOn = new();
+	[NetworkVar] public partial bool EnterAnimOn { get; set; }
 	[NetworkName("m_bExitAnimOn")]
-	public bool ExitAnimOn = new();
+	[NetworkVar] public partial bool ExitAnimOn { get; set; }
 	[NetworkName("m_vecEyeExitEndpoint")]
-	public Vector3 EyeExitEndpoint = new();
+	[NetworkVar] public partial Vector3 EyeExitEndpoint { get; set; }
 	[NetworkName("m_bLimitView")]
 	public bool LimitView = new();
 	[NetworkName("m_bLocked")]
-	public bool Locked;
+	[NetworkVar] public partial bool Locked { get; set; }
 }

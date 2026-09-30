@@ -161,7 +161,7 @@ public class DirtySpatialPartitionEntityList() : AutoGameSystem("DirtySpatialPar
 	readonly ThreadLocal<int> ReadLockCount = new();
 }
 
-public class CollisionProperty : ICollideable
+public partial class CollisionProperty : ICollideable
 {
 #if CLIENT_DLL
 	public static readonly DataMap PredMap = new(typeof(CollisionProperty), [
@@ -220,35 +220,35 @@ public class CollisionProperty : ICollideable
 #endif
 
 	[NetworkName("m_vecMinsPreScaled")]
-	public Vector3 MinsPreScaled;
+	[NetworkVar] public partial Vector3 MinsPreScaled { get; set; }
 	[NetworkName("m_vecMaxsPreScaled")]
-	public Vector3 MaxsPreScaled;
+	[NetworkVar] public partial Vector3 MaxsPreScaled { get; set; }
 	[NetworkName("m_vecMins")]
-	public Vector3 Mins;
+	[NetworkVar] public partial Vector3 Mins { get; set; }
 	[NetworkName("m_vecMaxs")]
-	public Vector3 Maxs;
+	[NetworkVar] public partial Vector3 Maxs { get; set; }
 	public Vector3 Size;
 	float Radius;
 	[NetworkName("m_usSolidFlags")]
-	public ushort SolidFlags;
+	[NetworkVar] public partial ushort SolidFlags { get; set; }
 	SpatialPartitionHandle_t Partition = PARTITION_INVALID_HANDLE;
 	[NetworkName("m_nSurroundType")]
-	byte SurroundType;
+	[NetworkVar] private partial byte SurroundType { get; set; }
 	[NetworkName("m_nSolidType")]
-	public byte SolidType;
+	[NetworkVar] public partial byte SolidType { get; set; }
 
 	[NetworkName("m_triggerBloat")]
-	public byte TriggerBloat;
+	[NetworkVar] public partial byte TriggerBloat { get; set; }
 	Vector3 SurroundingMins;
 	Vector3 SurroundingMaxs;
 	[NetworkName("m_vecSpecifiedSurroundingMinsPreScaled")]
-	Vector3 SpecifiedSurroundingMinsPreScaled;
+	[NetworkVar] private partial Vector3 SpecifiedSurroundingMinsPreScaled { get; set; }
 	[NetworkName("m_vecSpecifiedSurroundingMaxsPreScaled")]
-	Vector3 SpecifiedSurroundingMaxsPreScaled;
+	[NetworkVar] private partial Vector3 SpecifiedSurroundingMaxsPreScaled { get; set; }
 	[NetworkName("m_vecSpecifiedSurroundingMins")]
-	Vector3 SpecifiedSurroundingMins;
+	[NetworkVar] private partial Vector3 SpecifiedSurroundingMins { get; set; }
 	[NetworkName("m_vecSpecifiedSurroundingMaxs")]
-	Vector3 SpecifiedSurroundingMaxs;
+	[NetworkVar] private partial Vector3 SpecifiedSurroundingMaxs { get; set; }
 
 	public void UseTriggerBounds(bool enable, float bloat) {
 		Assert(bloat <= 127.0f);
@@ -456,8 +456,8 @@ public class CollisionProperty : ICollideable
 				break;
 
 			case SurroundingBoundsType.UseSpecifiedBounds:
-				MathLib.VectorAdd(in GetCollisionOrigin(), in SpecifiedSurroundingMins, out vecWorldMins);
-				MathLib.VectorAdd(in GetCollisionOrigin(), in SpecifiedSurroundingMaxs, out vecWorldMaxs);
+				MathLib.VectorAdd(in GetCollisionOrigin(), in __nv_SpecifiedSurroundingMins, out vecWorldMins);
+				MathLib.VectorAdd(in GetCollisionOrigin(), in __nv_SpecifiedSurroundingMaxs, out vecWorldMaxs);
 				break;
 
 			case SurroundingBoundsType.UseGameCode:
@@ -487,12 +487,12 @@ public class CollisionProperty : ICollideable
 
 	public IHandleEntity? GetEntityHandle() => Outer;
 
-	public ref readonly Vector3 OBBMinsPreScaled() => ref MinsPreScaled;
+	public ref readonly Vector3 OBBMinsPreScaled() => ref __nv_MinsPreScaled;
 
-	public ref readonly Vector3 OBBMaxsPreScaled() => ref MaxsPreScaled;
+	public ref readonly Vector3 OBBMaxsPreScaled() => ref __nv_MaxsPreScaled;
 
-	public ref readonly Vector3 OBBMins() => ref Mins;
-	public ref readonly Vector3 OBBMaxs() => ref Maxs;
+	public ref readonly Vector3 OBBMins() => ref __nv_Mins;
+	public ref readonly Vector3 OBBMaxs() => ref __nv_Maxs;
 
 	//-----------------------------------------------------------------------------
 	// Returns the center in OBB space
@@ -607,7 +607,7 @@ public class CollisionProperty : ICollideable
 			MathLib.TransformAABB(in CollisionToWorldTransform(), in entityMins, in entityMaxs, out worldMins, out worldMaxs);
 	}
 
-	public void WorldSpaceAABB(out Vector3 worldMins, out Vector3 worldMaxs) => CollisionAABBToWorldAABB(in Mins, in Maxs, out worldMins, out worldMaxs);
+	public void WorldSpaceAABB(out Vector3 worldMins, out Vector3 worldMaxs) => CollisionAABBToWorldAABB(in __nv_Mins, in __nv_Maxs, out worldMins, out worldMaxs);
 
 	public SolidType GetSolid() => (SolidType)SolidType;
 
@@ -843,10 +843,10 @@ public class CollisionProperty : ICollideable
 	public void Init(BaseEntity entity) {
 		Outer = entity;
 
-		MinsPreScaled.Init();
-		MaxsPreScaled.Init();
-		Mins.Init();
-		Maxs.Init();
+		MinsPreScaledForModify().Init();
+		MaxsPreScaledForModify().Init();
+		MinsForModify().Init();
+		MaxsForModify().Init();
 		Radius = 0.0f;
 		TriggerBloat = 0;
 		SolidFlags = 0;
@@ -855,10 +855,10 @@ public class CollisionProperty : ICollideable
 		SurroundType = (int)SurroundingBoundsType.UseOBBCollisionBounds;
 		SurroundingMins = vec3_origin;
 		SurroundingMaxs = vec3_origin;
-		SpecifiedSurroundingMinsPreScaled.Init();
-		SpecifiedSurroundingMaxsPreScaled.Init();
-		SpecifiedSurroundingMins.Init();
-		SpecifiedSurroundingMaxs.Init();
+		SpecifiedSurroundingMinsPreScaledForModify().Init();
+		SpecifiedSurroundingMaxsPreScaledForModify().Init();
+		SpecifiedSurroundingMinsForModify().Init();
+		SpecifiedSurroundingMaxsForModify().Init();
 	}
 
 	BaseEntity Outer = null!;
@@ -882,18 +882,18 @@ public class CollisionProperty : ICollideable
 
 #else
 	public static SendTable DT_CollisionProperty = new(nameof(DT_CollisionProperty), [
-		SendPropVector(FIELD.OF(nameof(MinsPreScaled)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(MaxsPreScaled)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(Mins)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(Maxs)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(SolidType)), 3, PropFlags.Unsigned, SendProxy_Solid),
-		SendPropInt(FIELD.OF(nameof(SolidFlags)), (int)Source.SolidFlags.MaxBits, PropFlags.Unsigned, SendProxy_SolidFlags),
-		SendPropInt(FIELD.OF(nameof(SurroundType)), (int)SurroundingBoundsType.BitCount, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(TriggerBloat)), 0, PropFlags.Unsigned),
-		SendPropVector(FIELD.OF(nameof(SpecifiedSurroundingMinsPreScaled)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(SpecifiedSurroundingMaxsPreScaled)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(SpecifiedSurroundingMins)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(SpecifiedSurroundingMaxs)), 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.MinsPreScaled, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.MaxsPreScaled, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.Mins, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.Maxs, 0, PropFlags.NoScale),
+		SendPropInt(CollisionProperty.NetworkVarFields.SolidType, 3, PropFlags.Unsigned, SendProxy_Solid),
+		SendPropInt(CollisionProperty.NetworkVarFields.SolidFlags, (int)Source.SolidFlags.MaxBits, PropFlags.Unsigned, SendProxy_SolidFlags),
+		SendPropInt(CollisionProperty.NetworkVarFields.SurroundType, (int)SurroundingBoundsType.BitCount, PropFlags.Unsigned),
+		SendPropInt(CollisionProperty.NetworkVarFields.TriggerBloat, 0, PropFlags.Unsigned),
+		SendPropVector(CollisionProperty.NetworkVarFields.SpecifiedSurroundingMinsPreScaled, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.SpecifiedSurroundingMaxsPreScaled, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.SpecifiedSurroundingMins, 0, PropFlags.NoScale),
+		SendPropVector(CollisionProperty.NetworkVarFields.SpecifiedSurroundingMaxs, 0, PropFlags.NoScale),
 	]);
 
 

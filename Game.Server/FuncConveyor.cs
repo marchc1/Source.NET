@@ -8,13 +8,13 @@ namespace Game.Server;
 using FIELD = FIELD<FuncConveyor>;
 
 [NetworkName("CFuncConveyor")]
-public class FuncConveyor : FuncWall
+public partial class FuncConveyor : FuncWall
 {
 	public static readonly SendTable DT_FuncConveyor = new(DT_BaseEntity, [
-		SendPropFloat(FIELD.OF(nameof(ConveyorSpeed)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.ConveyorSpeed, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_FuncConveyor);
 
 	[NetworkName("m_flConveyorSpeed")]
-	public float ConveyorSpeed;
+	[NetworkVar] public partial float ConveyorSpeed { get; set; }
 }

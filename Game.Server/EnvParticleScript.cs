@@ -5,13 +5,13 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvParticleScript>;
 [NetworkName("CEnvParticleScript")]
-public class EnvParticleScript : BaseAnimating
+public partial class EnvParticleScript : BaseAnimating
 {
 	public static readonly SendTable DT_EnvParticleScript = new(DT_BaseAnimating, [
-		SendPropFloat(FIELD.OF(nameof(SequenceScale)), 0, PropFlags.NoScale),
+		SendPropFloat(NetworkVarFields.SequenceScale, 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_EnvParticleScript);
 
 	[NetworkName("m_flSequenceScale")]
-	public float SequenceScale;
+	[NetworkVar] public partial float SequenceScale { get; set; }
 }

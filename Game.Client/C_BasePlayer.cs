@@ -690,7 +690,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		return base.ShouldInterpolate();
 	}
 
-	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
+	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngleForModify();
 	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
 
 	public override BaseCombatWeapon? GetActiveWeapon() {

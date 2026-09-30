@@ -10,36 +10,36 @@ using FIELD = Source.FIELD<Sun>;
 
 [LinkEntityToClass("env_sun")]
 [NetworkName("CSun")]
-public class Sun : BaseEntity
+public partial class Sun : BaseEntity
 {
 	public static readonly SendTable DT_Sun = new([
-		SendPropInt(FIELD.OF(nameof(Render)), 32, PropFlags.Unsigned, SendProxy_Color32ToInt),
-		SendPropInt(FIELD.OF(nameof(Overlay)), 32, PropFlags.Unsigned, SendProxy_Color32ToInt),
-		SendPropVector(FIELD.OF(nameof(Direction)), 0, PropFlags.Normal),
-		SendPropInt(FIELD.OF(nameof(On)), 1, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(Size)), 10, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(OverlaySize)), 10, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(Material)), 32, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(OverlayMaterial)), 32, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(HDRColorScale)), 0, PropFlags.NoScale, 0.0f, 100.0f),
+		SendPropInt(NetworkVarFields.Render, 32, PropFlags.Unsigned, SendProxy_Color32ToInt),
+		SendPropInt(NetworkVarFields.Overlay, 32, PropFlags.Unsigned, SendProxy_Color32ToInt),
+		SendPropVector(NetworkVarFields.Direction, 0, PropFlags.Normal),
+		SendPropInt(NetworkVarFields.On, 1, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Size, 10, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.OverlaySize, 10, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.Material, 32, PropFlags.Unsigned),
+		SendPropInt(NetworkVarFields.OverlayMaterial, 32, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.HDRColorScale, 0, PropFlags.NoScale, 0.0f, 100.0f),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_Sun);
 
 	[NetworkName("m_clrRender")]
-	public Color Render;
+	[NetworkVar] public partial Color Render { get; set; }
 	[NetworkName("m_clrOverlay")]
-	public Color Overlay;
+	[NetworkVar] public partial Color Overlay { get; set; }
 	[NetworkName("m_vDirection")]
-	public Vector3 Direction;
+	[NetworkVar] public partial Vector3 Direction { get; set; }
 	[NetworkName("m_bOn")]
-	public bool On;
+	[NetworkVar] public partial bool On { get; set; }
 	[NetworkName("m_nSize")]
-	public int Size;
+	[NetworkVar] public partial int Size { get; set; }
 	[NetworkName("m_nOverlaySize")]
-	public int OverlaySize;
+	[NetworkVar] public partial int OverlaySize { get; set; }
 	[NetworkName("m_nMaterial")]
-	public int Material;
+	[NetworkVar] public partial int Material { get; set; }
 	[NetworkName("m_nOverlayMaterial")]
-	public int OverlayMaterial;
-	public int HDRColorScale;
+	[NetworkVar] public partial int OverlayMaterial { get; set; }
+	[NetworkVar] public partial int HDRColorScale { get; set; }
 }

@@ -6,72 +6,72 @@ namespace Game.Server;
 
 using FIELD = FIELD<EnvHeadcrabCanister>;
 
-public class EnvHeadcrabCanisterShared
+public partial class EnvHeadcrabCanisterShared
 {
 	[NetworkName("m_flFlightSpeed")]
-	public float FlightSpeed;
+	[NetworkVar] public partial float FlightSpeed { get; set; }
 	[NetworkName("m_flLaunchTime")]
-	public TimeUnit_t LaunchTime;
+	[NetworkVar] public partial TimeUnit_t LaunchTime { get; set; }
 	[NetworkName("m_vecParabolaDirection")]
-	public Vector3 ParabolaDirection;
+	[NetworkVar] public partial Vector3 ParabolaDirection { get; set; }
 	[NetworkName("m_flFlightTime")]
-	public float FlightTime;
+	[NetworkVar] public partial float FlightTime { get; set; }
 	[NetworkName("m_flWorldEnterTime")]
-	public float WorldEnterTime;
+	[NetworkVar] public partial float WorldEnterTime { get; set; }
 	[NetworkName("m_flInitialZSpeed")]
-	public float InitialZSpeed;
+	[NetworkVar] public partial float InitialZSpeed { get; set; }
 	[NetworkName("m_flZAcceleration")]
-	public float ZAcceleration;
+	[NetworkVar] public partial float ZAcceleration { get; set; }
 	[NetworkName("m_flHorizSpeed")]
-	public float HorizSpeed;
+	[NetworkVar] public partial float HorizSpeed { get; set; }
 	[NetworkName("m_bLaunchedFromWithinWorld")]
-	public bool LaunchedFromWithinWorld;
+	[NetworkVar] public partial bool LaunchedFromWithinWorld { get; set; }
 	[NetworkName("m_vecStartPosition")]
-	public Vector3 StartPosition;
+	[NetworkVar] public partial Vector3 StartPosition { get; set; }
 	[NetworkName("m_vecEnterWorldPosition")]
-	public Vector3 EnterWorldPosition;
+	[NetworkVar] public partial Vector3 EnterWorldPosition { get; set; }
 	[NetworkName("m_vecDirection")]
-	public Vector3 Direction;
+	[NetworkVar] public partial Vector3 Direction { get; set; }
 	[NetworkName("m_vecStartAngles")]
-	public Vector3 StartAngles;
+	[NetworkVar] public partial Vector3 StartAngles { get; set; }
 	[NetworkName("m_vecSkyboxOrigin")]
-	public Vector3 SkyboxOrigin;
+	[NetworkVar] public partial Vector3 SkyboxOrigin { get; set; }
 	[NetworkName("m_flSkyboxScale")]
-	public float SkyboxScale;
+	[NetworkVar] public partial float SkyboxScale { get; set; }
 	[NetworkName("m_bInSkybox")]
-	public bool InSkybox;
+	[NetworkVar] public partial bool InSkybox { get; set; }
 
 	public static readonly SendTable DT_EnvHeadcrabCanisterShared = new("DT_EnvHeadcrabCanisterShared", [
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(FlightSpeed)), 0, PropFlags.NoScale),
-		SendPropTime64(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(LaunchTime))),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(ParabolaDirection)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(FlightTime)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(WorldEnterTime)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(InitialZSpeed)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(ZAcceleration)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(HorizSpeed)), 0, PropFlags.NoScale),
-		SendPropBool(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(LaunchedFromWithinWorld))),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(StartPosition)), 0, PropFlags.NoScale),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(EnterWorldPosition)), 0, PropFlags.NoScale),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(Direction)), 0, PropFlags.NoScale),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(StartAngles)), 0, PropFlags.NoScale),
-		SendPropVector(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(SkyboxOrigin)), 0, PropFlags.NoScale),
-		SendPropFloat(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(SkyboxScale)), 0, PropFlags.NoScale),
-		SendPropBool(Source.FIELD<EnvHeadcrabCanisterShared>.OF(nameof(InSkybox))),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.FlightSpeed, 0, PropFlags.NoScale),
+		SendPropTime64(EnvHeadcrabCanisterShared.NetworkVarFields.LaunchTime),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.ParabolaDirection, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.FlightTime, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.WorldEnterTime, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.InitialZSpeed, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.ZAcceleration, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.HorizSpeed, 0, PropFlags.NoScale),
+		SendPropBool(EnvHeadcrabCanisterShared.NetworkVarFields.LaunchedFromWithinWorld),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.StartPosition, 0, PropFlags.NoScale),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.EnterWorldPosition, 0, PropFlags.NoScale),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.Direction, 0, PropFlags.NoScale),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.StartAngles, 0, PropFlags.NoScale),
+		SendPropVector(EnvHeadcrabCanisterShared.NetworkVarFields.SkyboxOrigin, 0, PropFlags.NoScale),
+		SendPropFloat(EnvHeadcrabCanisterShared.NetworkVarFields.SkyboxScale, 0, PropFlags.NoScale),
+		SendPropBool(EnvHeadcrabCanisterShared.NetworkVarFields.InSkybox),
 	]);
 }
 
 [NetworkName("CEnvHeadcrabCanister")]
-public class EnvHeadcrabCanister : BaseAnimating
+public partial class EnvHeadcrabCanister : BaseAnimating
 {
 	[NetworkName("m_Shared")]
-	public EnvHeadcrabCanisterShared Shared = new();
+	[NetworkVarEmbedded] public partial EnvHeadcrabCanisterShared Shared { get; }
 	[NetworkName("m_bLanded")]
-	public bool Landed;
+	[NetworkVar] public partial bool Landed { get; set; }
 
 	public static readonly SendTable DT_EnvHeadcrabCanister = new(DT_BaseAnimating, [
 		SendPropDataTable("m_Shared", FIELD.OF(nameof(Shared)), EnvHeadcrabCanisterShared.DT_EnvHeadcrabCanisterShared),
-		SendPropBool(FIELD.OF(nameof(Landed))),
+		SendPropBool(NetworkVarFields.Landed),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_EnvHeadcrabCanister);
 }

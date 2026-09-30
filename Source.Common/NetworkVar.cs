@@ -2,54 +2,54 @@
 
 public delegate void NetworkVarChanged<T>(ref T newValue);
 
-public struct NetworkVarBase<Type>
+public interface INetworkStateChanged
 {
-	public Type Value;
-	public NetworkVarChanged<Type>? VarChanged;
+	void NetworkStateChanged(IFieldAccessor accessor);
 }
 
-// TODO: Can we make this a source generator of some kind. It is ridiculous I have to double define the count.
-[AttributeUsage(AttributeTargets.Field)]
-public class NetworkArraySizeAttribute(int size) : Attribute{
-	public int Size => size;
-}
-
-public struct NetworkArray<Type>(int count) where Type : unmanaged
+public readonly ref struct NetworkArray<TArray, Type> where TArray : struct
 {
-	public readonly Type[] Value = new Type[count];
-	public NetworkVarChanged<Type>? VarChanged;
+	readonly Span<Type> Value;
+	readonly INetworkStateChanged? Outer;
+	readonly DynamicArrayAccessor Field;
 
-	public static implicit operator Type[](NetworkArray<Type> netArray) => netArray.Value;
+	public NetworkArray(Span<Type> value, INetworkStateChanged? outer, DynamicArrayAccessor field) {
+		Value = value;
+		Outer = outer;
+		Field = field;
+	}
 
-	public readonly ref readonly Type this[int i] => ref Get(i);
+	public ref readonly Type this[int i] => ref Get(i);
 
-	public readonly ref readonly Type Get(int i) {
-		Assert(i >= 0 && i < count);
+	public ref readonly Type Get(int i) {
+		Assert(i >= 0 && i < Value.Length);
 		return ref Value[i];
 	}
 
-	public readonly ref Type GetForModify(int i) {
-		Assert(i >= 0 && i < count);
+	public ref Type GetForModify(int i) {
+		Assert(i >= 0 && i < Value.Length);
 		NetworkStateChanged(i);
 		return ref Value[i];
 	}
 
-	public readonly unsafe void Set(int i, in Type val) {
-		Assert(i >= 0 && i < count);
-		if (memcmp(in Value[i], in val) != 0) {
+	public void Set(int i, in Type val) {
+		Assert(i >= 0 && i < Value.Length);
+		if (!EqualityComparer<Type>.Default.Equals(Value[i], val)) {
 			NetworkStateChanged(i);
 			Value[i] = val;
 		}
 	}
 
-	public readonly Type[] Base => Value;
-	public readonly int Count() => count;
+	public ReadOnlySpan<Type> Base => Value;
+	public int Count() => Value.Length;
 
-	public void Hook(NetworkVarChanged<Type> fn) => VarChanged = fn;
+	public static implicit operator ReadOnlySpan<Type>(NetworkArray<TArray, Type> netArray) => netArray.Value;
 
-	private readonly void NetworkStateChanged(int changeIndex) {
-		if (VarChanged == null)
-			return;
-		VarChanged(ref Value[changeIndex]);
-	}
+	void NetworkStateChanged(int changeIndex) => Outer?.NetworkStateChanged(Field.AtIndex(changeIndex)!);
+}
+
+public struct NetworkVarBase<Type>
+{
+	public Type Value;
+	public NetworkVarChanged<Type>? VarChanged;
 }

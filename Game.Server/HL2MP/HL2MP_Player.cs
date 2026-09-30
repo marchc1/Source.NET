@@ -19,14 +19,14 @@ using FIELD_RD = FIELD<HL2MPRagdoll>;
 public partial class HL2MP_Player : HL2_Player
 {
 	public static readonly SendTable DT_HL2MPLocalPlayerExclusive = new(nameof(DT_HL2MPLocalPlayerExclusive), [
-		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.NoScale|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
+		SendPropVector(BaseEntity.NetworkVarFields.Origin, 0, PropFlags.NoScale|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
 
 		SendPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f ),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f ),
 	]);
 
 	public static readonly SendTable DT_HL2MPNonLocalPlayerExclusive = new(nameof(DT_HL2MPNonLocalPlayerExclusive), [
-		SendPropVector(NetworkVarFields.Origin, 0, PropFlags.CoordMPLowPrecision|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
+		SendPropVector(BaseEntity.NetworkVarFields.Origin, 0, PropFlags.CoordMPLowPrecision|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),
 
 		SendPropFloat(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 0), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f),
 		SendPropAngle(FIELD.OF_VECTORELEM(nameof(AngEyeAngles), 1), 11, PropFlags.ChangesOften | PropFlags.RoundDown, 0, 360f),
@@ -50,9 +50,9 @@ public partial class HL2MP_Player : HL2_Player
 		SendPropDataTable("hl2mplocaldata", DT_HL2MPLocalPlayerExclusive, SendProxy_SendLocalDataTable ),
 		SendPropDataTable("hl2mpnonlocaldata", DT_HL2MPNonLocalPlayerExclusive, SendProxy_SendNonLocalDataTable ),
 
-		SendPropEHandle(FIELD.OF(nameof(Ragdoll))),
-		SendPropInt(FIELD.OF(nameof(SpawnInterpCounter)), 4),
-		SendPropBool(FIELD.OF(nameof(IsWalking))),
+		SendPropEHandle(HL2MP_Player.NetworkVarFields.Ragdoll),
+		SendPropInt(NetworkVarFields.SpawnInterpCounter, 4),
+		SendPropBool(NetworkVarFields.IsWalking),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_HL2MP_Player);
 
@@ -93,14 +93,14 @@ public partial class HL2MP_Player : HL2_Player
 	public int ModelType;
 
 	[NetworkName("m_angEyeAngles")]
-	public QAngle AngEyeAngles;
+	[NetworkVar] public partial QAngle AngEyeAngles { get; set; }
 	[NetworkName("m_hRagdoll")]
-	public EHANDLE Ragdoll = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Ragdoll { get; }
 	[NetworkName("m_iSpawnInterpCounter")]
-	public int SpawnInterpCounter;
+	[NetworkVar] public partial int SpawnInterpCounter { get; set; }
 	public int PlayerSoundType;
 	[NetworkName("m_fIsWalking")]
-	public bool IsWalking;
+	[NetworkVar] public partial bool IsWalking { get; set; }
 
 	public readonly HL2MPPlayerAnimState PlayerAnimState;
 
@@ -110,7 +110,7 @@ public partial class HL2MP_Player : HL2_Player
 
 	public HL2MP_Player() {
 		PlayerAnimState = HL2MPPlayerAnimState.CreateHL2MPPlayerAnimState(this);
-		AngEyeAngles.Init();
+		AngEyeAnglesForModify().Init();
 
 		base.ChangeTeam(0);
 	}
@@ -706,22 +706,22 @@ public partial class HL2MP_Player : HL2_Player
 }
 
 [NetworkName("CHL2MPRagdoll")]
-public class HL2MPRagdoll : BaseAnimatingOverlay
+public partial class HL2MPRagdoll : BaseAnimatingOverlay
 {
 	public static readonly SendTable DT_HL2MPRagdoll = new([
-		SendPropVector(FIELD_RD.OF(nameof(RagdollOrigin)), 0, PropFlags.Coord),
-		SendPropEHandle(FIELD_RD.OF(nameof(Player))),
-		SendPropInt(FIELD_RD.OF(nameof(ModelIndex)), 14),
-		SendPropInt(FIELD_RD.OF(nameof(ForceBone)), 8),
-		SendPropVector(FIELD_RD.OF(nameof(Force)), 0, PropFlags.NoScale),
-		SendPropVector(FIELD_RD.OF(nameof(RagdollVelocity)), 0, PropFlags.NoScale)
+		SendPropVector(NetworkVarFields.RagdollOrigin, 0, PropFlags.Coord),
+		SendPropEHandle(HL2MPRagdoll.NetworkVarFields.Player),
+		SendPropInt(BaseEntity.NetworkVarFields.ModelIndex, 14),
+		SendPropInt(BaseAnimating.NetworkVarFields.ForceBone, 8),
+		SendPropVector(BaseAnimating.NetworkVarFields.Force, 0, PropFlags.NoScale),
+		SendPropVector(NetworkVarFields.RagdollVelocity, 0, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_HL2MPRagdoll);
 
 	[NetworkName("m_vecRagdollOrigin")]
-	public Vector3 RagdollOrigin;
+	[NetworkVar] public partial Vector3 RagdollOrigin { get; set; }
 	[NetworkName("m_hPlayer")]
-	public EHANDLE Player = new();
+	[NetworkVar] public partial NetworkHandle<BaseEntity> Player { get; }
 	[NetworkName("m_vecRagdollVelocity")]
-	public Vector3 RagdollVelocity;
+	[NetworkVar] public partial Vector3 RagdollVelocity { get; set; }
 }
