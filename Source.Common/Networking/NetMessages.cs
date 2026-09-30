@@ -288,8 +288,28 @@ public class SVC_SendTable : NetMessage
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 	public bool NeedsDecoder;
 	public int Length;
-	public bf_read DataIn = new();
-	public bf_write DataOut = new();
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		Length = DataOut.BitsWritten;
+		buffer.WriteNetMessageType(this);
+
+		buffer.WriteOneBit(NeedsDecoder ? 1 : 0);
+		buffer.WriteShort(Length);
+		buffer.WriteBits(DataOut.GetData(), Length);
+
+		return !buffer.Overflowed;
+	}
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		NeedsDecoder = buffer.ReadOneBit() != 0;
+		Length = buffer.ReadShort();     // TODO do we have a maximum length ? check that
+
+		buffer.CopyTo(DataIn);
+
+		return buffer.SeekRelative(Length);
+	}
 };
 
 public class SVC_ClassInfo : NetMessage
@@ -580,13 +600,35 @@ public class SVC_Sounds : NetMessage
 	}
 }
 
+public enum SVC_PrefetchType : ushort
+{
+	Sound
+}
+
 public class SVC_Prefetch : NetMessage
 {
 	public SVC_Prefetch() : base(SVC.Sounds) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
 
-	public ushort Type;
+	public SVC_PrefetchType Type;
 	public ushort SoundIndex;
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong(SoundIndex, g_MaxSoundIndexBits);
+
+		return !buffer.Overflowed;
+	}
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Type = SVC_PrefetchType.Sound;
+		// if(GetNetChannel()!.GetMsgHandler().GetDemoProtoclVersion > 22)
+		// etc..
+
+		SoundIndex = (ushort)buffer.ReadUBitLong(13);
+
+		return !buffer.Overflowed;
+	}
 }
 public class SVC_BSPDecal : NetMessage
 {
@@ -694,6 +736,36 @@ public class SVC_GameEventList : NetMessage
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 }
+public class SVC_GetCvarValue : NetMessage
+{
+	public SVC_GetCvarValue() : base(SVC.GetCvarValue) { }
+
+	public QueryCvarCookie_t Cookie;
+	public ReadOnlySpan<char> CvarName {
+		get => pointNameToBuffer ? NameBuffer.SliceNullTerminatedString() : cvarName;
+		set {
+			if (pointNameToBuffer) strcpy(NameBuffer, value); else cvarName = new(value);
+		}
+	}
+
+	string? cvarName;
+	readonly char[] NameBuffer = new char[128];
+	bool pointNameToBuffer;
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Cookie = buffer.ReadSBitLong(32);
+		buffer.ReadString(NameBuffer);
+		pointNameToBuffer = true;
+		return !buffer.Overflowed;
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteSBitLong(Cookie, 32);
+		buffer.WriteString(CvarName);
+		return !buffer.Overflowed;
+	}
+}
 public class SVC_SetView : NetMessage
 {
 	public SVC_SetView() : base(SVC.SetView) { }
@@ -726,10 +798,11 @@ public class SVC_FixAngle : NetMessage
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		Relative = buffer.ReadBool();
-		Angle = new();
-		Angle.X = buffer.ReadBitAngle(16);
-		Angle.Y = buffer.ReadBitAngle(16);
-		Angle.Z = buffer.ReadBitAngle(16);
+		Angle = new() {
+			X = buffer.ReadBitAngle(16),
+			Y = buffer.ReadBitAngle(16),
+			Z = buffer.ReadBitAngle(16)
+		};
 
 		return !buffer.Overflowed;
 	}
@@ -745,6 +818,34 @@ public class SVC_FixAngle : NetMessage
 
 	public override string ToString() => $"SVC_FixAngle: {(Relative ? "relative" : "absolute")} {Angle.X}, {Angle.Y}, {Angle.Z}";
 }
+
+public class SVC_CrosshairAngle : NetMessage
+{
+	public QAngle Angle;
+	public SVC_CrosshairAngle() : base(SVC.CrosshairAngle) { }
+	public SVC_CrosshairAngle(QAngle angle) : base(SVC.CrosshairAngle) {
+		Angle = angle;
+	}
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Angle = new() {
+			X = buffer.ReadBitAngle(16),
+			Y = buffer.ReadBitAngle(16),
+			Z = buffer.ReadBitAngle(16)
+		};
+
+		return !buffer.Overflowed;
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteBitAngle(Angle.X, 16);
+		buffer.WriteBitAngle(Angle.Y, 16);
+		buffer.WriteBitAngle(Angle.Z, 16);
+		return !buffer.Overflowed;
+	}
+}
+
 public class SVC_UserMessage : NetMessage
 {
 	public SVC_UserMessage() : base(SVC.UserMessage) { }
@@ -1094,7 +1195,12 @@ public class SVC_TempEntities : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		return base.WriteToBuffer(buffer);
+		Length = DataOut.BitsWritten;
+
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)NumEntries, EventInfo.EVENT_INDEX_BITS);
+		buffer.WriteVarInt32((uint)Length);
+		return buffer.WriteBits(DataOut.GetData(), Length);
 	}
 
 	public override string ToString() {
@@ -1305,7 +1411,7 @@ public class CLC_FileMD5Check : NetMessage
 {
 	public InlineArrayMaxPath<char> PathID;
 	public InlineArrayMaxPath<char> Filename;
-	public MD5Value	MD5;
+	public MD5Value MD5;
 
 	public CLC_FileMD5Check() : base(CLC.FileMD5Check) { }
 	public override bool WriteToBuffer(bf_write buffer) {
@@ -1361,9 +1467,9 @@ public class CLC_FileMD5Check : NetMessage
 			buffer.ReadString(Filename);
 		}
 		else if ((iCode - 1) < NetFileFuncs.g_MostCommonPrefixes.Length) {
-			Span<char> szTemp= stackalloc char[MAX_PATH];
+			Span<char> szTemp = stackalloc char[MAX_PATH];
 			buffer.ReadString(szTemp);
-			sprintf(Filename,"%s%c%s").S(NetFileFuncs.g_MostCommonPrefixes[iCode - 1]).C(StrTools.CORRECT_PATH_SEPARATOR).S(szTemp);
+			sprintf(Filename, "%s%c%s").S(NetFileFuncs.g_MostCommonPrefixes[iCode - 1]).C(StrTools.CORRECT_PATH_SEPARATOR).S(szTemp);
 		}
 		else {
 			AssertMsg(false, "Invalid prefix code in CLC_FileMD5Check.");
@@ -1426,13 +1532,15 @@ public abstract class Base_CmdKeyValues(KeyValues? keyValues, byte type) : NetMe
 
 public class CLC_CmdKeyValues : Base_CmdKeyValues
 {
-	public CLC_CmdKeyValues(KeyValues? keyValues = null) : base(keyValues, CLC.CmdKeyValues) { }
+	public CLC_CmdKeyValues() : base(null, CLC.CmdKeyValues) { }
+	public CLC_CmdKeyValues(KeyValues? keyValues) : base(keyValues, CLC.CmdKeyValues) { }
 
 }
 
 public class SVC_CmdKeyValues : Base_CmdKeyValues
 {
-	public SVC_CmdKeyValues(KeyValues? keyValues = null) : base(keyValues, CLC.CmdKeyValues) { }
+	public SVC_CmdKeyValues() : base(null, CLC.CmdKeyValues) { }
+	public SVC_CmdKeyValues(KeyValues? keyValues) : base(keyValues, CLC.CmdKeyValues) { }
 }
 // CLC_SaveReplay removed?
 /*
@@ -1460,6 +1568,22 @@ public class EventInfo
 	public const int EVENT_INDEX_BITS = 8;
 	public const int EVENT_DATA_LEN_BITS = 11;
 	public const int MAX_EVENT_DATA = 192;
+}
+
+
+public class SVC_SetPause : NetMessage
+{
+	public SVC_SetPause() : base(SVC.SetPause) { }
+	public bool Paused;
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteOneBit(Paused ? 1 : 0);
+		return !buffer.Overflowed;
+	}
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Paused = buffer.ReadOneBit() != 0;
+		return !buffer.Overflowed;
+	}
 }
 
 
@@ -1620,6 +1744,7 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 
 	public override int GetLuaFileMessageBits() => 8 * (sizeof(ushort) + SHA256Value.SIZE_BYTES + LuaFile.FileContents.Length);
 }
+
 
 public class CLC_GMod_ClientToServer : BaseGModNetMessage
 {
