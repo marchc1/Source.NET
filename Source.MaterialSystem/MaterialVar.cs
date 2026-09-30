@@ -86,7 +86,7 @@ public sealed class MaterialVar : IMaterialVar
 			return "";
 		}
 
-		return Name.String();
+		return MaterialVarSymbols.String(Name);
 	}
 
 	public override IMaterial GetOwningMaterial() {
