@@ -28,6 +28,9 @@ public class C_TEPlayerDecal : C_BaseTempEntity
 	[NetworkName("m_nPlayer")]
 	public int Player;
 
+	public static readonly ConVar cl_playerspraydisable = new( "cl_playerspraydisable", "0", FCvar.ClientDLL | FCvar.Archive, "Disable player sprays." );
+
+
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		if (!EffectsClient.r_decals.GetBool())
 			return;

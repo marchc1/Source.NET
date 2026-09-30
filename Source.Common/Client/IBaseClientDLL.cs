@@ -72,12 +72,12 @@ public interface IBaseClientDLL
 	//  specifies how much additional mouse / keyboard simulation to perform.
 	void CreateMove(
 								int sequence_number,            // sequence_number of this cmd
-								float input_sample_frametime,   // Frametime for mouse input sampling
+								TimeUnit_t input_sample_frametime,   // Frametime for mouse input sampling
 								bool active);               // True if the player is active (not paused)
 
 	// If the game is running faster than the tick_interval framerate, then we do extra mouse sampling to avoid jittery input
 	//  This code path is much like the normal move creation code, except no move is created
-	void ExtraMouseSample(float frametime, bool active);
+	void ExtraMouseSample(TimeUnit_t frametime, bool active);
 
 	// Encode the delta (changes) between the CUserCmd in slot from vs the one in slot to.  The game code will have
 	//  matching logic to read the delta.
@@ -87,7 +87,7 @@ public interface IBaseClientDLL
 	void DecodeUserCmdFromBuffer(bf_read buf, int slot);
 
 	// Set up and render one or more views (e.g., rear view window, etc.).  This called into RenderView below
-	void View_Render(ref ViewRect rect);
+	void View_Render(ViewRects rect);
 
 	// Allow engine to expressly render a view (e.g., during timerefresh)
 	// See IVRenderView.h, PushViewFlags_t for nFlags values
@@ -222,4 +222,8 @@ public interface IBaseClientDLL
 	void GMOD_SignOnStateChanged(int userID, int oldState, int newState);
 	void GMOD_OnAllSoundsStoppedCL();
 #endif
+
+	// Source.NET specific methods
+	void ErrorCreatingEntity(int entityIdx, int classIdx, int serialNumber);
+	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 }

@@ -936,7 +936,7 @@ public class SendTable : IDataTableBase<SendProp>
 		HasPropsEncodedAgainstCurrentTickCount = state;
 	}
 
-	public static void WriteInfos(SendTable table, ref bf_write dataOut) {
+	public static void WriteInfos(SendTable table, bf_write dataOut) {
 		throw new NotImplementedException();
 	}
 

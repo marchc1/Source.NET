@@ -324,7 +324,7 @@ static class PackedEntities
 		byte[] buf = new byte[4096];
 		sendTbl.DataOut.StartWriting(buf, buf.Length);
 
-		SendTable.WriteInfos(table, ref sendTbl.DataOut);
+		SendTable.WriteInfos(table, sendTbl.DataOut);
 
 		sendTbl.NeedsDecoder = needDecoder;
 

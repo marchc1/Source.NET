@@ -556,18 +556,6 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		throw new NotImplementedException();
 	}
 
-	public void CreateMove(int sequence_number, float input_sample_frametime, bool active) {
-		throw new NotImplementedException();
-	}
-
-	public void ExtraMouseSample(float frametime, bool active) {
-		throw new NotImplementedException();
-	}
-
-	public void View_Render(ref ViewRect rect) {
-		throw new NotImplementedException();
-	}
-
 	public void RenderView(in ViewSetup view, ClearFlags nClearFlags, int whatToDraw) {
 		throw new NotImplementedException();
 	}
