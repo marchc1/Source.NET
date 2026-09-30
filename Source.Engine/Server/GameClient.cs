@@ -4,6 +4,7 @@ using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Filesystem;
 using Source.Common.Networking;
 
 using System.Buffers;
@@ -125,18 +126,70 @@ public class GameClient : BaseClient
 	}
 
 	protected override bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) {
-		if (msg.Cookie > 0) 
+		if (msg.Cookie > 0)
 			g_pServerPluginHandler?.OnQueryCvarValueFinished(msg.Cookie, Edict, msg.StatusCode, msg.CvarName, msg.CvarValue);
 
 		return true;
 	}
 
+	public static readonly ConVar sv_pure_kick_clients = new( "sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client." );
+	public static readonly ConVar sv_pure_trace = new( "sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file." );
+	public static readonly ConVar sv_pure_consensus = new( "sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus." );
+	public static readonly ConVar sv_pure_retiretime = new( "sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache." );
+
+
 	protected override bool ProcessFileCRCCheck(CLC_FileCRCCheck msg) {
-		return false; // todo
+		if (!sv.IsInPureServerMode())
+			return true;
+
+		Span<char> warningStr = stackalloc char[1024];
+
+		// The client may send us files we don't care about, so filter them here
+		//	if ( !sv.GetPureServerWhitelist()->GetForceMatchList()->IsFileInList( msg->m_szFilename ) )
+		//		return true;
+
+		// first check against all the other files users have sent
+		FileHash filehash = default;
+		filehash.MD5Contents = msg.MD5;
+		filehash.CRCIOSequence = msg.CRCIOs;
+		filehash.FileHashType = (FileHashType)msg.FileHashType;
+		filehash.FileLen = msg.FileFraction;
+		filehash.PackFileNumber = msg.PackFileNumber;
+		filehash.PackFileID = msg.PackFileID;
+
+		ReadOnlySpan<char> path = msg.PathID;
+		ReadOnlySpan<char> fileName = msg.Filename;
+		if (g_PureFileTracker.DoesFileMatch(path, fileName, msg.FileFraction, ref filehash, GetNetworkID())) {
+			// track successful file
+		}
+		else {
+			sprintf(warningStr, "Pure server: file [%s]\\%s does not match the server's file.").S(path).S(fileName);
+		}
+
+		// still ToDo:
+		// 1. make sure the user sends some files
+		// 2. make sure the user doesnt skip any files
+		// 3. make sure the user sends the right files...
+
+		if (warningStr[0] != '\0') {
+			if (sv_pure_kick_clients.GetInt() != 0) 
+				Disconnect(warningStr);
+			else {
+				ClientPrintf($"Warning: {warningStr}\n");
+				if (sv_pure_trace.GetInt() >= 1) 
+					Msg($"[{GetNetworkIDString()}] {warningStr.SliceNullTerminatedString()}\n");
+			}
+		}
+		else {
+			if (sv_pure_trace.GetInt() >= 2) 
+				Msg($"Pure server CRC check: client {GetClientName()} passed check for [{msg.PathID}]\\{msg.Filename}\n");
+		}
+
+		return true;
 	}
 
 	protected override bool ProcessFileMD5Check(CLC_FileMD5Check msg) {
-		return false; // todo
+		return true; // legacy message
 	}
 
 	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { } // seems to be removed?

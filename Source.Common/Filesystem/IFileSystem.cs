@@ -25,7 +25,6 @@ public enum PathGroupName
 	Downloads,
 	Fallbacks
 }
-
 public interface ISearchPath
 {
 	bool Exists(scoped ReadOnlySpan<char> path); // Returns if the file or directory exists

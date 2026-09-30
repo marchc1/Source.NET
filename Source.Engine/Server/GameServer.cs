@@ -30,6 +30,8 @@ public class GameServer : BaseServer
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
 	public readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
 
+	PureServerWhitelist? PureServerWhitelist;
+
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
@@ -41,6 +43,8 @@ public class GameServer : BaseServer
 		FullSendTables.DebugName = "FullSendTables";
 		DLLInitialized = false;
 	}
+
+	public bool IsInPureServerMode() => PureServerWhitelist != null;
 
 	public override void Shutdown() {
 		g_DownloadListGenerator.OnLevelLoadEnd();
