@@ -34,6 +34,7 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static EngineRecvTable engineRecvTable { get; private set; } = null!;
 	[Dependency] public static IServerGameClients serverGameClients { get; private set; } = null!;
 	[Dependency] public static IServerGameEnts serverGameEnts { get; private set; } = null!;
 	[Dependency(Required = false)] public static ILocalize g_Localize { get; private set; } = null!;

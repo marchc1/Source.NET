@@ -265,20 +265,27 @@ public abstract class BaseClientState(
 		channel.RegisterMessage<NET_StringCmd>();
 		channel.RegisterMessage<SVC_Print>();
 		channel.RegisterMessage<SVC_ServerInfo>();
+		channel.RegisterMessage<SVC_SendTable>();
+		channel.RegisterMessage<SVC_ClassInfo>();
 		channel.RegisterMessage<SVC_CreateStringTable>();
 		channel.RegisterMessage<SVC_UpdateStringTable>();
-		channel.RegisterMessage<SVC_ClassInfo>();
-		channel.RegisterMessage<SVC_BSPDecal>();
-		channel.RegisterMessage<SVC_GameEvent>();
 		channel.RegisterMessage<SVC_VoiceInit>();
 		channel.RegisterMessage<SVC_Sounds>();
+		channel.RegisterMessage<SVC_Prefetch>();
+		channel.RegisterMessage<SVC_BSPDecal>();
+		channel.RegisterMessage<SVC_GameEvent>();
 		channel.RegisterMessage<SVC_GameEventList>();
-		channel.RegisterMessage<SVC_FixAngle>();
+		channel.RegisterMessage<SVC_GetCvarValue>();
 		channel.RegisterMessage<SVC_SetView>();
+		channel.RegisterMessage<SVC_FixAngle>();
+		channel.RegisterMessage<SVC_CrosshairAngle>();
 		channel.RegisterMessage<SVC_UserMessage>();
 		channel.RegisterMessage<SVC_EntityMessage>();
 		channel.RegisterMessage<SVC_PacketEntities>();
+		channel.RegisterMessage<SVC_VoiceData>();
 		channel.RegisterMessage<SVC_TempEntities>();
+		channel.RegisterMessage<SVC_CmdKeyValues>();
+		channel.RegisterMessage<SVC_SetPause>();
 		channel.RegisterMessage<SVC_GMod_ServerToClient>();
 	}
 	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) {
@@ -302,24 +309,32 @@ public abstract class BaseClientState(
 			case NET_SignonState msg: return ProcessSignonState(msg);
 			case NET_SetConVar msg: return ProcessSetConVar(msg);
 			case NET_StringCmd msg: return ProcessStringCmd(msg);
+
 			case SVC_Print msg: return ProcessPrint(msg);
 			case SVC_ServerInfo msg: return ProcessServerInfo(msg);
+			case SVC_SendTable msg: return ProcessSendTable(msg);
+			case SVC_ClassInfo msg: return ProcessClassInfo(msg);
 			case SVC_CreateStringTable msg: return ProcessCreateStringTable(msg);
 			case SVC_UpdateStringTable msg: return ProcessUpdateStringTable(msg);
-			case SVC_ClassInfo msg: return ProcessClassInfo(msg);
-			case SVC_BSPDecal msg: return ProcessBSPDecal(msg);
 			case SVC_VoiceInit msg: return ProcessVoiceInit(msg);
-			case SVC_VoiceData msg: return ProcessVoiceData(msg);
 			case SVC_Sounds msg: return ProcessSounds(msg);
+			case SVC_Prefetch msg: return ProcessPrefetch(msg);
+			case SVC_BSPDecal msg: return ProcessBSPDecal(msg);
 			case SVC_GameEvent msg: return ProcessGameEvent(msg);
 			case SVC_GameEventList msg: return ProcessGameEventList(msg);
-			case SVC_FixAngle msg: return ProcessFixAngle(msg);
+			case SVC_GetCvarValue msg: return ProcessGetCvarValue(msg);
 			case SVC_SetView msg: return ProcessSetView(msg);
+			case SVC_FixAngle msg: return ProcessFixAngle(msg);
+			case SVC_CrosshairAngle msg: return ProcessCrosshairAngle(msg);
 			case SVC_UserMessage msg: return ProcessUserMessage(msg);
 			case SVC_EntityMessage msg: return ProcessEntityMessage(msg);
 			case SVC_PacketEntities msg: return ProcessPacketEntities(msg);
+			case SVC_VoiceData msg: return ProcessVoiceData(msg);
 			case SVC_TempEntities msg: return ProcessTempEntities(msg);
+			case SVC_CmdKeyValues msg: return ProcessCmdKeyValues(msg);
+			case SVC_SetPause msg: return ProcessSetPause(msg);
 			case SVC_GMod_ServerToClient msg: return ProcessGMod_ServerToClient(msg);
+
 		}
 		// ignore
 		return true;
@@ -330,7 +345,78 @@ public abstract class BaseClientState(
 
 	}
 
+	public virtual bool ProcessSendTable(SVC_SendTable msg) {
+		if (!engineRecvTable.RecvClassInfos(msg.DataIn, msg.NeedsDecoder)) {
+			Host.EndGame(true, "ProcessSendTable: RecvTable_RecvClassInfos failed.\n");
+			return false;
+		}
+
+		return true;
+	}
+
+	protected virtual bool ProcessPrefetch(SVC_Prefetch msg) {
+		return true;
+	}
+	protected virtual bool ProcessCrosshairAngle(SVC_CrosshairAngle msg) {
+		return true;
+	}
+	protected virtual bool ProcessCmdKeyValues(SVC_CmdKeyValues msg) {
+		return true;
+	}
+	protected virtual bool ProcessSetPause(SVC_SetPause msg) {
+		Paused = msg.Paused;
+		return true;
+	}
+
 	protected virtual bool ProcessSounds(SVC_Sounds msg) {
+		return true;
+	}
+
+	protected virtual bool ProcessGetCvarValue(SVC_GetCvarValue msg) {
+		CLC_RespondCvarValue returnMsg = new();
+
+		returnMsg.Cookie = msg.Cookie;
+		returnMsg.CvarName = msg.CvarName;
+		returnMsg.CvarValue = "";
+		returnMsg.StatusCode = QueryCvarValueStatus.CvarNotFound;
+
+		Span<char> tempValue = stackalloc char[256];
+
+		// Does any ConCommand exist with this name?
+		ConVar? var = cvar.FindVar(msg.CvarName);
+		if (var != null) {
+			if (var.IsFlagSet(FCvar.ServerCannotQuery))
+				// The server isn't allowed to query this.
+				returnMsg.StatusCode = QueryCvarValueStatus.CvarProtected;
+			else {
+				returnMsg.StatusCode = QueryCvarValueStatus.ValueIntact;
+
+				if (var.IsFlagSet(FCvar.NeverAsString)) {
+					// The cvar won't store a string, so we have to come up with a string for it ourselves.
+					if (MathF.Abs(var.GetFloat() - var.GetInt()) < 0.001f)
+						sprintf(tempValue, "%d").D(var.GetInt());
+					else
+						sprintf(tempValue, "%f").F(var.GetFloat());
+
+					unsafe { // This is fine, CvarValue is copying value, no way afaik to make the site scoped so it knows that though...
+						returnMsg.CvarValue = tempValue;
+					}
+				}
+				else {
+					// The easy case..
+					returnMsg.CvarValue = var.GetString();
+				}
+			}
+		}
+		else {
+			if (cvar.FindCommand(msg.CvarName) != null )
+				returnMsg.StatusCode = QueryCvarValueStatus.NotACvar; // It's a command, not a cvar.
+			else
+				returnMsg.StatusCode = QueryCvarValueStatus.CvarNotFound;
+		}
+
+		// Send back.
+		NetChannel!.SendNetMsg(returnMsg);
 		return true;
 	}
 

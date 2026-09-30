@@ -599,4 +599,57 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 				recvProps[i] = recv ?? throw new NullReferenceException();
 		}
 	}
+
+	public SendTable? ReadInfos(bf_read buf, int demoProtocol){
+		SendTable pTable = new SendTable();
+
+		pTable.NetTableName = buf.ReadAndAllocateString();
+
+		// Read the property list.
+		int numProps = (int)buf.ReadUBitLong(DtCommonEng.PROPINFOBITS_NUMPROPS);
+		pTable.Props = numProps == 0 ? null : new SendProp[numProps];
+
+		for (int iProp = 0; iProp < numProps; iProp++) {
+			SendProp prop = pTable.Props![iProp] = new SendProp();
+
+			prop.Type = (SendPropType)buf.ReadUBitLong(DtCommonEng.PROPINFOBITS_TYPE);
+			/* TODO: Store this. We use field info though... may need a hack */ buf.ReadAndAllocateString();
+
+			int flagsBits = DtCommonEng.PROPINFOBITS_FLAGS;
+
+			// HACK to playback old demos. SPROP_NUMFLAGBITS was 11, now 13
+			// old nDemoProtocol was 2 
+			if (demoProtocol == 2) 
+				flagsBits = 11;
+
+			prop.SetFlags((PropFlags)buf.ReadUBitLong(flagsBits));
+
+			if (prop.Type == SendPropType.DataTable) 
+				prop.ExcludeDTName = buf.ReadAndAllocateString();
+			else {
+				if (prop.IsExcludeProp()) 
+					prop.ExcludeDTName = buf.ReadAndAllocateString();
+				else if (prop.GetPropType() == SendPropType.Array) 
+					prop.SetNumElements((int)buf.ReadUBitLong(DtCommonEng.PROPINFOBITS_NUMELEMENTS));
+				else {
+					prop.LowValue = buf.ReadBitFloat();
+					prop.HighValue = buf.ReadBitFloat();
+					prop.Bits = (int)buf.ReadUBitLong(DtCommonEng.PROPINFOBITS_NUMBITS);
+				}
+			}
+		}
+
+		return pTable;
+	}
+
+	public bool RecvClassInfos(bf_read buf, bool needsDecoder, int demoProtocol = 0){
+		SendTable? sendTable = ReadInfos(buf, demoProtocol);
+
+		if (sendTable == null)
+			return false;
+
+		bool ret = DtCommonEng.SetupReceiveTableFromSendTable(sendTable, needsDecoder);
+
+		return ret;
+	}
 }

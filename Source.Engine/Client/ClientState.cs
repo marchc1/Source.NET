@@ -606,7 +606,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
 		switch (msg.MessageType) {
 			case GModMessageType.RequestLuaFiles: {
-					g_ClientDLL!.GMod_RequestLuaFiles(NetChannel!);
+					g_ClientDLL!.GMOD_RequestLuaFiles(NetChannel!);
 				}
 				return true;
 			case GModMessageType.LuaFile: {
@@ -616,7 +616,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 					// luaFileData.Position = 0;
 					// luaFileData.SetLength(0);
 					// Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
-					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span);
+					g_ClientDLL!.GMOD_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span);
 
 				}
 				return true;
@@ -1109,6 +1109,11 @@ IModelLoader modelloader, ICommandLine commandLine,
 			p.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Client));
 		else
 			p.SetModel(null);
+	}
+
+	protected override bool ProcessCrosshairAngle(SVC_CrosshairAngle msg) {
+		g_ClientDLL!.SetCrosshairAngle(msg.Angle);
+		return true;
 	}
 
 	internal void ReadPacketEntities(EntityReadInfo u) {

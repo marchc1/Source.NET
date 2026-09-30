@@ -43,13 +43,18 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<NET_SetConVar>();
 		channel.RegisterMessage<NET_SignonState>();
 
-		channel.RegisterMessage<CLC_ClientInfo>();
-		channel.RegisterMessage<CLC_Move>();
-		channel.RegisterMessage<CLC_BaselineAck>();
-		channel.RegisterMessage<CLC_ListenEvents>();
 		channel.RegisterMessage<CLC_VoiceData>();
+		channel.RegisterMessage<CLC_Move>();
+		channel.RegisterMessage<CLC_ListenEvents>();
+		channel.RegisterMessage<CLC_ClientInfo>();
+		channel.RegisterMessage<CLC_BaselineAck>();
+		channel.RegisterMessage<CLC_RespondCvarValue>();
+		channel.RegisterMessage<CLC_FileCRCCheck>();
+		channel.RegisterMessage<CLC_FileMD5Check>();
+		channel.RegisterMessage<CLC_CmdKeyValues>();
 		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
+
 	public virtual bool IgnoreTempEntity(EventInfo evnt) { return false; }
 	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) { }
 	public virtual void ConnectionCrashed(ReadOnlySpan<char> reason) { }
@@ -69,16 +74,17 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case NET_StringCmd m: return ProcessStringCmd(m);
 			case NET_SetConVar m: return ProcessSetConVar(m);
 			case NET_SignonState m: return ProcessSignonState(m);
-			case CLC_ClientInfo m: return ProcessClientInfo(m);
-			case CLC_Move m: return ProcessMove(m);
-			case CLC_RespondCvarValue m: return ProcessRespondCvarValue(m);
-			case CLC_FileCRCCheck m: return ProcessFileCRCCheck(m);
-			case CLC_FileMD5Check m: return ProcessFileMD5Check(m);
-			case CLC_CmdKeyValues m: return ProcessCmdKeyValues(m);
-			case CLC_BaselineAck m: return ProcessBaselineAck(m);
-			case CLC_ListenEvents m: return ProcessListenEvents(m);
-			case CLC_VoiceData m: return ProcessVoiceData(m);
-			case CLC_GMod_ClientToServer m: return ProcessGMod_ClientToServer(m);
+
+			case CLC_VoiceData msg: return ProcessVoiceData(msg);
+			case CLC_Move msg: return ProcessMove(msg);
+			case CLC_ListenEvents msg: return ProcessListenEvents(msg);
+			case CLC_ClientInfo msg: return ProcessClientInfo(msg);
+			case CLC_BaselineAck msg: return ProcessBaselineAck(msg);
+			case CLC_RespondCvarValue msg: return ProcessRespondCvarValue(msg);
+			case CLC_FileCRCCheck msg: return ProcessFileCRCCheck(msg);
+			case CLC_FileMD5Check msg: return ProcessFileMD5Check(msg);
+			case CLC_CmdKeyValues msg: return ProcessCmdKeyValues(msg);
+			case CLC_GMod_ClientToServer msg: return ProcessGMod_ClientToServer(msg);
 		}
 		return false;
 	}

@@ -14,6 +14,15 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL
 , ICommandLine CommandLine)
 {
 
+	public const int PROPINFOBITS_NUMPROPS = 10;
+	public const int PROPINFOBITS_TYPE = 5;
+	public const int PROPINFOBITS_FLAGS = DtCommon.SPROP_NUMFLAGBITS_NETWORKED;
+	public const int PROPINFOBITS_STRINGBUFFERLEN = 10;
+	public const int PROPINFOBITS_NUMBITS = 7;
+	public const int PROPINFOBITS_RIGHTSHIFT = 6;
+	public const int PROPINFOBITS_NUMELEMENTS = 10;
+
+
 #if SWDS
 	public readonly IBaseClientDLL clientDLL = null!;
 #endif
@@ -61,7 +70,7 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL
 		return RecvTables.FirstOrDefault(x => x.GetName().Equals(name, StringComparison.OrdinalIgnoreCase));
 	}
 
-	private bool SetupReceiveTableFromSendTable(SendTable sendTable, bool needsDecoder) {
+	public bool SetupReceiveTableFromSendTable(SendTable sendTable, bool needsDecoder) {
 		ClientSendTable clientSendTable = new ClientSendTable();
 		SendTable table = clientSendTable.SendTable;
 		ClientSendTables.AddLast(clientSendTable);
