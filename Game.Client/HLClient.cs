@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source;
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
@@ -17,6 +18,7 @@ using Source.Common.GUI;
 using Source.Common.Hashing;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Engine;
 
@@ -499,7 +501,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	int filesRequesting_Total;
 	int filesRequesting_Recv;
 
-	public void GMod_RequestLuaFiles(INetChannel netchan) {
+	public void GMOD_RequestLuaFiles(INetChannel netchan) {
 		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
 		LUA_PREFIX.CopyTo(shaBuffer);
 
@@ -523,7 +525,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		filesRequesting_Recv = 0;
 	}
 
-	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed) {
+	public void GMOD_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed) {
 		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
 		LUA_PREFIX.CopyTo(shaBuffer);
 		sha256.ToString(shaBuffer[LUA_PREFIX.Length..]);
@@ -545,4 +547,188 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public StandardRecvProxies GetStandardRecvProxies() => StandardRecvProxies.g_StandardRecvProxies;
+
+	public bool ReplayInit() {
+		throw new NotImplementedException();
+	}
+
+	public bool ReplayPostInit() {
+		throw new NotImplementedException();
+	}
+
+	public void CreateMove(int sequence_number, float input_sample_frametime, bool active) {
+		throw new NotImplementedException();
+	}
+
+	public void ExtraMouseSample(float frametime, bool active) {
+		throw new NotImplementedException();
+	}
+
+	public void View_Render(ref ViewRect rect) {
+		throw new NotImplementedException();
+	}
+
+	public void RenderView(in ViewSetup view, ClearFlags nClearFlags, int whatToDraw) {
+		throw new NotImplementedException();
+	}
+
+	public void View_Fade(ref ScreenFade pSF) {
+		throw new NotImplementedException();
+	}
+
+	public void SetCrosshairAngle(in QAngle angle) {
+		throw new NotImplementedException();
+	}
+
+	public void ShutdownSprite(EngineSprite sprite) {
+		throw new NotImplementedException();
+	}
+
+	public int GetSpriteSize() {
+		throw new NotImplementedException();
+	}
+
+	public SaveRestoreData? SaveInit(int size) {
+		throw new NotImplementedException();
+	}
+
+	public void SaveWriteFields(SaveRestoreData data, ReadOnlySpan<char> name, ReadOnlySpan<byte> baseData, DataMap map, ReadOnlySpan<TypeDescription> fields) {
+		throw new NotImplementedException();
+	}
+
+	public void SaveReadFields(SaveRestoreData data, ReadOnlySpan<char> name, ReadOnlySpan<byte> baseData, DataMap map, ReadOnlySpan<TypeDescription> fields) {
+		throw new NotImplementedException();
+	}
+
+	public void PreSave(SaveRestoreData data) {
+		throw new NotImplementedException();
+	}
+
+	public void Save(SaveRestoreData data) {
+		throw new NotImplementedException();
+	}
+
+	public void WriteSaveHeaders(SaveRestoreData data) {
+		throw new NotImplementedException();
+	}
+
+	public void ReadRestoreHeaders(SaveRestoreData data) {
+		throw new NotImplementedException();
+	}
+
+	public void Restore(SaveRestoreData data, bool unk) {
+		throw new NotImplementedException();
+	}
+
+	public void DispatchOnRestore() {
+		throw new NotImplementedException();
+	}
+
+	public void WriteSaveGameScreenshot(ReadOnlySpan<char> pFilename) {
+		throw new NotImplementedException();
+	}
+
+	public void EmitSentenceCloseCaption(ReadOnlySpan<char> tokenstream) {
+		throw new NotImplementedException();
+	}
+
+	public void EmitCloseCaption(ReadOnlySpan<char> captionname, double duration) {
+		throw new NotImplementedException();
+	}
+
+	public bool CanRecordDemo(Span<char> errorMsg) {
+		throw new NotImplementedException();
+	}
+
+	public void OnDemoRecordStart(ReadOnlySpan<char> pDemoBaseName) {
+		throw new NotImplementedException();
+	}
+
+	public void OnDemoRecordStop() {
+		throw new NotImplementedException();
+	}
+
+	public void OnDemoPlaybackStart(ReadOnlySpan<char> pDemoBaseName) {
+		throw new NotImplementedException();
+	}
+
+	public void OnDemoPlaybackStop() {
+		throw new NotImplementedException();
+	}
+
+	public int GetScreenWidth() {
+		throw new NotImplementedException();
+	}
+
+	public int GetScreenHeight() {
+		throw new NotImplementedException();
+	}
+
+	public void WriteSaveGameScreenshotOfSize(ReadOnlySpan<char> pFilename, int width, int height, bool bCreatePowerOf2Padded = false, bool bWriteVTF = false) {
+		throw new NotImplementedException();
+	}
+
+	public bool GetPlayerView(ref ViewSetup playerView) {
+		throw new NotImplementedException();
+	}
+
+	public uint GetPresenceID(ReadOnlySpan<char> pIDName) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetPropertyIdString(uint id) {
+		throw new NotImplementedException();
+	}
+
+	public void GetPropertyDisplayString(uint id, uint value, Span<char> output, int bytes) {
+		throw new NotImplementedException();
+	}
+
+	public void InvalidateMdlCache() {
+		throw new NotImplementedException();
+	}
+
+	public void ReloadFilesInList(IFileList filesToReload) {
+		throw new NotImplementedException();
+	}
+
+	public MouthInfo? GetClientUIMouthInfo() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> TranslateEffectForVisionFilter(ReadOnlySpan<char> pchEffectType, ReadOnlySpan<char> pchEffectName) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientAdjustStartSoundParams(ref StartSoundParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_ReceiveServerMessage(bf_read buffer, int len) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_DoSnapshots() {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_VoiceVolume(uint playerID, float volume) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_OnDrawSkybox() {
+		throw new NotImplementedException();
+	}
+
+	public void IN_MouseWheelAnalog(int value) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SignOnStateChanged(int userID, int oldState, int newState) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_OnAllSoundsStoppedCL() {
+		throw new NotImplementedException();
+	}
 }
