@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<WaterBullet>;
+[LinkEntityToClass("waterbullet")]
 [NetworkName("CWaterBullet")]
 public class WaterBullet : BaseAnimating
 {

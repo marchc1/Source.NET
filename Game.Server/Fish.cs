@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Fish>;
+[LinkEntityToClass("fish")]
 [NetworkName("CFish")]
 public class Fish : BaseAnimating
 {

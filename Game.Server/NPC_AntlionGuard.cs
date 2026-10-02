@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_AntlionGuard>;
+[LinkEntityToClass("npc_antlionguard")]
 [NetworkName("CNPC_AntlionGuard")]
 public class NPC_AntlionGuard : AI_BaseNPC
 {

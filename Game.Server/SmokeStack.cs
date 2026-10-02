@@ -14,6 +14,7 @@ public struct SmokeStackLightInfo{
 	public float Intensity;
 }
 
+[LinkEntityToClass("env_smokestack")]
 [NetworkName("CSmokeStack")]
 public class SmokeStack : BaseParticleEntity
 {

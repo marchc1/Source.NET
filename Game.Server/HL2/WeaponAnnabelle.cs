@@ -1,9 +1,11 @@
+using Game.Shared;
 using Game.Shared.HL2;
 
 using Source.Common;
 
 namespace Game.Server.HL2;
 
+[LinkEntityToClass("weapon_annabelle")]
 [NetworkName("CWeaponAnnabelle")]
 public class WeaponAnnabelle : BaseHLCombatWeapon
 {

@@ -29,6 +29,7 @@ using Class =
 
 using FIELD = Source.FIELD<InfoLadderDismount>;
 
+[LinkEntityToClass("info_ladder_dismount")]
 [NetworkName("CInfoLadderDismount")]
 public partial class
 #if CLIENT_DLL

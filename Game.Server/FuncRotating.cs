@@ -8,6 +8,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncRotating>;
 
+[LinkEntityToClass("func_rotating")]
 [NetworkName("CFuncRotating")]
 public class FuncRotating : BaseEntity
 {

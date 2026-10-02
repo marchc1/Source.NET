@@ -25,6 +25,7 @@ public struct SoundscapeUpdate
 // ----------------------------------------------------------------------------- //
 
 [LinkEntityToClass("env_soundscape")]
+[LinkEntityToClass("env_sound")]
 public class EnvSoundscape : PointEntity
 {
 	public static readonly ConVar soundscape_debug = new("soundscape_debug", "0", FCvar.Cheat, "When on, draws lines to all env_soundscape entities. Green lines show the active soundscape, red lines show soundscapes that aren't in range, and white lines show soundscapes that are in range, but not the active soundscape.");

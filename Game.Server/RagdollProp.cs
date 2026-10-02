@@ -7,6 +7,8 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<RagdollProp>;
+[LinkEntityToClass("physics_prop_ragdoll")]
+[LinkEntityToClass("prop_ragdoll")]
 [NetworkName("CRagdollProp")]
 public class RagdollProp : BaseAnimating
 {

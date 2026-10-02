@@ -6,6 +6,7 @@ using Source.Common;
 using FIELD = Source.FIELD<Game.Server.NextBot.LuaNextBot>;
 namespace Game.Server.NextBot;
 
+[LinkEntityToClass("sent_nextbot")]
 [NetworkName("CLuaNextBot")]
 public class LuaNextBot : NextBotCombatCharacter
 {

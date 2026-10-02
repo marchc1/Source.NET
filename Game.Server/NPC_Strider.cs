@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_Strider>;
+[LinkEntityToClass("npc_strider")]
 [NetworkName("CNPC_Strider")]
 public class NPC_Strider : AI_BaseNPC
 {

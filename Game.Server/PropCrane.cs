@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PropCrane>;
+[LinkEntityToClass("prop_vehicle_crane")]
 [NetworkName("CPropCrane")]
 public class PropCrane : BaseAnimating
 {

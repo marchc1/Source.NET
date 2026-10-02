@@ -220,6 +220,7 @@ public struct WorldSoundInstance
 }
 
 
+[LinkEntityToClass("soundent")]
 public class SoundEnt : PointEntity
 {
 	// Construction, destruction

@@ -9,6 +9,7 @@ using Source.Common;
 namespace Game.Shared;
 
 using FIELD = Source.FIELD<BaseGrenade>;
+[LinkEntityToClass("grenade")]
 [NetworkName("CBaseGrenade")]
 public partial class BaseGrenade : BaseProjectile
 {

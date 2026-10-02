@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_Portal_FloorTurret>;
+[LinkEntityToClass("npc_portal_turret_floor")]
 [NetworkName("CNPC_Portal_FloorTurret")]
 public class NPC_Portal_FloorTurret : AI_BaseNPC
 {

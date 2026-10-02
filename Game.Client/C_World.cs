@@ -9,7 +9,6 @@ using FIELD = Source.FIELD<Game.Client.C_World>;
 
 namespace Game.Client;
 
-[LinkEntityToClass("worldspawn")]
 [NetworkName("CWorld")]
 public class C_World : C_BaseEntity
 {

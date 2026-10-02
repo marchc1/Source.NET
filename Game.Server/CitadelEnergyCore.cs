@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<CitadelEnergyCore>;
+[LinkEntityToClass("env_citadel_energy_core")]
 [NetworkName("CCitadelEnergyCore")]
 public class CitadelEnergyCore : BaseEntity
 {

@@ -2,6 +2,10 @@
 using Source.Common;
 namespace Game.Shared;
 using FIELD = Source.FIELD<BaseDoor>;
+#if !CLIENT_DLL
+[LinkEntityToClass("func_door")]
+[LinkEntityToClass("func_water")]
+#endif
 [NetworkName("CBaseDoor")]
 public partial class BaseDoor : BaseToggle
 {

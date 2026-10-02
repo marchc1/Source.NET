@@ -5,6 +5,7 @@ using Source.Common;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<AR2Explosion>;
+[LinkEntityToClass("ar2explosion")]
 [NetworkName("AR2Explosion")]
 public partial class AR2Explosion : BaseParticleEntity
 {

@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server;
 
+[LinkEntityToClass("func_monitor")]
 [NetworkName("CFuncMonitor")]
 public class FuncMonitor : FuncBrush
 {

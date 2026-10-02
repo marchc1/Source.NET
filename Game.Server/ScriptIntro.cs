@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 using System.Numerics;
@@ -6,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<ScriptIntro>;
 
+[LinkEntityToClass("script_intro")]
 [NetworkName("CScriptIntro")]
 public class ScriptIntro : BaseEntity
 {

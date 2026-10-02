@@ -2,6 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponMP5>;
+[LinkEntityToClass("weapon_mp5_hl1")]
 [NetworkName("CWeaponMP5")]
 public class WeaponMP5 : BaseHL1MPCombatWeapon
 {

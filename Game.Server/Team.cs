@@ -21,6 +21,7 @@ public static class TeamGlobals
 	}
 }
 
+[LinkEntityToClass("team_manager")]
 [NetworkName("CTeam")]
 public class Team : BaseEntity
 {

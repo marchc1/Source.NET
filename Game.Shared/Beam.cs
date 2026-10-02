@@ -24,6 +24,7 @@ public enum BeamTypes
 }
 
 
+[LinkEntityToClass("beam")]
 [NetworkName("CBeam")]
 public class
 #if CLIENT_DLL

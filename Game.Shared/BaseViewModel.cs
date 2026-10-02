@@ -19,6 +19,7 @@ using System.Numerics;
 using DEFINE = Source.DEFINE<BaseViewModel>;
 using FIELD = Source.FIELD<BaseViewModel>;
 
+[LinkEntityToClass("viewmodel")]
 [NetworkName("CBaseViewModel")]
 public partial class
 #if CLIENT_DLL

@@ -7,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<Func_LOD>;
 
+[LinkEntityToClass("func_lod")]
 [NetworkName("CFunc_LOD")]
 public class Func_LOD : BaseEntity
 {

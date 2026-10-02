@@ -32,6 +32,7 @@ public interface IMapEntityFilter
 	BaseEntity? CreateNextEntity(ReadOnlySpan<char> className);
 }
 
+[LinkEntityToClass("point_template")]
 public class PointTemplate : BaseEntity { } // TODO move this
 
 [InlineArray(EntityMapData.MAPKEY_MAXLENGTH)] public struct InlineArrayMapKeyMaxLength<T> { T first; }

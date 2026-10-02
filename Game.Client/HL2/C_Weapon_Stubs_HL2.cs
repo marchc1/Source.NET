@@ -1,3 +1,4 @@
+using Game.Shared;
 using Game.Client.HL2;
 
 using Source.Common;
@@ -5,6 +6,7 @@ using Source.Engine;
 
 namespace Game.Client.HL2;
 
+[LinkEntityToClass("cycler_weapon")]
 [NetworkName("CWeaponCycler")]
 public class C_WeaponCycler : C_BaseCombatWeapon
 {
@@ -12,6 +14,7 @@ public class C_WeaponCycler : C_BaseCombatWeapon
 	public static new readonly ClientClass ClientClass = new ClientClass(DT_WeaponCycler);
 }
 
+[LinkEntityToClass("weapon_annabelle")]
 [NetworkName("CWeaponAnnabelle")]
 public class C_WeaponAnnabelle : C_BaseHLCombatWeapon
 {
@@ -19,6 +22,7 @@ public class C_WeaponAnnabelle : C_BaseHLCombatWeapon
 	public static new readonly ClientClass ClientClass = new ClientClass(DT_WeaponAnnabelle);
 }
 
+[LinkEntityToClass("weapon_alyxgun")]
 [NetworkName("CWeaponAlyxGun")]
 public class C_WeaponAlyxGun : C_HLSelectFireMachineGun
 {
@@ -26,6 +30,7 @@ public class C_WeaponAlyxGun : C_HLSelectFireMachineGun
 	public static new readonly ClientClass ClientClass = new ClientClass(DT_WeaponAlyxGun);
 }
 
+[LinkEntityToClass("weapon_citizenpackage")]
 [NetworkName("CWeaponCitizenPackage")]
 public class C_WeaponCitizenPackage : C_BaseHLCombatWeapon
 {
@@ -33,6 +38,7 @@ public class C_WeaponCitizenPackage : C_BaseHLCombatWeapon
 	public static new readonly ClientClass ClientClass = new ClientClass(DT_WeaponCitizenPackage);
 }
 
+[LinkEntityToClass("weapon_citizensuitcase")]
 [NetworkName("CWeaponCitizenSuitcase")]
 public class C_WeaponCitizenSuitcase : C_WeaponCitizenPackage
 {
@@ -40,6 +46,7 @@ public class C_WeaponCitizenSuitcase : C_WeaponCitizenPackage
 	public static new readonly ClientClass ClientClass = new ClientClass(DT_WeaponCitizenSuitcase);
 }
 
+[LinkEntityToClass("weapon_cubemap")]
 [NetworkName("CWeaponCubemap")]
 public class C_WeaponCubemap : C_BaseCombatWeapon
 {
@@ -48,6 +55,7 @@ public class C_WeaponCubemap : C_BaseCombatWeapon
 }
 
 
+[LinkEntityToClass("weapon_oldmanharpoon")]
 [NetworkName("CWeaponOldManHarpoon")]
 public class C_WeaponOldManHarpoon : C_WeaponCitizenPackage
 {

@@ -9,6 +9,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<ParticleSystem>;
 
+[LinkEntityToClass("info_particle_system")]
 [NetworkName("CParticleSystem")]
 public class ParticleSystem : BaseEntity
 {

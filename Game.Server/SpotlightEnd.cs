@@ -8,6 +8,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<SpotlightEnd>;
 
+[LinkEntityToClass("spotlight_end")]
 [NetworkName("CSpotlightEnd")]
 public class SpotlightEnd : BaseEntity
 {

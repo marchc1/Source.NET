@@ -3,6 +3,7 @@ using Game.Shared;
 
 namespace Game.Client.HL1;
 
+[LinkEntityToClass("basehl1mpcombatweapon")]
 [NetworkName("CBaseHL1MPCombatWeapon")]
 public class C_BaseHL1MPCombatWeapon : C_BaseHL1CombatWeapon
 {

@@ -4,6 +4,8 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PropScalable>;
+[LinkEntityToClass("prop_coreball")]
+[LinkEntityToClass("prop_scalable")]
 [NetworkName("CPropScalable")]
 public class PropScalable : BaseAnimating
 {

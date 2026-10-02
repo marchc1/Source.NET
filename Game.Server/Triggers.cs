@@ -1236,9 +1236,6 @@ public class TriggerTeleport : BaseTrigger
 	}
 }
 
-[LinkEntityToClass("info_teleport_destination")]
-public class InfoTeleportDestination : PointEntity;
-
 //-----------------------------------------------------------------------------
 // Teleport Relative trigger
 //-----------------------------------------------------------------------------
@@ -1412,7 +1409,6 @@ public class TriggerGravity : BaseTrigger
 //-----------------------------------------------------------------------------
 // Purpose: Starts/stops cd audio tracks
 //-----------------------------------------------------------------------------
-[LinkEntityToClass("trigger_cdaudio")]
 public class TriggerCDAudio : BaseTrigger
 {
 	//-----------------------------------------------------------------------------
@@ -1615,9 +1611,6 @@ public class TriggerProximity : BaseTrigger
 	}
 }
 
-[LinkEntityToClass("logic_proximity")]
-public class LogicProximity : PointEntity;
-
 // ##################################################################################
 //	>> TriggerImpact
 //
@@ -1738,7 +1731,6 @@ public class ServerRagdollTrigger : BaseTrigger
 //-----------------------------------------------------------------------------
 // Purpose: A trigger that adds impulse to touching entities
 //-----------------------------------------------------------------------------
-[LinkEntityToClass("trigger_apply_impulse")]
 public class TriggerApplyImpulse : BaseTrigger
 {
 	Vector3 ImpulseDir;

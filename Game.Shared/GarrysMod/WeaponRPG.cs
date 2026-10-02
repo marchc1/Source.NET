@@ -53,6 +53,9 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 }
 
 [LinkEntityToClass("env_laserdot")]
+#if CLIENT_DLL
+[LinkEntityToClass("laser_spot")]
+#endif
 [NetworkName("CLaserDot")]
 public class LaserDot : BaseEntity
 {

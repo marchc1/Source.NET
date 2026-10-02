@@ -14,7 +14,6 @@ namespace Game.Server.HL2MP;
 using FIELD = FIELD<HL2MP_Player>;
 using FIELD_RD = FIELD<HL2MPRagdoll>;
 
-[LinkEntityToClass("player")]
 [NetworkName("CHL2MP_Player")]
 public partial class HL2MP_Player : HL2_Player
 {
@@ -705,6 +704,7 @@ public partial class HL2MP_Player : HL2_Player
 	bool CanHearAndReadChatFrom(BasePlayer player) => player != null;
 }
 
+[LinkEntityToClass("hl2mp_ragdoll")]
 [NetworkName("CHL2MPRagdoll")]
 public class HL2MPRagdoll : BaseAnimatingOverlay
 {

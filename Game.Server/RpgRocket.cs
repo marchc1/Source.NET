@@ -5,6 +5,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<RpgRocket>;
+[LinkEntityToClass("rpg_rocket")]
 [NetworkName("CRpgRocket")]
 public class RpgRocket : BaseGrenade
 {

@@ -8,6 +8,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<ShadowControl>;
 
+[LinkEntityToClass("shadow_control")]
 [NetworkName("CShadowControl")]
 public class ShadowControl : BaseEntity
 {

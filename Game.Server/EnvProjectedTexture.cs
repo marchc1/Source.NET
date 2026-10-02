@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvProjectedTexture>;
+[LinkEntityToClass("env_projectedtexture")]
 [NetworkName("CEnvProjectedTexture")]
 public class EnvProjectedTexture : BaseEntity
 {

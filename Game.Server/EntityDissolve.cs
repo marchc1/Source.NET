@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EntityDissolve>;
+[LinkEntityToClass("env_entity_dissolver")]
 [NetworkName("CEntityDissolve")]
 public class EntityDissolve : BaseEntity
 {

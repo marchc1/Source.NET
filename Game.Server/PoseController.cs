@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PoseController>;
+[LinkEntityToClass("point_posecontroller")]
 [NetworkName("CPoseController")]
 public class PoseController : BaseEntity
 {

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<FleshEffectTarget>;
+[LinkEntityToClass("point_flesh_effect_target")]
 [NetworkName("CFleshEffectTarget")]
 public class FleshEffectTarget : BaseEntity
 {

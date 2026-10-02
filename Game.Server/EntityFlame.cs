@@ -4,6 +4,8 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EntityFlame>;
+[LinkEntityToClass("entityflame")]
+[LinkEntityToClass("env_entity_igniter")]
 [NetworkName("CEntityFlame")]
 public class EntityFlame : BaseEntity
 {

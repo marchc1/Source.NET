@@ -7,6 +7,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<BreakableSurface>;
+[LinkEntityToClass("func_breakable_surf")]
 [NetworkName("CBreakableSurface")]
 public class BreakableSurface : BaseEntity
 {

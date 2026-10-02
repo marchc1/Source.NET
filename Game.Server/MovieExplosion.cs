@@ -5,6 +5,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<MovieExplosion>;
+[LinkEntityToClass("env_movieexplosion")]
 [NetworkName("MovieExplosion")]
 public class MovieExplosion : BaseParticleEntity
 {

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<RotorWashEmitter>;
+[LinkEntityToClass("env_rotorwash_emitter")]
 [NetworkName("CRotorWashEmitter")]
 public class RotorWashEmitter : BaseEntity
 {

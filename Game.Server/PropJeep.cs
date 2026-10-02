@@ -20,6 +20,8 @@ public class PropJeep : PropVehicleDriveable
 	public bool HeadlightIsOn;
 }
 
+[LinkEntityToClass("prop_vehicle_jeep")]
+[LinkEntityToClass("prop_vehicle_jeep_old")]
 [NetworkName("CPropJeepEpisodic")]
 public class PropJeepEpisodic : PropJeep
 {

@@ -81,6 +81,11 @@ public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
 [LinkEntityToClass("physics_prop")]
 [LinkEntityToClass("prop_physics")]
 [LinkEntityToClass("prop_physics_override")]
+[LinkEntityToClass("prop_physics_multiplayer")]
+[LinkEntityToClass("item_crate")]
+[LinkEntityToClass("prop_exploding_barrel")]
+[LinkEntityToClass("prop_flare")]
+[LinkEntityToClass("prop_weighted_cube")]
 [NetworkName("CPhysicsProp")]
 public class PhysicsProp : BreakableProp
 {
@@ -129,6 +134,30 @@ public class PhysicsProp : BreakableProp
 [LinkEntityToClass("dynamic_prop")]
 [LinkEntityToClass("prop_dynamic")]
 [LinkEntityToClass("prop_dynamic_override")]
+[LinkEntityToClass("asw_door")]
+[LinkEntityToClass("dod_control_point")]
+[LinkEntityToClass("env_portal_laser")]
+[LinkEntityToClass("npc_personality_core")]
+[LinkEntityToClass("npc_wheatley_boss")]
+[LinkEntityToClass("prop_button")]
+[LinkEntityToClass("prop_car_alarm")]
+[LinkEntityToClass("prop_car_glass")]
+[LinkEntityToClass("prop_dropper")]
+[LinkEntityToClass("prop_dynamic_glow")]
+[LinkEntityToClass("prop_floor_ball_button")]
+[LinkEntityToClass("prop_floor_button")]
+[LinkEntityToClass("prop_floor_cube_button")]
+[LinkEntityToClass("prop_health_cabinet")]
+[LinkEntityToClass("prop_indicator_panel")]
+[LinkEntityToClass("prop_laser_catcher")]
+[LinkEntityToClass("prop_laser_relay")]
+[LinkEntityToClass("prop_portal_stats_display")]
+[LinkEntityToClass("prop_testchamber_door")]
+[LinkEntityToClass("prop_tractor_beam")]
+[LinkEntityToClass("prop_under_button")]
+[LinkEntityToClass("prop_under_floor_button")]
+[LinkEntityToClass("prop_wall_projector")]
+[LinkEntityToClass("team_control_point")]
 [NetworkName("CDynamicProp")]
 public class DynamicProp : BreakableProp
 {
@@ -140,7 +169,6 @@ public class DynamicProp : BreakableProp
 	public bool UseHitboxesForRenderBox;
 }
 
-[LinkEntityToClass("prop_physics_multiplayer")]
 [NetworkName("CPhysicsPropMultiplayer")]
 public class PhysicsPropMultiplayer : PhysicsProp
 {
@@ -177,13 +205,17 @@ public class BasePropDoor : DynamicProp
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_BasePropDoor);
 }
 
-[LinkEntityToClass("prop_door_rotating")]
 [NetworkName("CPropDoorRotating")]
 public class PropDoorRotating : BasePropDoor
 {
 	public static readonly SendTable DT_PropDoorRotating = new(DT_BasePropDoor, []);
 	public static readonly new ServerClass ServerClass = new ServerClass(DT_PropDoorRotating);
 }
+
+[LinkEntityToClass("prop_door_rotating")]
+[LinkEntityToClass("dz_door")]
+[LinkEntityToClass("prop_door_rotating_checkpoint")]
+public class PropDoorRotatingBreakable : PropDoorRotating;
 
 public static class Props
 {

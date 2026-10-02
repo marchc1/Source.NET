@@ -16,7 +16,6 @@ using DEFINE = Source.DEFINE<Game.Client.HL2MP.C_HL2MP_Player>;
 using FIELD = FIELD<C_HL2MP_Player>;
 using FIELD_RD = FIELD<C_HL2MPRagdoll>;
 
-[LinkEntityToClass("player")]
 [NetworkName("CHL2MP_Player")]
 public partial class C_HL2MP_Player : C_BaseHLPlayer
 {

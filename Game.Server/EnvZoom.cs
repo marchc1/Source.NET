@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Game.Shared;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Game.Server;
 
+[LinkEntityToClass("env_zoom")]
 public class EnvZoom : PointEntity
 {
 	public static bool CanOverrideEnvZoomOwner(BaseEntity? zoomOwner) {

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Plasma>;
+[LinkEntityToClass("_plasma")]
 [NetworkName("CPlasma")]
 public class Plasma : BaseEntity
 {

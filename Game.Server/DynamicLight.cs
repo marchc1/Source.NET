@@ -9,6 +9,7 @@ using static Source.Common.Networking.SVC_ClassInfo;
 
 using FIELD = FIELD<DynamicLight>;
 
+[LinkEntityToClass("light_dynamic")]
 [NetworkName("CDynamicLight")]
 public class DynamicLight : BaseEntity
 {

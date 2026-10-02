@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SlideshowDisplay>;
+[LinkEntityToClass("vgui_slideshow_display")]
 [NetworkName("CSlideshowDisplay")]
 public class SlideshowDisplay : BaseEntity
 {

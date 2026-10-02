@@ -9,6 +9,7 @@ using System;
 namespace Game.Server;
 
 
+[LinkEntityToClass("func_wall")]
 public class FuncWall : BaseEntity
 {
 

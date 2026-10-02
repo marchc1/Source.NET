@@ -4,6 +4,8 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SteamJet>;
+[LinkEntityToClass("env_steam")]
+[LinkEntityToClass("env_steamjet")]
 [NetworkName("CSteamJet")]
 public class SteamJet : BaseParticleEntity
 {

@@ -30,9 +30,7 @@ public static class GMOD_GameRules_Globals
 	public static GMODGameRules GMODRules() => (GMODGameRules)g_pGameRules;
 }
 
-#if GAME_DLL
 [LinkEntityToClass("gmod_gamerules")]
-#endif
 [NetworkName("CGMODGameRulesProxy")]
 public class
 #if CLIENT_DLL
