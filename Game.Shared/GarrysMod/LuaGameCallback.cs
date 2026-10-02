@@ -30,6 +30,8 @@ public struct LuaErrorToSend()
 
 public class LuaGameCallback : ILuaGameCallback
 {
+	public static readonly LuaGameCallback g_LuaCallback = new();
+
 #if CLIENT_DLL
 	static readonly Color cMsgColor = new(255, 241, 122, 255);
 #else
@@ -244,8 +246,8 @@ public class LuaGameCallback : ILuaGameCallback
 			if (filesystem != null && filesystem.Addons() != null) {
 				found = filesystem.Addons().FindFileOwner(entry.Source, out owner);
 
-				ref LuaFile? cache = ref get.LuaShared()!.GetCache(entry.Source);
-				if (cache != null && cache.Value.Time > 1) {
+				LuaFile? cache = get.LuaShared()!.GetCache(entry.Source);
+				if (cache != null && cache.Time > 1) {
 					if (found) {
 						Warning($"Local file is overriding addon's file! {entry.Source} ({owner.Title})\n");
 						found = false;
