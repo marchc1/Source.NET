@@ -113,7 +113,7 @@ public static class DedicatedServerAddons
 		string steamCache = $"{Directory.GetCurrentDirectory()}/steam_cache";
 		Bootil.String.File.FixSlashes(ref steamCache, "/", "\\");
 
-		if (!SteamGameServerUGC.BInitWorkshopForGameServer(new DepotId_t(GetSteamInfIDVersionInfo().AppID), steamCache))
+		if (!SteamGameServerUGC.BInitWorkshopForGameServer(new DepotId_t((uint)GetSteamInfIDVersionInfo().AppID), steamCache))
 			Warning("WS: BInitWorkshopForGameServer failed!\n");
 
 		return true;
