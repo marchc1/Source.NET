@@ -17,6 +17,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Game.Lua\Game.Lua.csproj" />
+		<ProjectReference Include="..\Game.MenuSystem\Game.MenuSystem.csproj" />
 		<ProjectReference Include="..\Game.Server\Game.Server.csproj" />
 		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />

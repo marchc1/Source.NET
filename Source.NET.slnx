@@ -56,9 +56,10 @@
     <Project Path="Source.StdShader.Gl46/Source.StdShader.Gl46.csproj" />
     <Project Path="Source.StudioRender/Source.StudioRender.csproj" />
   </Folder>
-  <Folder Name="/5. Game Realms/">
+  <Folder Name="/5. Game Libraries/">
     <Project Path="Game.Client/Game.Client.csproj" />
-    <Project Path="Game.Lua/Game.Lua.csproj"/>
+    <Project Path="Game.Lua/Game.Lua.csproj" />
+    <Project Path="Game.MenuSystem/Game.MenuSystem.csproj" />
     <Project Path="Game.Server/Game.Server.csproj" />
     <Project Path="Game.ServerBrowser/Game.ServerBrowser.csproj" />
     <Project Path="Game.Shared/Game.Shared.csproj">

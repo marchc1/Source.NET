@@ -42,7 +42,7 @@ public class LuaSharedImpl : ILuaShared
 	}
 
 	public void Init(IServiceProvider services, bool unk1, IGet unk2) {
-		throw new NotImplementedException();
+
 	}
 
 	public void InvalidateCache(ReadOnlySpan<char> unk1) {
