@@ -1,6 +1,6 @@
 ﻿namespace Source.Common.GarrysMod.Lua;
 
-public enum Type
+public enum LuaType
 {
 #if GMOD_ALLOW_DEPRECATED
 	// Deprecated: Use `None` instead of `Invalid`
@@ -165,5 +165,5 @@ public static partial class LuaShared
 		"surfaceinfo",
 
 	];
-	public static ReadOnlySpan<char> GetTypeName(Type state) => TypeNames[(int)state];
+	public static string GetTypeName(LuaType state) => TypeNames[(int)state];
 }
