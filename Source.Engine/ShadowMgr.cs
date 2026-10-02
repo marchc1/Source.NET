@@ -2067,7 +2067,9 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 			EnableStencilAndScissorMasking(renderContext, flashlightInfo, doMasking);
 
+#if !SWDS
 			Render.DecalSurfaceDraw(renderContext, sortGroup);
+#endif
 		}
 
 		renderContext.SetFlashlightMode(false);

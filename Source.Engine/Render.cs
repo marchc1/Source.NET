@@ -315,7 +315,9 @@ public partial class Render(
 
 		FrameCount = 1;
 		ResetLightStyles();
+#if !SWDS
 		DecalInit();
+#endif
 		LoadSkys();
 		InitStudio();
 
