@@ -13,8 +13,10 @@ namespace Game.Lua;
 public static class SourceDllMain
 {
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
+	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static ILuaShared luashared { get; private set; } = null!;
+	[Dependency] public static ILuaConVars luaconvars { get; private set; } = null!;
 
 	public static void Link(IServiceCollection services) {
 		services.AddSingleton<ILuaConVars, LuaConVarsImpl>();

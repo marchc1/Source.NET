@@ -928,25 +928,21 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 			FixSlashes(full);
 			string fullName = new(full.SliceNullTerminatedString());
 
-			ref LuaFile? luaFile = ref luashared.LoadFile(fullName, GetPathID(), IsClient(), true);
+			LuaFile? luaFile = luashared.LoadFile(fullName, GetPathID(), IsClient(), true);
 			if (luaFile != null) {
-				LuaFile found = luaFile.Value;
-				found.Source = source.ToString();
-				luaFile = found;
+				luaFile.Source = source.ToString();
 				PushPath(fullName);
-				bool ret = ExecuteLuaFile(ref luaFile, run, showErrors, fullName, noReturns);
+				bool ret = ExecuteLuaFile(luaFile, run, showErrors, fullName, noReturns);
 				PopPath();
 				return ret;
 			}
 		}
 
-		ref LuaFile? luaFileAbsolute = ref luashared.LoadFile(fileName, GetPathID(), IsClient(), true);
+		LuaFile? luaFileAbsolute = luashared.LoadFile(fileName, GetPathID(), IsClient(), true);
 		if (luaFileAbsolute != null) {
-			LuaFile found = luaFileAbsolute.Value;
-			found.Source = source.ToString();
-			luaFileAbsolute = found;
+			luaFileAbsolute.Source = source.ToString();
 			PushPath(fileName);
-			bool ret = ExecuteLuaFile(ref luaFileAbsolute, run, showErrors, fileName, noReturns);
+			bool ret = ExecuteLuaFile(luaFileAbsolute, run, showErrors, fileName, noReturns);
 			PopPath();
 			return ret;
 		}
@@ -956,19 +952,17 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		return false;
 	}
 
-	bool ExecuteLuaFile(ref LuaFile? file, bool run, bool showErrors, ReadOnlySpan<char> path, bool noReturns) {
-		LuaFile luaFile = file!.Value;
+	bool ExecuteLuaFile(LuaFile file, bool run, bool showErrors, ReadOnlySpan<char> path, bool noReturns) {
 		if (IsClient())
-			luaFile.TimesLoadedClient++;
+			file.TimesLoadedClient++;
 		if (IsServer())
-			luaFile.TimesLoadedServer++;
-		file = luaFile;
+			file.TimesLoadedServer++;
 
-		ReadOnlySpan<char> name = luaFile.Name;
+		ReadOnlySpan<char> name = file.Name;
 		if (name.Length > 0 && name[0] == '!')
 			name = name[1..];
 
-		return RunStringEx(name, "", luaFile.Contents, run, showErrors, true, noReturns);
+		return RunStringEx(name, "", (ReadOnlySpan<byte>)file.Contents, run, showErrors, true, noReturns);
 	}
 
 	public void SetPathID(ReadOnlySpan<char> pathID) {
