@@ -1,4 +1,4 @@
-﻿using Steamworks;
+using Steamworks;
 
 namespace Source.Common.GarrysMod;
 
@@ -9,34 +9,56 @@ public static class IAddonSystem
 		public string Title;
 		public string File;
 		public string Tags;
-		public string Placeholder1;
-		public DateTime TimeUpdated;
+		public string Failure;
+		public uint TimeUpdated;
+		public uint Models;
 		public ulong WorkshopID;
-		public CSteamID Creator;
+		public ulong Creator;
 		public ulong HContentFile;
-		public ulong Size;
+		public uint Size;
 		public ulong HContentPreview;
-		public DateTime TimeAdded;
+		public uint TimeAdded;
+		public bool CanUpdate;
+		public bool Downloaded;
+		public bool Failed;
+		public bool Legacy;
+		public bool Unloaded;
 	}
 
 	public struct UGCInfo
 	{
 		public string Title;
-		public string File;
-		public string Placeholder1;
+		public string Tags;
+		public uint TimeAdded;
 		public ulong WorkshopID;
-		public CSteamID Creator;
-		public DateTime PubDate;
+		public ulong Creator;
+		public Addon.AddonType Type;
+		public bool Unloaded;
 	}
 }
 
 public static class Addon
 {
+	public enum AddonType : byte
+	{
+		Unknown,
+		Addon,
+		Dupe,
+		Save,
+		Demo,
+		ServerContent
+	}
+
 	public static class Job
 	{
-		public interface Base
+		public class Base
 		{
-			void Init(Addon.FileSystem fs);
+			protected FileSystem AddonSystem = null!;
+
+			public virtual void Start() { }
+			public virtual void Cycle() { }
+			public virtual bool Finished() => true;
+			public virtual void Init(FileSystem fs) => AddonSystem = fs;
 		}
 	}
 
@@ -44,109 +66,37 @@ public static class Addon
 	{
 		void Clear();
 		void Refresh();
-		int MountFile(ReadOnlySpan<char> unk1, List<string> unk2);
-		bool ShouldMount(ReadOnlySpan<char> unk1);
-		bool ShouldMount(ulong unk1);
-		void SetShouldMount(ReadOnlySpan<char> unk1, bool unk2);
+		bool MountFile(ReadOnlySpan<char> file, List<string>? files, ulong workshopID, ulong unk1, int unk2);
+		bool ShouldMount(ulong workshopID);
+		void SetShouldMount(ulong workshopID, bool shouldMount);
 		void Save();
-		List<IAddonSystem.Information> GetList();
-		List<IAddonSystem.UGCInfo> GetUGCList();
-		void ScanForSubscriptions(ReadOnlySpan<char> unk1);
+		LinkedList<IAddonSystem.Information> GetList();
+		LinkedList<IAddonSystem.UGCInfo> GetUGCList();
+		void ScanForSubscriptions(ReadOnlySpan<char> unk1, bool unk2);
 		void Think();
-		void SetDownloadNotify(IAddonDownloadNotification unk1);
-		int Notify();
+		void SetDownloadNotify(IAddonDownloadNotification? unk1);
+		IAddonDownloadNotification? Notify();
 		bool IsSubscribed(ulong workshopID);
-		ref readonly IAddonSystem.Information FindFileOwner(ReadOnlySpan<char> unk1);
-		void AddFile(ref IAddonSystem.Information info);
-		void ClearAllGMAs();
-		void GetSteamUGCFile(ulong workshopID, bool unk1);
-		void UnmountAddon(ulong workshopID);
+		bool FindFileOwner(ReadOnlySpan<char> unk1, out IAddonSystem.Information info);
+		void AddAddon(in IAddonSystem.Information info);
+		void ClearUnusedGMAs();
+		string GetAddonFilepath(ulong workshopID, bool unk1);
+		void UnmountAddon(ulong workshopID, ReadOnlySpan<char> reason);
 		void UnmountServerAddons();
-		void MountFloatingAddons();
+		string IsAddonValidPreInstall(in SteamUGCDetails_t details);
+		bool AllJobsFinished();
 		void Shutdown();
-		void AddFile(in SteamUGCDetails_t unk1);
-		void AddSubscription(in SteamUGCDetails_t unk1);
-		void AddJob<T>(T job) where T : Job.Base;
+		void AddJob(Job.Base job);
+		LinkedList<SteamUGCDetails_t> GetSubList();
+		void MountFloatingAddons();
+		void AddAddonFromSteamDetails(in SteamUGCDetails_t details);
+		void OnAddonSubscribed(in SteamUGCDetails_t details);
+		void AddUnloadedSubscription(ulong workshopID);
+		void EnableLoadingUnloadedAddons();
 		bool HasChanges();
 		void MarkChanged();
-		void AddonDownloaded(ref IAddonSystem.Information info);
-		void NotifyAddonFailedToDownload(ref IAddonSystem.Information info);
-		List<SteamUGCDetails_t> GetSubList();
-		void IsAddonValidPreInstall(SteamUGCDetails_t unk1);
+		void OnAddonDownloaded(in IAddonSystem.Information info);
+		void OnAddonDownloadFailed(in IAddonSystem.Information info);
 		void Load();
-	}
-
-	public static class Task
-	{
-		public interface DownloadAddons : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface DownloadFile : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface AddFloatingAddons : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface GetSubscriptions : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface GetSubscriptions_Offline : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface MountAvailable : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface NotifyStart : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface NotifyEnd : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
-
-		public interface OnSubscribed : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-			void OnReceiveFileInfo(/* todo */);
-		}
-
-		public interface UpdateTotals : Job.Base
-		{
-			void Start();
-			void Cycle();
-			void Finished();
-		}
 	}
 }

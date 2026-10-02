@@ -27,9 +27,10 @@ public class LegacyAddonSystem : LegacyAddons.System
 				ReadOnlySpan<char> path = $"addons/{filename}";
 
 				g_FullFileSystem.RelativePathToFullPath(path, "MOD", fullpath);
+				Msg($"Adding Filesystem Addon '{path}'\n");
 
-				g_FullFileSystem.AddSearchPath(fullpath, "GAME", groupName: Common.Filesystem.PathGroupName.AddonContent);
-				g_FullFileSystem.AddSearchPath(fullpath, "thirdparty", groupName: Common.Filesystem.PathGroupName.AddonContent);
+				g_FullFileSystem.AddSearchPath(fullpath.SliceNullTerminatedString(), "GAME", groupName: Common.Filesystem.PathGroupName.AddonContent);
+				g_FullFileSystem.AddSearchPath(fullpath.SliceNullTerminatedString(), "thirdparty", groupName: Common.Filesystem.PathGroupName.AddonContent);
 
 				ILegacyAddons.Information information;
 				information.Name = new(filename.SliceNullTerminatedString());

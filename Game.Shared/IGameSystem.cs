@@ -57,6 +57,12 @@ public interface IGameSystem
 		int c = s_GameSystems.Count;
 		for (i = 0; i < c; ++i) {
 			IGameSystem sys = s_GameSystems[i];
+#if CLIENT_DLL && GMOD_DLL
+			if (f == PostInitFunc) {
+				ReadOnlySpan<char> name = sys.Name();
+				get.IntroScreen()!.Update(name.IsEmpty ? "Unknown System" : name, true);
+			}
+#endif
 			f(sys);
 		}
 	}
@@ -144,7 +150,8 @@ public interface IGameSystem
 		return true;
 	}
 
-	public static void PostInitAllSystems() => InvokeMethod(static sys => sys.PostInit());
+	static readonly GameSystemFunc PostInitFunc = static sys => sys.PostInit();
+	public static void PostInitAllSystems() => InvokeMethod(PostInitFunc);
 	public static void ShutdownAllSystems() => InvokeMethodReverseOrder(static sys => sys.Shutdown());
 	public static void LevelInitPreEntityAllSystems(ReadOnlySpan<char> mapName) {
 		s_MapName = new(mapName.SliceNullTerminatedString());

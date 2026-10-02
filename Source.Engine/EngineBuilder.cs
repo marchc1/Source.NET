@@ -168,6 +168,10 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IVideoMode, VideoMode_MaterialSystem>();
 		this.AddSingleton<IRender, Render>(x => x.GetRequiredService<Render>());
 		this.AddSingleton<IRegistry, Registry>();
+#if GMOD_DLL
+		this.AddSingleton<Source.Common.GarrysMod.IGet, GarrysMod.Get>();
+		this.AddSingleton<Source.Common.GarrysMod.IResources, GarrysMod.Resources>();
+#endif
 
 		this.AddSingleton<IEngineServer, EngineServer>();
 		this.AddSingleton<IVoiceServer, VoiceServer>();

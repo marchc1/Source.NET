@@ -93,7 +93,13 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void PostInit() {
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Post Init Systems", true);
 		IGameSystem.PostInitAllSystems();
+		get.IntroScreen()!.Update("Finished!", true);
+		get.IntroScreen()!.End();
+		// todo: headtrack
+#endif
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {
@@ -119,7 +125,16 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public bool Init() {
 #if GMOD_DLL
+		get.IntroScreen()!.Start();
+		get.IntroScreen()!.Update("Start", true);
 		garrysmod.InitializeMod(services);
+
+		get.IntroScreen()!.Update("Connecting Soundemitter", true);
+		get.IntroScreen()!.Update("Initializing Convars", true);
+		get.IntroScreen()!.Update("Initializing Objects", true);
+		get.IntroScreen()!.Update("Initializing Particles", true);
+		get.IntroScreen()!.Update("Initializing VGUI", true);
+		get.IntroScreen()!.Update("Adding Game Systems", true);
 #endif
 		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(Singleton<ClientLeafSystem>());
@@ -130,10 +145,26 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		vgui = services.GetService<IVGui>();
 
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Initializing Model Manager", true);
+#endif
 		modemanager.Init();
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Initializing Viewport", true);
+#endif
 		// clientMode.InitViewport();
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Initializing HUD", true);
+#endif
 		HUD.Init();
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Initializing Clientmode", true);
+#endif
 		clientMode.Init();
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Save Restore Handlers", true);
+		get.IntroScreen()!.Update("Initialize All Game Systems", true);
+#endif
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -161,6 +192,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 			GetClientVoiceMgr().Init(g_VoiceStatusHelper, parent);
 		}
 
+#if GMOD_DLL
+		get.IntroScreen()!.Update("Initializing Serverside..", true);
+#endif
 		return true;
 	}
 

@@ -70,7 +70,9 @@ public interface IEngineVGuiInternal : IEngineVGui
 	void NotifyOfServerDisconnect();
 	void EnabledProgressBarForNextLoad();
 	void UpdateProgressBar(LevelLoadingProgress progress);
+#if !GMOD_DLL
 	void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
+#endif
 	void StartCustomProgress();
 	void FinishCustomProgress();
 	void ShowErrorMessage();

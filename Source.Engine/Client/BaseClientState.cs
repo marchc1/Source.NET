@@ -848,7 +848,8 @@ public abstract class BaseClientState(
 		}
 
 		byte[] steam3Cookie = new byte[Protocol.STEAM_KEYSIZE];
-		var result = SteamUser.GetAuthSessionTicket(steam3Cookie, Protocol.STEAM_KEYSIZE, out uint keysize);
+		SteamNetworkingIdentity snid = default;
+		var result = SteamUser.GetAuthSessionTicket(steam3Cookie, Protocol.STEAM_KEYSIZE, out uint keysize, ref snid);
 
 		msg.WriteShort((int)(keysize + sizeof(ulong)));
 		msg.WriteLongLong((long)SteamUser.GetSteamID().m_SteamID);

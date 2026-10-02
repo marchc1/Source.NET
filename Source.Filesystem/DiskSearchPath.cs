@@ -177,8 +177,8 @@ public class DiskSearchPath : BaseSearchPath
 			if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
 				return;
 
-			fileSearch = Directory.EnumerateFiles(DiskPath!, wildcard);
-			dirSearch = Directory.EnumerateDirectories(DiskPath!, wildcard);
+			fileSearch = Directory.EnumerateFiles(directory, pattern);
+			dirSearch = Directory.EnumerateDirectories(directory, pattern);
 		}
 		else {
 			fileSearch = Directory.EnumerateFiles(DiskPath!);

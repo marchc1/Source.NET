@@ -1,10 +1,10 @@
-﻿namespace Source.Common.GarrysMod;
+namespace Source.Common.GarrysMod;
 
 public interface IServerAddons
 {
-	void Update();
+	bool Update();
 	int GetCount();
-	void Queue(ReadOnlySpan<char> unk1);
+	bool Queue(ReadOnlySpan<char> file);
 	void Clear();
 	void MountDownloadedAddons();
 }
