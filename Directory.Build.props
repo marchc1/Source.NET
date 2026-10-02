@@ -40,7 +40,8 @@
 		<DefineConstants>$(DefineConstants);SWDS;DEDICATED</DefineConstants>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="$(Configuration.Contains('(Dedicated)'))">
-		<OutputPath>bin\$(Configuration)\</OutputPath>
+	<PropertyGroup Condition="!$(MSBuildProjectName.StartsWith('Source.CodeAnalysis'))">
+		<OutputPath>$(MSBuildThisFileDirectory)Build\$(Configuration)\</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	</PropertyGroup>
 </Project>
