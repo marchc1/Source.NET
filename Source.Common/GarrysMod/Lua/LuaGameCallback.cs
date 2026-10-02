@@ -16,5 +16,15 @@ public struct LuaError()
 
 public interface ILuaGameCallback
 {
+	ILuaObject CreateLuaObject();
+	void DestroyLuaObject(ILuaObject obj);
 
+	void ErrorPrint(ReadOnlySpan<char> error, bool print);
+
+	void Msg(ReadOnlySpan<char> msg, bool useless);
+	void MsgColour(ReadOnlySpan<char> msg, in Color color);
+
+	void LuaError(in LuaError error);
+
+	void InterfaceCreated(ILuaInterface iface);
 }

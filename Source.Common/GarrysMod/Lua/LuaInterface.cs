@@ -13,8 +13,6 @@ public interface ILuaThreadedCall
 	void Run(ILuaBase lua); // NOTE: After the call was executed, it won't be deleted! So call `delete this;` or reuse it.
 }
 
-public struct lua_Debug; // TODO
-
 public interface ILuaInterface : ILuaBase
 {
 	bool Init(ILuaGameCallback callbacks, bool unk);

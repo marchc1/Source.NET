@@ -18,7 +18,7 @@ using System.Text;
 
 namespace Source.Common.Client;
 
-public delegate void GMOD_CreateDataTableFn(int idx, ref GModVariant variant);
+public delegate void GMOD_CreateDataTableFn(int idx, ref GMODVariant variant);
 
 /// <summary>
 /// Engine player info. (replica of player_info_s)
