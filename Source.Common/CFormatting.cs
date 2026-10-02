@@ -688,7 +688,7 @@ public static class CFormatting
 		return len;
 	}
 	// This needs to go in the future, but Dbg currently relies on it.
-	public static unsafe int sprintf(scoped Span<char> target, ref CFormatReader reader, params object?[] args) {
+	public static unsafe int sprintf(scoped Span<char> target, ref CFormatReader reader, params ReadOnlySpan<object?> args) {
 		int originalSize = target.Length;
 
 		Span<char> buffer = stackalloc char[256];
