@@ -346,6 +346,96 @@ if manual:
         if MANUAL not in l: l = lines[i] = f'- {box(all_checked(lines[i + 1:j]))}' + l[5:]
         done += not in_bases and l.startswith('- [x]')
 
+# ---------------------------------------------------------------------------------------------
+# Stats (computed from the final lines, so manual overrides count)
+# ---------------------------------------------------------------------------------------------
+entries = []; cur = None; family = None; in_bases = False; kind = None
+for l in lines:
+    if l.startswith('## '):
+        in_bases = l.startswith('## Base classes'); family = l[3:].strip(); continue
+    if l.startswith('- ['):
+        name = re.match(r'- \[.\] \*\*(.+?)\*\*', l).group(1)
+        m = re.search(r' · C# `(\w+)`', l)
+        cur = {'name': name, 'base': in_bases, 'family': family, 'done': l.startswith('- [x]'),
+               'cls': name if in_bases else re.search(r'\*\* · `([^`]+)`', l).group(1), 'cs': m.group(1) if m else None,
+               'boxes': collections.Counter(), 'checked': collections.Counter()}
+        entries.append(cur); kind = None; continue
+    if cur is None: continue
+    if m := re.match(r'^  - ([A-Z][\w/ ]+)$', l): kind = m.group(1); continue
+    if m := re.match(r'^\s+- \[(.)\] (\S+)', l):
+        k = kind if l.startswith('    ') else {'Linked': 'Linked', 'Networked': 'Networked'}.get(m.group(2), None)
+        if k is None: continue
+        cur['boxes'][k] += 1; cur['checked'][k] += m.group(1) == 'x'
+for e in entries:
+    e['total'] = sum(e['boxes'].values()); e['have'] = sum(e['checked'].values()); e['left'] = e['total'] - e['have']
+
+def pct(a, b): return f'{100 * a / b:.1f}%' if b else '-'
+def bar(a, b, w=20):
+    n = round(w * a / b) if b else 0
+    return '`' + '█' * n + '░' * (w - n) + '`'
+def table(head, rows, right=()):
+    rows = [[str(c) for c in r] for r in rows]
+    w = [max(len(x) for x in col) for col in zip(head, *rows)]
+    def fmt(r): return '| ' + ' | '.join(c.rjust(w[i]) if i in right else c.ljust(w[i]) for i, c in enumerate(r)) + ' |'
+    sep = '| ' + ' | '.join('-' * (w[i] - 1) + ':' if i in right else '-' * w[i] for i in range(len(w))) + ' |'
+    return [fmt(head), sep] + [fmt(r) for r in rows]
+
+ents_only = [e for e in entries if not e['base']]
+bases_only = [e for e in entries if e['base']]
+all_boxes = sum(e['total'] for e in entries); all_have = sum(e['have'] for e in entries)
+kinds = ['Linked', 'Networked', 'KeyValues', 'Inputs', 'Outputs', 'Think/Touch/Use functions', 'Methods']
+ktot = collections.Counter(); khave = collections.Counter()
+for e in entries: ktot.update(e['boxes']); khave.update(e['checked'])
+has_cs = sum(1 for c in byclass if csclass(c))
+not_started = sum(1 for e in ents_only if e['total'] and e['have'] == 0)
+
+stats = ['## Progress', '',
+         f'{bar(done, len(ents))} **{done} / {len(ents)} classnames complete ({pct(done, len(ents))})**', '',
+         f'{bar(all_have, all_boxes)} **{all_have:,} / {all_boxes:,} boxes checked ({pct(all_have, all_boxes)})**', '',
+         f'- {has_cs} / {len(byclass)} GMod C++ classes have a C# class ({pct(has_cs, len(byclass))})',
+         f'- {sum(e["done"] for e in bases_only)} / {len(bases_only)} base classes complete',
+         f'- {not_started} classnames have no boxes checked', '']
+stats += table(['Kind', 'Checked', 'Total', 'Done'],
+               [[k, f'{khave[k]:,}', f'{ktot[k]:,}', pct(khave[k], ktot[k])] for k in kinds if ktot[k]], right=(1, 2, 3))
+
+def row(e): return [e['name'], f'{e["have"]}/{e["total"]}', pct(e['have'], e['total']), e['left']]
+started = [e for e in entries if not e['done'] and e['have'] and e['total'] >= 4]
+closest = sorted(started, key=lambda e: (-e['have'] / e['total'], e['left'], e['name']))[:10]
+stats += ['', '### Closest to done', ''] + table(['Entry', 'Checked', 'Done', 'Left'], [row(e) for e in closest], right=(1, 2, 3))
+furthest = sorted((e for e in entries if not e['done']), key=lambda e: (-e['left'], e['name']))[:10]
+stats += ['', '### Most work left', ''] + table(['Entry', 'Checked', 'Done', 'Left'], [row(e) for e in furthest], right=(1, 2, 3))
+
+fams = collections.defaultdict(list)
+for e in ents_only: fams[e['family']].append(e)
+famrows = []
+for f, es in fams.items():
+    if len(es) < 5: continue
+    t = sum(e['total'] for e in es); h = sum(e['have'] for e in es)
+    famrows.append((h / t if t else 0, [f, f'{sum(e["done"] for e in es)}/{len(es)}', f'{h:,}/{t:,}', pct(h, t)]))
+stats += ['', '### By family (5+ classnames)', ''] + table(['Family', 'Complete', 'Boxes checked', 'Done'],
+    [r for _, r in sorted(famrows, key=lambda x: (-x[0], x[1][0]))], right=(1, 2, 3))
+stats_md = '\n'.join(stats) + '\n'
+
+LETTERS = list(zip('LNKIOTM', kinds))
+percls = {}
+for e in entries:
+    c = percls.setdefault(e['cls'], {'cs': None, 'names': [], 'boxes': collections.Counter(), 'checked': collections.Counter()})
+    c['cs'] = c['cs'] or e['cs']
+    if not e['base']: c['names'].append(e['name'])
+    c['boxes'].update(e['boxes']); c['checked'].update(e['checked'])
+summary = []
+for cls, c in percls.items():
+    t = sum(c['boxes'].values()); h = sum(c['checked'].values())
+    flags = ' '.join(ch if c['boxes'][k] and c['checked'][k] == c['boxes'][k] else '_' if c['boxes'][k] else '-' for ch, k in LETTERS)
+    disp = c['cs'] or (cls[1:] if re.match(r'C[A-Z]', cls) else cls)
+    aka = f' (aka {", ".join(sorted(c["names"]))})' if c['names'] else ''
+    summary.append((-(h / t if t else 0), -t, disp, f'{box(t > 0 and h == t)} [{flags}] {disp}{aka}'))
+classes_md = '\n'.join(['', '## All classes', '',
+    '`L N K I O T M` stands for Linked, Networked, KeyValues, Inputs, Outputs, Think/Touch/Use functions and Methods. '
+    '`[x]` means the class is fully complete. A letter means every box of that kind is checked, `_` means some are not, and `-` means the class has none of that kind. '
+    'Classes are sorted from most to least complete by share of boxes checked.', '', '```'] +
+    [s for *_, s in sorted(summary)] + ['```']) + '\n'
+
 hdr = f"""<!-- Generated by Utils/Scripts/gen_entities_checklist.py. Hand edits are overwritten on regeneration unless the line carries the manual marker described below. -->
 This is a list of every entity classname that Garry's Mod's server (`server_srv.so`) registers, and how complete each one is in Source.NET.
 
@@ -358,7 +448,6 @@ This is a list of every entity classname that Garry's Mod's server (`server_srv.
 - When several classnames share one C++ class, one of them lists the functionality and the others only track their link.
 - \u26a0 marks a classname that C# links to a different class than GMod does.
 
-Progress: {done} / {len(ents)} classnames complete.
-"""
-open(args.out, 'w', encoding='utf-8', newline='\n').write(hdr + '\n'.join(lines) + '\n')
+{stats_md}"""
+open(args.out, 'w', encoding='utf-8', newline='\n').write(hdr + '\n'.join(lines) + '\n' + classes_md)
 print(f'{done} / {len(ents)} classnames complete, {len(byclass)} classes -> {args.out}', file=sys.stderr)

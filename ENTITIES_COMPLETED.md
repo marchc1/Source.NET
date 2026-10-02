@@ -10,12 +10,88 @@ This is a list of every entity classname that Garry's Mod's server (`server_srv.
 - When several classnames share one C++ class, one of them lists the functionality and the others only track their link.
 - ⚠ marks a classname that C# links to a different class than GMod does.
 
-Progress: 24 / 788 classnames complete.
+## Progress
+
+`█░░░░░░░░░░░░░░░░░░░` **26 / 788 classnames complete (3.3%)**
+
+`██░░░░░░░░░░░░░░░░░░` **1,514 / 15,450 boxes checked (9.8%)**
+
+- 223 / 691 GMod C++ classes have a C# class (32.3%)
+- 0 / 49 base classes complete
+- 503 classnames have no boxes checked
+
+| Kind                      | Checked |  Total |   Done |
+| ------------------------- | ------: | -----: | -----: |
+| Linked                    |     285 |    788 |  36.2% |
+| Networked                 |     244 |    244 | 100.0% |
+| KeyValues                 |      62 |  1,590 |   3.9% |
+| Inputs                    |      43 |  1,382 |   3.1% |
+| Outputs                   |      27 |    543 |   5.0% |
+| Think/Touch/Use functions |       9 |    409 |   2.2% |
+| Methods                   |     844 | 10,494 |   8.0% |
+
+### Closest to done
+
+| Entry                  | Checked |  Done | Left |
+| ---------------------- | ------: | ----: | ---: |
+| CBaseTrigger           |   33/35 | 94.3% |    2 |
+| trigger_hurt           |   16/17 | 94.1% |    1 |
+| logic_auto             |   11/12 | 91.7% |    1 |
+| trigger_look           |   11/12 | 91.7% |    1 |
+| soundent               |   17/19 | 89.5% |    2 |
+| weapon_physgun         |   22/25 | 88.0% |    3 |
+| trigger_playermovement |     5/6 | 83.3% |    1 |
+| trigger_impact         |    9/11 | 81.8% |    2 |
+| info_landmark          |     3/4 | 75.0% |    1 |
+| CBaseAnimatingOverlay  |   27/37 | 73.0% |   10 |
+
+### Most work left
+
+| Entry                | Checked |  Done | Left |
+| -------------------- | ------: | ----: | ---: |
+| CAI_BaseNPC          |   2/578 |  0.3% |  576 |
+| CBaseEntity          | 259/535 | 48.4% |  276 |
+| CBasePlayer          | 124/324 | 38.3% |  200 |
+| npc_strider          |   2/157 |  1.3% |  155 |
+| npc_metropolice      |   0/150 |  0.0% |  150 |
+| CBaseAnimating       |  37/185 | 20.0% |  148 |
+| npc_hunter           |   0/142 |  0.0% |  142 |
+| CNPC_PlayerCompanion |   0/135 |  0.0% |  135 |
+| npc_helicopter       |   0/135 |  0.0% |  135 |
+| scripted_scene       |   2/133 |  1.5% |  131 |
+
+### By family (5+ classnames)
+
+| Family    | Complete | Boxes checked |  Done |
+| --------- | -------: | ------------: | ----: |
+| filter_*  |     6/11 |         30/54 | 55.6% |
+| trigger_* |    11/34 |       104/286 | 36.4% |
+| light_*   |      0/6 |          7/36 | 19.4% |
+| weapon_*  |     0/37 |       139/737 | 18.9% |
+| env_*     |     3/82 |       118/956 | 12.3% |
+| prop_*    |     0/50 |        82/793 | 10.3% |
+| info_*    |     0/40 |        24/245 |  9.8% |
+| cycler_*  |      0/6 |          2/25 |  8.0% |
+| player_*  |      0/6 |          7/91 |  7.7% |
+| func_*    |     2/69 |        70/942 |  7.4% |
+| physics_* |      0/5 |          4/62 |  6.5% |
+| logic_*   |     0/23 |        14/320 |  4.4% |
+| sent_*    |      0/6 |         8/192 |  4.2% |
+| point_*   |     0/29 |        12/432 |  2.8% |
+| phys_*    |     0/17 |         4/186 |  2.2% |
+| game_*    |     0/11 |         2/103 |  1.9% |
+| grenade_* |     0/10 |         2/106 |  1.9% |
+| item_*    |     0/37 |         2/197 |  1.0% |
+| npc_*     |     0/97 |      26/3,210 |  0.8% |
+| ai_*      |     0/24 |         0/391 |  0.0% |
+| ammo_*    |     0/13 |          0/43 |  0.0% |
+| monster_* |     0/41 |         0/739 |  0.0% |
+| xen_*     |      0/8 |          0/32 |  0.0% |
 
 ## _firesmoke
 
 - [ ] **_firesmoke** · `CFireSmoke` · `game/server/fire_smoke.cpp` · C# `FireSmoke` ([Game.Server/FireSmoke.cs](Game.Server/FireSmoke.cs))
-  - [ ] Linked (`_firesmoke`)
+  - [x] Linked (`_firesmoke`)
   - [x] Networked (SendTable for `CFireSmoke`)
   - Methods
     - [ ] `EnableGlow`
@@ -27,7 +103,7 @@ Progress: 24 / 788 classnames complete.
 ## _plasma
 
 - [ ] **_plasma** · `CPlasma` · `game/server/plasma.cpp` · C# `Plasma` ([Game.Server/Plasma.cs](Game.Server/Plasma.cs))
-  - [ ] Linked (`_plasma`)
+  - [x] Linked (`_plasma`)
   - [x] Networked (SendTable for `CPlasma`)
   - Methods
     - [ ] `EnableSmoke`
@@ -691,7 +767,7 @@ Progress: 24 / 788 classnames complete.
 ## ar2explosion
 
 - [ ] **ar2explosion** · `AR2Explosion` · `game/server/hl2/ar2_explosion.cpp` · C# `AR2Explosion` ([Game.Server/HL2/AR2Explosion.cs](Game.Server/HL2/AR2Explosion.cs))
-  - [ ] Linked (`ar2explosion`)
+  - [x] Linked (`ar2explosion`)
   - [x] Networked (SendTable for `AR2Explosion`)
   - Methods
     - [ ] `CreateAR2Explosion`
@@ -738,14 +814,14 @@ Progress: 24 / 788 classnames complete.
 ## asw_*
 
 - [ ] **asw_door** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`asw_door`)
+  - [x] Linked (`asw_door`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 
 ## basehl1combatweapon
 
 - [ ] **basehl1combatweapon** · `CBaseHL1CombatWeapon` · `game/shared/hl1/hl1_basecombatweapon_shared.cpp` · C# `BaseHL1CombatWeapon` ([Game.Server/HL1/BaseHL1CombatWeapon.cs](Game.Server/HL1/BaseHL1CombatWeapon.cs))
-  - [ ] Linked (`basehl1combatweapon`)
+  - [x] Linked (`basehl1combatweapon`)
   - [x] Networked (SendTable for `CBaseHL1CombatWeapon`)
   - Methods
     - [ ] `FallInit`
@@ -758,7 +834,7 @@ Progress: 24 / 788 classnames complete.
 ## basehl1mpcombatweapon
 
 - [ ] **basehl1mpcombatweapon** · `CBaseHL1MPCombatWeapon` · `game/shared/hl1/hl1mp_basecombatweapon_shared.cpp` · C# `BaseHL1MPCombatWeapon` ([Game.Server/HL1/BaseHL1MPCombatWeapon.cs](Game.Server/HL1/BaseHL1MPCombatWeapon.cs))
-  - [ ] Linked (`basehl1mpcombatweapon`)
+  - [x] Linked (`basehl1mpcombatweapon`)
   - [x] Networked (SendTable for `CBaseHL1MPCombatWeapon`)
   - Methods
     - [ ] `EjectShell`
@@ -769,7 +845,7 @@ Progress: 24 / 788 classnames complete.
 ## basehl2mpcombatweapon
 
 - [ ] **basehl2mpcombatweapon** · `CBaseHL2MPCombatWeapon` · `game/shared/gmod/weapon_gmodbasehlmpcombatweapon.cpp` · C# `BaseHL2MPCombatWeapon` ([Game.Shared/GarrysMod/WeaponGModBase.cs](Game.Shared/GarrysMod/WeaponGModBase.cs))
-  - [ ] Linked (`basehl2mpcombatweapon`)
+  - [x] Linked (`basehl2mpcombatweapon`)
   - [x] Networked (SendTable for `CBaseHL2MPCombatWeapon`)
   - Methods
     - [ ] `AddViewmodelBob`
@@ -789,7 +865,7 @@ Progress: 24 / 788 classnames complete.
 ## basehlcombatweapon
 
 - [ ] **basehlcombatweapon** · `CBaseHLCombatWeapon` · `game/shared/hl2/basehlcombatweapon_shared.cpp` · C# `BaseHLCombatWeapon` ([Game.Shared/HL2/BaseHLCombatWeapon.cs](Game.Shared/HL2/BaseHLCombatWeapon.cs))
-  - [ ] Linked (`basehlcombatweapon`)
+  - [x] Linked (`basehlcombatweapon`)
   - [x] Networked (SendTable for `CBaseHLCombatWeapon`)
   - Methods
     - [ ] `AddViewmodelBob`
@@ -822,7 +898,7 @@ Progress: 24 / 788 classnames complete.
 ## beam_*
 
 - [ ] **beam** · `CBeam` · `game/shared/beam_shared.cpp` · C# `Beam` ([Game.Shared/Beam.cs](Game.Shared/Beam.cs))
-  - [ ] Linked (`beam`)
+  - [x] Linked (`beam`)
   - [x] Networked (SendTable for `CBeam`)
   - KeyValues
     - [ ] `HDRColorScale`
@@ -874,7 +950,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateTransmitState`
     - [ ] `WorldSpaceCenter`
 - [ ] **beam_spotlight** · `CBeamSpotlight` · *GMod-only* · C# `BeamSpotlight` ([Game.Server/BeamSpotlight.cs](Game.Server/BeamSpotlight.cs))
-  - [ ] Linked (`beam_spotlight`)
+  - [x] Linked (`beam_spotlight`)
   - [x] Networked (SendTable for `CBeamSpotlight`)
   - KeyValues
     - [ ] `maxspeed`
@@ -967,7 +1043,7 @@ Progress: 24 / 788 classnames complete.
 ## color_*
 
 - [ ] **color_correction** · `CColorCorrection` · `game/server/colorcorrection.cpp` · C# `ColorCorrection` ([Game.Server/ColorCorrection.cs](Game.Server/ColorCorrection.cs))
-  - [ ] Linked (`color_correction`)
+  - [x] Linked (`color_correction`)
   - [x] Networked (SendTable for `CColorCorrection`)
   - KeyValues
     - [ ] `minfalloff`
@@ -995,7 +1071,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **color_correction_volume** · `CColorCorrectionVolume` · `game/server/colorcorrectionvolume.cpp` · C# `ColorCorrectionVolume` ([Game.Server/ColorCorrectionVolume.cs](Game.Server/ColorCorrectionVolume.cs))
-  - [ ] Linked (`color_correction_volume`)
+  - [x] Linked (`color_correction_volume`)
   - [x] Networked (SendTable for `CColorCorrectionVolume`)
   - KeyValues
     - [ ] `fadeDuration`
@@ -1122,7 +1198,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **cycler_weapon** · `CWeaponCycler` · `game/server/h_cycler.cpp` · C# `WeaponCycler` ([Game.Server/HL2/Weapon_Stubs_HL2.cs](Game.Server/HL2/Weapon_Stubs_HL2.cs))
-  - [ ] Linked (`cycler_weapon`)
+  - [x] Linked (`cycler_weapon`)
   - [x] Networked (SendTable for `CWeaponCycler`)
   - Methods
     - [ ] `Deploy`
@@ -1140,7 +1216,7 @@ Progress: 24 / 788 classnames complete.
 ## dod_*
 
 - [ ] **dod_control_point** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`dod_control_point`)
+  - [x] Linked (`dod_control_point`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 
@@ -1153,9 +1229,28 @@ Progress: 24 / 788 classnames complete.
 
 ## dz_*
 
-- [ ] **dz_door** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotating` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`dz_door`)
-  - [ ] Shares `CPropDoorRotatingBreakable` with `prop_door_rotating`, which tracks its functionality
+- [ ] **dz_door** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotatingBreakable` ([Game.Server/Props.cs](Game.Server/Props.cs))
+  - [x] Linked (`dz_door`)
+  - Inputs
+    - [ ] `SetUnbreakable`
+    - [ ] `SetBreakable`
+  - Methods
+    - [ ] `BlockNav`
+    - [ ] `DrawDebugTextOverlays`
+    - [ ] `Event_Killed`
+    - [ ] `IsAbleToCloseAreaPortals`
+    - [ ] `Lock`
+    - [ ] `OnDoorClosed`
+    - [ ] `OnDoorOpened`
+    - [ ] `OnTakeDamage`
+    - [ ] `Precache`
+    - [ ] `PrecacheBreakables`
+    - [ ] `Spawn`
+    - [ ] `UnblockNav`
+    - [ ] `Unlock`
+    - [ ] `UpdateBlocked`
+    - [ ] `UpdateOnRemove`
+  - Also linked as: `prop_door_rotating`, `prop_door_rotating_checkpoint`
 
 ## ent_*
 
@@ -1178,7 +1273,7 @@ Progress: 24 / 788 classnames complete.
 ## entityflame
 
 - [ ] **entityflame** · `CEntityFlame` · `game/server/EntityFlame.cpp` · C# `EntityFlame` ([Game.Server/EntityFlame.cs](Game.Server/EntityFlame.cs))
-  - [ ] Linked (`entityflame`)
+  - [x] Linked (`entityflame`)
   - [x] Networked (SendTable for `CEntityFlame`)
   - KeyValues
     - [ ] `lifetime`
@@ -1202,7 +1297,7 @@ Progress: 24 / 788 classnames complete.
 ## env_*
 
 - [ ] **env_alyxemp** · `CAlyxEmpEffect` · `game/server/hl2/env_alyxemp.cpp` · C# `AlyxEmpEffect` ([Game.Server/HL2/AlyxEmpEffect.cs](Game.Server/HL2/AlyxEmpEffect.cs))
-  - [ ] Linked (`env_alyxemp`)
+  - [x] Linked (`env_alyxemp`)
   - [x] Networked (SendTable for `CAlyxEmpEffect`)
   - KeyValues
     - [ ] `Type`
@@ -1223,7 +1318,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StartDischarge`
     - [ ] `Stop`
 - [ ] **env_ambient_light** · `CEnvAmbientLight` · *GMod-only* · C# `EnvAmbientLight` ([Game.Server/EnvAmbientLight.cs](Game.Server/EnvAmbientLight.cs))
-  - [ ] Linked (`env_ambient_light`)
+  - [x] Linked (`env_ambient_light`)
   - [x] Networked (SendTable for `CEnvAmbientLight`)
   - KeyValues
     - [ ] `Color`
@@ -1322,7 +1417,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TurnOff`
     - [ ] `TurnOn`
 - [ ] **env_citadel_energy_core** · `CCitadelEnergyCore` · `game/server/hl2/citadel_effects.cpp` · C# `CitadelEnergyCore` ([Game.Server/CitadelEnergyCore.cs](Game.Server/CitadelEnergyCore.cs))
-  - [ ] Linked (`env_citadel_energy_core`)
+  - [x] Linked (`env_citadel_energy_core`)
   - [x] Networked (SendTable for `CCitadelEnergyCore`)
   - KeyValues
     - [ ] `scale`
@@ -1352,7 +1447,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `RollOutroCredits`
     - [ ] `Spawn`
 - [ ] **env_detail_controller** · `CEnvDetailController` · `game/shared/env_detail_controller.cpp` · C# `EnvDetailController` ([Game.Server/EnvDetailController.cs](Game.Server/EnvDetailController.cs))
-  - [ ] Linked (`env_detail_controller`)
+  - [x] Linked (`env_detail_controller`)
   - [x] Networked (SendTable for `CEnvDetailController`)
   - Methods
     - [ ] `KeyValue`
@@ -1365,7 +1460,7 @@ Progress: 24 / 788 classnames complete.
   - Inputs
     - [ ] `SpawnDust`
 - [ ] **env_dusttrail** · `DustTrail` · `game/server/smoke_trail.cpp` · C# `DustTrail` ([Game.Server/DustTrail.cs](Game.Server/DustTrail.cs))
-  - [ ] Linked (`env_dusttrail`)
+  - [x] Linked (`env_dusttrail`)
   - [x] Networked (SendTable for `DustTrail`)
   - KeyValues
     - [ ] `opacity`
@@ -1402,7 +1497,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TrailEffectEvent`
     - [ ] `UpdateTransmitState`
 - [ ] **env_embers** · `CEmbers` · `game/server/effects.cpp` · C# `Embers` ([Game.Server/Embers.cs](Game.Server/Embers.cs))
-  - [ ] Linked (`env_embers`)
+  - [x] Linked (`env_embers`)
   - [x] Networked (SendTable for `CEmbers`)
   - KeyValues
     - [ ] `density`
@@ -1414,7 +1509,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Precache`
     - [ ] `Spawn`
 - [ ] **env_entity_dissolver** · `CEntityDissolve` · `game/server/EntityDissolve.cpp` · C# `EntityDissolve` ([Game.Server/EntityDissolve.cs](Game.Server/EntityDissolve.cs))
-  - [ ] Linked (`env_entity_dissolver`)
+  - [x] Linked (`env_entity_dissolver`)
   - [x] Networked (SendTable for `CEntityDissolve`)
   - KeyValues
     - [ ] `dissolvetype`
@@ -1430,7 +1525,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SetStartTime`
     - [ ] `Spawn`
 - [ ] **env_entity_igniter** · `CEntityFlame` · `game/server/EntityFlame.cpp` · C# `EntityFlame` ([Game.Server/EntityFlame.cs](Game.Server/EntityFlame.cs))
-  - [ ] Linked (`env_entity_igniter`)
+  - [x] Linked (`env_entity_igniter`)
   - [x] Networked (SendTable for `CEntityFlame`)
   - [ ] Shares `CEntityFlame` with `entityflame`, which tracks its functionality
 - [ ] **env_entity_maker** · `CEnvEntityMaker` · `game/server/env_entity_maker.cpp` · C#: *none*
@@ -1527,7 +1622,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
     - [ ] `UpdateTransmitState`
 - [ ] **env_fire_trail** · `CFireTrail` · `game/server/smoke_trail.cpp` · C# `FireTrail` ([Game.Server/FireTrail.cs](Game.Server/FireTrail.cs))
-  - [ ] Linked (`env_fire_trail`)
+  - [x] Linked (`env_fire_trail`)
   - [x] Networked (SendTable for `CFireTrail`)
   - Methods
     - [ ] `CreateFireTrail`
@@ -1564,7 +1659,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TurnOff`
     - [ ] `TurnOn`
 - [ ] **env_flare** · `CFlare` · `game/server/hl2/weapon_flaregun.cpp` · C# `Flare` ([Game.Server/Flare.cs](Game.Server/Flare.cs))
-  - [ ] Linked (`env_flare`)
+  - [x] Linked (`env_flare`)
   - [x] Networked (SendTable for `CFlare`)
   - KeyValues
     - [ ] `scale`
@@ -1663,7 +1758,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `DrawDebugTextOverlays`
     - [ ] `Spawn`
 - [ ] **env_glow** · `CSprite` · `game/shared/Sprite.cpp` · C# `Sprite` ([Game.Shared/Sprite.cs](Game.Shared/Sprite.cs))
-  - [ ] Linked (`env_glow`)
+  - [x] Linked (`env_glow`)
   - [x] Networked (SendTable for `CSprite`)
   - [ ] Shares `CSprite` with `env_sprite`, which tracks its functionality
 - [ ] **env_gunfire** · `CEnvGunfire` · `game/server/effects.cpp` · C#: *none*
@@ -1693,7 +1788,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopShooting`
     - [ ] `UpdateTarget`
 - [ ] **env_headcrabcanister** · `CEnvHeadcrabCanister` · `game/server/hl2/env_headcrabcanister.cpp` · C# `EnvHeadcrabCanister` ([Game.Server/EnvHeadcrabCanister.cs](Game.Server/EnvHeadcrabCanister.cs))
-  - [ ] Linked (`env_headcrabcanister`)
+  - [x] Linked (`env_headcrabcanister`)
   - [x] Networked (SendTable for `CEnvHeadcrabCanister`)
   - KeyValues
     - [ ] `HeadcrabType`
@@ -1767,7 +1862,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TurnOff`
     - [ ] `TurnOn`
 - [ ] **env_lightglow** · `CLightGlow` · `game/server/lightglow.cpp` · C# `LightGlow` ([Game.Server/LightGlow.cs](Game.Server/LightGlow.cs))
-  - [ ] Linked (`env_lightglow`)
+  - [x] Linked (`env_lightglow`)
   - [x] Networked (SendTable for `CLightGlow`)
   - KeyValues
     - [ ] `VerticalGlowSize`
@@ -1829,7 +1924,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `Think`
 - [ ] **env_movieexplosion** · `MovieExplosion` · `game/server/movie_explosion.cpp` · C# `MovieExplosion` ([Game.Server/MovieExplosion.cs](Game.Server/MovieExplosion.cs))
-  - [ ] Linked (`env_movieexplosion`)
+  - [x] Linked (`env_movieexplosion`)
   - [x] Networked (SendTable for `MovieExplosion`)
   - Methods
     - [ ] `CreateMovieExplosion`
@@ -1843,7 +1938,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **env_particle_performance_monitor** · `CParticlePerformanceMonitor` · `game/server/sprite_perfmonitor.cpp` · C# `ParticlePerformanceMonitor` ([Game.Server/ParticlePerformanceMonitor.cs](Game.Server/ParticlePerformanceMonitor.cs))
-  - [ ] Linked (`env_particle_performance_monitor`)
+  - [x] Linked (`env_particle_performance_monitor`)
   - [x] Networked (SendTable for `CParticlePerformanceMonitor`)
   - Inputs
     - [ ] `TurnOnDisplay`
@@ -1854,7 +1949,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_particle_trail** · `CEntityParticleTrail` · `game/server/EntityParticleTrail.cpp` · C# `EntityParticleTrail` ([Game.Server/EntityParticleTrail.cs](Game.Server/EntityParticleTrail.cs))
-  - [ ] Linked (`env_particle_trail`)
+  - [x] Linked (`env_particle_trail`)
   - [x] Networked (SendTable for `CEntityParticleTrail`)
   - Methods
     - [ ] `AttachToEntity`
@@ -1872,7 +1967,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `PSName`
     - [ ] `Directional`
 - [ ] **env_particlescript** · `CEnvParticleScript` · `game/server/env_particlescript.cpp` · C# `EnvParticleScript` ([Game.Server/EnvParticleScript.cs](Game.Server/EnvParticleScript.cs))
-  - [ ] Linked (`env_particlescript`)
+  - [x] Linked (`env_particlescript`)
   - [x] Networked (SendTable for `CEnvParticleScript`)
   - Inputs
     - [ ] `SetSequence`
@@ -1883,7 +1978,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_particlesmokegrenade** · `ParticleSmokeGrenade` · `game/server/particle_smokegrenade.cpp` · C# `ParticleSmokeGrenade` ([Game.Server/ParticleSmokeGrenade.cs](Game.Server/ParticleSmokeGrenade.cs))
-  - [ ] Linked (`env_particlesmokegrenade`)
+  - [x] Linked (`env_particlesmokegrenade`)
   - [x] Networked (SendTable for `ParticleSmokeGrenade`)
   - Methods
     - [ ] `FillVolume`
@@ -1937,11 +2032,11 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateMaterialThink`
 - [ ] **env_portal_laser** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`env_portal_laser`)
+  - [x] Linked (`env_portal_laser`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **env_projectedtexture** · `CEnvProjectedTexture` · `game/server/env_projectedtexture.cpp` · C# `EnvProjectedTexture` ([Game.Server/EnvProjectedTexture.cs](Game.Server/EnvProjectedTexture.cs))
-  - [ ] Linked (`env_projectedtexture`)
+  - [x] Linked (`env_projectedtexture`)
   - [x] Networked (SendTable for `CEnvProjectedTexture`)
   - KeyValues
     - [ ] `lightfov`
@@ -1979,7 +2074,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `KeyValue`
     - [ ] `UpdateTransmitState`
 - [ ] **env_quadraticbeam** · `CEnvQuadraticBeam` · `game/server/effects.cpp` · C# `EnvQuadraticBeam` ([Game.Server/EnvQuadraticBeam.cs](Game.Server/EnvQuadraticBeam.cs))
-  - [ ] Linked (`env_quadraticbeam`)
+  - [x] Linked (`env_quadraticbeam`)
   - [x] Networked (SendTable for `CEnvQuadraticBeam`)
   - Methods
     - [ ] `Spawn`
@@ -2003,7 +2098,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `Use`
 - [ ] **env_rockettrail** · `RocketTrail` · `game/server/smoke_trail.cpp` · C# `RocketTrail` ([Game.Server/RocketTrail.cs](Game.Server/RocketTrail.cs))
-  - [ ] Linked (`env_rockettrail`)
+  - [x] Linked (`env_rockettrail`)
   - [x] Networked (SendTable for `RocketTrail`)
   - Methods
     - [ ] `CreateRocketTrail`
@@ -2018,7 +2113,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `DoWashPush`
     - [ ] `Spawn`
 - [ ] **env_rotorwash_emitter** · `CRotorWashEmitter` · `game/server/hl2/rotorwash.cpp` · C# `RotorWashEmitter` ([Game.Server/RotorWashEmitter.cs](Game.Server/RotorWashEmitter.cs))
-  - [ ] Linked (`env_rotorwash_emitter`)
+  - [x] Linked (`env_rotorwash_emitter`)
   - [x] Networked (SendTable for `CRotorWashEmitter`)
   - KeyValues
     - [ ] `altitude`
@@ -2028,7 +2123,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_screeneffect** · `CEnvScreenEffect` · `game/server/env_screenoverlay.cpp` · C# `EnvScreenEffect` ([Game.Server/EnvScreenEffect.cs](Game.Server/EnvScreenEffect.cs))
-  - [ ] Linked (`env_screeneffect`)
+  - [x] Linked (`env_screeneffect`)
   - [x] Networked (SendTable for `CEnvScreenEffect`)
   - KeyValues
     - [ ] `type`
@@ -2040,7 +2135,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_screenoverlay** · `CEnvScreenOverlay` · `game/server/env_screenoverlay.cpp` · C# `EnvScreenOverlay` ([Game.Server/EnvScreenOverlay.cs](Game.Server/EnvScreenOverlay.cs))
-  - [ ] Linked (`env_screenoverlay`)
+  - [x] Linked (`env_screenoverlay`)
   - [x] Networked (SendTable for `CEnvScreenOverlay`)
   - KeyValues
     - [ ] `OverlayName1`
@@ -2101,7 +2196,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `KeyValue`
     - [ ] `Precache`
 - [ ] **env_smokestack** · `CSmokeStack` · `game/server/smokestack.cpp` · C# `SmokeStack` ([Game.Server/SmokeStack.cs](Game.Server/SmokeStack.cs))
-  - [ ] Linked (`env_smokestack`)
+  - [x] Linked (`env_smokestack`)
   - [x] Networked (SendTable for `CSmokeStack`)
   - KeyValues
     - [ ] `StartSize`
@@ -2127,7 +2222,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `RecalcWindVector`
     - [ ] `Spawn`
 - [ ] **env_smoketrail** · `SmokeTrail` · `game/server/smoke_trail.cpp` · C# `SmokeTrail` ([Game.Server/SmokeTrail.cs](Game.Server/SmokeTrail.cs))
-  - [ ] Linked (`env_smoketrail`)
+  - [x] Linked (`env_smoketrail`)
   - [x] Networked (SendTable for `SmokeTrail`)
   - KeyValues
     - [ ] `opacity`
@@ -2146,10 +2241,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `KeyValue`
     - [ ] `SetEmit`
 - [ ] **env_sound** · `CEnvSoundscape` · `game/server/hl1/hl1_ents.cpp` · C# `EnvSoundscape` ([Game.Server/Soundscape.cs](Game.Server/Soundscape.cs))
-  - [ ] Linked (`env_sound`)
-  - [ ] Shares `CEnvSoundscape` with `env_soundscape`, which tracks its functionality
-- [ ] **env_soundscape** · `CEnvSoundscape` · `game/server/soundscape.cpp` · C# `EnvSoundscape` ([Game.Server/Soundscape.cs](Game.Server/Soundscape.cs))
-  - [x] Linked (`env_soundscape`)
+  - [x] Linked (`env_sound`)
   - KeyValues
     - [x] `radius`
     - [ ] `position0`
@@ -2179,7 +2271,10 @@ Progress: 24 / 788 classnames complete.
     - [x] `UpdateForPlayer`
     - [x] `UpdateTransmitState`
     - [x] `WriteAudioParamsTo`
-  - Also linked as: `env_sound`
+  - Also linked as: `env_soundscape`
+- [ ] **env_soundscape** · `CEnvSoundscape` · `game/server/soundscape.cpp` · C# `EnvSoundscape` ([Game.Server/Soundscape.cs](Game.Server/Soundscape.cs))
+  - [x] Linked (`env_soundscape`)
+  - [ ] Shares `CEnvSoundscape` with `env_sound`, which tracks its functionality
 - [x] **env_soundscape_proxy** · `CEnvSoundscapeProxy` · `game/server/soundscape.cpp` · C# `EnvSoundscapeProxy` ([Game.Server/Soundscape.cs](Game.Server/Soundscape.cs))
   - [x] Linked (`env_soundscape_proxy`)
   - KeyValues
@@ -2240,7 +2335,7 @@ Progress: 24 / 788 classnames complete.
   - Inputs
     - [ ] `Splash`
 - [ ] **env_sporeexplosion** · `SporeExplosion` · `game/server/smoke_trail.cpp` · C# `SporeExplosion` ([Game.Server/SporeExplosion.cs](Game.Server/SporeExplosion.cs))
-  - [ ] Linked (`env_sporeexplosion`)
+  - [x] Linked (`env_sporeexplosion`)
   - [x] Networked (SendTable for `SporeExplosion`)
   - KeyValues
     - [ ] `spawnrate`
@@ -2257,7 +2352,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `CreateSporeTrail`
 - [ ] **env_sprite** · `CSprite` · `game/shared/Sprite.cpp` · C# `Sprite` ([Game.Shared/Sprite.cs](Game.Shared/Sprite.cs))
-  - [ ] Linked (`env_sprite`)
+  - [x] Linked (`env_sprite`)
   - [x] Networked (SendTable for `CSprite`)
   - KeyValues
     - [ ] `scale`
@@ -2302,16 +2397,16 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Use`
   - Also linked as: `env_glow`, `env_sprite_clientside`
 - [ ] **env_sprite_clientside** · `CSprite` · `game/shared/Sprite.cpp` · C# `Sprite` ([Game.Shared/Sprite.cs](Game.Shared/Sprite.cs))
-  - [ ] Linked (`env_sprite_clientside`)
+  - [x] Linked (`env_sprite_clientside`)
   - [x] Networked (SendTable for `CSprite`)
   - [ ] Shares `CSprite` with `env_sprite`, which tracks its functionality
 - [ ] **env_sprite_oriented** · `CSpriteOriented` · `game/shared/Sprite.cpp` · C# `SpriteOriented` ([Game.Shared/Sprite.cs](Game.Shared/Sprite.cs))
-  - [ ] Linked (`env_sprite_oriented`)
+  - [x] Linked (`env_sprite_oriented`)
   - [x] Networked (SendTable for `CSpriteOriented`)
   - Methods
     - [ ] `Spawn`
 - [ ] **env_spritetrail** · `CSpriteTrail` · `game/shared/SpriteTrail.cpp` · C# `SpriteTrail` ([Game.Shared/SpriteTrail.cs](Game.Shared/SpriteTrail.cs))
-  - [ ] Linked (`env_spritetrail`)
+  - [x] Linked (`env_spritetrail`)
   - [x] Networked (SendTable for `CSpriteTrail`)
   - KeyValues
     - [ ] `lifetime`
@@ -2333,7 +2428,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `SpriteTrailCreate`
 - [ ] **env_starfield** · `CEnvStarfield` · `game/server/hl2/env_starfield.cpp` · C# `EnvStarfield` ([Game.Server/EnvStarfield.cs](Game.Server/EnvStarfield.cs))
-  - [ ] Linked (`env_starfield`)
+  - [x] Linked (`env_starfield`)
   - [x] Networked (SendTable for `CEnvStarfield`)
   - Inputs
     - [ ] `TurnOn`
@@ -2344,7 +2439,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_steam** · `CSteamJet` · `game/server/steamjet.cpp` · C# `SteamJet` ([Game.Server/SteamJet.cs](Game.Server/SteamJet.cs))
-  - [ ] Linked (`env_steam`)
+  - [x] Linked (`env_steam`)
   - [x] Networked (SendTable for `CSteamJet`)
   - KeyValues
     - [ ] `StartSize`
@@ -2366,7 +2461,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Use`
   - Also linked as: `env_steamjet`
 - [ ] **env_steamjet** · `CSteamJet` · `game/server/steamjet.cpp` · C# `SteamJet` ([Game.Server/SteamJet.cs](Game.Server/SteamJet.cs))
-  - [ ] Linked (`env_steamjet`)
+  - [x] Linked (`env_steamjet`)
   - [x] Networked (SendTable for `CSteamJet`)
   - [ ] Shares `CSteamJet` with `env_steam`, which tracks its functionality
 - [ ] **env_sun** · `CSun` · `game/server/sun.cpp` · C# `Sun` ([Game.Server/Sun.cs](Game.Server/Sun.cs))
@@ -2430,7 +2525,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `DoViewPunch`
     - [ ] `Spawn`
 - [ ] **env_wind** · `CEnvWind` · `game/server/effects.cpp` · C# `EnvWind` ([Game.Server/EnvWind.cs](Game.Server/EnvWind.cs))
-  - [ ] Linked (`env_wind`)
+  - [x] Linked (`env_wind`)
   - [x] Networked (SendTable for `CEnvWind`)
   - KeyValues
     - [ ] `minwind`
@@ -2454,7 +2549,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **env_zoom** · `CEnvZoom` · `game/server/env_zoom.cpp` · C# `EnvZoom` ([Game.Server/EnvZoom.cs](Game.Server/EnvZoom.cs))
-  - [ ] Linked (`env_zoom`)
+  - [x] Linked (`env_zoom`)
   - KeyValues
     - [ ] `Rate`
     - [ ] `FOV`
@@ -2567,7 +2662,7 @@ Progress: 24 / 788 classnames complete.
 ## fish
 
 - [ ] **fish** · `CFish` · `game/server/fish.cpp` · C# `Fish` ([Game.Server/Fish.cs](Game.Server/Fish.cs))
-  - [ ] Linked (`fish`)
+  - [x] Linked (`fish`)
   - [x] Networked (SendTable for `CFish`)
   - Methods
     - [ ] `AddVisible`
@@ -2616,7 +2711,7 @@ Progress: 24 / 788 classnames complete.
 ## funCBaseFlex
 
 - [ ] **funCBaseFlex** · `CBaseFlex` · `game/server/baseflex.cpp` · C# `BaseFlex` ([Game.Server/BaseFlex.cs](Game.Server/BaseFlex.cs))
-  - [ ] Linked (`funCBaseFlex`)
+  - [x] Linked (`funCBaseFlex`)
   - [x] Networked (SendTable for `CBaseFlex`)
   - [ ] `CBaseFlex` functionality (tracked under Base classes)
 
@@ -2659,7 +2754,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateVisibility`
 - [ ] **func_areaportalwindow** · `CFuncAreaPortalWindow` · `game/server/func_areaportalwindow.cpp` · C# `FuncAreaPortalWindow` ([Game.Server/FuncAreaPortalWindow.cs](Game.Server/FuncAreaPortalWindow.cs))
-  - [ ] Linked (`func_areaportalwindow`)
+  - [x] Linked (`func_areaportalwindow`)
   - [x] Networked (SendTable for `CFuncAreaPortalWindow`)
   - KeyValues
     - [ ] `portalnumber`
@@ -2676,7 +2771,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateVisibility`
 - [ ] **func_breakable** · `CBreakable` · `game/server/func_break.cpp` · C# `Breakable` ([Game.Server/FuncBreak.cs](Game.Server/FuncBreak.cs))
-  - [ ] Linked (`func_breakable`)
+  - [x] Linked (`func_breakable`)
   - KeyValues
     - [ ] `explosion`
     - [ ] `gibdir`
@@ -2750,7 +2845,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateHealth`
     - [ ] `VPhysicsCollision`
 - [ ] **func_breakable_surf** · `CBreakableSurface` · `game/server/func_breakablesurf.cpp` · C# `BreakableSurface` ([Game.Server/BreakableSurface.cs](Game.Server/BreakableSurface.cs))
-  - [ ] Linked (`func_breakable_surf`)
+  - [x] Linked (`func_breakable_surf`)
   - [x] Networked (SendTable for `CBreakableSurface`)
   - KeyValues
     - [ ] `surfacetype`
@@ -2785,7 +2880,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TraceAttack`
     - [ ] `VPhysicsCollision`
 - [ ] **func_brush** · `CFuncBrush` · `game/server/modelentities.cpp` · C# `FuncBrush` ([Game.Server/ModelEntities.cs](Game.Server/ModelEntities.cs))
-  - [ ] Linked (`func_brush`)
+  - [x] Linked (`func_brush`)
   - KeyValues
     - [ ] `StartDisabled`
     - [ ] `Solidity`
@@ -2892,7 +2987,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `SpawnBall`
 - [ ] **func_conveyor** · `CFuncConveyor` · `game/server/bmodels.cpp` · C# `FuncConveyor` ([Game.Server/FuncConveyor.cs](Game.Server/FuncConveyor.cs))
-  - [ ] Linked (`func_conveyor`)
+  - [x] Linked (`func_conveyor`)
   - [x] Networked (SendTable for `CFuncConveyor`)
   - KeyValues
     - [ ] `movedir`
@@ -2906,7 +3001,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateSpeed`
     - [ ] `Use`
 - [ ] **func_door** · `CBaseDoor` · `game/server/doors.cpp` · C# `BaseDoor` ([Game.Shared/BaseDoor.cs](Game.Shared/BaseDoor.cs))
-  - [ ] Linked (`func_door`)
+  - [x] Linked (`func_door`)
   - [x] Networked (SendTable for `CBaseDoor`)
   - KeyValues
     - [ ] `movedir`
@@ -3119,7 +3214,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Activate`
     - [ ] `Validate`
 - [ ] **func_lod** · `CFunc_LOD` · `game/server/func_lod.cpp` · C# `Func_LOD` ([Game.Server/Func_LOD.cs](Game.Server/Func_LOD.cs))
-  - [ ] Linked (`func_lod`)
+  - [x] Linked (`func_lod`)
   - [x] Networked (SendTable for `CFunc_LOD`)
   - KeyValues
     - [ ] `DisappearMinDist`
@@ -3143,7 +3238,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **func_monitor** · `CFuncMonitor` · `game/server/hl2/Func_Monitor.cpp` · C# `FuncMonitor` ([Game.Server/FuncMonitor.cs](Game.Server/FuncMonitor.cs))
-  - [ ] Linked (`func_monitor`)
+  - [x] Linked (`func_monitor`)
   - [x] Networked (SendTable for `CFuncMonitor`)
   - Inputs
     - [ ] `SetCamera`
@@ -3170,11 +3265,11 @@ Progress: 24 / 788 classnames complete.
   - [ ] Linked (`func_movelinear`)
   - [ ] Shares `CFuncMoveLinear` with `momentary_door`, which tracks its functionality
 - [ ] **func_nav_avoid** · `CFuncNavAvoid` · `game/server/nav_entities.cpp` · C# `FuncNavAvoid` ([Game.Server/NavMesh/NavEntities.cs](Game.Server/NavMesh/NavEntities.cs))
-  - [ ] Linked (`func_nav_avoid`)
+  - [x] Linked (`func_nav_avoid`)
   - Methods
     - [ ] `GetCostMultiplier`
 - [ ] **func_nav_avoidance_obstacle** · `CFuncNavObstruction` · `game/server/nav_entities.cpp` · C# `FuncNavObstruction` ([Game.Server/NavMesh/NavEntities.cs](Game.Server/NavMesh/NavEntities.cs))
-  - [ ] Linked (`func_nav_avoidance_obstacle`)
+  - [x] Linked (`func_nav_avoidance_obstacle`)
   - KeyValues
     - [ ] `StartDisabled`
   - Methods
@@ -3190,7 +3285,7 @@ Progress: 24 / 788 classnames complete.
     - [x] `Spawn`
     - [x] `UpdateOnRemove`
 - [ ] **func_nav_blocker** · `CFuncNavBlocker` · `game/server/nav_entities.cpp` · C# `FuncNavBlocker` ([Game.Server/NavMesh/NavEntities.cs](Game.Server/NavMesh/NavEntities.cs))
-  - [ ] Linked (`func_nav_blocker`)
+  - [x] Linked (`func_nav_blocker`)
   - KeyValues
     - [ ] `teamToBlock`
     - [ ] `StartDisabled`
@@ -3206,7 +3301,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateBlocked`
     - [ ] `UpdateOnRemove`
 - [ ] **func_nav_prefer** · `CFuncNavPrefer` · `game/server/nav_entities.cpp` · C# `FuncNavPrefer` ([Game.Server/NavMesh/NavEntities.cs](Game.Server/NavMesh/NavEntities.cs))
-  - [ ] Linked (`func_nav_prefer`)
+  - [x] Linked (`func_nav_prefer`)
   - Methods
     - [ ] `GetCostMultiplier`
 - [ ] **func_nav_prerequisite** · `CFuncNavPrerequisite` · `game/server/NextBot/NavMeshEntities/func_nav_prerequisite.cpp` · C# `FuncNavPrerequisite` ([Game.Server/NextBot/FuncNavPrerequisite.cs](Game.Server/NextBot/FuncNavPrerequisite.cs))
@@ -3224,7 +3319,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `IsTask`
     - [ ] `Spawn`
 - [ ] **func_occluder** · `CFuncOccluder` · `game/server/func_occluder.cpp` · C# `FuncOccluder` ([Game.Server/FuncOccluder.cs](Game.Server/FuncOccluder.cs))
-  - [ ] Linked (`func_occluder`)
+  - [x] Linked (`func_occluder`)
   - [x] Networked (SendTable for `CFuncOccluder`)
   - KeyValues
     - [ ] `StartActive`
@@ -3254,7 +3349,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `Touch`
 - [ ] **func_physbox** · `CPhysBox` · `game/server/physobj.cpp` · C# `PhysBox` ([Game.Server/PhysObj.cs](Game.Server/PhysObj.cs))
-  - [ ] Linked (`func_physbox`)
+  - [x] Linked (`func_physbox`)
   - [x] Networked (SendTable for `CPhysBox`)
   - KeyValues
     - [ ] `massScale`
@@ -3337,7 +3432,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SetupRotation`
     - [ ] `Spawn`
 - [ ] **func_precipitation** · `CPrecipitation` · `game/server/effects.cpp` · C# `Precipitation` ([Game.Server/Precipitation.cs](Game.Server/Precipitation.cs))
-  - [ ] Linked (`func_precipitation`)
+  - [x] Linked (`func_precipitation`)
   - [x] Networked (SendTable for `CPrecipitation`)
   - KeyValues
     - [ ] `preciptype`
@@ -3348,13 +3443,13 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **func_precipitation_blocker** · `CPrecipitationBlocker` · *GMod-only* · C# `PrecipitationBlocker` ([Game.Server/PrecipitationBlocker.cs](Game.Server/PrecipitationBlocker.cs))
-  - [ ] Linked (`func_precipitation_blocker`)
+  - [x] Linked (`func_precipitation_blocker`)
   - [x] Networked (SendTable for `CPrecipitationBlocker`)
   - Methods
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **func_proprrespawnzone** · `CBaseEntity` · `game/server/props.cpp` · C# `BaseEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
-  - [ ] Linked (`func_proprrespawnzone`)
+  - [x] Linked (`func_proprrespawnzone`)
   - [x] Networked (SendTable for `CBaseEntity`)
   - [ ] `CBaseEntity` functionality (tracked under Base classes)
 - [ ] **func_pushable** · `CPushable` · `game/server/func_break.cpp` · C#: *none*
@@ -3390,8 +3485,8 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateJuice`
     - [ ] `UpdateOnRemove`
     - [ ] `Use`
-- [ ] **func_reflective_glass** · `CFuncReflectiveGlass` · `game/server/func_reflective_glass.cpp` · C# `FuncReflectiveGlass` ([Game.Server/FuncReflectiveGlass.cs](Game.Server/FuncReflectiveGlass.cs))
-  - [ ] Linked (`func_reflective_glass`)
+- [x] **func_reflective_glass** · `CFuncReflectiveGlass` · `game/server/func_reflective_glass.cpp` · C# `FuncReflectiveGlass` ([Game.Server/FuncReflectiveGlass.cs](Game.Server/FuncReflectiveGlass.cs))
+  - [x] Linked (`func_reflective_glass`)
   - [x] Networked (SendTable for `CFuncReflectiveGlass`)
 - [ ] **func_rot_button** · `CRotButton` · `game/server/buttons.cpp` · C#: *none*
   - [ ] Linked (`func_rot_button`)
@@ -3399,7 +3494,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `CreateVPhysics`
     - [ ] `Spawn`
 - [ ] **func_rotating** · `CFuncRotating` · `game/server/bmodels.cpp` · C# `FuncRotating` ([Game.Server/FuncRotating.cs](Game.Server/FuncRotating.cs))
-  - [ ] Linked (`func_rotating`)
+  - [x] Linked (`func_rotating`)
   - [x] Networked (SendTable for `CFuncRotating`)
   - KeyValues
     - [ ] `maxspeed`
@@ -3441,10 +3536,10 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopLoopingSounds`
     - [ ] `UpdateSpeed`
 - [ ] **func_simpleladder** · `CFuncBrush` · `game/server/modelentities.cpp` · C# `FuncBrush` ([Game.Server/ModelEntities.cs](Game.Server/ModelEntities.cs))
-  - [ ] Linked (`func_simpleladder`)
+  - [x] Linked (`func_simpleladder`)
   - [ ] Shares `CFuncBrush` with `func_brush`, which tracks its functionality
 - [ ] **func_smokevolume** · `CFuncSmokeVolume` · `game/server/func_smokevolume.cpp` · C# `FuncSmokeVolume` ([Game.Server/FuncSmokeVolume.cs](Game.Server/FuncSmokeVolume.cs))
-  - [ ] Linked (`func_smokevolume`)
+  - [x] Linked (`func_smokevolume`)
   - [x] Networked (SendTable for `CFuncSmokeVolume`)
   - KeyValues
     - [ ] `Color1`
@@ -3617,7 +3712,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateTrain`
     - [ ] `Use`
 - [ ] **func_tracktrain** · `CFuncTrackTrain` · `game/server/trains.cpp` · C# `FuncTrackTrain` ([Game.Server/FuncTrackTrain.cs](Game.Server/FuncTrackTrain.cs))
-  - [ ] Linked (`func_tracktrain`)
+  - [x] Linked (`func_tracktrain`)
   - [x] Networked (SendTable for `CFuncTrackTrain`)
   - KeyValues
     - [ ] `wheels`
@@ -3730,7 +3825,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **func_useableladder** · `CFuncLadder` · `game/shared/func_ladder.cpp` · C# `FuncLadder` ([Game.Shared/FuncLadder.cs](Game.Shared/FuncLadder.cs))
-  - [ ] Linked (`func_useableladder`)
+  - [x] Linked (`func_useableladder`)
   - [x] Networked (SendTable for `CFuncLadder`)
   - KeyValues
     - [ ] `point0`
@@ -3771,7 +3866,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `CreateVPhysics`
     - [ ] `Spawn`
 - [ ] **func_wall** · `CFuncWall` · `game/server/bmodels.cpp` · C# `FuncWall` ([Game.Server/FuncWall.cs](Game.Server/FuncWall.cs))
-  - [ ] Linked (`func_wall`)
+  - [x] Linked (`func_wall`)
   - Methods
     - [ ] `CreateVPhysics`
     - [ ] `Spawn`
@@ -3787,7 +3882,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TurnOn`
     - [ ] `Use`
 - [ ] **func_water** · `CBaseDoor` · `game/server/doors.cpp` · C# `BaseDoor` ([Game.Shared/BaseDoor.cs](Game.Shared/BaseDoor.cs))
-  - [ ] Linked (`func_water`)
+  - [x] Linked (`func_water`)
   - [x] Networked (SendTable for `CBaseDoor`)
   - [ ] Shares `CBaseDoor` with `func_door`, which tracks its functionality
 - [ ] **func_water_analog** · `CFuncMoveLinear` · `game/server/func_movelinear.cpp` · C#: *none*
@@ -3845,7 +3940,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TargetTeamName`
     - [ ] `Use`
 - [ ] **game_ragdoll_manager** · `CRagdollManager` · `game/server/ragdoll_manager.cpp` · C# `RagdollManager` ([Game.Server/RagdollManager.cs](Game.Server/RagdollManager.cs))
-  - [ ] Linked (`game_ragdoll_manager`)
+  - [x] Linked (`game_ragdoll_manager`)
   - [x] Networked (SendTable for `CRagdollManager`)
   - KeyValues
     - [ ] `MaxRagdollCount`
@@ -4094,7 +4189,7 @@ Progress: 24 / 788 classnames complete.
 ## grenade_*
 
 - [ ] **grenade** · `CBaseGrenade` · `game/shared/basegrenade_shared.cpp` · C# `BaseGrenade` ([Game.Shared/BaseGrenade.cs](Game.Shared/BaseGrenade.cs))
-  - [ ] Linked (`grenade`)
+  - [x] Linked (`grenade`)
   - [x] Networked (SendTable for `CBaseGrenade`)
   - [ ] `CBaseGrenade` functionality (tracked under Base classes)
 - [ ] **grenade_ar2** · `CGrenadeAR2` · `game/server/hl2/grenade_ar2.cpp` · C#: *none*
@@ -4280,11 +4375,11 @@ Progress: 24 / 788 classnames complete.
 
 ## hl2mp_*
 
-- [ ] **hl2mp_gamerules** · `CHL2MPGameRulesProxy` · `game/shared/hl2mp/hl2mp_gamerules.cpp` · C# `HL2MPGameRulesProxy` ([Game.Shared/HL2MP/HL2MPGameRules.cs](Game.Shared/HL2MP/HL2MPGameRules.cs))
-  - [ ] Linked (`hl2mp_gamerules`)
+- [x] **hl2mp_gamerules** · `CHL2MPGameRulesProxy` · `game/shared/hl2mp/hl2mp_gamerules.cpp` · C# `HL2MPGameRulesProxy` ([Game.Shared/HL2MP/HL2MPGameRules.cs](Game.Shared/HL2MP/HL2MPGameRules.cs))
+  - [x] Linked (`hl2mp_gamerules`)
   - [x] Networked (SendTable for `CHL2MPGameRulesProxy`)
 - [ ] **hl2mp_ragdoll** · `CHL2MPRagdoll` · `game/server/hl2mp/hl2mp_player.cpp` · C# `HL2MPRagdoll` ([Game.Server/HL2MP/HL2MP_Player.cs](Game.Server/HL2MP/HL2MP_Player.cs))
-  - [ ] Linked (`hl2mp_ragdoll`)
+  - [x] Linked (`hl2mp_ragdoll`)
   - [x] Networked (SendTable for `CHL2MPRagdoll`)
   - Methods
     - [ ] `UpdateTransmitState`
@@ -4398,7 +4493,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `Think`
 - [ ] **info_ladder_dismount** · `CInfoLadderDismount` · `game/shared/func_ladder.cpp` · C# `InfoLadderDismount` ([Game.Shared/InfoLadderDismount.cs](Game.Shared/InfoLadderDismount.cs))
-  - [ ] Linked (`info_ladder_dismount`)
+  - [x] Linked (`info_ladder_dismount`)
   - [x] Networked (SendTable for `CInfoLadderDismount`)
   - Methods
     - [ ] `DrawDebugGeometryOverlays`
@@ -4410,7 +4505,7 @@ Progress: 24 / 788 classnames complete.
     - [x] `Spawn`
   - Also linked as: `info_player_combine`, `info_player_rebel`, `info_player_start`, `info_target_helicopter_crash`, `info_teleport_destination`, `logic_proximity`
 - [ ] **info_lighting_relative** · `CInfoLightingRelative` · `game/server/baseanimating.cpp` · C# `InfoLightingRelative` ([Game.Server/BaseAnimating.cs](Game.Server/BaseAnimating.cs))
-  - [ ] Linked (`info_lighting_relative`)
+  - [x] Linked (`info_lighting_relative`)
   - [x] Networked (SendTable for `CInfoLightingRelative`)
   - KeyValues
     - [ ] `LightingLandmark`
@@ -4487,14 +4582,14 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Spawn`
 - [ ] **info_overlay_accessor** · `CInfoOverlayAccessor` · `game/server/info_overlay_accessor.cpp` · C# `InfoOverlayAccessor` ([Game.Server/InfoOverlayAccessor.cs](Game.Server/InfoOverlayAccessor.cs))
-  - [ ] Linked (`info_overlay_accessor`)
+  - [x] Linked (`info_overlay_accessor`)
   - [x] Networked (SendTable for `CInfoOverlayAccessor`)
   - KeyValues
     - [ ] `OverlayID`
   - Methods
     - [ ] `UpdateTransmitState`
 - [ ] **info_particle_system** · `CParticleSystem` · `game/server/particle_system.cpp` · C# `ParticleSystem` ([Game.Server/ParticleSystem.cs](Game.Server/ParticleSystem.cs))
-  - [ ] Linked (`info_particle_system`)
+  - [x] Linked (`info_particle_system`)
   - [x] Networked (SendTable for `CParticleSystem`)
   - KeyValues
     - [ ] `start_active`
@@ -4586,7 +4681,7 @@ Progress: 24 / 788 classnames complete.
   - [ ] Linked (`info_particle_target`)
   - [ ] Shares `CInfoTarget` with `info_target`, which tracks its functionality
 - [ ] **info_player_combine** · `CPointEntity` · `game/server/gmod/gmod_player.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
-  - [ ] Linked (`info_player_combine`)
+  - [x] Linked (`info_player_combine`)
   - [ ] Shares `CPointEntity` with `info_landmark`, which tracks its functionality
 - [ ] **info_player_deathmatch** · `CBaseDMStart` · `game/server/subs.cpp` · C#: *none*
   - [ ] Linked (`info_player_deathmatch`)
@@ -4595,7 +4690,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `IsTriggered`
 - [ ] **info_player_rebel** · `CPointEntity` · `game/server/gmod/gmod_player.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
-  - [ ] Linked (`info_player_rebel`)
+  - [x] Linked (`info_player_rebel`)
   - [ ] Shares `CPointEntity` with `info_landmark`, which tracks its functionality
 - [ ] **info_player_start** · `CPointEntity` · `game/server/subs.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
   - [x] Linked (`info_player_start`)
@@ -4673,7 +4768,7 @@ Progress: 24 / 788 classnames complete.
   - Outputs
     - [ ] `OnCrashed`
 - [ ] **info_target_helicopter_crash** · `CPointEntity` · `game/server/hl2/npc_attackchopper.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
-  - [ ] Linked (`info_target_helicopter_crash`)
+  - [x] Linked (`info_target_helicopter_crash`)
   - [ ] Shares `CPointEntity` with `info_landmark`, which tracks its functionality
 - [ ] **info_target_vehicle_transition** · `CInfoTargetVehicleTransition` · `game/server/episodic/vehicle_jeep_episodic.cpp` · C#: *none*
   - [ ] Linked (`info_target_vehicle_transition`)
@@ -4682,12 +4777,11 @@ Progress: 24 / 788 classnames complete.
   - Inputs
     - [ ] `Enable`
     - [ ] `Disable`
-- [ ] **info_teleport_destination** · `CPointEntity` · `game/server/triggers.cpp` · C# `InfoTeleportDestination` ([Game.Server/Triggers.cs](Game.Server/Triggers.cs))
+- [ ] **info_teleport_destination** · `CPointEntity` · `game/server/triggers.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
   - [x] Linked (`info_teleport_destination`)
-  - ⚠ C# links `info_teleport_destination` to `InfoTeleportDestination`, but GMod uses `CPointEntity`
   - [ ] Shares `CPointEntity` with `info_landmark`, which tracks its functionality
 - [ ] **info_teleporter_countdown** · `CInfoTeleporterCountdown` · `game/server/hl2/info_teleporter_countdown.cpp` · C# `InfoTeleporterCountdown` ([Game.Server/HL2/InfoTeleporterCountdown.cs](Game.Server/HL2/InfoTeleporterCountdown.cs))
-  - [ ] Linked (`info_teleporter_countdown`)
+  - [x] Linked (`info_teleporter_countdown`)
   - [x] Networked (SendTable for `CInfoTeleporterCountdown`)
   - Inputs
     - [ ] `Enable`
@@ -4877,7 +4971,7 @@ Progress: 24 / 788 classnames complete.
   - [ ] Linked (`item_box_srounds`)
   - [ ] Shares `CItem_BoxSRounds` with `item_ammo_pistol`, which tracks its functionality
 - [ ] **item_crate** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`item_crate`)
+  - [x] Linked (`item_crate`)
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 - [ ] **item_dynamic_resupply** · `CItem_DynamicResupply` · `game/server/hl2/item_dynamic_resupply.cpp` · C#: *none*
@@ -5046,7 +5140,7 @@ Progress: 24 / 788 classnames complete.
 ## keyframe_*
 
 - [ ] **keyframe_rope** · `CRopeKeyframe` · `game/server/rope.cpp` · C# `RopeKeyframe` ([Game.Server/Rope.cs](Game.Server/Rope.cs))
-  - [ ] Linked (`keyframe_rope`)
+  - [x] Linked (`keyframe_rope`)
   - [x] Networked (SendTable for `CRopeKeyframe`)
   - [ ] Shares `CRopeKeyframe` with `move_rope`, which tracks its functionality
 - [ ] **keyframe_track** · `CPathKeyFrame` · `game/server/movement.cpp` · C#: *none*
@@ -5067,7 +5161,7 @@ Progress: 24 / 788 classnames complete.
 ## laser_*
 
 - [ ] **laser_spot** · `CLaserDot_HL1` · *GMod-only* · C# `LaserDot_HL1` ([Game.Shared/HL1/WeaponRPG_HL1.cs](Game.Shared/HL1/WeaponRPG_HL1.cs))
-  - [ ] Linked (`laser_spot`)
+  - [x] Linked (`laser_spot`)
   - [x] Networked (SendTable for `CLaserDot_HL1`)
   - Methods
     - [ ] `GetChasePosition`
@@ -5102,10 +5196,10 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Use`
   - Also linked as: `light_directional`, `light_glspot`, `light_spot`
 - [ ] **light_directional** · `CLight` · `game/server/lights.cpp` · C# `Light` ([Game.Server/Lights.cs](Game.Server/Lights.cs))
-  - [ ] Linked (`light_directional`)
+  - [x] Linked (`light_directional`)
   - [ ] Shares `CLight` with `light`, which tracks its functionality
 - [ ] **light_dynamic** · `CDynamicLight` · `game/server/dynamiclight.cpp` · C# `DynamicLight` ([Game.Server/DynamicLight.cs](Game.Server/DynamicLight.cs))
-  - [ ] Linked (`light_dynamic`)
+  - [x] Linked (`light_dynamic`)
   - [x] Networked (SendTable for `CDynamicLight`)
   - Inputs
     - [ ] `distance` (also keyvalue)
@@ -5127,10 +5221,10 @@ Progress: 24 / 788 classnames complete.
     - [ ] `KeyValue`
     - [ ] `Spawn`
 - [ ] **light_glspot** · `CLight` · `game/server/lights.cpp` · C# `Light` ([Game.Server/Lights.cs](Game.Server/Lights.cs))
-  - [ ] Linked (`light_glspot`)
+  - [x] Linked (`light_glspot`)
   - [ ] Shares `CLight` with `light`, which tracks its functionality
 - [ ] **light_spot** · `CLight` · `game/server/lights.cpp` · C# `Light` ([Game.Server/Lights.cs](Game.Server/Lights.cs))
-  - [ ] Linked (`light_spot`)
+  - [x] Linked (`light_spot`)
   - [ ] Shares `CLight` with `light`, which tracks its functionality
 
 ## logic_*
@@ -5267,7 +5361,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `BuildCaseMap`
     - [ ] `Spawn`
 - [ ] **logic_choreographed_scene** · `CSceneEntity` · `game/server/sceneentity.cpp` · C# `SceneEntity` ([Game.Server/SceneEntity.cs](Game.Server/SceneEntity.cs))
-  - [ ] Linked (`logic_choreographed_scene`)
+  - [x] Linked (`logic_choreographed_scene`)
   - [x] Networked (SendTable for `CSceneEntity`)
   - [ ] Shares `CSceneEntity` with `scripted_scene`, which tracks its functionality
 - [ ] **logic_collision_pair** · `CLogicCollisionPair` · `game/server/logicentities.cpp` · C#: *none*
@@ -5432,9 +5526,8 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `Activate`
     - [ ] `PassesDamageFilter`
-- [ ] **logic_proximity** · `CPointEntity` · `game/server/triggers.cpp` · C# `LogicProximity` ([Game.Server/Triggers.cs](Game.Server/Triggers.cs))
+- [ ] **logic_proximity** · `CPointEntity` · `game/server/triggers.cpp` · C# `PointEntity` ([Game.Server/BaseEntity.cs](Game.Server/BaseEntity.cs))
   - [x] Linked (`logic_proximity`)
-  - ⚠ C# links `logic_proximity` to `LogicProximity`, but GMod uses `CPointEntity`
   - [ ] Shares `CPointEntity` with `info_landmark`, which tracks its functionality
 - [ ] **logic_random_outputs** · `CLogicRandomOutputs` · *GMod-only* · C#: *none*
   - [ ] Linked (`logic_random_outputs`)
@@ -5564,7 +5657,7 @@ Progress: 24 / 788 classnames complete.
 ## manipulate_*
 
 - [ ] **manipulate_bone** · `CBoneManipulate` · *GMod-only* · C# `BoneManipulate` ([Game.Server/BoneManipulate.cs](Game.Server/BoneManipulate.cs))
-  - [ ] Linked (`manipulate_bone`)
+  - [x] Linked (`manipulate_bone`)
   - [x] Networked (SendTable for `CBoneManipulate`)
   - Methods
     - [ ] `GetBoneAngle`
@@ -5583,7 +5676,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `UpdateTransmitState`
 - [ ] **manipulate_flex** · `CFlexManipulate` · *GMod-only* · C# `FlexManipulate` ([Game.Server/FlexManipulate.cs](Game.Server/FlexManipulate.cs))
-  - [ ] Linked (`manipulate_flex`)
+  - [x] Linked (`manipulate_flex`)
   - [x] Networked (SendTable for `CFlexManipulate`)
   - Methods
     - [ ] `GetFlex`
@@ -5598,7 +5691,7 @@ Progress: 24 / 788 classnames complete.
 ## material_*
 
 - [ ] **material_modify_control** · `CMaterialModifyControl` · `game/server/MaterialModifyControl.cpp` · C# `MaterialModifyControl` ([Game.Server/MaterialModifyControl.cs](Game.Server/MaterialModifyControl.cs))
-  - [ ] Linked (`material_modify_control`)
+  - [x] Linked (`material_modify_control`)
   - [x] Networked (SendTable for `CMaterialModifyControl`)
   - Inputs
     - [ ] `SetMaterialVar`
@@ -6631,7 +6724,7 @@ Progress: 24 / 788 classnames complete.
 ## mortarshell
 
 - [ ] **mortarshell** · `CMortarShell` · `game/server/hl2/func_tank.cpp` · C# `MortarShell` ([Game.Server/MortarShell.cs](Game.Server/MortarShell.cs))
-  - [ ] Linked (`mortarshell`)
+  - [x] Linked (`mortarshell`)
   - [x] Networked (SendTable for `CMortarShell`)
   - Think/Touch/Use functions
     - [ ] `FlyThink`
@@ -6663,7 +6756,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StartMoving`
     - [ ] `StopMoving`
 - [ ] **move_rope** · `CRopeKeyframe` · `game/server/rope.cpp` · C# `RopeKeyframe` ([Game.Server/Rope.cs](Game.Server/Rope.cs))
-  - [ ] Linked (`move_rope`)
+  - [x] Linked (`move_rope`)
   - [x] Networked (SendTable for `CRopeKeyframe`)
   - KeyValues
     - [ ] `StartOffset`
@@ -7157,7 +7250,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `IsWorker`
 - [ ] **npc_antlionguard** · `CNPC_AntlionGuard` · `game/server/hl2/npc_antlionguard.cpp` · C# `NPC_AntlionGuard` ([Game.Server/NPC_AntlionGuard.cs](Game.Server/NPC_AntlionGuard.cs))
-  - [ ] Linked (`npc_antlionguard`)
+  - [x] Linked (`npc_antlionguard`)
   - [x] Networked (SendTable for `CNPC_AntlionGuard`)
   - KeyValues
     - [ ] `startburrowed`
@@ -7277,7 +7370,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SquadSlotName`
     - [ ] `WeaponLOSCondition`
 - [ ] **npc_barnacle** · `CNPC_Barnacle` · `game/server/hl2/npc_barnacle.cpp` · C# `NPC_Barnacle` ([Game.Server/NPC_Barnacle.cs](Game.Server/NPC_Barnacle.cs))
-  - [ ] Linked (`npc_barnacle`)
+  - [x] Linked (`npc_barnacle`)
   - [x] Networked (SendTable for `CNPC_Barnacle`)
   - KeyValues
     - [ ] `RestDist`
@@ -7348,7 +7441,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateTransmitState`
     - [ ] `VPhysicsUpdate`
 - [ ] **npc_barney** · `CNPC_Barney` · `game/server/hl2/npc_barney.cpp` · C# `NPC_Barney` ([Game.Server/NPC_Barney.cs](Game.Server/NPC_Barney.cs))
-  - [ ] Linked (`npc_barney`)
+  - [x] Linked (`npc_barney`)
   - [x] Networked (SendTable for `CNPC_Barney`)
   - Outputs
     - [ ] `OnPlayerUse`
@@ -7793,7 +7886,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateRotorSoundPitch`
     - [ ] `UpdateRotorWashVolume`
 - [ ] **npc_combinegunship** · `CNPC_CombineGunship` · `game/server/hl2/npc_combinegunship.cpp` · C# `NPC_CombineGunship` ([Game.Server/NPC_CombineGunship.cs](Game.Server/NPC_CombineGunship.cs))
-  - [ ] Linked (`npc_combinegunship`)
+  - [x] Linked (`npc_combinegunship`)
   - [x] Networked (SendTable for `CNPC_CombineGunship`)
   - Inputs
     - [ ] `OmniscientOn`
@@ -8867,7 +8960,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `MakeNPC`
     - [ ] `Precache`
 - [ ] **npc_manhack** · `CNPC_Manhack` · `game/server/hl2/npc_manhack.cpp` · C# `NPC_Manhack` ([Game.Server/NPC_Manhack.cs](Game.Server/NPC_Manhack.cs))
-  - [ ] Linked (`npc_manhack`)
+  - [x] Linked (`npc_manhack`)
   - [x] Networked (SendTable for `CNPC_Manhack`)
   - KeyValues
     - [ ] `ignoreclipbrushes`
@@ -9199,7 +9292,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `SquadSlotName`
 - [ ] **npc_personality_core** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`npc_personality_core`)
+  - [x] Linked (`npc_personality_core`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **npc_pigeon** · `CNPC_Pigeon` · `game/server/hl2/npc_crow.cpp` · C#: *none*
@@ -9259,7 +9352,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopLoopingSounds`
     - [ ] `TranslateSchedule`
 - [ ] **npc_portal_turret_floor** · `CNPC_Portal_FloorTurret` · `game/server/portal/npc_portal_turret_floor.cpp` · C# `NPC_Portal_FloorTurret` ([Game.Server/NPC_Portal_FloorTurret.cs](Game.Server/NPC_Portal_FloorTurret.cs))
-  - [ ] Linked (`npc_portal_turret_floor`)
+  - [x] Linked (`npc_portal_turret_floor`)
   - [x] Networked (SendTable for `CNPC_Portal_FloorTurret`)
   - KeyValues
     - [ ] `DamageForce`
@@ -9302,7 +9395,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StartTouch`
     - [ ] `UpdateOnRemove`
 - [ ] **npc_puppet** · `CNPC_Puppet` · `game/server/episodic/npc_puppet.cpp` · C# `NPC_Puppet` ([Game.Server/NPC_Puppet.cs](Game.Server/NPC_Puppet.cs))
-  - [ ] Linked (`npc_puppet`)
+  - [x] Linked (`npc_puppet`)
   - [x] Networked (SendTable for `CNPC_Puppet`)
   - KeyValues
     - [ ] `animationtarget`
@@ -9313,7 +9406,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Precache`
     - [ ] `Spawn`
 - [ ] **npc_rocket_turret** · `CNPC_RocketTurret` · `game/server/portal/npc_rocket_turret.cpp` · C# `NPC_RocketTurret` ([Game.Server/NPC_RocketTurret.cs](Game.Server/NPC_RocketTurret.cs))
-  - [ ] Linked (`npc_rocket_turret`)
+  - [x] Linked (`npc_rocket_turret`)
   - [x] Networked (SendTable for `CNPC_RocketTurret`)
   - Inputs
     - [ ] `Toggle`
@@ -9361,7 +9454,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
     - [ ] `UpdateSkin`
 - [ ] **npc_rollermine** · `CNPC_RollerMine` · `game/server/hl2/npc_rollermine.cpp` · C# `NPC_RollerMine` ([Game.Server/NPC_RollerMine.cs](Game.Server/NPC_RollerMine.cs))
-  - [ ] Linked (`npc_rollermine`)
+  - [x] Linked (`npc_rollermine`)
   - [x] Networked (SendTable for `CNPC_RollerMine`)
   - KeyValues
     - [ ] `StartBuried`
@@ -9648,7 +9741,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateAttackBeam`
     - [ ] `UpdateOnRemove`
 - [ ] **npc_strider** · `CNPC_Strider` · `game/server/hl2/npc_strider.cpp` · C# `NPC_Strider` ([Game.Server/NPC_Strider.cs](Game.Server/NPC_Strider.cs))
-  - [ ] Linked (`npc_strider`)
+  - [x] Linked (`npc_strider`)
   - [x] Networked (SendTable for `CNPC_Strider`)
   - KeyValues
     - [ ] `disablephysics`
@@ -10071,7 +10164,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
     - [ ] `WaypointReached`
 - [ ] **npc_vortigaunt** · `CNPC_Vortigaunt` · `game/server/hl2/npc_vortigaunt_episodic.cpp` · C# `NPC_Vortigaunt` ([Game.Server/NPC_Vortigaunt.cs](Game.Server/NPC_Vortigaunt.cs))
-  - [ ] Linked (`npc_vortigaunt`)
+  - [x] Linked (`npc_vortigaunt`)
   - [x] Networked (SendTable for `CNPC_Vortigaunt`)
   - KeyValues
     - [ ] `ArmorRechargeEnabled`
@@ -10176,7 +10269,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Use`
     - [ ] `ZapBeam`
 - [ ] **npc_wheatley_boss** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`npc_wheatley_boss`)
+  - [x] Linked (`npc_wheatley_boss`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **npc_zombie** · `CZombie` · `game/server/hl2/npc_zombie.cpp` · C#: *none*
@@ -10403,7 +10496,7 @@ Progress: 24 / 788 classnames complete.
   - Methods
     - [ ] `CreateConstraint`
 - [ ] **phys_bone_follower** · `CBoneFollower` · `game/server/physics_bone_follower.cpp` · C# `BoneFollower` ([Game.Server/BoneFollower.cs](Game.Server/BoneFollower.cs))
-  - [ ] Linked (`phys_bone_follower`)
+  - [x] Linked (`phys_bone_follower`)
   - [x] Networked (SendTable for `CBoneFollower`)
   - Methods
     - [ ] `Init`
@@ -10496,7 +10589,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `CreateConstraint`
     - [ ] `DrawDebugGeometryOverlays`
 - [ ] **phys_magnet** · `CPhysMagnet` · `game/server/physobj.cpp` · C# `PhysMagnet` ([Game.Server/PhysMagnet.cs](Game.Server/PhysMagnet.cs))
-  - [ ] Linked (`phys_magnet`)
+  - [x] Linked (`phys_magnet`)
   - [x] Networked (SendTable for `CPhysMagnet`)
   - KeyValues
     - [ ] `massScale`
@@ -10646,7 +10739,7 @@ Progress: 24 / 788 classnames complete.
 ## physgun_*
 
 - [ ] **physgun_beam** · `CPhysBeam` · *GMod-only* · C# `PhysBeam` ([Game.Shared/GarrysMod/PhysBeam.cs](Game.Shared/GarrysMod/PhysBeam.cs))
-  - [ ] Linked (`physgun_beam`)
+  - [x] Linked (`physgun_beam`)
   - [x] Networked (SendTable for `CPhysBeam`)
   - Methods
     - [ ] `ComputeEndPos`
@@ -10729,7 +10822,7 @@ Progress: 24 / 788 classnames complete.
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 - [ ] **physics_prop_ragdoll** · `CRagdollProp` · `game/server/physics_prop_ragdoll.cpp` · C# `RagdollProp` ([Game.Server/RagdollProp.cs](Game.Server/RagdollProp.cs))
-  - [ ] Linked (`physics_prop_ragdoll`)
+  - [x] Linked (`physics_prop_ragdoll`)
   - [x] Networked (SendTable for `CRagdollProp`)
   - [ ] Shares `CRagdollProp` with `prop_ragdoll`, which tracks its functionality
 
@@ -10955,7 +11048,7 @@ Progress: 24 / 788 classnames complete.
   - Outputs
     - [ ] `OnBaited`
 - [ ] **point_camera** · `CPointCamera` · `game/server/point_camera.cpp` · C# `PointCamera` ([Game.Server/PointCamera.cs](Game.Server/PointCamera.cs))
-  - [ ] Linked (`point_camera`)
+  - [x] Linked (`point_camera`)
   - [x] Networked (SendTable for `CPointCamera`)
   - KeyValues
     - [ ] `FOV`
@@ -11037,7 +11130,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `FindByRandom`
     - [ ] `FindEntity`
 - [ ] **point_flesh_effect_target** · `CFleshEffectTarget` · `game/server/hl2/npc_vortigaunt_episodic.cpp` · C# `FleshEffectTarget` ([Game.Server/FleshEffectTarget.cs](Game.Server/FleshEffectTarget.cs))
-  - [ ] Linked (`point_flesh_effect_target`)
+  - [x] Linked (`point_flesh_effect_target`)
   - [x] Networked (SendTable for `CFleshEffectTarget`)
   - KeyValues
     - [ ] `radius`
@@ -11095,7 +11188,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Activate`
     - [ ] `UpdateTransmitState`
 - [ ] **point_posecontroller** · `CPoseController` · `game/shared/point_posecontroller.cpp` · C# `PoseController` ([Game.Server/PoseController.cs](Game.Server/PoseController.cs))
-  - [ ] Linked (`point_posecontroller`)
+  - [x] Linked (`point_posecontroller`)
   - [x] Networked (SendTable for `CPoseController`)
   - KeyValues
     - [ ] `PropName`
@@ -11216,7 +11309,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `EntityMayTeleport`
     - [ ] `ObjectCaps`
 - [ ] **point_template** · `CPointTemplate` · `game/server/point_template.cpp` · C# `PointTemplate` ([Game.Server/MapEntities.cs](Game.Server/MapEntities.cs))
-  - [ ] Linked (`point_template`)
+  - [x] Linked (`point_template`)
   - KeyValues
     - [ ] `Template01`
     - [ ] `Template02`
@@ -11253,7 +11346,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `StartBuildingTemplates`
 - [ ] **point_tesla** · `CTesla` · `game/server/tesla.cpp` · C# `Tesla` ([Game.Server/Tesla.cs](Game.Server/Tesla.cs))
-  - [ ] Linked (`point_tesla`)
+  - [x] Linked (`point_tesla`)
   - [x] Networked (SendTable for `CTesla`)
   - KeyValues
     - [ ] `m_SourceEntityName`
@@ -11377,7 +11470,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TranslateViewToProxy`
     - [ ] `UpdateTransmitState`
 - [ ] **point_worldtext** · `CPointWorldText` · *GMod-only* · C# `PointWorldText` ([Game.Server/PointWorldText.cs](Game.Server/PointWorldText.cs))
-  - [ ] Linked (`point_worldtext`)
+  - [x] Linked (`point_worldtext`)
   - [x] Networked (SendTable for `CPointWorldText`)
   - KeyValues
     - [ ] `color`
@@ -11407,7 +11500,7 @@ Progress: 24 / 788 classnames complete.
 ## predicted_*
 
 - [ ] **predicted_viewmodel** · `CPredictedViewModel` · `game/shared/predicted_viewmodel.cpp` · C# `PredictedViewModel` ([Game.Shared/PredictedViewModel.cs](Game.Shared/PredictedViewModel.cs))
-  - [ ] Linked (`predicted_viewmodel`)
+  - [x] Linked (`predicted_viewmodel`)
   - [x] Networked (SendTable for `CPredictedViewModel`)
   - Methods
     - [ ] `CalcViewModelLag`
@@ -11415,19 +11508,19 @@ Progress: 24 / 788 classnames complete.
 ## prop_*
 
 - [ ] **prop_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_button`)
+  - [x] Linked (`prop_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_car_alarm** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_car_alarm`)
+  - [x] Linked (`prop_car_alarm`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_car_glass** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_car_glass`)
+  - [x] Linked (`prop_car_glass`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_combine_ball** · `CPropCombineBall` · `game/server/hl2/prop_combine_ball.cpp` · C# `PropCombineBall` ([Game.Server/HL2/PropCombineBall.cs](Game.Server/HL2/PropCombineBall.cs))
-  - [ ] Linked (`prop_combine_ball`)
+  - [x] Linked (`prop_combine_ball`)
   - [x] Networked (SendTable for `CPropCombineBall`)
   - Inputs
     - [ ] `Explode`
@@ -11485,7 +11578,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `VPhysicsCollision`
     - [ ] `WhizSoundThink`
 - [ ] **prop_coreball** · `CPropScalable` · `game/server/episodic/prop_scalable.cpp` · C# `PropScalable` ([Game.Server/PropScalable.cs](Game.Server/PropScalable.cs))
-  - [ ] Linked (`prop_coreball`)
+  - [x] Linked (`prop_coreball`)
   - [x] Networked (SendTable for `CPropScalable`)
   - Inputs
     - [ ] `SetScaleX`
@@ -11495,34 +11588,14 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Precache`
     - [ ] `Spawn`
   - Also linked as: `prop_scalable`
-- [ ] **prop_door_rotating** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotating` ([Game.Server/Props.cs](Game.Server/Props.cs))
+- [ ] **prop_door_rotating** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotatingBreakable` ([Game.Server/Props.cs](Game.Server/Props.cs))
   - [x] Linked (`prop_door_rotating`)
-  - ⚠ C# links `prop_door_rotating` to `PropDoorRotating`, but GMod uses `CPropDoorRotatingBreakable`
-  - Inputs
-    - [ ] `SetUnbreakable`
-    - [ ] `SetBreakable`
-  - Methods
-    - [ ] `BlockNav`
-    - [ ] `DrawDebugTextOverlays`
-    - [ ] `Event_Killed`
-    - [ ] `IsAbleToCloseAreaPortals`
-    - [ ] `Lock`
-    - [ ] `OnDoorClosed`
-    - [ ] `OnDoorOpened`
-    - [ ] `OnTakeDamage`
-    - [ ] `Precache`
-    - [ ] `PrecacheBreakables`
-    - [ ] `Spawn`
-    - [ ] `UnblockNav`
-    - [ ] `Unlock`
-    - [ ] `UpdateBlocked`
-    - [ ] `UpdateOnRemove`
-  - Also linked as: `dz_door`, `prop_door_rotating_checkpoint`
-- [ ] **prop_door_rotating_checkpoint** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotating` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_door_rotating_checkpoint`)
-  - [ ] Shares `CPropDoorRotatingBreakable` with `prop_door_rotating`, which tracks its functionality
+  - [ ] Shares `CPropDoorRotatingBreakable` with `dz_door`, which tracks its functionality
+- [ ] **prop_door_rotating_checkpoint** · `CPropDoorRotatingBreakable` · *GMod-only* · C# `PropDoorRotatingBreakable` ([Game.Server/Props.cs](Game.Server/Props.cs))
+  - [x] Linked (`prop_door_rotating_checkpoint`)
+  - [ ] Shares `CPropDoorRotatingBreakable` with `dz_door`, which tracks its functionality
 - [ ] **prop_dropper** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_dropper`)
+  - [x] Linked (`prop_dropper`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_dropship_container** · `CCombineDropshipContainer` · `game/server/hl2/npc_combinedropship.cpp` · C#: *none*
@@ -11584,7 +11657,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
   - Also linked as: `asw_door`, `dod_control_point`, `dynamic_prop`, `env_portal_laser`, `npc_personality_core`, `npc_wheatley_boss`, `prop_button`, `prop_car_alarm`, `prop_car_glass`, `prop_dropper`, `prop_dynamic_glow`, `prop_dynamic_override`, `prop_floor_ball_button`, `prop_floor_button`, `prop_floor_cube_button`, `prop_health_cabinet`, `prop_indicator_panel`, `prop_laser_catcher`, `prop_laser_relay`, `prop_portal_stats_display`, `prop_testchamber_door`, `prop_tractor_beam`, `prop_under_button`, `prop_under_floor_button`, `prop_wall_projector`, `team_control_point`
 - [ ] **prop_dynamic_glow** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_dynamic_glow`)
+  - [x] Linked (`prop_dynamic_glow`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_dynamic_ornament** · `COrnamentProp` · `game/server/props.cpp` · C#: *none*
@@ -11604,7 +11677,7 @@ Progress: 24 / 788 classnames complete.
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_energy_ball** · `CPropEnergyBall` · `game/server/portal/prop_energy_ball.cpp` · C# `PropEnergyBall` ([Game.Server/PropEnergyBall.cs](Game.Server/PropEnergyBall.cs))
-  - [ ] Linked (`prop_energy_ball`)
+  - [x] Linked (`prop_energy_ball`)
   - [x] Networked (SendTable for `CPropEnergyBall`)
   - Inputs
     - [ ] `BallCaught`
@@ -11622,23 +11695,23 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopLoopingSounds`
     - [ ] `VPhysicsCollision`
 - [ ] **prop_exploding_barrel** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_exploding_barrel`)
+  - [x] Linked (`prop_exploding_barrel`)
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 - [ ] **prop_flare** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_flare`)
+  - [x] Linked (`prop_flare`)
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 - [ ] **prop_floor_ball_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_floor_ball_button`)
+  - [x] Linked (`prop_floor_ball_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_floor_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_floor_button`)
+  - [x] Linked (`prop_floor_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_floor_cube_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_floor_cube_button`)
+  - [x] Linked (`prop_floor_cube_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_glados_core** · `CPropGladosCore` · `game/server/portal/prop_glados_core.cpp` · C#: *none*
@@ -11663,19 +11736,19 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StartPanic`
     - [ ] `StartTalking`
 - [ ] **prop_health_cabinet** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_health_cabinet`)
+  - [x] Linked (`prop_health_cabinet`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_indicator_panel** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_indicator_panel`)
+  - [x] Linked (`prop_indicator_panel`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_laser_catcher** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_laser_catcher`)
+  - [x] Linked (`prop_laser_catcher`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_laser_relay** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_laser_relay`)
+  - [x] Linked (`prop_laser_relay`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_physics** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
@@ -11736,9 +11809,8 @@ Progress: 24 / 788 classnames complete.
     - [ ] `VPhysicsCollision`
     - [ ] `VPhysicsUpdate`
   - Also linked as: `item_crate`, `physics_prop`, `prop_exploding_barrel`, `prop_flare`, `prop_physics_multiplayer`, `prop_physics_override`, `prop_weighted_cube`
-- [ ] **prop_physics_multiplayer** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsPropMultiplayer` ([Game.Server/Props.cs](Game.Server/Props.cs))
+- [ ] **prop_physics_multiplayer** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
   - [x] Linked (`prop_physics_multiplayer`)
-  - ⚠ C# links `prop_physics_multiplayer` to `PhysicsPropMultiplayer`, but GMod uses `CPhysicsProp`
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 - [ ] **prop_physics_override** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
@@ -11757,11 +11829,11 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Event_Killed`
     - [ ] `Spawn`
 - [ ] **prop_portal_stats_display** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_portal_stats_display`)
+  - [x] Linked (`prop_portal_stats_display`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_ragdoll** · `CRagdollProp` · `game/server/physics_prop_ragdoll.cpp` · C# `RagdollProp` ([Game.Server/RagdollProp.cs](Game.Server/RagdollProp.cs))
-  - [ ] Linked (`prop_ragdoll`)
+  - [x] Linked (`prop_ragdoll`)
   - [x] Networked (SendTable for `CRagdollProp`)
   - KeyValues
     - [ ] `angleOverride`
@@ -11832,7 +11904,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `VPhysicsUpdate`
   - Also linked as: `physics_prop_ragdoll`
 - [ ] **prop_ragdoll_attached** · `CRagdollPropAttached` · `game/server/physics_prop_ragdoll.cpp` · C# `RagdollPropAttached` ([Game.Server/RagdollPropAttached.cs](Game.Server/RagdollPropAttached.cs))
-  - [ ] Linked (`prop_ragdoll_attached`)
+  - [x] Linked (`prop_ragdoll_attached`)
   - [x] Networked (SendTable for `CRagdollPropAttached`)
   - Methods
     - [ ] `Detach`
@@ -11840,7 +11912,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `InitRagdollAttached`
     - [ ] `VPhysicsUpdate`
 - [ ] **prop_scalable** · `CPropScalable` · `game/server/episodic/prop_scalable.cpp` · C# `PropScalable` ([Game.Server/PropScalable.cs](Game.Server/PropScalable.cs))
-  - [ ] Linked (`prop_scalable`)
+  - [x] Linked (`prop_scalable`)
   - [x] Networked (SendTable for `CPropScalable`)
   - [ ] Shares `CPropScalable` with `prop_coreball`, which tracks its functionality
 - [ ] **prop_sphere** · `CPhysSphere` · `game/server/props.cpp` · C#: *none*
@@ -11894,7 +11966,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `VPhysicsCollision`
   - Also linked as: `weapon_striderbuster`
 - [ ] **prop_testchamber_door** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_testchamber_door`)
+  - [x] Linked (`prop_testchamber_door`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_thumper** · `CPropThumper` · `game/server/hl2/prop_thumper.cpp` · C#: *none*
@@ -11917,15 +11989,15 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopLoopingSounds`
     - [ ] `Thump`
 - [ ] **prop_tractor_beam** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_tractor_beam`)
+  - [x] Linked (`prop_tractor_beam`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_under_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_under_button`)
+  - [x] Linked (`prop_under_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_under_floor_button** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_under_floor_button`)
+  - [x] Linked (`prop_under_floor_button`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_vehicle** · `CPropVehicle` · `game/server/vehicle_base.cpp` · C#: *none*
@@ -11957,7 +12029,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Think`
     - [ ] `VPhysicsUpdate`
 - [ ] **prop_vehicle_airboat** · `CPropAirboat` · `game/server/hl2/vehicle_airboat.cpp` · C# `PropAirboat` ([Game.Server/HL2/PropAirboat.cs](Game.Server/HL2/PropAirboat.cs))
-  - [ ] Linked (`prop_vehicle_airboat`)
+  - [x] Linked (`prop_vehicle_airboat`)
   - [x] Networked (SendTable for `CPropAirboat`)
   - Inputs
     - [ ] `EnableGun`
@@ -12069,7 +12141,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateWaterLevel`
     - [ ] `Use`
 - [ ] **prop_vehicle_choreo_generic** · `CPropVehicleChoreoGeneric` · `game/server/vehicle_choreo_generic.cpp` · C# `PropVehicleChoreoGeneric` ([Game.Server/PropVehicleChoreoGeneric.cs](Game.Server/PropVehicleChoreoGeneric.cs))
-  - [ ] Linked (`prop_vehicle_choreo_generic`)
+  - [x] Linked (`prop_vehicle_choreo_generic`)
   - [x] Networked (SendTable for `CPropVehicleChoreoGeneric`)
   - KeyValues
     - [ ] `vehiclescript`
@@ -12134,7 +12206,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `TraceAttack`
     - [ ] `Use`
 - [ ] **prop_vehicle_crane** · `CPropCrane` · `game/server/hl2/vehicle_crane.cpp` · C# `PropCrane` ([Game.Server/PropCrane.cs](Game.Server/PropCrane.cs))
-  - [ ] Linked (`prop_vehicle_crane`)
+  - [x] Linked (`prop_vehicle_crane`)
   - [x] Networked (SendTable for `CPropCrane`)
   - KeyValues
     - [ ] `magnetname`
@@ -12188,7 +12260,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
     - [ ] `Use`
 - [ ] **prop_vehicle_driveable** · `CPropVehicleDriveable` · `game/server/vehicle_base.cpp` · C# `PropVehicleDriveable` ([Game.Server/PropVehicleDriveable.cs](Game.Server/PropVehicleDriveable.cs))
-  - [ ] Linked (`prop_vehicle_driveable`)
+  - [x] Linked (`prop_vehicle_driveable`)
   - [x] Networked (SendTable for `CPropVehicleDriveable`)
   - KeyValues
     - [ ] `VehicleLocked`
@@ -12254,7 +12326,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `VPhysicsGetObjectList`
     - [ ] `VehicleAngleVectors`
 - [ ] **prop_vehicle_jeep** · `CPropJeepEpisodic` · `game/server/episodic/vehicle_jeep_episodic.cpp` · C# `PropJeepEpisodic` ([Game.Server/PropJeep.cs](Game.Server/PropJeep.cs))
-  - [ ] Linked (`prop_vehicle_jeep`)
+  - [x] Linked (`prop_vehicle_jeep`)
   - [x] Networked (SendTable for `CPropJeepEpisodic`)
   - KeyValues
     - [ ] `CargoVisible`
@@ -12324,11 +12396,11 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Use`
   - Also linked as: `prop_vehicle_jeep_old`
 - [ ] **prop_vehicle_jeep_old** · `CPropJeepEpisodic` · `game/server/episodic/vehicle_jeep_episodic.cpp` · C# `PropJeepEpisodic` ([Game.Server/PropJeep.cs](Game.Server/PropJeep.cs))
-  - [ ] Linked (`prop_vehicle_jeep_old`)
+  - [x] Linked (`prop_vehicle_jeep_old`)
   - [x] Networked (SendTable for `CPropJeepEpisodic`)
   - [ ] Shares `CPropJeepEpisodic` with `prop_vehicle_jeep`, which tracks its functionality
 - [ ] **prop_vehicle_prisoner_pod** · `CPropVehiclePrisonerPod` · `game/server/hl2/vehicle_prisoner_pod.cpp` · C# `PropVehiclePrisonerPod` ([Game.Server/HL2/PropVehiclePrisonerPod.cs](Game.Server/HL2/PropVehiclePrisonerPod.cs))
-  - [ ] Linked (`prop_vehicle_prisoner_pod`)
+  - [x] Linked (`prop_vehicle_prisoner_pod`)
   - [x] Networked (SendTable for `CPropVehiclePrisonerPod`)
   - KeyValues
     - [ ] `vehiclescript`
@@ -12381,11 +12453,11 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateWaterLevel`
     - [ ] `Use`
 - [ ] **prop_wall_projector** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_wall_projector`)
+  - [x] Linked (`prop_wall_projector`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **prop_weighted_cube** · `CPhysicsProp` · `game/server/props.cpp` · C# `PhysicsProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`prop_weighted_cube`)
+  - [x] Linked (`prop_weighted_cube`)
   - [x] Networked (SendTable for `CPhysicsProp`)
   - [ ] Shares `CPhysicsProp` with `prop_physics`, which tracks its functionality
 
@@ -12467,7 +12539,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `StopLoopingSounds`
 - [ ] **rpg_rocket** · `CRpgRocket` · `game/shared/hl1/hl1mp_weapon_rpg.cpp` · C# `RpgRocket` ([Game.Server/RpgRocket.cs](Game.Server/RpgRocket.cs))
-  - [ ] Linked (`rpg_rocket`)
+  - [x] Linked (`rpg_rocket`)
   - [x] Networked (SendTable for `CRpgRocket`)
   - Think/Touch/Use functions
     - [ ] `RocketTouch`
@@ -12506,7 +12578,7 @@ Progress: 24 / 788 classnames complete.
 ## script_*
 
 - [ ] **script_intro** · `CScriptIntro` · `game/server/hl2/script_intro.cpp` · C# `ScriptIntro` ([Game.Server/ScriptIntro.cs](Game.Server/ScriptIntro.cs))
-  - [ ] Linked (`script_intro`)
+  - [x] Linked (`script_intro`)
   - [x] Networked (SendTable for `CScriptIntro`)
   - KeyValues
     - [ ] `alternatefovchange`
@@ -12534,7 +12606,7 @@ Progress: 24 / 788 classnames complete.
 ## scripted_*
 
 - [ ] **scripted_scene** · `CSceneEntity` · `game/server/sceneentity.cpp` · C# `SceneEntity` ([Game.Server/SceneEntity.cs](Game.Server/SceneEntity.cs))
-  - [ ] Linked (`scripted_scene`)
+  - [x] Linked (`scripted_scene`)
   - [x] Networked (SendTable for `CSceneEntity`)
   - KeyValues
     - [ ] `SceneFile`
@@ -12807,7 +12879,7 @@ Progress: 24 / 788 classnames complete.
 ## sent_*
 
 - [ ] **sent_ai** · `CSENT_AI` · *GMod-only* · C# `SENT_AI` ([Game.Shared/GarrysMod/SENT_AI.cs](Game.Shared/GarrysMod/SENT_AI.cs))
-  - [ ] Linked (`sent_ai`)
+  - [x] Linked (`sent_ai`)
   - [x] Networked (SendTable for `CSENT_AI`)
   - Think/Touch/Use functions
     - [ ] `ScriptThink`
@@ -12874,7 +12946,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UseBehaviour_NONE`
     - [ ] `UsesLua`
 - [ ] **sent_anim** · `CSENT_anim` · *GMod-only* · C# `SENT_Anim` ([Game.Shared/GarrysMod/SENT_Anim.cs](Game.Shared/GarrysMod/SENT_Anim.cs))
-  - [ ] Linked (`sent_anim`)
+  - [x] Linked (`sent_anim`)
   - [x] Networked (SendTable for `CSENT_anim`)
   - Think/Touch/Use functions
     - [ ] `ScriptThink`
@@ -12960,7 +13032,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateTransmitState`
     - [ ] `UsesLua`
 - [ ] **sent_nextbot** · `CLuaNextBot` · *GMod-only* · C# `LuaNextBot` ([Game.Server/GarrysMod/LuaNextBot.cs](Game.Server/GarrysMod/LuaNextBot.cs))
-  - [ ] Linked (`sent_nextbot`)
+  - [x] Linked (`sent_nextbot`)
   - [x] Networked (SendTable for `CLuaNextBot`)
   - Think/Touch/Use functions
     - [ ] `ScriptThink`
@@ -12998,7 +13070,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateOnRemove`
     - [ ] `UsesLua`
 - [ ] **sent_point** · `CSENT_point` · *GMod-only* · C# `SENT_Point` ([Game.Shared/GarrysMod/SENT_Point.cs](Game.Shared/GarrysMod/SENT_Point.cs))
-  - [ ] Linked (`sent_point`)
+  - [x] Linked (`sent_point`)
   - [x] Networked (SendTable for `CSENT_point`)
   - Think/Touch/Use functions
     - [ ] `ScriptThink`
@@ -13020,7 +13092,7 @@ Progress: 24 / 788 classnames complete.
 ## shadow_*
 
 - [ ] **shadow_control** · `CShadowControl` · `game/server/shadowcontrol.cpp` · C# `ShadowControl` ([Game.Server/ShadowControl.cs](Game.Server/ShadowControl.cs))
-  - [ ] Linked (`shadow_control`)
+  - [x] Linked (`shadow_control`)
   - [x] Networked (SendTable for `CShadowControl`)
   - KeyValues
     - [ ] `distance`
@@ -13102,7 +13174,7 @@ Progress: 24 / 788 classnames complete.
 ## soundent
 
 - [ ] **soundent** · `CSoundEnt` · `game/server/soundent.cpp` · C# `SoundEnt` ([Game.Server/SoundEnt.cs](Game.Server/SoundEnt.cs))
-  - [ ] Linked (`soundent`)
+  - [x] Linked (`soundent`)
   - Methods
     - [x] `ActiveList`
     - [x] `ClientSoundIndex`
@@ -13161,7 +13233,7 @@ Progress: 24 / 788 classnames complete.
 ## spotlight_*
 
 - [ ] **spotlight_end** · `CSpotlightEnd` · `game/server/spotlightend.cpp` · C# `SpotlightEnd` ([Game.Server/SpotlightEnd.cs](Game.Server/SpotlightEnd.cs))
-  - [ ] Linked (`spotlight_end`)
+  - [x] Linked (`spotlight_end`)
   - [x] Networked (SendTable for `CSpotlightEnd`)
   - Methods
     - [ ] `ObjectCaps`
@@ -13236,11 +13308,11 @@ Progress: 24 / 788 classnames complete.
 ## team_*
 
 - [ ] **team_control_point** · `CDynamicProp` · `game/server/props.cpp` · C# `DynamicProp` ([Game.Server/Props.cs](Game.Server/Props.cs))
-  - [ ] Linked (`team_control_point`)
+  - [x] Linked (`team_control_point`)
   - [x] Networked (SendTable for `CDynamicProp`)
   - [ ] Shares `CDynamicProp` with `prop_dynamic`, which tracks its functionality
 - [ ] **team_manager** · `CTeam` · `game/server/team.cpp` · C# `Team` ([Game.Server/Team.cs](Game.Server/Team.cs))
-  - [ ] Linked (`team_manager`)
+  - [x] Linked (`team_manager`)
   - [x] Networked (SendTable for `CTeam`)
   - Methods
     - [x] `AddPlayer`
@@ -13700,7 +13772,7 @@ Progress: 24 / 788 classnames complete.
 ## vgui_*
 
 - [ ] **vgui_screen** · `CVGuiScreen` · `game/server/vguiscreen.cpp` · C# `VGuiScreen` ([Game.Server/VGuiScreen.cs](Game.Server/VGuiScreen.cs))
-  - [ ] Linked (`vgui_screen`)
+  - [x] Linked (`vgui_screen`)
   - [x] Networked (SendTable for `CVGuiScreen`)
   - KeyValues
     - [ ] `width`
@@ -13733,11 +13805,11 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateTransmitState`
   - Also linked as: `vgui_screen_team`
 - [ ] **vgui_screen_team** · `CVGuiScreen` · `game/server/vguiscreen.cpp` · C# `VGuiScreen` ([Game.Server/VGuiScreen.cs](Game.Server/VGuiScreen.cs))
-  - [ ] Linked (`vgui_screen_team`)
+  - [x] Linked (`vgui_screen_team`)
   - [x] Networked (SendTable for `CVGuiScreen`)
   - [ ] Shares `CVGuiScreen` with `vgui_screen`, which tracks its functionality
 - [ ] **vgui_slideshow_display** · `CSlideshowDisplay` · `game/server/slideshow_display.cpp` · C# `SlideshowDisplay` ([Game.Server/SlideshowDisplay.cs](Game.Server/SlideshowDisplay.cs))
-  - [ ] Linked (`vgui_slideshow_display`)
+  - [x] Linked (`vgui_slideshow_display`)
   - [x] Networked (SendTable for `CSlideshowDisplay`)
   - KeyValues
     - [ ] `directory`
@@ -13776,7 +13848,7 @@ Progress: 24 / 788 classnames complete.
 ## viewmodel
 
 - [ ] **viewmodel** · `CBaseViewModel` · `game/shared/baseviewmodel_shared.cpp` · C# `BaseViewModel` ([Game.Shared/BaseViewModel.cs](Game.Shared/BaseViewModel.cs))
-  - [ ] Linked (`viewmodel`)
+  - [x] Linked (`viewmodel`)
   - [x] Networked (SendTable for `CBaseViewModel`)
   - Methods
     - [x] `AddEffects`
@@ -13805,7 +13877,7 @@ Progress: 24 / 788 classnames complete.
 ## vort_*
 
 - [ ] **vort_charge_token** · `CVortigauntChargeToken` · `game/server/hl2/npc_vortigaunt_episodic.cpp` · C# `VortigauntChargeToken` ([Game.Server/VortigauntChargeToken.cs](Game.Server/VortigauntChargeToken.cs))
-  - [ ] Linked (`vort_charge_token`)
+  - [x] Linked (`vort_charge_token`)
   - [x] Networked (SendTable for `CVortigauntChargeToken`)
   - Think/Touch/Use functions
     - [ ] `SeekThink`
@@ -13818,7 +13890,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Precache`
     - [ ] `Spawn`
 - [ ] **vort_effect_dispel** · `CVortigauntEffectDispel` · `game/server/hl2/npc_vortigaunt_episodic.cpp` · C# `VortigauntEffectDispel` ([Game.Server/VortigauntEffectDispel.cs](Game.Server/VortigauntEffectDispel.cs))
-  - [ ] Linked (`vort_effect_dispel`)
+  - [x] Linked (`vort_effect_dispel`)
   - [x] Networked (SendTable for `CVortigauntEffectDispel`)
   - Methods
     - [ ] `CreateEffectDispel`
@@ -13828,7 +13900,7 @@ Progress: 24 / 788 classnames complete.
 ## water_*
 
 - [ ] **water_lod_control** · `CWaterLODControl` · `game/server/WaterLODControl.cpp` · C# `WaterLODControl` ([Game.Server/WaterLODControl.cs](Game.Server/WaterLODControl.cs))
-  - [ ] Linked (`water_lod_control`)
+  - [x] Linked (`water_lod_control`)
   - [x] Networked (SendTable for `CWaterLODControl`)
   - KeyValues
     - [ ] `cheapwaterstartdistance`
@@ -13847,7 +13919,7 @@ Progress: 24 / 788 classnames complete.
 ## waterbullet
 
 - [ ] **waterbullet** · `CWaterBullet` · `game/server/waterbullet.cpp` · C# `WaterBullet` ([Game.Server/WaterBullet.cs](Game.Server/WaterBullet.cs))
-  - [ ] Linked (`waterbullet`)
+  - [x] Linked (`waterbullet`)
   - [x] Networked (SendTable for `CWaterBullet`)
   - Think/Touch/Use functions
     - [ ] `Touch`
@@ -13875,7 +13947,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Operator_HandleAnimEvent`
     - [x] `PrimaryAttack`
 - [ ] **weapon_357_hl1** · `CWeapon357_HL1` · *GMod-only* · C# `Weapon357_HL1` ([Game.Shared/HL1/Weapon357_HL1.cs](Game.Shared/HL1/Weapon357_HL1.cs))
-  - [ ] Linked (`weapon_357_hl1`)
+  - [x] Linked (`weapon_357_hl1`)
   - [x] Networked (SendTable for `CWeapon357_HL1`)
   - Methods
     - [ ] `ActivityList`
@@ -13898,7 +13970,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `ToggleZoom`
     - [ ] `WeaponIdle`
 - [ ] **weapon_alyxgun** · `CWeaponAlyxGun` · `game/server/hl2/weapon_alyxgun.cpp` · C# `WeaponAlyxGun` ([Game.Server/HL2/WeaponAlyxGun.cs](Game.Server/HL2/WeaponAlyxGun.cs))
-  - [ ] Linked (`weapon_alyxgun`)
+  - [x] Linked (`weapon_alyxgun`)
   - [x] Networked (SendTable for `CWeaponAlyxGun`)
   - Methods
     - [ ] `ActivityList`
@@ -13920,7 +13992,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `WeaponRangeAttack1Condition`
     - [ ] `WeaponRangeAttack2Condition`
 - [ ] **weapon_annabelle** · `CWeaponAnnabelle` · `game/server/hl2/weapon_annabelle.cpp` · C# `WeaponAnnabelle` ([Game.Server/HL2/WeaponAnnabelle.cs](Game.Server/HL2/WeaponAnnabelle.cs))
-  - [ ] Linked (`weapon_annabelle`)
+  - [x] Linked (`weapon_annabelle`)
   - [x] Networked (SendTable for `CWeaponAnnabelle`)
   - Methods
     - [ ] `ActivityList`
@@ -13996,7 +14068,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `ThrowGrenade`
 - [ ] **weapon_citizenpackage** · `CWeaponCitizenPackage` · `game/server/hl2/weapon_citizenpackage.cpp` · C# `WeaponCitizenPackage` ([Game.Server/HL2/Weapon_Stubs_HL2.cs](Game.Server/HL2/Weapon_Stubs_HL2.cs))
-  - [ ] Linked (`weapon_citizenpackage`)
+  - [x] Linked (`weapon_citizenpackage`)
   - [x] Networked (SendTable for `CWeaponCitizenPackage`)
   - Methods
     - [ ] `ActivityList`
@@ -14004,7 +14076,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Drop`
     - [ ] `ItemPostFrame`
 - [ ] **weapon_citizensuitcase** · `CWeaponCitizenSuitcase` · `game/server/hl2/weapon_citizenpackage.cpp` · C# `WeaponCitizenSuitcase` ([Game.Server/HL2/Weapon_Stubs_HL2.cs](Game.Server/HL2/Weapon_Stubs_HL2.cs))
-  - [ ] Linked (`weapon_citizensuitcase`)
+  - [x] Linked (`weapon_citizensuitcase`)
   - [x] Networked (SendTable for `CWeaponCitizenSuitcase`)
   - Methods
     - [ ] `ActivityList`
@@ -14047,7 +14119,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `ToggleZoom`
     - [ ] `UpdateOnRemove`
 - [ ] **weapon_crossbow_hl1** · `CWeaponCrossbow_HL1` · *GMod-only* · C# `WeaponCrossbow_HL1` ([Game.Shared/HL1/WeaponCrossbow_HL1.cs](Game.Shared/HL1/WeaponCrossbow_HL1.cs))
-  - [ ] Linked (`weapon_crossbow_hl1`)
+  - [x] Linked (`weapon_crossbow_hl1`)
   - [x] Networked (SendTable for `CWeaponCrossbow_HL1`)
   - Methods
     - [ ] `ActivityList`
@@ -14079,7 +14151,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SecondaryAttack`
     - [ ] `WeaponMeleeAttack1Condition`
 - [ ] **weapon_crowbar_hl1** · `CWeaponCrowbar_HL1` · *GMod-only* · C# `WeaponCrowbar_HL1` ([Game.Shared/HL1/WeaponCrowbar_HL1.cs](Game.Shared/HL1/WeaponCrowbar_HL1.cs))
-  - [ ] Linked (`weapon_crowbar_hl1`)
+  - [x] Linked (`weapon_crowbar_hl1`)
   - [x] Networked (SendTable for `CWeaponCrowbar_HL1`)
   - Methods
     - [ ] `ActivityList`
@@ -14094,14 +14166,14 @@ Progress: 24 / 788 classnames complete.
     - [ ] `PrimaryAttack`
     - [ ] `Swing`
 - [ ] **weapon_cubemap** · `CWeaponCubemap` · `game/server/weapon_cubemap.cpp` · C# `WeaponCubemap` ([Game.Server/HL2/Weapon_Stubs_HL2.cs](Game.Server/HL2/Weapon_Stubs_HL2.cs))
-  - [ ] Linked (`weapon_cubemap`)
+  - [x] Linked (`weapon_cubemap`)
   - [x] Networked (SendTable for `CWeaponCubemap`)
   - Methods
     - [ ] `HasAnyAmmo`
     - [ ] `Precache`
     - [ ] `Spawn`
 - [ ] **weapon_egon** · `CWeaponEgon` · `game/shared/hl1/hl1mp_weapon_egon.cpp` · C# `WeaponEgon` ([Game.Shared/HL1/WeaponEgon.cs](Game.Shared/HL1/WeaponEgon.cs))
-  - [ ] Linked (`weapon_egon`)
+  - [x] Linked (`weapon_egon`)
   - [x] Networked (SendTable for `CWeaponEgon`)
   - Methods
     - [ ] `ActivityList`
@@ -14141,7 +14213,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SecondaryAttack`
     - [ ] `ThrowGrenade`
 - [ ] **weapon_gauss** · `CWeaponGauss` · `game/shared/hl1/hl1mp_weapon_gauss.cpp` · C# `WeaponGauss` ([Game.Shared/HL1/WeaponGauss.cs](Game.Shared/HL1/WeaponGauss.cs))
-  - [ ] Linked (`weapon_gauss`)
+  - [x] Linked (`weapon_gauss`)
   - [x] Networked (SendTable for `CWeaponGauss`)
   - Methods
     - [ ] `ActivityList`
@@ -14159,7 +14231,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `StopSpinSound`
     - [ ] `WeaponIdle`
 - [ ] **weapon_glock_hl1** · `CWeaponGlock` · `game/shared/cstrike/weapon_glock.cpp` · C# `WeaponGlock` ([Game.Shared/HL1/WeaponGlock.cs](Game.Shared/HL1/WeaponGlock.cs))
-  - [ ] Linked (`weapon_glock_hl1`)
+  - [x] Linked (`weapon_glock_hl1`)
   - [x] Networked (SendTable for `CWeaponGlock`)
   - Methods
     - [ ] `ActivityList`
@@ -14180,7 +14252,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SecondaryAttack`
     - [ ] `WeaponIdle`
 - [ ] **weapon_handgrenade** · `CWeaponHandGrenade` · `game/shared/hl1/hl1mp_weapon_handgrenade.cpp` · C# `WeaponHandGrenade` ([Game.Shared/HL1/WeaponHandGrenade.cs](Game.Shared/HL1/WeaponHandGrenade.cs))
-  - [ ] Linked (`weapon_handgrenade`)
+  - [x] Linked (`weapon_handgrenade`)
   - [x] Networked (SendTable for `CWeaponHandGrenade`)
   - Methods
     - [ ] `ActivityList`
@@ -14193,7 +14265,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `PrimaryAttack`
     - [ ] `WeaponIdle`
 - [ ] **weapon_hl2mp_base** · `CWeaponHL2MPBase` · `game/shared/gmod/weapon_gmodbase.cpp` · C# `WeaponHL2MPBase` ([Game.Shared/GarrysMod/WeaponGModBase.cs](Game.Shared/GarrysMod/WeaponGModBase.cs))
-  - [ ] Linked (`weapon_hl2mp_base`)
+  - [x] Linked (`weapon_hl2mp_base`)
   - [x] Networked (SendTable for `CWeaponHL2MPBase`)
   - Methods
     - [ ] `FallInit`
@@ -14209,7 +14281,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [x] `WeaponSound`
 - [ ] **weapon_hornetgun** · `CWeaponHgun` · `game/shared/hl1/hl1mp_weapon_hornetgun.cpp` · C# `WeaponHgun` ([Game.Shared/HL1/WeaponHgun.cs](Game.Shared/HL1/WeaponHgun.cs))
-  - [ ] Linked (`weapon_hornetgun`)
+  - [x] Linked (`weapon_hornetgun`)
   - [x] Networked (SendTable for `CWeaponHgun`)
   - Methods
     - [ ] `ActivityList`
@@ -14225,7 +14297,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SecondaryAttack`
     - [ ] `WeaponIdle`
 - [ ] **weapon_mp5_hl1** · `CWeaponMP5` · `game/shared/hl1/hl1mp_weapon_mp5.cpp` · C# `WeaponMP5` ([Game.Shared/HL1/WeaponMP5.cs](Game.Shared/HL1/WeaponMP5.cs))
-  - [ ] Linked (`weapon_mp5_hl1`)
+  - [x] Linked (`weapon_mp5_hl1`)
   - [x] Networked (SendTable for `CWeaponMP5`)
   - Methods
     - [ ] `ActivityList`
@@ -14246,7 +14318,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `SecondaryAttack`
     - [ ] `WeaponIdle`
 - [ ] **weapon_oldmanharpoon** · `CWeaponOldManHarpoon` · `game/server/episodic/weapon_oldmanharpoon.cpp` · C# `WeaponOldManHarpoon` ([Game.Server/HL2/Weapon_Stubs_HL2.cs](Game.Server/HL2/Weapon_Stubs_HL2.cs))
-  - [ ] Linked (`weapon_oldmanharpoon`)
+  - [x] Linked (`weapon_oldmanharpoon`)
   - [x] Networked (SendTable for `CWeaponOldManHarpoon`)
   - Methods
     - [ ] `ActivityList`
@@ -14411,7 +14483,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `WeaponRangeAttack1Condition`
     - [ ] `WeaponShouldBeLowered`
 - [ ] **weapon_rpg_hl1** · `CWeaponRPG_HL1` · *GMod-only* · C# `WeaponRPG_HL1` ([Game.Shared/HL1/WeaponRPG_HL1.cs](Game.Shared/HL1/WeaponRPG_HL1.cs))
-  - [ ] Linked (`weapon_rpg_hl1`)
+  - [x] Linked (`weapon_rpg_hl1`)
   - [x] Networked (SendTable for `CWeaponRPG_HL1`)
   - Methods
     - [ ] `ActivityList`
@@ -14434,7 +14506,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateSpot`
     - [ ] `WeaponIdle`
 - [ ] **weapon_satchel** · `CWeaponSatchel` · `game/shared/hl1/hl1mp_weapon_sachel.cpp` · C# `WeaponSatchel` ([Game.Shared/HL1/WeaponSatchel.cs](Game.Shared/HL1/WeaponSatchel.cs))
-  - [ ] Linked (`weapon_satchel`)
+  - [x] Linked (`weapon_satchel`)
   - [x] Networked (SendTable for `CWeaponSatchel`)
   - Methods
     - [ ] `ActivateRadioModel`
@@ -14482,7 +14554,7 @@ Progress: 24 / 788 classnames complete.
     - [x] `SecondaryAttack`
     - [x] `StartReload`
 - [ ] **weapon_shotgun_hl1** · `CWeaponShotgun_HL1` · *GMod-only* · C# `WeaponShotgun_HL1` ([Game.Shared/HL1/WeaponShotgun_HL1.cs](Game.Shared/HL1/WeaponShotgun_HL1.cs))
-  - [ ] Linked (`weapon_shotgun_hl1`)
+  - [x] Linked (`weapon_shotgun_hl1`)
   - [x] Networked (SendTable for `CWeaponShotgun_HL1`)
   - Methods
     - [ ] `ActivityList`
@@ -14555,7 +14627,7 @@ Progress: 24 / 788 classnames complete.
     - [x] `Reload`
     - [x] `SecondaryAttack`
 - [ ] **weapon_snark** · `CWeaponSnark` · `game/server/hl1/hl1_weapon_snark.cpp` · C# `WeaponSnark` ([Game.Shared/HL1/WeaponSnark.cs](Game.Shared/HL1/WeaponSnark.cs))
-  - [ ] Linked (`weapon_snark`)
+  - [x] Linked (`weapon_snark`)
   - [x] Networked (SendTable for `CWeaponSnark`)
   - Methods
     - [ ] `ActivityList`
@@ -14593,7 +14665,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `Spawn`
     - [ ] `WeaponMeleeAttack1Condition`
 - [ ] **weapon_swep** · `CWeaponSWEP` · *GMod-only* · C# `WeaponSWEP` ([Game.Shared/GarrysMod/WeaponSWEP.cs](Game.Shared/GarrysMod/WeaponSWEP.cs))
-  - [ ] Linked (`weapon_swep`)
+  - [x] Linked (`weapon_swep`)
   - [x] Networked (SendTable for `CWeaponSWEP`)
   - Methods
     - [ ] `AcceptInput`
@@ -14657,7 +14729,7 @@ Progress: 24 / 788 classnames complete.
     - [ ] `UpdateRestSettings`
     - [ ] `UsesLua`
 - [ ] **weapon_tripmine** · `CWeaponTripMine` · `game/server/hl1/hl1_weapon_tripmine.cpp` · C# `WeaponTripMine` ([Game.Shared/HL1/WeaponTripMine.cs](Game.Shared/HL1/WeaponTripMine.cs))
-  - [ ] Linked (`weapon_tripmine`)
+  - [x] Linked (`weapon_tripmine`)
   - [x] Networked (SendTable for `CWeaponTripMine`)
   - Methods
     - [ ] `ActivityList`
@@ -18593,3 +18665,746 @@ Datadesc and methods that the entities above inherit.
     - [ ] `Spawn`
     - [ ] `Touch`
     - [ ] `UseEntity`
+
+## All classes
+
+`L N K I O T M` stands for Linked, Networked, KeyValues, Inputs, Outputs, Think/Touch/Use functions and Methods. `[x]` means the class is fully complete. A letter means every box of that kind is checked, `_` means some are not, and `-` means the class has none of that kind. Classes are sorted from most to least complete by share of boxes checked.
+
+```
+[x] [L - K I - T M] AmbientGeneric (aka ambient_generic)
+[x] [L N - I - - M] EnvTonemapController (aka env_tonemap_controller)
+[x] [L - K I O - M] BaseFilter (aka filter_base)
+[x] [L - K - O T M] TriggerProximity (aka trigger_proximity)
+[x] [L - K - - - M] TriggerSoundscape (aka trigger_soundscape)
+[x] [L - - - - - M] FrictionModifier (aka func_friction)
+[x] [L - - - O T M] TriggerMultiple (aka trigger_multiple)
+[x] [L - K - - - M] TriggerSave (aka trigger_autosave)
+[x] [L - K I - - M] TriggerToggleSave (aka trigger_togglesave)
+[x] [L - K - - - M] EnvSoundscapeProxy (aka env_soundscape_proxy)
+[x] [L - - - - - M] EnvSoundscapeTriggerable (aka env_soundscape_triggerable)
+[x] [L - K - - - M] FilterDamageType (aka filter_damage_type)
+[x] [L - - - - - M] ServerRagdollTrigger (aka trigger_serverragdoll)
+[x] [L - - - O - M] TriggerRemove (aka trigger_remove)
+[x] [L - K - - - M] TriggerTeleport (aka trigger_teleport)
+[x] [L - K - - - M] TriggerTeleportRelative (aka trigger_teleport_relative)
+[x] [L - K - - - M] FilterClass (aka filter_activator_class)
+[x] [L - K - - - M] FilterMassGreater (aka filter_activator_mass_greater)
+[x] [L - K - - - M] FilterName (aka filter_activator_name)
+[x] [L - K - - - M] FilterTeam (aka filter_activator_team)
+[x] [L - - - - - M] ReservePlayerSpot (aka reserved_spot)
+[x] [L - - - - T M] TriggerGravity (aka trigger_gravity)
+[x] [L N - - - - -] FuncReflectiveGlass (aka func_reflective_glass)
+[x] [L N - - - - -] GMODGameRulesProxy (aka gmod_gamerules)
+[x] [L N - - - - -] HL2MPGameRulesProxy (aka hl2mp_gamerules)
+[x] [L - - - - - M] TriggerOnce (aka trigger_once)
+[ ] [L N K I O - _] BaseTrigger (aka trigger)
+[ ] [L - K I O T _] TriggerHurt (aka trigger_hurt)
+[ ] [L - K - O - _] LogicAuto (aka logic_auto)
+[ ] [L - K I O T _] TriggerLook (aka trigger_look)
+[ ] [L - - - - - _] PointEntity (aka info_landmark, info_player_combine, info_player_rebel, info_player_start, info_target_helicopter_crash, info_teleport_destination, logic_proximity)
+[ ] [L - - - - - _] SoundEnt (aka soundent)
+[ ] [L N - - - - _] WeaponPhysGun (aka weapon_physgun)
+[ ] [L N - - - - _] TriggerPlayerMovement (aka trigger_playermovement)
+[ ] [L - K I O _ _] TriggerImpact (aka trigger_impact)
+[ ] [L - - - - - _] NodeEnt (aka info_hint, info_node, info_node_air, info_node_air_hint, info_node_climb, info_node_hint)
+[ ] [- N - - - - _] BaseAnimatingOverlay
+[ ] [L - _ - - - _] FuncNavObstruction (aka func_nav_avoidance_obstacle)
+[ ] [L - _ I O - _] EnvSoundscape (aka env_sound, env_soundscape)
+[ ] [L N - - - - _] AR2Explosion (aka ar2explosion)
+[ ] [L N - - - - _] EnvQuadraticBeam (aka env_quadraticbeam)
+[ ] [L N - - - - _] HL2MPRagdoll (aka hl2mp_ragdoll)
+[ ] [L N - - - - _] InfoLadderDismount (aka info_ladder_dismount)
+[ ] [L N - - - - _] MovieExplosion (aka env_movieexplosion)
+[ ] [L N - - - - _] PredictedViewModel (aka predicted_viewmodel)
+[ ] [L N - - - - _] SporeTrail (aka env_sporetrail)
+[ ] [L N - - - - _] SpriteOriented (aka env_sprite_oriented)
+[ ] [- N - - - - _] HL2MP_Player
+[ ] [L - _ _ - - _] TriggerPush (aka trigger_push)
+[ ] [L N _ _ _ _ _] DynamicProp (aka asw_door, dod_control_point, dynamic_prop, env_portal_laser, npc_personality_core, npc_wheatley_boss, prop_button, prop_car_alarm, prop_car_glass, prop_dropper, prop_dynamic, prop_dynamic_glow, prop_dynamic_override, prop_floor_ball_button, prop_floor_button, prop_floor_cube_button, prop_health_cabinet, prop_indicator_panel, prop_laser_catcher, prop_laser_relay, prop_portal_stats_display, prop_testchamber_door, prop_tractor_beam, prop_under_button, prop_under_floor_button, prop_wall_projector, team_control_point)
+[ ] [- N - _ _ _ _] BaseCombatWeapon
+[ ] [- N - _ - - _] HL2_Player
+[ ] [L - _ - - - M] FilterMultiple (aka filter_multi)
+[ ] [L N - - - - _] EnvDetailController (aka env_detail_controller)
+[ ] [L N _ - - - _] InfoOverlayAccessor (aka info_overlay_accessor)
+[ ] [L N - - - - _] Plasma (aka _plasma)
+[ ] [L N - - - - _] PrecipitationBlocker (aka func_precipitation_blocker)
+[ ] [L N - - - - _] SpotlightEnd (aka spotlight_end)
+[ ] [L N - - - - _] WeaponCitizenSuitcase (aka weapon_citizensuitcase)
+[ ] [L - - - - - _] FuncNavAvoid (aka func_nav_avoid)
+[ ] [L - - - - - _] FuncNavPrefer (aka func_nav_prefer)
+[ ] [L N _ _ O _ _] BaseEntity (aka func_proprrespawnzone)
+[ ] [L N _ _ _ - _] FuncLadder (aka func_useableladder)
+[ ] [L N - _ - - _] PropScalable (aka prop_coreball, prop_scalable)
+[ ] [L N - - - - _] WeaponShotgun (aka weapon_shotgun)
+[ ] [L N - - - - _] BaseViewModel (aka viewmodel)
+[ ] [L N - - - - _] WeaponPhysCannon (aka weapon_physcannon)
+[ ] [L N - - - - _] FireTrail (aka env_fire_trail)
+[ ] [L N _ _ - - _] FleshEffectTarget (aka point_flesh_effect_target)
+[ ] [L N - - - - _] RocketTrail (aka env_rockettrail)
+[ ] [L N - - - - _] VortigauntEffectDispel (aka vort_effect_dispel)
+[ ] [L N - - - - _] WeaponCubemap (aka weapon_cubemap)
+[ ] [L N - - - - _] WeaponOldManHarpoon (aka weapon_oldmanharpoon)
+[ ] [- N - _ - - _] BasePlayer
+[ ] [L N - - - - _] WeaponHL2MPBase (aka weapon_hl2mp_base)
+[ ] [L N - - - - _] WeaponSMG1 (aka weapon_smg1)
+[ ] [L N - - - - _] BaseHL1MPCombatWeapon (aka basehl1mpcombatweapon)
+[ ] [L N _ _ - - _] EnvAmbientLight (aka env_ambient_light)
+[ ] [L N _ - - - _] InfoLightingRelative (aka info_lighting_relative)
+[ ] [L N - - - - _] ParticleSmokeGrenade (aka env_particlesmokegrenade)
+[ ] [L N - - - - _] PhysBeam (aka physgun_beam)
+[ ] [L N - - - - _] PhysBoxMultiplayer (aka func_physbox_multiplayer)
+[ ] [L N - - - - _] RagdollPropAttached (aka prop_ragdoll_attached)
+[ ] [L N - - - _ _] WaterBullet (aka waterbullet)
+[ ] [L N - - - - _] WeaponCitizenPackage (aka weapon_citizenpackage)
+[ ] [L - - - - - _] EnvLight (aka light_environment)
+[ ] [L N - - - - _] FireSmoke (aka _firesmoke)
+[ ] [L N - _ - - _] FuncMonitor (aka func_monitor)
+[ ] [L N - _ - - _] InfoTeleporterCountdown (aka info_teleporter_countdown)
+[ ] [L N _ _ - - _] NPC_Puppet (aka npc_puppet)
+[ ] [L N - - - _ _] PlayerResource (aka player_manager)
+[ ] [L N _ - - - _] RotorWashEmitter (aka env_rotorwash_emitter)
+[ ] [L N - - - - _] WeaponCycler (aka cycler_weapon)
+[ ] [L N _ _ _ _ _] PhysicsProp (aka item_crate, physics_prop, prop_exploding_barrel, prop_flare, prop_physics, prop_physics_multiplayer, prop_physics_override, prop_weighted_cube)
+[ ] [L N - - - - _] WeaponPistol (aka weapon_pistol)
+[ ] [L N - - - - _] BaseHL1CombatWeapon (aka basehl1combatweapon)
+[ ] [L N _ - - _ _] Embers (aka env_embers)
+[ ] [L N - _ - - _] EnvParticleScript (aka env_particlescript)
+[ ] [L N _ _ - - _] EnvScreenEffect (aka env_screeneffect)
+[ ] [L N - _ - - _] EnvStarfield (aka env_starfield)
+[ ] [L N _ - - - _] Func_LOD (aka func_lod)
+[ ] [L N - - - - _] LaserDot (aka env_laserdot)
+[ ] [L N - - - - _] LaserDot_HL1 (aka laser_spot)
+[ ] [L N - _ - - _] ParticlePerformanceMonitor (aka env_particle_performance_monitor)
+[ ] [L N _ - - - _] Precipitation (aka func_precipitation)
+[ ] [L N _ _ - - _] SporeExplosion (aka env_sporeexplosion)
+[ ] [L - - - - - _] FuncWall (aka func_wall)
+[ ] [L N _ _ - _ _] EntityFlame (aka entityflame, env_entity_igniter)
+[ ] [- N - - - - _] BaseToggle
+[ ] [L N - - - - _] EntityParticleTrail (aka env_particle_trail)
+[ ] [L N _ _ - - _] FuncOccluder (aka func_occluder)
+[ ] [L N - - - _ _] RpgRocket (aka rpg_rocket)
+[ ] [L N _ - - - _] World (aka worldspawn)
+[ ] [L N - - - - _] Weapon357 (aka weapon_357)
+[ ] [L - _ _ - _ _] Light (aka light, light_directional, light_glspot, light_spot)
+[ ] [L N _ _ - - _] SteamJet (aka env_steam, env_steamjet)
+[ ] [- N _ _ _ - _] BaseAnimating
+[ ] [L N - - - - _] BaseHL2MPCombatWeapon (aka basehl2mpcombatweapon)
+[ ] [L N - - - - _] FlexManipulate (aka manipulate_flex)
+[ ] [L N _ _ - - _] FuncConveyor (aka func_conveyor)
+[ ] [L N - - - _ _] MortarShell (aka mortarshell)
+[ ] [L N - - - _ _] VortigauntChargeToken (aka vort_charge_token)
+[ ] [L N _ _ - _ _] EntityDissolve (aka env_entity_dissolver)
+[ ] [L N - _ - - _] MaterialModifyControl (aka material_modify_control)
+[ ] [L N _ _ - - _] RagdollManager (aka game_ragdoll_manager)
+[ ] [L N - - - - _] WeaponHandGrenade (aka weapon_handgrenade)
+[ ] [L N - - - - _] WeaponSnark (aka weapon_snark)
+[ ] [L N - - - - _] Team (aka team_manager)
+[ ] [L N - - - - _] Fish (aka fish)
+[ ] [L N _ _ - - _] WaterLODControl (aka water_lod_control)
+[ ] [L N - - - - _] WeaponTripMine (aka weapon_tripmine)
+[ ] [L - _ _ - - _] EnvZoom (aka env_zoom)
+[ ] [L N _ _ - - _] CitadelEnergyCore (aka env_citadel_energy_core)
+[ ] [L N _ _ - - _] FuncAreaPortalWindow (aka func_areaportalwindow)
+[ ] [L N _ _ - - _] LightGlow (aka env_lightglow)
+[ ] [L N - - - - _] WeaponCrossbow_HL1 (aka weapon_crossbow_hl1)
+[ ] [L N - - - - _] WeaponCrowbar_HL1 (aka weapon_crowbar_hl1)
+[ ] [L - - _ - - _] PropDoorRotatingBreakable (aka dz_door, prop_door_rotating, prop_door_rotating_checkpoint)
+[ ] [L N - - - - _] WeaponStunStick (aka weapon_stunstick)
+[ ] [L N _ _ - _ _] CrossbowBolt (aka crossbow_bolt)
+[ ] [L N - _ - - _] DynamicLight (aka light_dynamic)
+[ ] [L N - _ - _ _] PropEnergyBall (aka prop_energy_ball)
+[ ] [L N - - - - _] WeaponHgun (aka weapon_hornetgun)
+[ ] [L N _ _ - _ _] Sprite (aka env_glow, env_sprite, env_sprite_clientside)
+[ ] [L N _ _ - - _] VGuiScreen (aka vgui_screen, vgui_screen_team)
+[ ] [L N - - - - _] BoneFollower (aka phys_bone_follower)
+[ ] [L N _ - - - _] DustTrail (aka env_dusttrail)
+[ ] [L N _ _ - - _] ShadowControl (aka shadow_control)
+[ ] [L N - - - - _] WeaponCrowbar (aka weapon_crowbar)
+[ ] [- N _ _ - - _] BaseCombatCharacter
+[ ] [L N - - - - _] BaseHLCombatWeapon (aka basehlcombatweapon)
+[ ] [L N _ _ - _ _] ColorCorrectionVolume (aka color_correction_volume)
+[ ] [L N - - - _ _] SENT_Point (aka sent_point)
+[ ] [L N _ - - - _] SmokeTrail (aka env_smoketrail)
+[ ] [L N - - - - _] WeaponGauss (aka weapon_gauss)
+[ ] [L N _ _ - - _] AlyxEmpEffect (aka env_alyxemp)
+[ ] [L N - - - - _] BoneManipulate (aka manipulate_bone)
+[ ] [L N _ _ - - _] FuncSmokeVolume (aka func_smokevolume)
+[ ] [L N - - - - _] WeaponEgon (aka weapon_egon)
+[ ] [L N _ _ - _ _] Tesla (aka point_tesla)
+[ ] [L N - - - - _] WeaponAR2 (aka weapon_ar2)
+[ ] [L N _ _ _ _ _] EnvWind (aka env_wind)
+[ ] [L N _ _ - - _] Sun (aka env_sun)
+[ ] [L N - - - - _] WeaponShotgun_HL1 (aka weapon_shotgun_hl1)
+[ ] [- N - - - - _] HLMachineGun
+[ ] [L N - - - _ _] BaseGrenade (aka grenade)
+[ ] [L N _ _ _ - _] BeamSpotlight (aka beam_spotlight)
+[ ] [L - _ _ - - _] FuncBrush (aka func_brush, func_simpleladder)
+[ ] [L N _ - - - _] SpriteTrail (aka env_spritetrail)
+[ ] [L N - - - - _] WeaponFrag (aka weapon_frag)
+[ ] [L N - - - - _] WeaponGlock (aka weapon_glock_hl1)
+[ ] [L N - - - - _] WeaponMP5 (aka weapon_mp5_hl1)
+[ ] [- - - - _ _ _] Item
+[ ] [L N _ _ - _ _] ScriptIntro (aka script_intro)
+[ ] [L N - - - - _] WeaponAlyxGun (aka weapon_alyxgun)
+[ ] [L - _ _ - - _] FuncNavPrerequisite (aka func_nav_prerequisite)
+[ ] [L N - - _ _ _] NPC_Barney (aka npc_barney)
+[ ] [L N _ _ - - _] PointCamera (aka point_camera)
+[ ] [L N - - - - _] Weapon357_HL1 (aka weapon_357_hl1)
+[ ] [L N - - - - _] WeaponAnnabelle (aka weapon_annabelle)
+[ ] [L N - - - - _] WeaponRPG_HL1 (aka weapon_rpg_hl1)
+[ ] [L N - - - - _] WeaponSatchel (aka weapon_satchel)
+[ ] [L N _ _ - - _] SmokeStack (aka env_smokestack)
+[ ] [- N - - - _ _] HLSelectFireMachineGun
+[ ] [L N _ _ - _ _] ColorCorrection (aka color_correction)
+[ ] [L N _ _ _ - _] PhysMagnet (aka phys_magnet)
+[ ] [L N _ _ - - _] PointWorldText (aka point_worldtext)
+[ ] [L N - - - - _] WeaponBugBait (aka weapon_bugbait)
+[ ] [L N - - - - _] GMOD_Player (aka player)
+[ ] [L N _ _ - _ _] Flare (aka env_flare)
+[ ] [L - _ _ - - _] FuncNavBlocker (aka func_nav_blocker)
+[ ] [L N _ _ - - _] RopeKeyframe (aka keyframe_rope, move_rope)
+[ ] [L N - - - - _] WeaponRPG (aka weapon_rpg)
+[ ] [L N _ _ - - _] EnvScreenOverlay (aka env_screenoverlay)
+[ ] [L N - - - _ _] WeaponSLAM (aka weapon_slam)
+[ ] [L N _ _ - _ _] BreakableSurface (aka func_breakable_surf)
+[ ] [L N _ _ - - _] SlideshowDisplay (aka vgui_slideshow_display)
+[ ] [L N _ _ _ _ _] BaseDoor (aka func_door, func_water)
+[ ] [L N _ _ _ - _] PropJeepEpisodic (aka prop_vehicle_jeep, prop_vehicle_jeep_old)
+[ ] [L N _ _ - _ _] EnvProjectedTexture (aka env_projectedtexture)
+[ ] [L N _ _ - _ _] RagdollProp (aka physics_prop_ragdoll, prop_ragdoll)
+[ ] [L N - - - - _] BaseFlex (aka funCBaseFlex)
+[ ] [L - _ - - - _] SkyCamera (aka sky_camera)
+[ ] [L N - - - _ _] LuaNextBot (aka sent_nextbot)
+[ ] [L N - - - - _] WeaponCrossbow (aka weapon_crossbow)
+[ ] [L N _ _ _ _ _] FuncRotating (aka func_rotating)
+[ ] [L N _ _ - _ _] NPC_Portal_FloorTurret (aka npc_portal_turret_floor)
+[ ] [L N _ _ _ _ _] PhysBox (aka func_physbox)
+[ ] [L N _ _ _ - _] EnvHeadcrabCanister (aka env_headcrabcanister)
+[ ] [L N _ _ - _ _] FogController (aka env_fog_controller)
+[ ] [- N _ _ - _ _] SpatialEntity
+[ ] [L N _ _ - _ _] PoseController (aka point_posecontroller)
+[ ] [L N - _ _ _ _] NPC_RocketTurret (aka npc_rocket_turret)
+[ ] [- N - - - _ _] NextBotCombatCharacter
+[ ] [L N - - - _ _] SENT_Anim (aka sent_anim)
+[ ] [L N _ _ - - _] Beam (aka beam)
+[ ] [L N _ _ _ - _] PropVehiclePrisonerPod (aka prop_vehicle_prisoner_pod)
+[ ] [L N _ _ _ - _] PropCrane (aka prop_vehicle_crane)
+[ ] [L N _ _ _ _ _] NPC_Barnacle (aka npc_barnacle)
+[ ] [L N - _ - _ _] PropCombineBall (aka prop_combine_ball)
+[ ] [L N _ _ _ - _] PropVehicleChoreoGeneric (aka prop_vehicle_choreo_generic)
+[ ] [L N _ _ _ - _] PropVehicleDriveable (aka prop_vehicle_driveable)
+[ ] [L N - _ - - _] PropAirboat (aka prop_vehicle_airboat)
+[ ] [L N - - - - _] WeaponSWEP (aka weapon_swep)
+[ ] [L N - - - _ _] SENT_AI (aka sent_ai)
+[ ] [L - _ _ _ - _] PointTemplate (aka point_template)
+[ ] [L N _ _ _ - _] SceneEntity (aka logic_choreographed_scene, scripted_scene)
+[ ] [- N _ _ _ - _] PropDoorRotating
+[ ] [L N _ _ _ _ _] FuncTrackTrain (aka func_tracktrain)
+[ ] [L N _ _ - - _] ParticleSystem (aka info_particle_system)
+[ ] [L N - _ _ _ _] NPC_CombineGunship (aka npc_combinegunship)
+[ ] [L N _ _ _ _ _] NPC_RollerMine (aka npc_rollermine)
+[ ] [- N _ _ _ _ _] BaseHelicopter_HL1
+[ ] [L N _ _ _ - _] NPC_AntlionGuard (aka npc_antlionguard)
+[ ] [L N _ _ _ _ _] NPC_Manhack (aka npc_manhack)
+[ ] [- N - _ - - _] PropJeep
+[ ] [L N _ _ _ - _] NPC_Vortigaunt (aka npc_vortigaunt)
+[ ] [- N _ _ _ - _] BasePropDoor
+[ ] [L - _ _ _ _ _] Breakable (aka func_breakable)
+[ ] [- N _ _ - _ _] BaseHelicopter
+[ ] [L N _ _ - _ _] NPC_Strider (aka npc_strider)
+[ ] [- N _ _ _ _ _] BreakableProp
+[ ] [- N _ _ _ _ _] AI_BaseNPC
+[ ] [_ - _ _ _ - _] NPC_MetroPolice (aka npc_metropolice)
+[ ] [_ - _ _ - _ _] NPC_Hunter (aka npc_hunter)
+[ ] [_ - _ _ _ _ _] NPC_AttackHelicopter (aka npc_helicopter)
+[ ] [- - _ _ _ - _] NPC_PlayerCompanion
+[ ] [_ - _ _ _ _ _] NPC_Citizen (aka npc_citizen, npc_human_scientist, npc_human_security)
+[ ] [- - _ _ _ - _] FuncTank
+[ ] [_ - _ _ _ - _] NPC_Alyx (aka npc_alyx)
+[ ] [_ - _ _ _ _ _] NPC_Antlion (aka npc_antlion)
+[ ] [_ - _ _ - - _] NPC_Combine (aka npc_combine)
+[ ] [_ - _ _ _ _ _] NPC_FloorTurret (aka npc_turret_floor)
+[ ] [_ - _ _ _ - _] NPC_CombineDropship (aka npc_combinedropship)
+[ ] [_ - _ _ _ - _] NPC_CScanner (aka npc_cscanner)
+[ ] [_ - _ _ _ - _] ProtoSniper (aka npc_sniper, proto_sniper)
+[ ] [_ - _ _ _ _ _] AI_ScriptedSequence (aka scripted_sequence)
+[ ] [_ - - _ - _ _] FastZombie (aka npc_fastzombie, npc_fastzombie_torso)
+[ ] [- - _ _ - - _] AI_PlayerAlly
+[ ] [- - _ _ - _ _] BaseHeadcrab
+[ ] [- - - - - - _] NPC_BaseZombie
+[ ] [- - - _ - - _] NPC_BaseScanner
+[ ] [_ - _ _ _ - _] AntlionTemplateMaker (aka npc_antlion_template_maker)
+[ ] [- - - _ - - _] AI_TrackPather
+[ ] [_ - - _ _ - -] FuncInstanceIoProxy (aka func_instance_io_proxy)
+[ ] [_ - _ _ _ _ _] AI_ScriptConditions (aka ai_script_conditions)
+[ ] [- - _ _ - - _] AI_BaseActor
+[ ] [- - - - - _ _] NPCSimpleTalker
+[ ] [_ - - _ _ - _] NPC_Dog (aka npc_dog)
+[ ] [_ - - - - - _] NextBotPlayer<CGMOD_Player> (aka gm_bot)
+[ ] [_ - _ - - - _] NPC_PoisonZombie (aka npc_poisonzombie)
+[ ] [_ - - _ - - _] NPC_Zombine (aka npc_zombine)
+[ ] [_ - - - - - _] Zombie (aka npc_zombie, npc_zombie_torso)
+[ ] [_ - _ - - - _] NPC_HGrunt (aka monster_human_grunt)
+[ ] [_ - _ _ _ _ _] AI_ActBusyQueueGoal (aka ai_goal_actbusy_queue)
+[ ] [_ - _ _ - - _] NPC_Crow (aka npc_crow)
+[ ] [_ - _ - - _ _] NPC_Stalker (aka npc_stalker)
+[ ] [_ - - _ _ _ _] NPC_SecurityCamera (aka npc_security_camera)
+[ ] [_ - _ _ - - _] NPC_VehicleDriver (aka npc_vehicledriver)
+[ ] [_ - _ _ _ - _] PropAPC (aka prop_vehicle_apc)
+[ ] [_ - _ _ _ _ _] PhysicsCannister (aka physics_cannister)
+[ ] [_ - _ _ _ _ _] BounceBomb (aka bounce_bomb, combine_bouncemine, combine_mine)
+[ ] [_ - - - - - _] NPC_Controller (aka monster_alien_controller)
+[ ] [_ - _ _ _ _ _] NPC_Launcher (aka npc_launcher)
+[ ] [_ - _ _ _ - _] PathTrack (aka path_track)
+[ ] [_ - _ _ _ - _] LogicCase (aka logic_case)
+[ ] [_ - _ _ - _ _] NPC_CombineCamera (aka npc_combine_camera)
+[ ] [_ - - - - _ _] NPC_Scientist (aka monster_scientist)
+[ ] [_ - _ _ _ _ _] Fire (aka env_fire)
+[ ] [_ - _ _ _ _ _] WeaponStriderBuster (aka prop_stickybomb, weapon_striderbuster)
+[ ] [_ - _ _ _ _ _] NPC_CeilingTurret (aka npc_turret_ceiling)
+[ ] [_ - - - - - _] NPC_Gargantua (aka monster_gargantua)
+[ ] [_ - - _ _ _ _] NPC_GroundTurret (aka npc_turret_ground)
+[ ] [_ - - - - - _] NPC_Ichthyosaur (aka npc_ichthyosaur)
+[ ] [_ - _ _ _ - _] AI_LeadGoal (aka ai_goal_lead)
+[ ] [- - _ _ _ _ _] NPC_BaseTurret
+[ ] [_ - - - - - _] NPC_Houndeye (aka monster_houndeye)
+[ ] [_ - - _ - _ _] HL1_CNPC_Ichthyosaur (aka monster_ichthyosaur)
+[ ] [_ - _ _ _ _ _] MomentaryRotButton (aka momentary_rot_button)
+[ ] [_ - - - - - _] NPC_Bullsquid (aka monster_bullchicken)
+[ ] [_ - - - - _ _] NPC_Headcrab (aka monster_headcrab)
+[ ] [_ - - _ - - _] NPC_Monk (aka npc_monk)
+[ ] [_ - - - - _ _] NPC_OldBarney (aka monster_barney)
+[ ] [_ - - - - _ _] BlackHeadcrab (aka npc_headcrab_black, npc_headcrab_poison)
+[ ] [_ - _ _ _ _ _] EnvBeam (aka env_beam)
+[ ] [_ - _ _ _ _ _] BaseButton (aka func_button)
+[ ] [_ - - - - - _] NPC_OldVortigaunt (aka monster_alien_slave)
+[ ] [_ - _ _ _ _ _] TriggerCatapult (aka trigger_catapult)
+[ ] [_ - - _ _ _ _] GrenadeHelicopter (aka grenade_helicopter)
+[ ] [_ - - _ _ - _] NPC_EnemyFinder (aka npc_enemyfinder)
+[ ] [_ - _ _ _ - _] AI_ActBusyGoal (aka ai_goal_actbusy)
+[ ] [- - - - - _ _] HL1NPCTalker
+[ ] [_ - _ - - - _] NPC_BigMomma (aka monster_bigmomma)
+[ ] [_ - _ _ _ _ _] AI_Hint (aka ai_hint)
+[ ] [- - _ _ _ _ _] BaseNPCMaker
+[ ] [_ - - - - - _] NPC_AlienGrunt (aka monster_alien_grunt)
+[ ] [_ - - - - _ _] NPC_Tentacle (aka monster_tentacle)
+[ ] [_ - _ _ _ - _] APCController (aka point_apc_controller)
+[ ] [_ - _ _ _ _ _] FuncMoveLinear (aka func_movelinear, func_water_analog, momentary_door)
+[ ] [_ - _ _ _ _ _] FuncCombineBallSpawner (aka func_combine_ball_spawner)
+[ ] [_ - _ _ _ - _] LogicBranchList (aka logic_branch_listener)
+[ ] [_ - _ _ _ _ _] NPC_Bullseye (aka bullseye_strider_focus, npc_bullseye)
+[ ] [- - _ _ _ - _] PhysConstraint
+[ ] [_ - _ _ - - _] AI_Relationship (aka ai_relationship)
+[ ] [_ - - _ _ _ _] AntlionGrub (aka npc_antlion_grub)
+[ ] [_ - _ _ - _ _] Item_DynamicResupply (aka item_dynamic_resupply)
+[ ] [_ - _ _ - _ _] PhysHinge (aka phys_hinge)
+[ ] [_ - _ _ _ _ _] TriggerCamera (aka point_viewcontrol)
+[ ] [_ - _ _ _ - _] EnvMicrophone (aka env_microphone)
+[ ] [_ - _ _ - - _] GameText (aka game_text, game_text_tf)
+[ ] [_ - _ _ _ - _] PointSpotlight (aka point_spotlight)
+[ ] [_ - _ _ _ - _] TimerEntity (aka logic_timer)
+[ ] [_ - _ _ _ - _] GameUI (aka game_ui)
+[ ] [_ - - - - _ _] Missile (aka rpg_missile)
+[ ] [_ - _ _ - - _] PropVehicle (aka prop_vehicle)
+[ ] [_ - - - - _ _] HunterFlechette (aka hunter_flechette)
+[ ] [_ - _ _ _ - _] MathCounter (aka math_counter)
+[ ] [_ - _ _ _ - _] NPC_CraneDriver (aka npc_cranedriver)
+[ ] [_ - - _ - _ _] NPC_Nihilanth (aka monster_nihilanth)
+[ ] [_ - _ _ - - _] SceneListManager (aka logic_scene_list_manager)
+[ ] [_ - _ _ _ _ _] AI_AllyManager (aka ai_ally_manager)
+[ ] [- - _ _ - - _] AI_GoalEntity
+[ ] [_ - - - - - _] FastHeadcrab (aka npc_headcrab_fast)
+[ ] [_ - - - - _ _] Gib (aka gib)
+[ ] [_ - _ - - - _] NPC_CombineS (aka npc_combine_s, npc_human_commander, npc_human_grenadier, npc_human_grunt, npc_human_medic)
+[ ] [_ - - - - - _] NPC_HAssassin (aka monster_human_assassin)
+[ ] [_ - - _ _ _ _] NewRecharge (aka item_suitcharger)
+[ ] [_ - _ _ - _ _] PhysSlideConstraint (aka phys_slideconstraint)
+[ ] [_ - _ _ - _ _] EnvGunfire (aka env_gunfire)
+[ ] [_ - _ _ _ _ _] HL1_CNPCMaker (aka monstermaker)
+[ ] [_ - _ - - - _] NPC_Advisor (aka npc_advisor)
+[ ] [_ - - - - _ _] NPC_FlockingFlyer (aka monster_flyer)
+[ ] [_ - _ _ _ - _] PointAngleSensor (aka point_anglesensor)
+[ ] [_ - _ _ - - _] TemplateNPCMaker (aka npc_template_maker)
+[ ] [_ - - - - - _] InstancedSceneEntity (aka instanced_scripted_scene)
+[ ] [_ - _ _ _ - _] LogicRandomOutputs (aka logic_random_outputs)
+[ ] [_ - - _ - - _] NPC_Furniture (aka monster_furniture, npc_furniture)
+[ ] [_ - _ _ _ - _] PointAngularVelocitySensor (aka point_angularvelocitysensor)
+[ ] [_ - _ _ _ _ _] ScriptedTarget (aka scripted_target)
+[ ] [_ - - _ - - _] TriggerVPhysicsMotion (aka trigger_vphysics_motion)
+[ ] [_ - _ _ - - _] TriggerViewProxy (aka point_viewproxy)
+[ ] [_ - _ _ _ _ _] AI_ScriptedSentence (aka scripted_sentence)
+[ ] [_ - - _ _ - _] ChangeLevel (aka trigger_changelevel)
+[ ] [_ - _ _ - _ _] GibShooter (aka gibshooter)
+[ ] [_ - _ _ - _ _] LogicMeasureMovement (aka logic_measure_movement)
+[ ] [_ - - _ - - _] NPC_APCDriver (aka npc_apcdriver)
+[ ] [_ - - - - _ _] NihilanthHVR (aka nihilanth_energy_ball)
+[ ] [_ - - - - - _] SceneManager (aka scene_manager)
+[ ] [_ - - _ _ - _] LogicPlayerProxy (aka logic_playerproxy)
+[ ] [_ - - - - _ _] NPC_Leech (aka monster_leech)
+[ ] [_ - _ _ - - _] PhysicsSpring (aka phys_spring)
+[ ] [_ - - _ _ _ _] Recharge (aka func_recharge)
+[ ] [_ - _ _ - - _] TriggerCameraMultiplayer (aka point_viewcontrol_multiplayer)
+[ ] [_ - _ _ - - _] AI_DynamicLink (aka info_node_link)
+[ ] [_ - _ _ - - _] AI_StandoffGoal (aka ai_goal_standoff)
+[ ] [_ - - - - _ _] APCMissile (aka apc_missile)
+[ ] [_ - _ _ _ - -] AssaultPoint (aka assault_assaultpoint)
+[ ] [_ - _ _ _ _ _] EnvEntityMaker (aka env_entity_maker)
+[ ] [_ - - _ - _ _] FuncPlat (aka func_plat)
+[ ] [_ - _ _ - - _] FuncTankMortar (aka func_tankmortar)
+[ ] [_ - _ - - _ _] FuncTrackChange (aka func_trackchange)
+[ ] [_ - - - - _ _] HL1_CNPC_Barnacle (aka monster_barnacle)
+[ ] [_ - - - - _ _] NPC_Osprey (aka monster_osprey)
+[ ] [_ - _ - - - -] WC_UpdateIgnoreList (aka hammer_updateignorelist)
+[ ] [_ - _ _ _ - _] AI_PoliceGoal (aka ai_goal_police)
+[ ] [_ - _ _ - _ _] Bubbling (aka env_bubbles)
+[ ] [_ - _ - - - _] FuncTankAirboatGun (aka func_tankairboatgun)
+[ ] [_ - - _ _ _ _] FuncTankCombineCannon (aka func_tank_combine_cannon)
+[ ] [_ - _ _ - _ _] FuncTrain (aka func_train)
+[ ] [_ - - - - _ _] GrenadeHomer (aka grenade_homer)
+[ ] [_ - - _ _ _ _] GunTarget (aka func_guntarget)
+[ ] [_ - - - - - _] NPC_Fisherman (aka npc_fisherman)
+[ ] [_ - _ _ - _ _] PropGladosCore (aka prop_glados_core)
+[ ] [_ - - - - _ _] SENT_brush (aka sent_brush)
+[ ] [_ - - - - _ _] SENT_filter (aka sent_filter)
+[ ] [_ - _ _ - _ _] TriggerWind (aka trigger_wind)
+[ ] [_ - - - _ _ _] WallHealth (aka func_healthcharger)
+[ ] [_ - - - - _ _] AI_NetworkManager (aka ai_network)
+[ ] [_ - _ _ - - _] AI_SpeechFilter (aka ai_speechfilter)
+[ ] [_ - _ _ - _ _] EnvLaser (aka env_laser)
+[ ] [_ - _ _ - - _] EnvShake (aka env_shake)
+[ ] [_ - _ _ _ - _] Item_ItemCrate (aka item_item_crate)
+[ ] [_ - - - - - _] NPC_MissileDefense (aka npc_missiledefense)
+[ ] [_ - - - - - _] NPC_Roach (aka monster_cockroach)
+[ ] [- - _ _ - _ _] PhysForce
+[ ] [_ - _ _ - - _] PhysMotor (aka phys_motor)
+[ ] [_ - _ _ - _ _] Speaker (aka env_speaker)
+[ ] [_ - _ _ - - _] TankTrainAI (aka tanktrain_ai)
+[ ] [- - - - - - _] AI_BasePhysicsFlyingBot
+[ ] [_ - _ _ - _ _] AI_ScriptedSchedule (aka aiscripted_schedule)
+[ ] [_ - _ _ - - _] AreaPortal (aka func_areaportal)
+[ ] [_ - _ _ - - _] AreaPortalOneWay (aka func_areaportal_oneway)
+[ ] [_ - _ _ - _ _] EnvEffectsScript (aka env_effectscript)
+[ ] [_ - _ _ _ - _] EnvGlobal (aka env_global)
+[ ] [_ - _ _ _ _ _] EnvSpark (aka env_spark)
+[ ] [_ - _ _ _ _ _] Item_AmmoCrate (aka item_ammo_crate)
+[ ] [_ - _ _ _ - _] LogicCoopManager (aka logic_coop_manager)
+[ ] [_ - _ _ _ - -] LogicRegisterActivator (aka logic_register_activator)
+[ ] [_ - - - - - _] NPC_Apache (aka monster_apache)
+[ ] [_ - - - - _ _] NPC_Hornet (aka hornet)
+[ ] [_ - - - _ _ _] NewWallHealth (aka item_healthcharger)
+[ ] [_ - - - - _ _] Snark (aka monster_snark)
+[ ] [_ - _ _ _ - _] AI_OperatorGoal (aka ai_goal_operator)
+[ ] [_ - _ - - - _] BaseMoveBehavior (aka move_keyframed)
+[ ] [_ - - _ - _ _] GrenadeFrag (aka npc_grenade_frag)
+[ ] [_ - - - - - _] HL1NPC_Zombie (aka monster_zombie)
+[ ] [_ - - - - - _] HL1_CNPC_GMan (aka monster_gman)
+[ ] [_ - _ _ _ - _] LogicBranch (aka logic_branch)
+[ ] [_ - _ _ _ - _] LogicCompare (aka logic_compare)
+[ ] [_ - _ _ - _ _] PointHurt (aka point_hurt)
+[ ] [_ - _ _ _ _ _] PropThumper (aka prop_thumper)
+[ ] [_ - _ _ _ - _] TriggerBrush (aka trigger_brush)
+[ ] [_ - _ _ _ _ _] TriggerWeaponDissolve (aka trigger_weapon_dissolve)
+[ ] [- - _ _ - - _] BaseVPhysicsTrigger
+[ ] [_ - _ _ _ - _] EnvFireSensor (aka env_firesensor)
+[ ] [_ - _ _ - - _] FogVolume (aka fog_volume)
+[ ] [_ - - - - _ _] GrenadeBeam (aka grenade_beam)
+[ ] [_ - - - - _ _] GrenadePathfollower (aka grenade_pathfollower)
+[ ] [_ - - - - - _] Headcrab (aka npc_headcrab)
+[ ] [_ - _ _ _ - _] LogicRelay (aka logic_relay)
+[ ] [_ - _ _ - _ _] Pendulum (aka func_pendulum)
+[ ] [_ - _ _ _ - _] PhysExplosion (aka env_physexplosion)
+[ ] [_ - - - - - _] PhysicsNPCSolver (aka physics_npc_solver)
+[ ] [- - _ - - - _] BasePlatTrain
+[ ] [_ - _ _ _ - _] EnvPlayerSurfaceTrigger (aka env_player_surface_trigger)
+[ ] [_ - _ _ - - _] FuncTankAPCRocket (aka func_tankapcrocket)
+[ ] [_ - _ _ - - _] LogicCollisionPair (aka logic_collision_pair)
+[ ] [_ - - _ - - _] LogicNavigation (aka logic_navigation)
+[ ] [_ - _ _ - - _] MessageEntity (aka point_message)
+[ ] [_ - _ - - - _] PathKeyFrame (aka keyframe_track)
+[ ] [_ - _ _ _ - _] PointProximitySensor (aka point_proximity_sensor)
+[ ] [_ - _ - - - _] RagdollConstraint (aka phys_ragdollconstraint)
+[ ] [_ - _ - _ - _] RallyPoint (aka assault_rallypoint)
+[ ] [_ - - - - _ _] Rocket_Turret_Projectile (aka rocket_turret_projectile)
+[ ] [_ - - - - _ _] TripmineGrenade (aka npc_tripmine)
+[ ] [- - - - - - _] AI_BaseFlyingBot
+[ ] [_ - _ _ - - _] AI_DynamicLinkController (aka info_node_link_controller)
+[ ] [_ - _ - - - _] FilterEnemy (aka filter_enemy)
+[ ] [_ - _ _ - - _] FuncMortarField (aka func_mortar_field)
+[ ] [_ - - - - - _] GrenadeSpit (aka grenade_spit)
+[ ] [_ - _ _ - - _] KeepUpright (aka phys_keepupright)
+[ ] [_ - _ _ _ - _] LogicEventListenerItemEquip (aka logic_eventlistener_itemequip)
+[ ] [_ - _ _ _ - _] MathRemap (aka math_remap)
+[ ] [_ - _ _ _ - _] Message (aka env_message)
+[ ] [_ - _ _ _ _ _] MultiManager (aka multi_manager)
+[ ] [_ - - - - - _] NewNPC (aka npc_newnpc)
+[ ] [_ - - - - - _] PlayerPickupController (aka player_pickup)
+[ ] [_ - _ _ _ - _] PointEntityFinder (aka point_entity_finder)
+[ ] [_ - _ _ _ _ _] PointPlayerMoveConstraint (aka point_playermoveconstraint)
+[ ] [_ - _ _ _ - _] PointVelocitySensor (aka point_velocitysensor)
+[ ] [_ - _ _ - - _] RagdollMagnet (aka phys_ragdollmagnet)
+[ ] [_ - - - - _ _] TripmineGrenade_HL1 (aka monster_tripmine)
+[ ] [_ - - - - - _] AI_AllySpeechManager (aka ai_ally_speech_manager)
+[ ] [_ - _ _ - _ _] AI_BattleLine (aka ai_battle_line)
+[ ] [_ - _ _ - - _] AI_ChangeHintGroup (aka ai_changehintgroup)
+[ ] [_ - - - - - _] BarnacleTongueTip (aka npc_barnacle_tongue_tip)
+[ ] [_ - - - - - _] CombineDropshipContainer (aka prop_dropship_container)
+[ ] [_ - - _ _ - _] Credits (aka env_credits)
+[ ] [- - - _ - - _] Cycler
+[ ] [_ - _ _ _ - _] EnergyBallLauncher (aka point_energy_ball_launcher)
+[ ] [_ - _ _ - _ _] EnvExplosion (aka env_explosion)
+[ ] [_ - _ _ - - _] EnvFireSource (aka env_firesource)
+[ ] [_ - _ - - - _] FuncTankPulseLaser (aka func_tankpulselaser)
+[ ] [_ - _ _ - - _] FuncVPhysicsClip (aka func_clip_vphysics)
+[ ] [_ - _ _ - - _] GameGibManager (aka game_gib_manager)
+[ ] [_ - - _ - - _] GamePlayerEquip (aka game_player_equip)
+[ ] [_ - _ _ _ - _] LogicEventListener (aka logic_eventlistener)
+[ ] [_ - _ - _ _ _] MultiSource (aka multisource)
+[ ] [_ - _ - - - _] NPCMaker (aka npc_maker)
+[ ] [_ - - - - - _] NPC_BabyCrab (aka monster_babycrab)
+[ ] [_ - _ _ - - _] NPC_EnemyFinderCombineCannon (aka npc_enemyfinder_combinecannon)
+[ ] [_ - - - - - _] NPC_GMan (aka npc_gman)
+[ ] [_ - - - - _ _] NPC_Sentry (aka monster_sentry)
+[ ] [_ - _ _ _ - _] PathCorner (aka path_corner)
+[ ] [_ - _ _ - _ _] PointPush (aka point_push)
+[ ] [_ - _ _ - _ _] ProjectedDecal (aka info_projecteddecal)
+[ ] [_ - _ _ - - _] RadarTarget (aka info_radar_target)
+[ ] [_ - - - - _ _] RagdollBoogie (aka env_ragdoll_boogie)
+[ ] [_ - - _ - _ _] SatchelCharge (aka npc_satchel)
+[ ] [_ - - - - _ _] SatchelCharge_HL1 (aka monster_satchel)
+[ ] [_ - _ - _ _ _] TriggerRelay (aka trigger_relay)
+[ ] [_ - - - - - _] XenTree (aka xen_tree)
+[ ] [_ - _ _ - - -] AISound (aka ai_sound)
+[ ] [_ - _ _ - - _] AntlionRepellant (aka point_antlion_repellant)
+[ ] [_ - _ _ - - _] Blood (aka env_blood)
+[ ] [_ - _ _ - _ _] Decal (aka infodecal)
+[ ] [_ - - - - - _] FuncPlatRot (aka func_platrot)
+[ ] [_ - _ _ - _ _] GameWeaponManager (aka game_weapon_manager)
+[ ] [_ - _ - - - _] GenericActor (aka generic_actor)
+[ ] [_ - - - - - _] GenericNPC (aka monster_generic)
+[ ] [_ - - - - _ _] HelicopterChunk (aka helicopter_chunk)
+[ ] [_ - _ _ - _ _] InfoDarknessLightSource (aka info_darknessmode_lightsource)
+[ ] [_ - _ _ - _ _] LookDoor (aka func_lookdoor)
+[ ] [_ - _ _ _ - _] MathColorBlend (aka math_colorblend)
+[ ] [_ - - - - - _] NPC_Eli (aka npc_eli)
+[ ] [_ - - - - - _] NPC_Mossman (aka npc_mossman)
+[ ] [_ - _ _ - - _] OrnamentProp (aka prop_dynamic_ornament)
+[ ] [_ - _ _ - _ _] PhysImpact (aka env_physimpact)
+[ ] [_ - _ - - - _] PhysPulley (aka phys_pulleyconstraint)
+[ ] [_ - _ - - - _] PointDevShotCamera (aka point_devshot_camera)
+[ ] [_ - - _ - - _] PointTeleport (aka point_teleport)
+[ ] [_ - - _ - - _] PropVehicleViewController (aka vehicle_viewcontroller)
+[ ] [_ - - - - - _] Pushable (aka func_pushable)
+[ ] [_ - _ - - _ _] Speaker_HL1 (aka speaker)
+[ ] [_ - - - - - _] TriggerWateryDeath (aka trigger_waterydeath)
+[ ] [_ - - - - - _] TurretTipController (aka floorturret_tipcontroller)
+[ ] [_ - _ _ - - _] AI_AssaultGoal (aka ai_goal_assault)
+[ ] [_ - - - - - _] AI_TestHull (aka aitesthull)
+[ ] [_ - _ - _ - _] AutoTrigger (aka trigger_auto)
+[ ] [_ - - - - - _] BaseSpriteProjectile (aka baseprojectile)
+[ ] [_ - - _ - - _] BombDropSensor (aka npc_helicoptersensor)
+[ ] [_ - _ _ _ - -] BugBaitSensor (aka point_bugbait)
+[ ] [_ - - - - _ _] CrossbowBolt_HL1 (aka crossbow_bolt_hl1)
+[ ] [_ - _ _ _ - _] EnvFade (aka env_fade)
+[ ] [_ - _ - - - _] EnvShooter (aka env_shooter)
+[ ] [_ - - _ - - _] FuncWallToggle (aka func_wall_toggle)
+[ ] [_ - - - - _ _] GrenadeAR2 (aka grenade_ar2)
+[ ] [_ - - - - _ _] GrenadeBugBait (aka npc_grenade_bugbait)
+[ ] [_ - - - - - _] GrubNugget (aka item_grubnugget)
+[ ] [_ - _ - _ - _] InfoBM (aka info_bigmomma)
+[ ] [_ - _ _ - _ -] LogicActiveAutosave (aka logic_active_autosave)
+[ ] [_ - _ _ - - -] LogicAutosave (aka logic_autosave)
+[ ] [_ - _ _ _ - -] LogicCompareInteger (aka logic_multicompare)
+[ ] [_ - - - - - _] NPC_Breen (aka npc_breen)
+[ ] [_ - - - - _ _] NPC_ControllerHeadBall (aka controller_head_ball)
+[ ] [_ - _ - - - _] PhysLength (aka phys_lengthconstraint)
+[ ] [_ - _ _ - - _] PointCombineBallLauncher (aka point_combine_ball_launcher)
+[ ] [_ - _ _ - _ _] RevertSaved (aka player_loadsaved)
+[ ] [_ - _ _ _ - _] TeamSpawnPoint (aka info_player_teamspawn)
+[ ] [_ - - - - _ _] WeaponBox (aka weaponbox)
+[ ] [_ - _ - _ _ _] WeightButton (aka func_weight_button)
+[ ] [_ - - - - - _] XenPLight (aka xen_plantlight)
+[ ] [_ - - - - - _] ZombieBMSGrunt (aka npc_zombie_grunt, npc_zombie_grunt_torso)
+[ ] [_ - - - - - _] ZombieBMSHev (aka npc_zombie_hev, npc_zombie_hev_torso)
+[ ] [_ - - - - - _] ZombieBMSSci (aka npc_zombie_scientist, npc_zombie_scientist_torso)
+[ ] [_ - - - - - _] ZombieBMSSec (aka npc_zombie_security, npc_zombie_security_torso)
+[ ] [_ - _ - - _ _] AI_RadialLinkController (aka info_radial_link_controller)
+[ ] [_ - _ - - - _] AvoidSphere (aka npc_heli_avoidsphere)
+[ ] [_ - - - - _ _] BMortar (aka bmortar)
+[ ] [_ - - _ - _ _] CitizenResponseSystem (aka ai_citizen_response_system)
+[ ] [_ - - _ - - _] EnvBeverage (aka env_beverage)
+[ ] [_ - _ _ - - _] EnvViewPunch (aka env_viewpunch)
+[ ] [_ - _ - - - _] FuncTankLaser (aka func_tanklaser)
+[ ] [_ - - - _ - _] FuncTankTrain (aka func_tanktrain)
+[ ] [_ - - _ _ - -] GamePlayerZone (aka game_zone_player)
+[ ] [_ - - - - _ _] GrenadeMP5 (aka grenade_mp5)
+[ ] [_ - - - - _ _] HL1Gib (aka hl1gib)
+[ ] [_ - - - - _ _] HandGrenade (aka grenade_hand)
+[ ] [_ - _ - _ - _] LogicLineToEntity (aka logic_lineto)
+[ ] [_ - _ - _ - _] NPCSpawnDestination (aka info_npc_spawn_destination)
+[ ] [_ - - - - _ _] NPC_ControllerZapBall (aka controller_energy_ball)
+[ ] [_ - - - - - _] NPC_FlockingFlyerFlock (aka monster_flyer_flock)
+[ ] [_ - - - - - _] NPC_Kleiner (aka npc_kleiner)
+[ ] [_ - - - - - _] NPC_Magnusson (aka npc_magnusson)
+[ ] [_ - - - - _ _] NPC_SittingScientist (aka monster_sitting_scientist)
+[ ] [_ - - - - - _] NPC_Turret (aka monster_turret)
+[ ] [_ - _ _ - _ _] PhysicsPropRespawnable (aka prop_physics_respawnable)
+[ ] [_ - _ - - - _] RotDoor (aka func_door_rotating)
+[ ] [_ - - - - _ _] SniperBullet (aka sniperbullet)
+[ ] [_ - _ - - - _] TonemapTrigger (aka trigger_tonemap)
+[ ] [_ - _ _ - - _] TriggerPhysicsTrap (aka trigger_physics_trap)
+[ ] [_ - - - _ - _] TriggerPortalCleanser (aka trigger_portal_cleanser)
+[ ] [_ - - - - _ _] WindowPane (aka window_pane)
+[ ] [_ - _ _ - - _] AI_FollowGoal (aka ai_goal_follow)
+[ ] [_ - _ - - - _] AI_LeadGoal_Weapon (aka ai_goal_lead_weapon)
+[ ] [_ - - - - - _] AvoidBox (aka npc_heli_avoidbox)
+[ ] [_ - - - - _ _] BaseGrenadeConcussion (aka npc_concussiongrenade)
+[ ] [_ - - - - - _] BlendingCycler (aka cycler_blender)
+[ ] [_ - - - - - _] BombSuppressor (aka npc_heli_nobomb)
+[ ] [_ - _ _ - - _] EnvMuzzleFlash (aka env_muzzleflash)
+[ ] [_ - _ - - _ _] EnvTracer (aka env_tracer)
+[ ] [_ - - - - _ _] FishPool (aka func_fish_pool)
+[ ] [_ - _ - - - _] FlextalkActor (aka cycler_actor)
+[ ] [_ - _ - - - _] FuncTankRocket (aka func_tankrocket)
+[ ] [_ - - _ - - _] FuncVehicleClip (aka func_vehicleclip)
+[ ] [_ - - _ - - _] GameScore (aka game_score)
+[ ] [_ - - - - - _] GlockAmmo (aka ammo_9mmclip, ammo_glockclip)
+[ ] [_ - - - - - _] InfoAPCMissileHint (aka info_apc_missile_hint)
+[ ] [_ - _ _ - - _] InfoCameraLink (aka info_camera_link)
+[ ] [_ - - - - _ _] ItemSoda (aka item_sodacan)
+[ ] [_ - - - - - _] Item_AR2_Grenade (aka item_ammo_smg1_grenade, item_ar2_grenade)
+[ ] [_ - - - - - _] Item_BoxLRounds (aka item_ammo_ar2, item_box_lrounds)
+[ ] [_ - - - - - _] Item_BoxMRounds (aka item_ammo_smg1, item_box_mrounds)
+[ ] [_ - - - - - _] Item_BoxSRounds (aka item_ammo_pistol, item_box_srounds)
+[ ] [_ - - - - - _] Item_LargeBoxLRounds (aka item_ammo_ar2_large, item_large_box_lrounds)
+[ ] [_ - - - - - _] Item_LargeBoxMRounds (aka item_ammo_smg1_large, item_large_box_mrounds)
+[ ] [_ - - - - - _] Item_LargeBoxSRounds (aka item_ammo_pistol_large, item_large_box_srounds)
+[ ] [_ - - - - - _] Item_RPG_Round (aka item_ml_grenade, item_rpg_round)
+[ ] [_ - - - - - _] MP5AmmoClip (aka ammo_9mmar, ammo_mp5clip)
+[ ] [_ - - - - - _] MP5AmmoGrenade (aka ammo_argrenades, ammo_mp5grenades)
+[ ] [_ - - _ - - _] NPCEventResponseSystemEntity (aka ai_npc_eventresponsesystem)
+[ ] [_ - - - - - _] NPC_DeadBarney (aka monster_barney_dead)
+[ ] [_ - - - - - _] NPC_DeadHEV (aka monster_hevsuit_dead)
+[ ] [_ - - - - - _] NPC_DeadHGrunt (aka monster_hgrunt_dead)
+[ ] [_ - - - - - _] NPC_DeadScientist (aka monster_scientist_dead)
+[ ] [_ - - - - - _] NPC_Seagull (aka npc_seagull)
+[ ] [_ - _ - - - -] ParticleLight (aka env_particlelight)
+[ ] [_ - _ _ _ - -] PhysConvert (aka phys_convert)
+[ ] [_ - - - - - _] PhysicsEntitySolver (aka physics_entity_solver)
+[ ] [_ - _ - - - _] RotorWashShooter (aka env_rotorshooter)
+[ ] [_ - - - - - _] Shower (aka spark_shower)
+[ ] [_ - _ _ - - _] SkyboxSwapper (aka skybox_swapper)
+[ ] [_ - - - - - _] SprayCan (aka spraycan)
+[ ] [_ - - - - - _] SquidSpit (aka squidspit)
+[ ] [_ - - - - - _] Stomp (aka garg_stomp)
+[ ] [_ - _ - - - _] TriggerWeaponStrip (aka trigger_weapon_strip)
+[ ] [_ - - - - _ _] VehicleCargoTrigger (aka trigger_vehicle_cargo)
+[ ] [_ - _ _ - - _] AI_ChangeTarget (aka ai_changetarget)
+[ ] [_ - - - - - _] CraneTip (aka crane_tip)
+[ ] [_ - - - - - _] CrossbowAmmo (aka ammo_crossbow)
+[ ] [_ - - - - - _] EgonAmmo (aka ammo_egonclip)
+[ ] [_ - _ _ - - _] EnvAR2Explosion (aka env_ar2explosion)
+[ ] [_ - _ _ - - -] EnvDustPuff (aka env_dustpuff)
+[ ] [_ - - - - - _] EnvFunnel (aka env_funnel)
+[ ] [_ - - _ - - _] FuncTrackAuto (aka func_trackautochange)
+[ ] [_ - - - - - _] GaussAmmo (aka ammo_gaussclip)
+[ ] [_ - - - - _ _] GrenadeBeamChaser (aka grenade_beam_chaser)
+[ ] [_ - - - - - _] HealthKit (aka item_healthkit)
+[ ] [_ - - - - - _] HealthVial (aka item_healthvial)
+[ ] [_ - - - - - _] InfoTarget (aka info_particle_target, info_target)
+[ ] [_ - _ _ - - -] InfoTargetVehicleTransition (aka info_target_vehicle_transition)
+[ ] [_ - - - - - _] ItemBattery (aka item_battery)
+[ ] [_ - - - - - _] ItemLongJump (aka item_longjump)
+[ ] [_ - - - - - _] ItemSuit (aka item_suit)
+[ ] [_ - - - - - _] Item_AR2AltFireRound (aka item_ammo_ar2_altfire)
+[ ] [_ - - - - - _] Item_Box357Rounds (aka item_ammo_357)
+[ ] [_ - - - - - _] Item_BoxBuckshot (aka item_box_buckshot)
+[ ] [_ - - - - - _] Item_BoxFlareRounds (aka item_box_flare_rounds)
+[ ] [_ - - - - - _] Item_BoxSniperRounds (aka item_box_sniper_rounds)
+[ ] [_ - - - - - _] Item_BoxXBowRounds (aka item_ammo_crossbow)
+[ ] [_ - - - - - _] Item_FlareRound (aka item_flare_round)
+[ ] [_ - - - - - _] Item_LargeBox357Rounds (aka item_ammo_357_large)
+[ ] [_ - - - - - _] MP5Chainammo (aka ammo_9mmbox)
+[ ] [_ - - - - _ _] Mortar (aka monster_mortar)
+[ ] [_ - - - - _ _] NPC_HGruntRepel (aka monster_grunt_repel)
+[ ] [_ - - - - - _] NPC_MiniTurret (aka monster_miniturret)
+[ ] [_ - - - - - _] PhysFixed (aka phys_constraint)
+[ ] [_ - _ - - - _] PhysTorque (aka phys_torque)
+[ ] [_ - - - - - _] PythonAmmo (aka ammo_357)
+[ ] [_ - - _ - - _] RenderFxManager (aka env_render)
+[ ] [_ - - - - _ _] RopeAnchor (aka rope_anchor)
+[ ] [_ - - - - - _] RpgAmmo (aka ammo_rpgclip)
+[ ] [_ - - - - - _] ShotgunAmmo (aka ammo_buckshot)
+[ ] [_ - - - - - _] SimplePhysicsProp (aka simple_physics_prop)
+[ ] [_ - - - - _ _] SparkTrail (aka sparktrail)
+[ ] [_ - - _ - - _] StripWeapons (aka player_weaponstrip)
+[ ] [_ - _ - - - _] TankTargetChange (aka tanktrain_aitarget)
+[ ] [_ - _ _ - - -] TargetChangeGravity (aka target_changegravity)
+[ ] [_ - - _ _ - -] TargetGunshipCrash (aka info_target_gunshipcrash)
+[ ] [_ - - - _ - _] TeamVehicleSpawnPoint (aka info_vehicle_groundspawn)
+[ ] [_ - - - - _ _] WateryDeathLeech (aka ent_watery_leech)
+[ ] [_ - - - - - _] Wreckage (aka cycler_wreckage)
+[ ] [_ - - - - - _] XenHair (aka xen_hair)
+[ ] [_ - - - - - _] AI_InjuredFollowGoal (aka ai_goal_injured_follow)
+[ ] [_ - _ - - - _] BaseDMStart (aka info_player_deathmatch)
+[ ] [_ - - - - - _] BaseGrenadeContact (aka npc_contactgrenade)
+[ ] [_ - - - - - _] BaseGrenadeTimed (aka npc_handgrenade)
+[ ] [_ - - _ - - _] CommandPoint (aka info_target_command_point)
+[ ] [_ - _ - - - _] ConstraintAnchor (aka info_constraint_anchor)
+[ ] [_ - - - - - _] EntityBlocker (aka entity_blocker)
+[ ] [_ - _ _ - - -] EnvSplash (aka env_splash)
+[ ] [_ - - - - - _] EventQueueSaveLoadProxy (aka event_queue_saveload_proxy)
+[ ] [_ - _ - - - _] FilterCombineBall (aka filter_combineball_type)
+[ ] [_ - _ - - - _] FilterContext (aka filter_activator_context)
+[ ] [_ - _ - - - _] FilterModel (aka filter_activator_model)
+[ ] [- - _ - - - _] FuncAreaPortalBase
+[ ] [_ - - - - - _] FuncLadderEndPoint (aka func_ladderendpoint)
+[ ] [_ - _ - - - _] FuncTankPhysCannister (aka func_tankphyscannister)
+[ ] [_ - - - - _ _] FuncTrainControls (aka func_traincontrols)
+[ ] [_ - - _ - - _] GameEnd (aka game_end)
+[ ] [_ - - - - - _] GamePlayerTeam (aka game_player_team)
+[ ] [_ - - - - - _] GenericCycler (aka cycler, model_studio)
+[ ] [_ - - - - - _] InfoIntermission (aka info_intermission)
+[ ] [_ - - _ - - _] MovementSpeedMod (aka player_speedmod)
+[ ] [_ - - - - - _] NPC_Bloater (aka monster_bloater)
+[ ] [_ - - - - - _] NPC_Pigeon (aka npc_pigeon)
+[ ] [_ - _ - - - _] PhysConstraintSystem (aka phys_constraintsystem)
+[ ] [_ - _ - - - _] PhysSphere (aka prop_sphere)
+[ ] [_ - - - - - _] PhysThruster (aka phys_thruster)
+[ ] [_ - - - - - _] RotButton (aka func_rot_button)
+[ ] [- - _ - - - _] RuleEntity
+[ ] [_ - - _ - - -] TextureToggle (aka env_texturetoggle)
+[ ] [_ - - _ - - _] TriggerEndSection (aka trigger_endsection)
+[ ] [_ - - - - - _] TriggerRPGFire (aka trigger_rpgfire)
+[ ] [_ - - - - - _] WorldItem (aka world_items)
+[ ] [_ - - - - - _] XenHull (aka xen_hull)
+[ ] [_ - - - - - _] XenTreeTrigger (aka xen_ttrigger)
+[ ] [- - - - - - _] ActAnimating
+[ ] [- - - - - - _] BaseFire
+[ ] [_ - - - - - _] ConcussiveBlast (aka concussiveblast)
+[ ] [_ - - - - - _] FuncIllusionary (aka func_illusionary)
+[ ] [_ - - - - - _] FuncTankGun (aka func_tank)
+[ ] [_ - - - - - _] GenericFlexCycler (aka cycler_flex)
+[ ] [_ - - - - - _] HL2NetworkBuildHelper (aka ai_network_build_helper)
+[ ] [_ - - - - - _] HunterMaker (aka npc_hunter_maker)
+[ ] [_ - - - - - _] InfoMassCenter (aka info_mass_center)
+[ ] [_ - - - - _ -] LookDoorThinker (aka lookdoorthinker)
+[ ] [_ - - - - - _] NPC_Antlion_Worker (aka npc_antlion_worker)
+[ ] [_ - - - - - _] NullEntity (aka info_null)
+[ ] [_ - - - - - _] PhysBallSocket (aka phys_ballsocket)
+[ ] [_ - - _ - - -] PointClientCommand (aka point_clientcommand)
+[ ] [_ - - _ - - -] PointServerCommand (aka point_servercommand)
+[ ] [_ - - - - - _] RagGib (aka raggib)
+[ ] [_ - - - - - _] SimplePhysicsBrush (aka simple_physics_brush)
+[ ] [_ - - - - - _] SniperTarget (aka info_snipertarget)
+[ ] [_ - - - - - _] SquadInsignia (aka squadinsignia)
+[ ] [_ - - - - - _] TriggerVolume (aka trigger_transition)
+[ ] [_ - - - - - _] XenSporeLarge (aka xen_spore_large)
+[ ] [_ - - - - - _] XenSporeMed (aka xen_spore_medium)
+[ ] [_ - - - - - _] XenSporeSmall (aka xen_spore_small)
+[ ] [_ - - - - - -] EnableMotionFixup (aka point_enable_motion_fixup)
+[ ] [_ - - - - - -] Func_DustCloud (aka func_dustcloud)
+[ ] [_ - - - - - -] Func_DustMotes (aka func_dustmotes)
+[ ] [_ - - - - - -] NPC_ClawScanner (aka npc_clawscanner)
+[ ] [_ - - - - - -] PathCornerCrash (aka path_corner_crash)
+[ ] [- - - - - - _] RulePointEntity
+```
