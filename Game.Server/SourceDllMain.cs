@@ -37,6 +37,9 @@ public static class SourceDllMain
 	[Dependency] public static BaseEntityList g_pEntityList { get; private set; } = null!;
 	[Dependency] public static IServerPluginHelpers serverpluginhelpers { get; private set; } = null!;
 	[Dependency(Required = false)] public static IServerEngineTools? serverenginetools { get; private set; } = null!;
+#if GMOD_DLL
+	[Dependency] public static Source.Common.GarrysMod.IGet get { get; private set; } = null!;
+#endif
 
 
 	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;

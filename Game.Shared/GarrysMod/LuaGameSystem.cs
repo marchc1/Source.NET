@@ -32,6 +32,20 @@ public class LuaGameSystem : AutoGameSystemPerFrame, IGameEventListener2
 		gameeventmanager?.AddListener(this, name, serverSide);
 	}
 
+#if CLIENT_DLL
+	public override void LevelInitPreEntity() {
+		// Lua::Create?
+		// Lua::OnLoaded?
+	}
+	public override void Update(double frametime) {
+		garrysmod.Think();
+	}
+#else
+	public override void FrameUpdatePreEntityThink() {
+		garrysmod.Think();
+	}
+#endif
+
 	public void StopListeningForAllEvents() {
 		if (RegisteredForEvents) {
 			gameeventmanager?.RemoveListener(this);

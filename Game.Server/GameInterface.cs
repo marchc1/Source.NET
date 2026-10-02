@@ -12,6 +12,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -230,8 +231,6 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
 
-		IGameSystem.Add(g_SoundEmitterSystem);
-		IGameSystem.Add(PhysicsGameSystem());
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(SoundscapeSystemGlobals).TypeHandle);
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CheckClient).TypeHandle);
 
@@ -249,6 +248,14 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		filesystem.Addons().Refresh();
 		filesystem.Games().Refresh();
 #endif
+
+
+#if GMOD_DLL
+		garrysmod.InitializeMod(services);
+#endif
+
+		IGameSystem.Add(PhysicsGameSystem());
+		IGameSystem.Add(g_SoundEmitterSystem);
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -388,6 +395,11 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
 		// ResetWindspeed();
 		// UpdateChapterRestrictions(pMapName);
+
+
+#if GMOD_DLL
+		garrysmod.LevelInit(pMapName, pMapEntities, pOldLevel, pLandmarkName, loadGame, background);
+#endif
 
 		//Tony; parse custom manifest if exists!
 		// ParseParticleEffectsMap(pMapName, false);

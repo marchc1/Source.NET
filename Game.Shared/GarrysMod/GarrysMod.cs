@@ -1,10 +1,12 @@
-﻿global using static Game.Client.GarrysMod.GarrysModSingletons;
+﻿#if CLIENT_DLL || GAME_DLL
+global using static Game.Client.GarrysMod.GarrysModSingletons;
 
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
 
 using Source;
+using Source.Common;
 using Source.Common.GarrysMod;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
@@ -22,14 +24,30 @@ public static class GarrysModSingletons
 	public static readonly GarrysMod garrysmod = new();
 }
 
-public class GarrysMod
+public class GarrysMod : IGarrysMod
 {
 	public void DLLInit(IServiceCollection services) {
+#if CLIENT_DLL
 		services.AddSingleton<IIntroScreen, IntroScreen>();
 		services.AddSingleton<IServerAddons, ServerAddons>();
+#else
+
+#endif
 	}
 
-  	public void InitializeMod(IServiceProvider services){
+	public void EndVideoScale(int unk1, int unk2) {
+		throw new NotImplementedException();
+	}
+
+	public void FireGameEvent(IGameEvent ev) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetMapName() {
+		throw new NotImplementedException();
+	}
+
+	public void InitializeMod(IServiceProvider services) {
 		get.IntroScreen()!.Update("Adding Custom Fonts", true);
 		// todo: AddCustomFonts
 		get.IntroScreen()!.Update("Adding Language Files", true);
@@ -38,13 +56,38 @@ public class GarrysMod
 		// todo: menu system init
 		get.IntroScreen()!.Update("Setting Convar Defaults", true);
 		// todo: convar defaults
-
+#if CLIENT_DLL
 		string absPath = $"{engine.GetGameDirectory()}/cache";
+#else // TODO: This is really stupid. Why is server different here in the interface. This deserves deviation.
+		Span<char> path = stackalloc char[MAX_PATH];
+		engine.GetGameDir(path);
+		string absPath = $"{path.SliceNullTerminatedString()}/cache";
+#endif
 		Directory.CreateDirectory(absPath);
 		Directory.CreateDirectory(Path.Combine(absPath, "lua"));
 		Directory.CreateDirectory(Path.Combine(absPath, "workshop"));
 		filesystem.AddSearchPath(absPath, "CACHE");
-  	}
+	}
+
+	public void MD5String(Span<byte> outMD5, ReadOnlySpan<byte> unk1, ReadOnlySpan<byte> unk2, ReadOnlySpan<byte> unk3) {
+		throw new NotImplementedException();
+	}
+
+	public void PlaySound(ReadOnlySpan<char> sound) {
+		throw new NotImplementedException();
+	}
+
+	public void RunConsoleCommand(ReadOnlySpan<char> cmd) {
+		throw new NotImplementedException();
+	}
+
+	public void StartVideoScale(int unk1, int unk2) {
+		throw new NotImplementedException();
+	}
+
+	public void Think() {
+
+	}
 }
 
 public class GModRichPresence : AutoGameSystemPerFrame
@@ -118,3 +161,4 @@ public class GModRichPresence : AutoGameSystemPerFrame
 		return level;
 	}
 }
+#endif
