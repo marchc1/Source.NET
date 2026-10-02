@@ -12,6 +12,8 @@ public class PooledStrings
 		this.array = array;
 	}
 
+	public int Length => array.Length;
+
 	 public ref string this[int idx] { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref array[idx]; }
 	 public ref string this[LUA_POOLEDSTRING idx] { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref array[(int)idx]; }
 
@@ -65,6 +67,8 @@ public class PooledStrings
 		"HUDItemPickedUp",
 		"HUDPaint",
 		"HUDPaintBackground",
+		"DrawOverlay",
+		"CaptureVideo",
 		"HUDShouldDraw",
 		"HUDWeaponPickedUp",
 		"InitPostEntity",
@@ -83,6 +87,7 @@ public class PooledStrings
 		"OnEntityCreated",
 		"OnEntityWaterLevelChanged",
 		"OnNPCKilled",
+		"OnNPCDropItem",
 		"OnPhysgunFreeze",
 		"OnPhysgunReload",
 		"OnPlayerChat",
@@ -168,7 +173,6 @@ public class PooledStrings
 		"SetupWorldFog",
 		"ShouldCollide",
 		"ShouldDrawLocalPlayer",
-		"ShouldDrawParticles",
 		"ShowHelp",
 		"ShowSpare1",
 		"ShowSpare2",
@@ -197,6 +201,7 @@ public class PooledStrings
 		"OnCloseCaptionEmit",
 		"HandlePlayerArmorReduction",
 		"OnPauseMenuShow",
+		"OnClientLuaError",
 		"OnChangeActivity",
 		"BehaveUpdate",
 		"Blocked",
@@ -262,6 +267,7 @@ public class PooledStrings
 		"TranslateNavGoal",
 		"OnStateChange",
 		"CustomAmmoDisplay",
+		"ResolveCustomFlyCollision",
 		"DrawHUD",
 		"DrawHUDBackground",
 		"DrawWorldModel",
@@ -382,6 +388,8 @@ public class PooledStrings
 		HUDItemPickedUp,
 		HUDPaint,
 		HUDPaintBackground,
+		DrawOverlay,
+		CaptureVideo,
 		HUDShouldDraw,
 		HUDWeaponPickedUp,
 		InitPostEntity,
@@ -400,6 +408,7 @@ public class PooledStrings
 		OnEntityCreated,
 		OnEntityWaterLevelChanged,
 		OnNPCKilled,
+		OnNPCDropItem,
 		OnPhysgunFreeze,
 		OnPhysgunReload,
 		OnPlayerChat,
@@ -485,7 +494,6 @@ public class PooledStrings
 		SetupWorldFog,
 		ShouldCollide,
 		ShouldDrawLocalPlayer,
-		ShouldDrawParticles,
 		ShowHelp,
 		ShowSpare1,
 		ShowSpare2,
@@ -514,6 +522,7 @@ public class PooledStrings
 		OnCloseCaptionEmit,
 		HandlePlayerArmorReduction,
 		OnPauseMenuShow,
+		OnClientLuaError,
 		OnChangeActivity,
 		BehaveUpdate,
 		Blocked,
@@ -579,6 +588,7 @@ public class PooledStrings
 		TranslateNavGoal,
 		OnStateChange,
 		CustomAmmoDisplay,
+		ResolveCustomFlyCollision,
 		DrawHUD,
 		DrawHUDBackground,
 		DrawWorldModel,
