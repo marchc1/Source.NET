@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -535,6 +535,10 @@ public partial class Host
 		GameEventManager = engineAPI.InitSubsystem<IGameEventManager2>()!;
 		sv.Init(dedicated);
 		SV = services.GetRequiredService<SV>();
+#if GMOD_DLL
+		g_pFileSystem.SetGet(get);
+		get.Initialize(g_pFileSystem);
+#endif
 		SV.InitGameDLL();
 #if !SWDS
 		if (!dedicated) {

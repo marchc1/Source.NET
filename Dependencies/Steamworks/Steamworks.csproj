@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<RootNamespace>Steamworks</RootNamespace>
+		<AssemblyName>Steamworks.NET</AssemblyName>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<PlatformTarget>x64</PlatformTarget>
+		<Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
+		<DefineConstants>$(DefineConstants);STEAMWORKS_X64</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(IsWindows)' == 'true'">
+		<DefineConstants>$(DefineConstants);STEAMWORKS_WIN</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(IsWindows)' != 'true'">
+		<DefineConstants>$(DefineConstants);STEAMWORKS_LIN_OSX</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="..\Steamworks.NET\com.rlabrecque.steamworks.net\Runtime\**\*.cs" />
+	</ItemGroup>
+
+</Project>

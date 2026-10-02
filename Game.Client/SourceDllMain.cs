@@ -87,6 +87,9 @@ public static class SourceDllMain
 	[Dependency] public static IVGui VGui { get; private set; } = null!;
 	[Dependency] public static ILocalize Localize { get; private set; } = null!;
 	[Dependency] public static IVGuiInput vguiInput { get; private set; } = null!;
+#if GMOD_DLL
+	[Dependency] public static Source.Common.GarrysMod.IGet get { get; private set; } = null!;
+#endif
 
 	[KeyedDependency(Key = Realm.Client)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static IEngineTrace enginetrace { get; private set; } = null!;

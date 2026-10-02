@@ -134,6 +134,7 @@ public interface ISurface
 	void DrawTexturedSubRect(int x0, int y0, int x1, int y1, float s0, float t0, float s1, float t1);
 	bool IsTextureIDValid(in TextureID id);
 	bool DeleteTextureByID(in TextureID id);
+	void DestroyTextureID(in TextureID id);
 	TextureID CreateNewTextureID(bool procedural = false);
 
 	void GetScreenSize(out int wide, out int tall);
@@ -238,6 +239,10 @@ public interface IMatSystemSurface : ISurface
 	int DrawTextLen(IFont font, ReadOnlySpan<char> text);
 	int GetTextureNumFrames(in TextureID id);
 	void DrawSetTextureFrame(in TextureID id, int frame, ref TokenCache frameCache);
+	void DrawSetTextureMaterial(TextureID textureID, IMaterial material);
+#if GMOD_DLL
+	void SetInDrawing(bool inDrawing);
+#endif
 	void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget);
 	void GetFullscreenViewport(out int x, out int y, out int w, out int h);
 	void OnScreenSizeChanged(int oldWidth, int oldHeight);

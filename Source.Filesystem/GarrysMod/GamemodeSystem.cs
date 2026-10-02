@@ -36,6 +36,10 @@ public class GamemodeSystem : Gamemode.System
 		throw new NotImplementedException();
 	}
 
+	public void OnServerDownloadsMounted() {
+		throw new NotImplementedException();
+	}
+
 	public void Refresh() {
 
 	}

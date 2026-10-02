@@ -378,6 +378,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public IMaterial? FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext isOnAModel, bool complain = true, ReadOnlySpan<char> complainPrefix = default) => g_DummyMaterial;
 	public IMaterial? FindProceduralMaterial(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, KeyValues keyValues) => g_DummyMaterial;
 	public ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain = true, int additionalCreationFlags = 0) => g_DummyTexture;
+	public bool IsTextureLoaded(ReadOnlySpan<char> textureName) => false;
 	public void Flush(bool flushHardware) { }
 	public void GetBackBufferDimensions(out int width, out int height) {
 		width = 1024;

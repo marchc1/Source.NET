@@ -9,7 +9,7 @@ public interface IAddonDownloadNotification{
 	void ExtractProgress(ulong wsid, ulong imgid, ReadOnlySpan<char> title, uint percent ); // Calls GM:WorkshopExtractProgress
 	void DownloadTotals(int num, int max); // Calls GM:WorkshopDownloadTotals
 	void SubscriptionsProgress(int num, int max); // Calls GM:WorkshopSubscriptionsProgress
-	void SendMessage(Span<char> message); // Calls GM:WorkshopSubscriptionsMessage
+	void SendMessage(ReadOnlySpan<char> message); // Calls GM:WorkshopSubscriptionsMessage
 	void NotifySubscriptionChanges(); // Calls GM:WorkshopSubscriptionsChanged
 	void NotifyAddonConflict(ulong wsid1, ulong wsid2, ReadOnlySpan<char> filename ); // Calls GM:OnNotifyAddonConflict
 }

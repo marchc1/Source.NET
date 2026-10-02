@@ -26,4 +26,7 @@ public interface IEngineVGui
 	public bool IsGameUIVisible();
 	bool Key_Event(in InputEvent ev);
 	void UpdateButtonState(in InputEvent ev);
+#if GMOD_DLL
+	void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
+#endif
 }

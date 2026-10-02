@@ -794,6 +794,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		return texture;
 	}
 
+	public bool IsTextureLoaded(ReadOnlySpan<char> textureName) => TextureSystem.IsTextureLoaded(textureName);
+
 	internal ReadOnlySpan<char> GetForcedTextureLoadPathID() {
 		return "GAME";
 	}

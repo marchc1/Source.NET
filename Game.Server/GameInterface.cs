@@ -189,6 +189,11 @@ public static class GameInterface
 
 public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : IServerGameDLL
 {
+#if GMOD_DLL
+	static readonly ConVar host_workshop_collection = new("host_workshop_collection", "", 0, "Set to a Steam Workshop Collection ID, and the dedicated server will download Workshop items from given collection on start up.");
+	static readonly ConVar host_workshop_autoupdate = new("host_workshop_autoupdate", "1", 0, "If set to above 0, will auto update addons from host_workshop_collection on server start.");
+#endif
+
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IServerGameEnts, ServerGameEnts>();
 		services.AddSingleton<IServerGameClients, ServerGameClients>();
@@ -229,6 +234,21 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		IGameSystem.Add(PhysicsGameSystem());
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(SoundscapeSystemGlobals).TypeHandle);
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CheckClient).TypeHandle);
+
+#if GMOD_DLL
+		if (CommandLine.FindParm("-noaddons") == 0)
+			filesystem.LegacyAddons().Refresh();
+		else
+			Msg("Game is ran with -noaddons, not loading legacy/folder addons!\n");
+
+		if (CommandLine.FindParm("-noworkshop") == 0)
+			filesystem.Addons().ScanForSubscriptions(host_workshop_collection.GetString(), host_workshop_autoupdate.GetInt() != 0);
+
+		filesystem.CreateDirHierarchy("addons/", "MOD");
+		filesystem.CreateDirHierarchy("data/", "MOD");
+		filesystem.Addons().Refresh();
+		filesystem.Games().Refresh();
+#endif
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -511,7 +531,9 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public bool ShouldHideServer() => false;
 
 	public void Think(bool finalTick) {
-
+#if GMOD_DLL
+		filesystem.Addons().Think();
+#endif
 	}
 
 	public StandardSendProxies GetStandardSendProxies() => StandardSendProxies.g_StandardSendProxies;

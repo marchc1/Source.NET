@@ -28,5 +28,6 @@ public static class Gamemode
 		void SetActive(ReadOnlySpan<char> unk1);
 		List<IGamemodeSystem.Information> GetList();
 		bool IsServerBlacklisted(ReadOnlySpan<char> address, ReadOnlySpan<char> hostname, ReadOnlySpan<char> description, ReadOnlySpan<char> gm, ReadOnlySpan<char> map);
+		void OnServerDownloadsMounted();
 	}
 }
