@@ -298,12 +298,12 @@ public ref struct CFormatReader
 		int chars = 0;
 		for (int i = 0; i < readTarget.Length; i++) {
 			if (Overflowed())
-				return i;
+				return chars;
 
 			char c = format[formatReader];
 			if (c == '%') {
 				i++;
-				if (format[formatReader + 1] != '%') {
+				if (formatReader + 1 < format.Length && format[formatReader + 1] != '%' && format[formatReader + 1] != '\0') {
 					// We have to stop, a variable was reached
 					formatReader++;
 					haltedAtVariable = true;
