@@ -5,23 +5,20 @@ using System.Numerics;
 
 namespace Source.Common.GarrysMod.Lua;
 
-// TODO: Review how much of this should actually be void*'s (probably none of it)
-// This is just getting the base stuff written out
-
 public interface ILuaObject
 {
-	void Set(ILuaObject obj);
+	void Set(ILuaObject? obj);
 	void SetFromStack(int i);
 	void UnReference();
 
-	int GetType();
-	ReadOnlySpan<char> GetString();
+	LuaType GetType();
+	string? GetString();
 	float GetFloat();
 	int GetInt();
-	unsafe void* GetUserData();
+	nint GetUserData();
 
 	void SetMember(ReadOnlySpan<char> name);
-	void SetMember(ReadOnlySpan<char> name, ILuaObject obj);
+	void SetMember(ReadOnlySpan<char> name, ILuaObject? obj);
 	void SetMember(ReadOnlySpan<char> name, float val);
 	void SetMember(ReadOnlySpan<char> name, bool val);
 	void SetMember(ReadOnlySpan<char> name, ReadOnlySpan<char> val);
@@ -30,14 +27,14 @@ public interface ILuaObject
 	bool GetMemberBool(ReadOnlySpan<char> name, bool b = true);
 	int GetMemberInt(ReadOnlySpan<char> name, int i = 0);
 	float GetMemberFloat(ReadOnlySpan<char> name, float f = 0.0f);
-	ReadOnlySpan<char> GetMemberStr(ReadOnlySpan<char> name, ReadOnlySpan<char> s = "");
-	unsafe void* GetMemberUserData(ReadOnlySpan<char> name, void* u = null);
-	unsafe void* GetMemberUserData(float name, void* u = null);
-	ILuaObject GetMember(ReadOnlySpan<char> name, ILuaObject obj);
-	ILuaObject GetMember(ILuaObject key, ILuaObject obj);
+	string? GetMemberStr(ReadOnlySpan<char> name, string? s = "");
+	nint GetMemberUserData_DontUseMe(ReadOnlySpan<char> name, nint u = 0);
+	nint GetMemberUserData_DontUseMe(float name, nint u = 0);
+	void GetMember(ReadOnlySpan<char> name, ILuaObject obj);
+	void GetMember(ILuaObject key, ILuaObject obj);
 
 	void SetMetaTable(ILuaObject obj);
-	unsafe void SetUserData(void* obj);
+	void SetUserData(nint obj);
 
 	void Push();
 
@@ -48,93 +45,90 @@ public interface ILuaObject
 	bool isFunction();
 	bool isUserData();
 
-	// ... why are these keys floats?
-	// If they're meant to be lua indices... why aren't they doubles?
-	// Raphael maybe you know??
-	ILuaObject GetMember(float key, ILuaObject obj);
+	void GetMember(float key, ILuaObject obj);
 
 	// ok ill remove you then unsafe void* Remove_Me_1(ReadOnlySpan<char> name, void* unk2);
 
 	void SetMember(float key);
-	void SetMember(float key, ILuaObject obj);
+	void SetMember(float key, ILuaObject? obj);
 	void SetMember(float key, float val);
 	void SetMember(float key, bool val);
 	void SetMember(float key, ReadOnlySpan<char> val);
 	void SetMember(float key, CFunc f);
 
-	ReadOnlySpan<char> GetMemberStr(float name, ReadOnlySpan<char> s = "");
+	string? GetMemberStr(float name, string? s = "");
 
-	void SetMember(ILuaObject k, ILuaObject v);
+	void SetMember(ILuaObject key, ILuaObject? value);
 	bool GetBool();
 
-	bool PushMemberFast(int iStackPos);
-	void SetMemberFast(int iKey, int iValue);
+	bool PushMemberFast(int stackPos);
+	void SetMemberFast(int key, int value);
 
 	void SetFloat(float val);
 	void SetString(ReadOnlySpan<char> val);
 
 	double GetDouble();
 
-	void SetMember_FixKey(ReadOnlySpan<char> unk1, float unk2);
-	void SetMember_FixKey(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2);
-	void SetMember_FixKey(ReadOnlySpan<char> unk1, ILuaObject unk2);
-	void SetMember_FixKey(ReadOnlySpan<char> unk1, double unk2);
-	void SetMember_FixKey(ReadOnlySpan<char> unk1, int unk2);
+	void SetMember_FixKey(ReadOnlySpan<char> key, float val);
+	void SetMember_FixKey(ReadOnlySpan<char> key, ReadOnlySpan<char> val);
+	void SetMember_FixKey(ReadOnlySpan<char> key, ILuaObject? val);
+	void SetMember_FixKey(ReadOnlySpan<char> key, double val);
+	void SetMember_FixKey(ReadOnlySpan<char> key, int val);
 
 	bool isBool();
 
-	void SetMemberDouble(ReadOnlySpan<char> unk1, double unk2);
+	void SetMemberDouble(ReadOnlySpan<char> name, double val);
 
-	void SetMemberNil(ReadOnlySpan<char> unk);
-	void SetMemberNil(float unk);
+	void SetMemberNil(ReadOnlySpan<char> name);
+	void SetMemberNil(float key);
 
 	// bool RemoveMe();
 
 	void Init();
 
-	void SetFromGlobal(ReadOnlySpan<char> unk);
+	void SetFromGlobal(ReadOnlySpan<char> name);
 
-	int GetStringLen(out uint len);
+	string? GetStringLen(out uint len);
 
-	uint GetMemberUInt(ReadOnlySpan<char> unk1, uint unk2);
+	uint GetMemberUInt(ReadOnlySpan<char> name, uint def);
 
-	void SetMember(ReadOnlySpan<char> unk1, ulong unk2);
-	void SetMember(ReadOnlySpan<char> unk1, int unk2);
-	void SetReference(int unk);
+	void SetMember(ReadOnlySpan<char> name, ulong val);
+	void SetMember(ReadOnlySpan<char> name, int val);
+	void SetReference(int i);
 
-	void RemoveMember(ReadOnlySpan<char> unk);
-	void RemoveMember(float unk);
+	void RemoveMember(ReadOnlySpan<char> name);
+	void RemoveMember(float key);
 
-	bool MemberIsNil(ReadOnlySpan<char> unk);
+	bool MemberIsNil(ReadOnlySpan<char> name);
 
-	void SetMemberDouble(float unk1, double unk2);
-	double GetMemberDouble(ReadOnlySpan<char> unk1, double unk2);
+	void SetMemberDouble(float key, double val);
+	double GetMemberDouble(ReadOnlySpan<char> name, double def);
 
-	// NOTE: All members below do NOT exist in ILuaObjects returned from the menusystem!
-
-	IHandleEntity GetMemberEntity(ReadOnlySpan<char> unk1, IHandleEntity unk2);
-	void SetMemberEntity(float unk1, IHandleEntity unk2);
-	void SetMemberEntity(ReadOnlySpan<char> unk1, IHandleEntity unk2);
+	IHandleEntity? GetMemberEntity(ReadOnlySpan<char> name, IHandleEntity? def);
+	void SetMemberEntity(float key, IHandleEntity? ent);
+	void SetMemberEntity(ReadOnlySpan<char> name, IHandleEntity? ent);
 	bool isEntity();
-	IHandleEntity GetEntity();
-	void SetEntity(IHandleEntity unk);
+	IHandleEntity? GetEntity();
+	void SetEntity(IHandleEntity? ent);
 
-	void SetMemberVector3(ReadOnlySpan<char> unk1, in Vector3 unk2);
-	void SetMemberVector3(float unk1, in Vector3 unk2);
-	ref Vector3 GetMemberVector3(ReadOnlySpan<char> unk1, in Vector3 unk2);
-	ref Vector3 GetMemberVector3(int unk);
-	ref Vector3 GetVector3();
-	bool isVector3();
+	void SetMemberVector(ReadOnlySpan<char> name, in Vector3 vec);
+	void SetMemberVector(float key, in Vector3 vec);
+	Vector3 GetMemberVector(ReadOnlySpan<char> name, in Vector3 def);
+	Vector3 GetMemberVector(int key);
+	Vector3 GetVector();
+	bool isVector();
 
-	void SetMemberAngle(ReadOnlySpan<char> unk1, QAngle unk2);
-	ref QAngle GetMemberAngle(ReadOnlySpan<char> unk1, QAngle unk2);
-	ref QAngle GetAngle();
+	void SetMemberAngle(ReadOnlySpan<char> name, in QAngle ang);
+	QAngle GetMemberAngle(ReadOnlySpan<char> name, in QAngle def);
+	QAngle GetAngle();
 	bool isAngle();
 
-	void SetMemberMatrix(ReadOnlySpan<char> unk1, in Matrix4x4 unk2);
-	void SetMemberMatrix(float unk1, in Matrix4x4 unk2);
-	void SetMemberMatrix(int unk1, in Matrix4x4 unk2);
+	void SetMemberMatrix(ReadOnlySpan<char> name, in Matrix4x4 mat);
+	void SetMemberMatrix(float key, in Matrix4x4 mat);
+	void SetMemberMatrix(int key, in Matrix4x4 mat);
 
-	void SetMemberPhysObject(ReadOnlySpan<char> unk1, IPhysicsObject unk2);
-	double GetMemberDouble(float unk1, double unk2);
+	void SetMemberPhysObject(ReadOnlySpan<char> name, IPhysicsObject? obj);
+	double GetMemberDouble(float key, double def);
+	IHandleEntity? GetMemberEntity(int key, IHandleEntity? def);
+	Matrix4x4 GetMemberMatrix(int key, in Matrix4x4 def);
 }
