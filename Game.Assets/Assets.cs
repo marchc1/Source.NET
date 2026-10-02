@@ -32,6 +32,10 @@ static class AssetUtils
 			new("sourceengine", "sourceengine", IsDirectory: true),
 			new("platform", "platform", IsDirectory: true),
 			new("hl2/resource", "garrysmod/resource", IsDirectory: true),
+			#if GMOD_DLL
+			new("hl2/gamemodes", "garrysmod/gamemodes", IsDirectory: true),
+			new("hl2/lua", "garrysmod/lua", IsDirectory: true),
+			#endif
 			new("hl2/cache/workshop", "garrysmod/cache/workshop", IsDirectory: true, Optional: false)
 		];
 
