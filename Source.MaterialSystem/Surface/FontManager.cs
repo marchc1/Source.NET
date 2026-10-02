@@ -100,9 +100,10 @@ public class FontAmalgam : IFont
 	}
 
 	public BaseFont? GetFontForChar(char ch) {
-		foreach (var font in Fonts) {
-			if (ch >= font.LowRange && ch <= font.HighRange) {
-				return font.Font;
+		Span<FontRange> fonts = Fonts.AsSpan();
+		for (int i = 0; i < fonts.Length; i++) {
+			if (ch >= fonts[i].LowRange && ch <= fonts[i].HighRange) {
+				return fonts[i].Font;
 			}
 		}
 

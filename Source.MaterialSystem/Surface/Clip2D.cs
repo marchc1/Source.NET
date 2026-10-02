@@ -166,8 +166,8 @@ public static class Clip2D
 
 	public static bool ClipRect(in ScissorRectState scissorRect, in SurfaceVertex inUL, in SurfaceVertex inLR, out SurfaceVertex outUL, out SurfaceVertex outLR) {
 		if (scissorRect.Scissor) {
-			outUL = new();
-			outLR = new();
+			outUL = default;
+			outLR = default;
 
 			outUL.Position.X = scissorRect.Left > inUL.Position.X ? scissorRect.Left : inUL.Position.X;
 			outLR.Position.X = scissorRect.Right <= inLR.Position.X ? scissorRect.Right : inLR.Position.X;

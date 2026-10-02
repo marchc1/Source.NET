@@ -253,6 +253,10 @@ public unsafe struct VertexBuilder
 			memcpy(pUserData, src, sizeof(float) * userDataSize);
 	}
 
+	public void UserData(in Vector4 data) {
+		*(Vector4*)OffsetFloatPointer(Desc.UserData, CurrentVertex, Desc.UserDataSize) = data;
+	}
+
 	public void Color3f(float r, float g, float b) {
 		byte* pDst = CurrColor;
 		*pDst++ = (byte)Math.Clamp(r * 255, 0, 255);
@@ -867,11 +871,13 @@ public unsafe struct MeshBuilder : IDisposable
 	public ReadOnlySpan<ushort> Index() => throw new NotImplementedException();
 
 	// position setting
-	public void Position3f(float x, float y, float z) => VertexBuilder.Position3f(x, y, z);
+	public void Position3f(float x, float y, float z) {
+		float* pDst = VertexBuilder.CurrPosition;
+		pDst[0] = x; pDst[1] = y; pDst[2] = z;
+	}
 	public void Position3fv(ReadOnlySpan<float> v) => VertexBuilder.Position3fv(v);
 	public void Position3fv(in Vector3 vec) {
-		fixed (Vector3* ptr = &vec)
-			VertexBuilder.Position3fv(new(ptr, 3));
+		*(Vector3*)VertexBuilder.CurrPosition = vec;
 	}
 
 	// normal setting
@@ -890,16 +896,21 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Color4fv(ReadOnlySpan<float> rgba) => VertexBuilder.Color4fv(rgba);
 
 	// Faster versions of color
-	public void Color3ub(byte r, byte g, byte b) => VertexBuilder.Color3ubv([r, g, b]);
-	public void Color3ubv(in Color rgb) {
-		fixed (Color* ptr = &rgb)
-			VertexBuilder.Color3ubv(new(ptr, 3));
+	public void Color3ub(byte r, byte g, byte b) {
+		byte* pDst = VertexBuilder.CurrColor;
+		pDst[0] = r; pDst[1] = g; pDst[2] = b;
 	}
-	public void Color4ub(byte r, byte g, byte b, byte a) => VertexBuilder.Color4ubv([r, g, b, a]);
+	public void Color3ubv(in Color rgb) {
+		byte* pDst = VertexBuilder.CurrColor;
+		pDst[0] = rgb.R; pDst[1] = rgb.G; pDst[2] = rgb.B;
+	}
+	public void Color4ub(byte r, byte g, byte b, byte a) {
+		byte* pDst = VertexBuilder.CurrColor;
+		pDst[0] = r; pDst[1] = g; pDst[2] = b; pDst[3] = a;
+	}
 	public unsafe void Color4ubv(ReadOnlySpan<byte> rgba) => VertexBuilder.Color4ubv(rgba);
 	public unsafe void Color4ubv(in Color rgba) {
-		fixed (Color* ptr = &rgba)
-			VertexBuilder.Color4ubv(new(ptr, 4));
+		*(Color*)VertexBuilder.CurrColor = rgba;
 	}
 
 	// specular color setting
@@ -949,8 +960,7 @@ public unsafe struct MeshBuilder : IDisposable
 	// Generic per-vertex data
 	public void UserData(ReadOnlySpan<float> pData) => VertexBuilder.UserData(pData);
 	public void UserData(in Vector4 vec) {
-		fixed (Vector4* ptr = &vec)
-			VertexBuilder.UserData(new((float*)ptr, 4));
+		VertexBuilder.UserData(in vec);
 	}
 
 	// Used to define the indices (only used if you aren't using primitives)

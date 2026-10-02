@@ -179,7 +179,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 		Locked = true;
 		Position = lockOffset;
-		return (byte*)glMapNamedBufferRange((uint)vbo, lockOffset, Math.Max(1, numVerts * VertexSize), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+		return (byte*)SysmemBuffer + lockOffset;
 	}
 
 	public void Unlock(int vertexCount) {
@@ -189,7 +189,8 @@ public unsafe class VertexBufferGl46 : IDisposable
 		int lockOffset = NextLockOffset();
 		int bufferSize = vertexCount * VertexSize;
 
-		glUnmapNamedBuffer((uint)vbo);
+		if (bufferSize > 0)
+			glNamedBufferSubData((uint)vbo, lockOffset, bufferSize, (byte*)SysmemBuffer + lockOffset);
 		Position = lockOffset + bufferSize;
 		Locked = false;
 	}
@@ -205,14 +206,15 @@ public unsafe class VertexBufferGl46 : IDisposable
 		modifyOffset = firstVertex * VertexSize;
 		baseVertexIndex = firstVertex;
 		Locked = true;
-		return (byte*)glMapNamedBufferRange((uint)vbo, modifyOffset, Math.Max(1, numVerts * VertexSize), GL_MAP_WRITE_BIT);
+		return (byte*)SysmemBuffer + modifyOffset;
 	}
 
 	public void ModifyUnlock(int vertexCount) {
 		if (!Locked)
 			return;
 
-		glUnmapNamedBuffer((uint)vbo);
+		if (vertexCount > 0)
+			glNamedBufferSubData((uint)vbo, modifyOffset, vertexCount * VertexSize, (byte*)SysmemBuffer + modifyOffset);
 		Locked = false;
 	}
 
@@ -349,6 +351,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 			fixed (int* ugh = &vbo)
 				glDeleteBuffers(1, (uint*)ugh);
 			vbo = -1;
+			NativeMemory.Free(SysmemBuffer);
 			SysmemBuffer = null;
 		}
 	}

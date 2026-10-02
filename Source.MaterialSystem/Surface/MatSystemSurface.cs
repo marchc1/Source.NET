@@ -671,6 +671,8 @@ public class MatSystemSurface : IMatSystemSurface
 		int count = 0;
 		Span<SurfaceVertex> quads = stackalloc SurfaceVertex[2 * text.Length];
 		bool underlined = FontManager.GetFontUnderlined(CurrentFont);
+		if (drawType == FontDrawType.Default)
+			drawType = IsFontAdditive(CurrentFont) > 0 ? FontDrawType.Additive : FontDrawType.NonAdditive;
 
 		int totalWidth = 0;
 		Span<TextureID> texID = stackalloc TextureID[1];
@@ -712,10 +714,10 @@ public class MatSystemSurface : IMatSystemSurface
 				lr.Position.X = ul.Position.X + textureWide;
 				lr.Position.Y = ul.Position.Y + tall;
 
-				ul.TexCoord[0] = texCoords[0].X0;
-				ul.TexCoord[1] = texCoords[0].Y0;
-				lr.TexCoord[0] = texCoords[0].X1;
-				lr.TexCoord[1] = texCoords[0].Y1;
+				ul.TexCoord.X = texCoords[0].X0;
+				ul.TexCoord.Y = texCoords[0].Y0;
+				lr.TexCoord.X = texCoords[0].X1;
+				lr.TexCoord.Y = texCoords[0].Y1;
 			}
 			totalWidth += (int)MathF.Floor(flWide + 0.6f);
 		}
