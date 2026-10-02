@@ -105,47 +105,63 @@ public class GarrysMod : IGarrysMod
 		if (gpGlobals.MaxClients == 1 || !get.IsDedicatedServer())
 			engine.ServerCommand("lua_error_url ''\n");
 
-		InitLua();
-		// todo: GAMEMODE:BuildAmmoTypes
+		Lua.Create();
+		Lua.OnLoaded();
 	}
 
-	static bool InitLua() {
-		// if (gLUA != null) {
-		// 	get.LuaShared()!.UnMountLua("lsv");
-		// 	todo: increment some counter
-		// 	todo: shut down the server Lua interface, get.LuaShared()!.CloseLuaInterface(...), null it
-		// 	if (g_LuaNetworkedVars == null)
-		// 		Error("!g_LuaNetworkedVars");
-		// 	todo: destroy every entry of g_LuaNetworkedVars
-		// 	g_LuaNetworkedVars = null;
-		// 	todo: destroy gLUA (+3 sub-objects)
-		// 	gLUA = null;
-		// }
-		// if (gGM != null) {
-		// 	todo: destroy gGM
-		// 	gGM = null;
-		// }
-		// todo: unidentified call here
+	static class Lua
+	{
+		public static bool Kill() {
+			// if (g_LuaManager != null) {
+			// 	get.LuaShared()!.UnMountLua("lsv");
+			// 	LuaManager.Shutdown();
+			// 	g_LuaManager = null;
+			// }
+			// gGM = null;
+			// GarrysMod.Lua.Libraries.Timer.Shutdown();
+			return true;
+		}
 
-		// foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
-		// 	if (!string.IsNullOrEmpty(addon.LuaPath))
-		// 		get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
-		// 	if (!string.IsNullOrEmpty(addon.Placeholder4))
-		// 		get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
-		// }
-		// get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
-		// get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
-		// get.LuaShared()!.MountLua("lsv");
+		public static void Create() {
+			Kill();
 
-		// if (gLUA != null)
-		// 	Error("New gLUA when old one exists!\n");
-		// todo: construct gLUA
-		// if (gGM != null)
-		// 	Error("New gGM when old one exists!\n");
-		// todo: construct gGM
-		// todo: init gLUA, then init gGM
-		// todo: unidentified call
-		return true;
+			// foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
+			// 	if (!string.IsNullOrEmpty(addon.LuaPath))
+			// 		get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
+			// 	if (!string.IsNullOrEmpty(addon.Placeholder4))
+			// 		get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
+			// }
+			// get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
+			// get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
+			// get.LuaShared()!.MountLua("lsv");
+
+			// if (g_LuaManager != null)
+			// 	Error("New gLUA when old one exists!\n");
+			// g_LuaManager = new LuaManager();
+			// if (gGM != null)
+			// 	Error("New gGM when old one exists!\n");
+			// gGM = new CLuaGamemode();
+			// todo: init g_LuaManager, then init gGM
+			// GModDataPack.BuildSearchPaths();
+		}
+
+		public static void OnLoaded() {
+			// GarrysMod.Ammo.Refresh();
+		}
+	}
+
+	static class LuaManager
+	{
+		public static void Shutdown() {
+			// g_LuaID++;
+			// ShutdownLuaClasses(g_Lua);
+			// get.LuaShared()!.CloseLuaInterface(g_Lua);
+			// g_Lua = null;
+			// if (g_LuaNetworkedVars == null)
+			// 	Error("!g_LuaNetworkedVars");
+			// todo: free every entry of g_LuaNetworkedVars
+			// g_LuaNetworkedVars = null;
+		}
 	}
 #endif
 
