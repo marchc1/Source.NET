@@ -13,15 +13,13 @@ public static partial class LuaShared
 	public static ReadOnlySpan<char> GetStateName(State state) => RealmNames[(int)state];
 }
 
-public struct LuaFile
+public class LuaFile
 {
-	public static LuaFile? NULL = null;
-
 	public int Time;
-	public string Name;
-	public string Source;
-	public string Contents;
-	public Stream Compressed;
+	public string Name = "";
+	public string Source = "";
+	public byte[] Contents = [];
+	public byte[] Compressed = [];
 	public uint TimesLoadedServer;
 	public uint TimesLoadedClient;
 }
@@ -32,17 +30,18 @@ public interface ILuaShared
 	void Shutdown();
 	void DumpStats();
 	ILuaInterface CreateLuaInterface(Realm realm, bool renew);
-	void CloseLuaInterface(ILuaInterface unk1);
-	ILuaInterface GetLuaInterface(byte unk1);
-	ref LuaFile? LoadFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathId, bool fromDatatable, bool fromFile);
-	ref LuaFile? GetCache(ReadOnlySpan<char> unk1);
-	void MountLua(ReadOnlySpan<char> unk1);
-	void MountLuaAdd(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2);
-	void UnMountLua(ReadOnlySpan<char> unk1);
+	void CloseLuaInterface(ILuaInterface iface);
+	ILuaInterface? GetLuaInterface(byte realm);
+	LuaFile? LoadFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathId, bool fromDatatable, bool fromFile);
+	LuaFile? GetCache(ReadOnlySpan<char> name);
+	void MountLua(ReadOnlySpan<char> pathId);
+	void MountLuaAdd(ReadOnlySpan<char> path, ReadOnlySpan<char> pathId);
+	void UnMountLua(ReadOnlySpan<char> pathId);
 	void SetFileContents(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2);
-	void SetLuaFindHook(LuaClientDatatableHook unk1);
-	void FindScripts(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2, List<string> unk3);
+	void SetLuaFindHook(ILuaClientDatatableHook? hook);
+	void FindScripts(ReadOnlySpan<char> wildcard, ReadOnlySpan<char> pathId, List<LuaFindResult> output);
 	ReadOnlySpan<char> GetStackTraces();
-	void InvalidateCache(ReadOnlySpan<char> unk1);
+	void InvalidateCache(ReadOnlySpan<char> name);
 	void EmptyCache();
+	bool ScriptExists(ReadOnlySpan<char> file, ReadOnlySpan<char> pathId, bool directoryOnly);
 }
