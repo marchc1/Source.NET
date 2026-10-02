@@ -26,7 +26,7 @@ public readonly struct lua_State : IEquatable<lua_State>
 [InlineArray(LUA_IDSIZE)]
 public struct LuaShortSource
 {
-	public const int LUA_IDSIZE = 60;
+	public const int LUA_IDSIZE = 128;
 	byte element;
 }
 
