@@ -13,6 +13,19 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "build Source.Launcher (Release)",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/Source.Launcher/Source.Launcher.csproj",
+        "-p:WarningLevel=0",
+        "-c",
+        "Release"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "build Source.Dedicated",
       "command": "dotnet",
       "type": "process",
@@ -22,6 +35,19 @@
         "-p:WarningLevel=0",
         "-c",
         "Debug (Dedicated)"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build Source.Dedicated (Release)",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/Source.Dedicated/Source.Dedicated.csproj",
+        "-p:WarningLevel=0",
+        "-c",
+        "Release (Dedicated)"
       ],
       "problemMatcher": "$msCompile"
     }

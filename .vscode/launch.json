@@ -21,6 +21,25 @@
       "console": "externalTerminal"
     },
     {
+      "name": "Source.Launcher (Release)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Launcher (Release)",
+      "program": "${workspaceFolder}/Source.Launcher/bin/Release/net10.0/Source.Launcher.dll",
+      "cwd": "${workspaceFolder}/Source.Launcher/bin/Release/net10.0",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Source.Launcher (Release, External Terminal)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Launcher (Release)",
+      "program": "${workspaceFolder}/Source.Launcher/bin/Release/net10.0/Source.Launcher.dll",
+      "cwd": "${workspaceFolder}/Source.Launcher/bin/Release/net10.0",
+      "stopAtEntry": false,
+      "console": "externalTerminal"
+    },
+    {
       "name": "Source.Dedicated",
       "type": "coreclr",
       "request": "launch",
@@ -37,6 +56,27 @@
       "preLaunchTask": "build Source.Dedicated",
       "program": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0/Source.Dedicated.dll",
       "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug (Dedicated)/net10.0",
+      "args": ["-maxplayers", "2", "+map", "gm_flatgrass"],
+      "stopAtEntry": false,
+      "console": "externalTerminal"
+    },
+    {
+      "name": "Source.Dedicated (Release)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Dedicated (Release)",
+      "program": "${workspaceFolder}/Source.Dedicated/bin/Release (Dedicated)/net10.0/Source.Dedicated.dll",
+      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Release (Dedicated)/net10.0",
+      "args": ["-maxplayers", "2", "+map", "gm_flatgrass"],
+      "stopAtEntry": false
+    },
+    {
+      "name": "Source.Dedicated (Release, External Terminal)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Dedicated (Release)",
+      "program": "${workspaceFolder}/Source.Dedicated/bin/Release (Dedicated)/net10.0/Source.Dedicated.dll",
+      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Release (Dedicated)/net10.0",
       "args": ["-maxplayers", "2", "+map", "gm_flatgrass"],
       "stopAtEntry": false,
       "console": "externalTerminal"
