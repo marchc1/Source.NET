@@ -7,7 +7,7 @@ public enum State
 	Menu
 }
 
-public static class LuaShared
+public static partial class LuaShared
 {
 	static readonly string[] RealmNames = ["client", "server", "menu"];
 	public static ReadOnlySpan<char> GetStateName(State state) => RealmNames[(int)state];
