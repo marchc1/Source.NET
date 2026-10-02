@@ -31,7 +31,7 @@ public interface ILuaShared
 	void Init(IServiceProvider services, bool unk1, IGet unk2);
 	void Shutdown();
 	void DumpStats();
-	ILuaInterface CreateLuaInterface(byte unk1, bool unk2);
+	ILuaInterface CreateLuaInterface(byte realm, bool renew);
 	void CloseLuaInterface(ILuaInterface unk1);
 	ILuaInterface GetLuaInterface(byte unk1);
 	ref LuaFile? LoadFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathId, bool fromDatatable, bool fromFile);

@@ -69,6 +69,47 @@ public class GarrysMod : IGarrysMod
 		filesystem.AddSearchPath(absPath, "CACHE");
 	}
 
+#if CLIENT_DLL
+	public void LevelInit(ReadOnlySpan<char> mapName) {
+		get.Audio()?.StopAllPlayback();
+
+		engine.ClientCmd("net_maxroutable 1260");
+		// todo: AddCustomFonts();
+
+		if (gpGlobals.MaxClients > 1) {
+			// todo: ParseParticleEffects(true, false);
+		}
+
+		string status = (gpGlobals.MaxClients < 2 ? "Singleplayer - " : "Multiplayer - ") + mapName.ToString();
+
+		string? gamemodeName = null; // todo: the client Lua gamemode's name (g_pGamemode)
+		if (gamemodeName != null) {
+			status += " (";
+			IGamemodeSystem.Information info = filesystem.Gamemodes().FindByName(gamemodeName);
+			string title;
+			if (info.Exists)
+				title = info.Title;
+			else {
+				string name = gamemodeName.Replace("_modded", "");
+				info = filesystem.Gamemodes().FindByName(name);
+				title = info.Exists ? info.Title : name;
+			}
+			status += title;
+			status += ")";
+		}
+
+		get.UpdateRichPresense(status);
+	}
+#else
+	public void LevelInit(ReadOnlySpan<char> mapName, ReadOnlyMemory<byte> mapEntities, ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName, bool loadGame, bool background) {
+		if (gpGlobals.MaxClients == 1 || !get.IsDedicatedServer())
+			engine.ServerCommand("lua_error_url ''\n");
+
+		// todo: Lua state init (closes the old gLUA/gGM, mounts workshop/lua, workshop/gamemodes, creates the new gLUA/gGM)
+		// todo: GAMEMODE:BuildAmmoTypes
+	}
+#endif
+
 	public void MD5String(Span<byte> outMD5, ReadOnlySpan<byte> unk1, ReadOnlySpan<byte> unk2, ReadOnlySpan<byte> unk3) {
 		throw new NotImplementedException();
 	}
@@ -90,7 +131,7 @@ public class GarrysMod : IGarrysMod
 	}
 }
 
-public class GModRichPresence : AutoGameSystemPerFrame
+public class GModRichPresence : AutoGameSystemPerFrame // callum TODO, remove this once the actual gmod impl is complete
 {
 	private static readonly GModRichPresence _ = new();
 
@@ -109,7 +150,7 @@ public class GModRichPresence : AutoGameSystemPerFrame
 			SteamFriends.ClearRichPresence();
 	}
 
-	#if CLIENT_DLL
+#if CLIENT_DLL
 	public override void Update(TimeUnit_t frametime) {
 		if (gpGlobals.RealTime < LastRun + 2.0f) return;
 		LastRun = gpGlobals.RealTime;
@@ -132,7 +173,7 @@ public class GModRichPresence : AutoGameSystemPerFrame
 
 		SetStatus($"{(multiplayer ? "Multiplayer" : "Singleplayer")} - {GetMapName()} ({GetGamemodeName()})", connect);
 	}
-	#endif
+#endif
 
 	void SetStatus(string status, string? connect = null) {
 		if (status == LastStatus)
@@ -149,6 +190,7 @@ public class GModRichPresence : AutoGameSystemPerFrame
 		return "GAMEMODE"; // TODO
 	}
 
+#if CLIENT_DLL
 	static ReadOnlySpan<char> GetMapName() {
 		ReadOnlySpan<char> level = engine.GetLevelName().SliceNullTerminatedString();
 		if (level.IsEmpty)
@@ -162,5 +204,6 @@ public class GModRichPresence : AutoGameSystemPerFrame
 
 		return level;
 	}
+#endif
 }
 #endif

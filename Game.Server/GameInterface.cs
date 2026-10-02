@@ -394,12 +394,11 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
 		// ResetWindspeed();
-		// UpdateChapterRestrictions(pMapName);
-
-
 #if GMOD_DLL
 		garrysmod.LevelInit(pMapName, pMapEntities, pOldLevel, pLandmarkName, loadGame, background);
 #endif
+		// UpdateChapterRestrictions(pMapName);
+
 
 		//Tony; parse custom manifest if exists!
 		// ParseParticleEffectsMap(pMapName, false);

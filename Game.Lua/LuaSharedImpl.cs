@@ -9,12 +9,18 @@ namespace Game.Lua;
 
 public class LuaSharedImpl : ILuaShared
 {
+	readonly ILuaInterface?[] LuaInterfaces = new ILuaInterface?[3];
+
 	public void CloseLuaInterface(ILuaInterface unk1) {
 		throw new NotImplementedException();
 	}
 
-	public ILuaInterface CreateLuaInterface(byte unk1, bool unk2) {
-		throw new NotImplementedException();
+	public ILuaInterface CreateLuaInterface(byte realm, bool renew) {
+		if (!commandLine.CheckParm("-debuglua"))
+			return LuaInterfaces[realm] = new LuaInterfaceImpl();
+
+		// todo: CLuaInterface_Debug
+		return LuaInterfaces[realm] = new LuaInterfaceImpl();
 	}
 
 	public void DumpStats() {

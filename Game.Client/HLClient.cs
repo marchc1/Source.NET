@@ -77,6 +77,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		modemanager.LevelInit(mapname);
 		IGameSystem.LevelInitPreEntityAllSystems(mapname);
+#if GMOD_DLL
+		garrysmod.LevelInit(mapname);
+#endif
 
 		if (gpGlobals.MaxClients > 1) {
 			if (cl_predict.GetInt() == 0)
