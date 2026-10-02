@@ -7,8 +7,11 @@ public enum State
 	Menu
 }
 
-static readonly string[] RealmNames = ["client", "server", "menu"];
-public static ReadOnlySpan<char> GetStateName(State state) => RealmNames[(int)state];
+public static class LuaShared
+{
+	static readonly string[] RealmNames = ["client", "server", "menu"];
+	public static ReadOnlySpan<char> GetStateName(State state) => RealmNames[(int)state];
+}
 
 public struct LuaFile
 {
