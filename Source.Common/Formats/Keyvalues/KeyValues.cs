@@ -1,4 +1,4 @@
-using Source.Common.Filesystem;
+﻿using Source.Common.Filesystem;
 using Source.Common.Utilities;
 
 using System.Collections;
@@ -722,7 +722,7 @@ public class KeyValues : IEnumerable<KeyValues>
 	}
 
 	public bool WriteToFile(IFileSystem fileSystem, ReadOnlySpan<char> path, ReadOnlySpan<char> pathID) {
-		return WriteToStream(fileSystem.Open(path, FileOpenOptions.Read, pathID)?.Stream);
+		return WriteToStream(fileSystem.Open(path, FileOpenOptions.Write, pathID)?.Stream);
 	}
 	public bool WriteToFile(IFileSystem fileSystem, ReadOnlySpan<char> path) {
 		return WriteToStream(fileSystem.Open(path, FileOpenOptions.Read, null)?.Stream);
