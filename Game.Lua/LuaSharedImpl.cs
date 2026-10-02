@@ -1,4 +1,5 @@
-﻿using Source.Common.GarrysMod;
+﻿using Source;
+using Source.Common.GarrysMod;
 using Source.Common.GarrysMod.Lua;
 
 using System;
@@ -15,12 +16,12 @@ public class LuaSharedImpl : ILuaShared
 		throw new NotImplementedException();
 	}
 
-	public ILuaInterface CreateLuaInterface(byte realm, bool renew) {
+	public ILuaInterface CreateLuaInterface(Realm realm, bool renew) {
 		if (!commandLine.CheckParm("-debuglua"))
-			return LuaInterfaces[realm] = new LuaInterfaceImpl();
+			return LuaInterfaces[(int)realm] = new LuaInterfaceImpl();
 
 		// todo: CLuaInterface_Debug
-		return LuaInterfaces[realm] = new LuaInterfaceImpl();
+		return LuaInterfaces[(int)realm] = new LuaInterfaceImpl();
 	}
 
 	public void DumpStats() {
