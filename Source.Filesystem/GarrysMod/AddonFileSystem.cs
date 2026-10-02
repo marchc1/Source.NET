@@ -36,9 +36,7 @@ public class AddonFileSystem : Addon.FileSystem
 #endif
 
 	const string ContentPrefix = "content/4000/";
-	const uint AppID = 4000;
 	const uint LegacyCreatedCutoff = 1580421600;
-	const int MaxPath = 260;
 
 	readonly SortedDictionary<string, SortedDictionary<string, AddonFileInfo>> Folders = new(StringComparer.Ordinal);
 	readonly LinkedList<MountedAddon> MountedAddons = [];
@@ -424,7 +422,7 @@ public class AddonFileSystem : Addon.FileSystem
 	public void ClearUnusedGMAs() => AddJob(new AddonTasks.ClearUnusedGMAs());
 
 	public string GetAddonFilepath(ulong workshopID, bool unk1) {
-		if (!SteamUGC.GetItemInstallInfo(new PublishedFileId_t(workshopID), out _, out string folder, MaxPath, out _))
+		if (!SteamUGC.GetItemInstallInfo(new PublishedFileId_t(workshopID), out _, out string folder, MAX_PATH, out _))
 			return "";
 
 		ReadOnlySpan<char> file = g_FullFileSystem.FindFirstEx($"{folder}/*.*", "", out ulong findHandle);
@@ -483,7 +481,7 @@ public class AddonFileSystem : Addon.FileSystem
 		if (details.m_rgchTitle.Length < 1)
 			return "Addon is hidden, banned or doesn't exist";
 
-		if (details.m_nConsumerAppID.m_AppId != AppID)
+		if (details.m_nConsumerAppID.m_AppId != GetSteamInfIDVersionInfo().AppID)
 			return "Bad consumer AppID";
 
 		if ((SteamUGC.GetItemState(details.m_nPublishedFileId) & (uint)EItemState.k_EItemStateLegacyItem) != 0 && details.m_rtimeCreated > LegacyCreatedCutoff)
@@ -508,10 +506,10 @@ public class AddonFileSystem : Addon.FileSystem
 		while (!file.IsEmpty) {
 			string fileName = new(file.SliceNullTerminatedString());
 
-			Span<char> fullPathBuffer = stackalloc char[MaxPath];
+			Span<char> fullPathBuffer = stackalloc char[MAX_PATH];
 			ReadOnlySpan<char> fullPath = g_FullFileSystem.RelativePathToFullPath(fileName, "GAME", fullPathBuffer);
 
-			Span<char> relativeBuffer = stackalloc char[MaxPath];
+			Span<char> relativeBuffer = stackalloc char[MAX_PATH];
 			bool converted = !fullPath.IsEmpty && g_FullFileSystem.FullPathToRelativePath(fullPath, relativeBuffer);
 			string relative = converted ? new string(((ReadOnlySpan<char>)relativeBuffer).SliceNullTerminatedString()) : "";
 			if (converted) {
@@ -568,7 +566,7 @@ public class AddonFileSystem : Addon.FileSystem
 
 		uint itemState = SteamUGC.GetItemState(details.m_nPublishedFileId);
 		if ((itemState & (uint)(EItemState.k_EItemStateInstalled | EItemState.k_EItemStateNeedsUpdate)) == (uint)EItemState.k_EItemStateInstalled) {
-			if (SteamUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out _, MaxPath, out uint timeStamp) && timeStamp != details.m_rtimeUpdated)
+			if (SteamUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out _, MAX_PATH, out uint timeStamp) && timeStamp != details.m_rtimeUpdated)
 				itemState |= (uint)EItemState.k_EItemStateNeedsUpdate;
 		}
 

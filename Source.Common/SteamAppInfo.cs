@@ -1,5 +1,4 @@
-﻿global using static Source.Engine.SteamInfVersionInfo;
-
+﻿
 using Source.Common.Filesystem;
 
 namespace Source.Engine;

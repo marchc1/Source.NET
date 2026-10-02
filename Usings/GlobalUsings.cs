@@ -80,6 +80,7 @@ global using static Source.Common.SoundConstants;
 global using static Source.Common.Audio.AttenuationValues;
 global using static Source.Common.WorldSize;
 global using Byteswap = Source.Common.Byteswap<Source.Common.LittleEndianOrder>;
+global using static Source.Engine.SteamInfVersionInfo;
 #if GMOD_DLL
 global using static Source.Common.GarrysMod.Lua.PooledStrings;
 #endif
