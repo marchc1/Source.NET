@@ -215,6 +215,7 @@ public interface IFileSystem : IBaseFileSystem
 	void GetLocalCopy(ReadOnlySpan<char> path);
 	ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None);
 	bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative);
+	bool FullPathToRelativePathEx(ReadOnlySpan<char> fullPath, ReadOnlySpan<char> pathID, Span<char> relative);
 	bool WriteFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, ReadOnlySpan<byte> buf);
 	void MarkAllCRCsUnverified();
 	ReadOnlySpan<char> WhereIsFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID = default);

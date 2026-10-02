@@ -1,4 +1,4 @@
-// TODO: Logging calls when things go wrong, ie. try/catches
+﻿// TODO: Logging calls when things go wrong, ie. try/catches
 
 
 using CommunityToolkit.HighPerformance;
@@ -308,12 +308,27 @@ public class BaseFileSystem : IFileSystem
 		return ISearchPath.Concat(winner, fileName, dest);
 	}
 
-	public bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative) {
+	public bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative) => FullPathToRelativePathEx(fullPath, null, relative);
+
+	public bool FullPathToRelativePathEx(ReadOnlySpan<char> fullPath, ReadOnlySpan<char> pathID, Span<char> relative) {
 		fullPath = fullPath.SliceNullTerminatedString();
+		pathID = pathID.SliceNullTerminatedString();
+		if (fullPath.IsEmpty) {
+			if (!relative.IsEmpty)
+				relative[0] = '\0';
+			return false;
+		}
+
+		strcpy(relative, fullPath);
+
 		Span<char> fullPathNormalized = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> normalized = ISearchPath.Normalize(fullPath, fullPathNormalized);
 
+		ulong pathIDHash = pathID.IsEmpty ? 0 : pathID.Hash();
 		foreach (var searchPaths in SearchPaths) {
+			if (!pathID.IsEmpty && searchPaths.Key != pathIDHash)
+				continue;
+
 			foreach (var searchPath in searchPaths.Value.GetSortOrder()) {
 				if (searchPath is not DiskSearchPath)
 					continue;
@@ -333,8 +348,6 @@ public class BaseFileSystem : IFileSystem
 			}
 		}
 
-		if (!relative.IsEmpty)
-			relative[0] = '\0';
 		return false;
 	}
 
