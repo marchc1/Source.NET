@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.GarrysMod;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
@@ -47,8 +48,11 @@ public class GarrysMod : IGarrysMod
 		throw new NotImplementedException();
 	}
 
+
+
 	public void InitializeMod(IServiceProvider services) {
-		get.IntroScreen()!.Update("Adding Custom Fonts", true);
+#if !SWDS
+		get.IntroScreen()?.Update("Adding Custom Fonts", true);
 		// todo: AddCustomFonts
 		get.IntroScreen()!.Update("Adding Language Files", true);
 		// todo: AddLanguageFiles
@@ -56,6 +60,7 @@ public class GarrysMod : IGarrysMod
 		// todo: menu system init
 		get.IntroScreen()!.Update("Setting Convar Defaults", true);
 		// todo: convar defaults
+#endif
 #if CLIENT_DLL
 		string absPath = $"{engine.GetGameDirectory()}/cache";
 #else // TODO: This is really stupid. Why is server different here in the interface. This deserves deviation.
@@ -109,14 +114,16 @@ public class GarrysMod : IGarrysMod
 		Lua.OnLoaded();
 	}
 
+	static LuaManager? g_LuaManager;
+
 	static class Lua
 	{
 		public static bool Kill() {
-			// if (g_LuaManager != null) {
-			// 	get.LuaShared()!.UnMountLua("lsv");
-			// 	LuaManager.Shutdown();
-			// 	g_LuaManager = null;
-			// }
+			if (g_LuaManager != null) {
+				get.LuaShared()!.UnMountLua("lsv");
+				g_LuaManager.Shutdown();
+				g_LuaManager = null;
+			}
 			// gGM = null;
 			// GarrysMod.Lua.Libraries.Timer.Shutdown();
 			return true;
@@ -125,23 +132,24 @@ public class GarrysMod : IGarrysMod
 		public static void Create() {
 			Kill();
 
-			// foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
-			// 	if (!string.IsNullOrEmpty(addon.LuaPath))
-			// 		get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
-			// 	if (!string.IsNullOrEmpty(addon.Placeholder4))
-			// 		get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
-			// }
-			// get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
-			// get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
-			// get.LuaShared()!.MountLua("lsv");
+			foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
+				if (!string.IsNullOrEmpty(addon.LuaPath))
+					get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
+				if (!string.IsNullOrEmpty(addon.Placeholder4))
+					get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
+			}
+			get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
+			get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
+			get.LuaShared()!.MountLua("lsv");
 
-			// if (g_LuaManager != null)
-			// 	Error("New gLUA when old one exists!\n");
-			// g_LuaManager = new LuaManager();
+			if (g_LuaManager != null)
+				Error("New gLUA when old one exists!\n");
+			g_LuaManager = new LuaManager();
 			// if (gGM != null)
 			// 	Error("New gGM when old one exists!\n");
 			// gGM = new CLuaGamemode();
-			// todo: init g_LuaManager, then init gGM
+			g_LuaManager.Startup();
+			// gGM.LoadCurrentlyActiveGamemode();
 			// GModDataPack.BuildSearchPaths();
 		}
 
@@ -150,18 +158,64 @@ public class GarrysMod : IGarrysMod
 		}
 	}
 
-	static class LuaManager
+	class LuaManager
 	{
-		public static void Shutdown() {
-			// g_LuaID++;
+		public void Startup() {
+			// if (g_LuaNetworkedVars != null)
+			// 	Error("g_LuaNetworkedVars");
+			// g_LuaNetworkedVars = new LuaNetworkedVars();
+			if (g_Lua != null)
+				Error("CLuaManager::Startup Lua already exsits?\n");
+
+			g_Lua = get.LuaShared()!.CreateLuaInterface(Realm.Server, false);
+			g_Lua.Init(Game.Server.GarrysMod.LuaGameCallback.g_LuaCallback, Singleton<ICommandLine>().CheckParm("-withjit"));
+			g_Lua.SetPathID("lsv");
+			g_Lua.SetType(1);
+			g_Lua.Global().SetMember("VERSION", (float)get.Version());
+			g_Lua.Global().SetMember("VERSIONSTR", get.VersionStr());
+			g_Lua.Global().SetMember("BRANCH", get.Branch());
+			// GarrysMod.FileServ.Add("lua/send.txt");
+			// InitLuaLibraries(g_Lua);
+			// InitLuaClasses(g_Lua);
+			g_Lua.Global().SetMember("SERVER", true);
+			g_Lua.Global().SetMember("CLIENT", false);
+			// MakeLuaNULLEntity();
+			// g_Lua.FindAndRunScript("includes/init.lua", true, true, "!UNKNOWN", true);
+		}
+
+		public void Shutdown() {
+			g_LuaID++;
 			// ShutdownLuaClasses(g_Lua);
-			// get.LuaShared()!.CloseLuaInterface(g_Lua);
-			// g_Lua = null;
+			get.LuaShared()!.CloseLuaInterface(g_Lua!);
+			g_Lua = null;
 			// if (g_LuaNetworkedVars == null)
 			// 	Error("!g_LuaNetworkedVars");
 			// todo: free every entry of g_LuaNetworkedVars
 			// g_LuaNetworkedVars = null;
 		}
+	}
+
+	static bool IsGModAdmin(bool unk) {
+		if (gpGlobals.MaxClients == 1)
+			return true;
+
+		int index = Util.GetCommandClientIndex();
+		if (engine.IsDedicatedServer() && index <= 0)
+			return true;
+
+		if (engine.IsDedicatedServer())
+			return false;
+
+		return index == 1;
+	}
+
+	[ConCommand("lua_run", "Run a Lua command", FCvar.DontRecord)]
+	static void CC_LuaRun(in TokenizedCommand args) {
+		if (!IsGModAdmin(true) || g_LuaManager == null || args.ArgC() <= 1)
+			return;
+
+		Msg($"> {args.ArgS()}...\n");
+		g_Lua!.RunString("lua_run", "", args.ArgS(), true, true);
 	}
 #endif
 
