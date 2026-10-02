@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 using static Game.Lua.LuaApi;
+using static Source.StrTools;
 
 namespace Game.Lua;
 
@@ -32,11 +33,15 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		public static T Value;
 	}
 
-	const int MaxCachedMetaTables = 0xFE;
-	const int MessageBufferSize = 0x1000;
-	const int TemporaryObjectCount = 32;
-	const int MaxReturns = 4;
-	const double FPUPrecisionCheck = 1437217655.0;
+	const int MAX_CACHED_META_TABLES = 0xFE;
+	const int MESSAGE_BUFFER_SIZE = 0x1000;
+	const int TEMPORARY_OBJECT_COUNT = 32;
+	const int MAX_LUA_RETURNS = 4;
+	const double FPU_PRECISION_CHECK = 1437217655.0;
+	const int PATHID_SIZE = 32;
+	const int CURRENT_LOCATION_SIZE = 512;
+	const int STACK_TRACE_LINE_SIZE = 256;
+	const int MAX_STACK_TRACE_LEVELS = 17;
 
 	static LuaError g_LastError = new();
 
@@ -48,12 +53,14 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	byte luaType;
 	ILuaObject? global;
 	ILuaObject? stringPool;
-	readonly ILuaObject?[] temporaryObjects = new ILuaObject?[TemporaryObjectCount];
+	readonly ILuaObject?[] temporaryObjects = new ILuaObject?[TEMPORARY_OBJECT_COUNT];
 	int temporaryObjectIndex;
-	readonly ILuaObject?[] returnObjects = new ILuaObject?[MaxReturns];
+	readonly ILuaObject?[] returnObjects = new ILuaObject?[MAX_LUA_RETURNS];
 	readonly LinkedList<ILuaThreadedCall> threadedCalls = new();
+	readonly List<string> pathStack = [];
+	string pathID = "";
 
-	readonly int[] metaTableRefs = new int[MaxCachedMetaTables + 1];
+	readonly int[] metaTableRefs = new int[MAX_CACHED_META_TABLES + 1];
 	int nextMetaTableType = (int)LuaType.Type_Count;
 
 	readonly Dictionary<CFunc, nint> functionPointers = [];
@@ -93,8 +100,8 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		PushCFunction(AdvancedLuaErrorReporter);
 		errorReporterRef = ReferenceCreate();
 
-		PushNumber(FPUPrecisionCheck);
-		if (GetNumber(-1) != FPUPrecisionCheck) {
+		PushNumber(FPU_PRECISION_CHECK);
+		if (GetNumber(-1) != FPU_PRECISION_CHECK) {
 			luaJIT_setmode(state, 0, 0);
 			Warning("Lua detected bad FPU precision! Prepare for weirdness!\n");
 		}
@@ -231,7 +238,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	[UnmanagedCallersOnly]
 	static void OnOutput(nint L, byte* data, nuint len, nint ud) {
 		var lua = (LuaInterfaceImpl)GCHandle.FromIntPtr(ud).Target!;
-		lua.gameCallback!.Msg(Encoding.UTF8.GetString(data, (int)Math.Min(len, MessageBufferSize - 1)), true);
+		lua.gameCallback!.Msg(Encoding.UTF8.GetString(data, (int)Math.Min(len, MESSAGE_BUFFER_SIZE - 1)), true);
 	}
 
 	[UnmanagedCallersOnly]
@@ -493,7 +500,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 
 	public void CreateMetaTableType(ReadOnlySpan<char> name, int type) {
 		using Utf8 tname = new(name, stackalloc byte[128]);
-		if (luaL_newmetatable_type(state, tname.Pointer, type) == 0 || type > MaxCachedMetaTables)
+		if (luaL_newmetatable_type(state, tname.Pointer, type) == 0 || type > MAX_CACHED_META_TABLES)
 			return;
 		if (metaTableRefs[type] != -1)
 			luaL_unref(state, LuaIndex.Registry, metaTableRefs[type]);
@@ -528,7 +535,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 
 	public int CreateMetaTable(ReadOnlySpan<char> name) {
 		int type = nextMetaTableType;
-		if (type > MaxCachedMetaTables)
+		if (type > MAX_CACHED_META_TABLES)
 			Dbg.Error("CLuaInterface::CreateMetaTable - out of meta table types!\n");
 		using Utf8 tname = new(name, stackalloc byte[128]);
 		if (luaL_newmetatable_type(state, tname.Pointer, type) != 0) {
@@ -547,7 +554,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	}
 
 	public bool PushMetaTable(LuaType type) {
-		if ((uint)type > MaxCachedMetaTables || metaTableRefs[(int)type] == -1)
+		if ((uint)type > MAX_CACHED_META_TABLES || metaTableRefs[(int)type] == -1)
 			return false;
 		lua_rawgeti(state, LuaIndex.Registry, metaTableRefs[(int)type]);
 		return true;
@@ -665,7 +672,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 			Dbg.Error("Lua tried to call non functions");
 		if (!ThreadInMainThread())
 			Dbg.Error("Calling Lua function in a thread other than main!\n");
-		if (rets > MaxReturns)
+		if (rets > MAX_LUA_RETURNS)
 			Dbg.Error("[CLuaInterface::Call] Expecting more returns than possible");
 		Array.Clear(returnObjects);
 		for (int i = 0; i < rets; i++)
@@ -721,7 +728,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 
 	public ILuaObject NewTemporaryObject() {
 		int index = temporaryObjectIndex + 1;
-		if (index >= TemporaryObjectCount)
+		if (index >= TEMPORARY_OBJECT_COUNT)
 			index = 0;
 		temporaryObjectIndex = index;
 		ILuaObject? obj = temporaryObjects[index];
@@ -758,7 +765,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	}
 
 	public ILuaObject GetReturn(int index) {
-		if (index > MaxReturns - 1)
+		if (index > MAX_LUA_RETURNS - 1)
 			Dbg.Error("Tried to get return higher than max");
 		ILuaObject? obj = returnObjects[index];
 		if (obj == null)
@@ -876,7 +883,8 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		Pop(1);
 	}
 
-	public bool RunString(ReadOnlySpan<char> filename, ReadOnlySpan<char> path, ReadOnlySpan<char> stringToRun, bool run, bool showErrors) => throw new NotImplementedException();
+	public bool RunString(ReadOnlySpan<char> filename, ReadOnlySpan<char> path, ReadOnlySpan<char> stringToRun, bool run, bool showErrors)
+		=> RunStringEx(filename, path, stringToRun, run, showErrors, true, true);
 
 	public bool IsEqual(ILuaObject? objA, ILuaObject? objB) {
 		if (objA == null || objB == null)
@@ -901,9 +909,75 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	}
 
 	public bool RunLuaModule(ReadOnlySpan<char> name) => throw new NotImplementedException();
-	public bool FindAndRunScript(ReadOnlySpan<char> filename, bool run, bool showErrors, ReadOnlySpan<char> stringToRun, bool noReturns) => throw new NotImplementedException();
-	public void SetPathID(ReadOnlySpan<char> pathID) => throw new NotImplementedException();
-	public string GetPathID() => throw new NotImplementedException();
+	public bool FindAndRunScript(ReadOnlySpan<char> filename, bool run, bool showErrors, ReadOnlySpan<char> source, bool noReturns) {
+		Span<char> file = stackalloc char[MAX_PATH];
+		strcpy(file, filename);
+		FixSlashes(file);
+		string fileName = new(file.SliceNullTerminatedString());
+
+		if (!Bootil.String.Test.EndsWith(fileName, ".lua")) {
+			if (showErrors)
+				ErrorFromLua($"Couldn't include file '{fileName}' - Not a .lua file! ({GetCurrentLocation()})\n");
+			return false;
+		}
+
+		string? path = GetPath();
+		if (path != null) {
+			Span<char> full = stackalloc char[MAX_PATH];
+			strcpy(full, $"{path}/{fileName}");
+			FixSlashes(full);
+			string fullName = new(full.SliceNullTerminatedString());
+
+			ref LuaFile? luaFile = ref luashared.LoadFile(fullName, GetPathID(), IsClient(), true);
+			if (luaFile != null) {
+				LuaFile found = luaFile.Value;
+				found.Source = source.ToString();
+				luaFile = found;
+				PushPath(fullName);
+				bool ret = ExecuteLuaFile(ref luaFile, run, showErrors, fullName, noReturns);
+				PopPath();
+				return ret;
+			}
+		}
+
+		ref LuaFile? luaFileAbsolute = ref luashared.LoadFile(fileName, GetPathID(), IsClient(), true);
+		if (luaFileAbsolute != null) {
+			LuaFile found = luaFileAbsolute.Value;
+			found.Source = source.ToString();
+			luaFileAbsolute = found;
+			PushPath(fileName);
+			bool ret = ExecuteLuaFile(ref luaFileAbsolute, run, showErrors, fileName, noReturns);
+			PopPath();
+			return ret;
+		}
+
+		if (showErrors)
+			ErrorFromLua($"Couldn't include file '{fileName}' - File not found or is empty ({GetCurrentLocation()})\n");
+		return false;
+	}
+
+	bool ExecuteLuaFile(ref LuaFile? file, bool run, bool showErrors, ReadOnlySpan<char> path, bool noReturns) {
+		LuaFile luaFile = file!.Value;
+		if (IsClient())
+			luaFile.TimesLoadedClient++;
+		if (IsServer())
+			luaFile.TimesLoadedServer++;
+		file = luaFile;
+
+		ReadOnlySpan<char> name = luaFile.Name;
+		if (name.Length > 0 && name[0] == '!')
+			name = name[1..];
+
+		return RunStringEx(name, "", luaFile.Contents, run, showErrors, true, noReturns);
+	}
+
+	public void SetPathID(ReadOnlySpan<char> pathID) {
+		Span<char> id = stackalloc char[PATHID_SIZE];
+		strcpy(id, pathID);
+		this.pathID = new(id.SliceNullTerminatedString());
+	}
+
+	public string GetPathID() => pathID;
 
 	public void ErrorNoHalt(ReadOnlySpan<char> msg) => gameCallback!.ErrorPrint(FormatMessage(msg), true);
 
@@ -911,18 +985,85 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 
 	static string FormatMessage(ReadOnlySpan<char> msg) {
 		msg = UntilNul(msg);
-		int max = MessageBufferSize - 1;
+		int max = MESSAGE_BUFFER_SIZE - 1;
 		if (Encoding.UTF8.GetByteCount(msg) <= max)
 			return msg.ToString();
 		byte[] bytes = Encoding.UTF8.GetBytes(msg.ToString());
 		return Encoding.UTF8.GetString(bytes, 0, max);
 	}
 
-	public void PushPath(ReadOnlySpan<char> path) => throw new NotImplementedException();
-	public void PopPath() => throw new NotImplementedException();
-	public string GetPath() => throw new NotImplementedException();
-	public Color GetColor(int index) => throw new NotImplementedException();
-	public void PushColor(Color color) => throw new NotImplementedException();
+	public void PushPath(ReadOnlySpan<char> path) {
+		Span<char> relative = stackalloc char[MAX_PATH];
+		filesystem.FullPathToRelativePath(path, relative);
+		FixSlashes(relative);
+		StripFilename(relative);
+		StripTrailingSlash(relative);
+		pathStack.Add(new(relative.SliceNullTerminatedString()));
+	}
+
+	static void StripFilename(Span<char> path) {
+		int length = StrLen(path) - 1;
+		if (length <= 0)
+			return;
+
+		while (length > 0 && !path[length].IsPathSeparator())
+			length--;
+
+		path[length] = '\0';
+	}
+
+	static void StripTrailingSlash(Span<char> path) {
+		int length = StrLen(path);
+		if (length > 0 && path[length - 1].IsPathSeparator())
+			path[length - 1] = '\0';
+	}
+
+	public void PopPath() {
+		if (pathStack.Count == 0)
+			Dbg.Error("CLuaInterface::PopPath - Overpopped!\n");
+
+		pathStack.RemoveAt(pathStack.Count - 1);
+	}
+
+	public string? GetPath() {
+		if (pathStack.Count == 0)
+			return null;
+
+		string path = pathStack[^1];
+		if (path.Length == 0)
+			return null;
+
+		if ((path[0] == '/' || path[0] == '\\') && path.Length == 1)
+			return null;
+
+		return path;
+	}
+
+	public Color GetColor(int index) {
+		ILuaObject obj = GetObject(index);
+		if (obj.GetType() != LuaType.Table)
+			return new(255, 255, 255, 255);
+
+		int a = obj.GetMemberInt("a", 255);
+		int b = obj.GetMemberInt("b", 255);
+		int g = obj.GetMemberInt("g", 255);
+		int r = obj.GetMemberInt("r", 255);
+		return new((byte)r, (byte)g, (byte)b, (byte)a);
+	}
+
+	public void PushColor(Color color) {
+		ILuaObject table = GetNewTable();
+		table.SetMember("r", (float)color.R);
+		table.SetMember("g", (float)color.G);
+		table.SetMember("b", (float)color.B);
+		table.SetMember("a", (float)color.A);
+
+		ILuaObject? meta = GetMetaTableObject("Color", -1);
+		if (meta != null)
+			table.SetMetaTable(meta);
+
+		table.Push();
+	}
 
 	public int GetStack(int level, ref lua_Debug dbg) {
 		fixed (lua_Debug* ar = &dbg)
@@ -935,17 +1076,199 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 			return lua_getinfo(state, w.Pointer, ar);
 	}
 
-	public string? GetLocal(ref lua_Debug dbg, int n) => throw new NotImplementedException();
-	public string? GetUpvalue(int funcIndex, int n) => throw new NotImplementedException();
-	public bool RunStringEx(ReadOnlySpan<char> filename, ReadOnlySpan<char> path, ReadOnlySpan<char> stringToRun, bool run, bool printErrors, bool dontPushErrors, bool noReturns) => throw new NotImplementedException();
-	public ReadOnlySpan<byte> GetDataString(int index) => throw new NotImplementedException();
-	public void ErrorFromLua(ReadOnlySpan<char> msg) => throw new NotImplementedException();
-	public string GetCurrentLocation() => throw new NotImplementedException();
+	public string? GetLocal(ref lua_Debug dbg, int n) {
+		fixed (lua_Debug* ar = &dbg)
+			return Marshal.PtrToStringUTF8((nint)lua_getlocal(state, ar, n));
+	}
+
+	public string? GetUpvalue(int funcIndex, int n) => Marshal.PtrToStringUTF8((nint)lua_getupvalue(state, funcIndex, n));
+
+	static ReadOnlySpan<byte> DefineBaseClass => "DEFINE_BASECLASS"u8;
+	static ReadOnlySpan<byte> DefineBaseClassReplacement => "local BaseClass = baseclass.Get"u8;
+
+	static byte[] RunMacros(ReadOnlySpan<byte> code) {
+		List<byte> output = new(code.Length);
+		int index;
+		while ((index = code.IndexOf(DefineBaseClass)) >= 0) {
+			output.AddRange(code[..index]);
+			output.AddRange(DefineBaseClassReplacement);
+			code = code[(index + DefineBaseClass.Length)..];
+		}
+		output.AddRange(code);
+		return output.ToArray();
+	}
+
+	public bool RunStringEx(ReadOnlySpan<char> filename, ReadOnlySpan<char> path, ReadOnlySpan<char> stringToRun, bool run, bool printErrors, bool dontPushErrors, bool noReturns)
+		=> RunStringEx(filename, path, Encoding.UTF8.GetBytes(UntilNul(stringToRun).ToString()), run, printErrors, dontPushErrors, noReturns);
+
+	public bool RunStringEx(ReadOnlySpan<char> filename, ReadOnlySpan<char> path, ReadOnlySpan<byte> stringToRun, bool run, bool printErrors, bool dontPushErrors, bool noReturns) {
+		int nul = stringToRun.IndexOf((byte)0);
+		if (nul >= 0)
+			stringToRun = stringToRun[..nul];
+
+		if (stringToRun.Length < 1) {
+			Msg($"Not running script {filename} - it's too short.\n");
+			if (!dontPushErrors)
+				PushString("Invalid script - or too short.");
+			return false;
+		}
+
+		if (stringToRun[0] == 0x1B) {
+			Msg($"Cannot run byte code! {0x1B:x}\n");
+			if (!dontPushErrors)
+				PushString("Cannot run byte code!");
+			return false;
+		}
+
+		byte[] code = RunMacros(stringToRun);
+
+		if (path.Length > 0 && path[0] == '@')
+			path = path[1..];
+		Span<char> chunkName = stackalloc char[MAX_PATH];
+		strcpy(chunkName, $"@{path}{filename}");
+
+		ReadStackIntoError(state);
+		int top = Top();
+
+		int status;
+		using (Utf8 name = new(chunkName.SliceNullTerminatedString(), stackalloc byte[MAX_PATH * 3]))
+		fixed (byte* buf = code)
+		fixed (byte* mode = "t\0"u8)
+			status = luaL_loadbufferx(state, buf, (nuint)code.Length, name.Pointer, mode);
+
+		if (status != OK) {
+			if (printErrors) {
+				g_LastError.Message = GetString(-1) ?? "";
+				g_LastError.Side = IsServer() ? "server" : IsMenu() ? "menu" : "client";
+				gameCallback!.LuaError(in g_LastError);
+			}
+
+			if (dontPushErrors)
+				Pop(1);
+
+			return false;
+		}
+
+		if (!run)
+			return true;
+
+		bool success = CallFunctionProtected(0, MULTRET, false);
+		if (!success) {
+			if (printErrors)
+				gameCallback!.LuaError(in g_LastError);
+
+			if (!dontPushErrors)
+				PushString(g_LastError.Message);
+		}
+
+		if (noReturns)
+			Pop(Top() - top);
+
+		return success;
+	}
+
+	public ReadOnlySpan<byte> GetDataString(int index) {
+		nuint len;
+		byte* str = lua_tolstring(state, index, &len);
+		if (str == null)
+			return default;
+		return new(str, (int)len);
+	}
+
+	public void ErrorFromLua(ReadOnlySpan<char> msg) {
+		ReadStackIntoError(state);
+
+		string message = FormatMessage(msg);
+		if (message.Length > 0 && message[^1] == '\n')
+			message = message[..^1];
+
+		g_LastError.Message = message;
+		g_LastError.Side = IsServer() ? "server" : IsMenu() ? "menu" : "client";
+		gameCallback!.LuaError(in g_LastError);
+	}
+
+	public string GetCurrentLocation() {
+		string output = "<nowhere>";
+		lua_Debug ar = default;
+
+		fixed (byte* what = "Sl\0"u8) {
+			if (lua_getstack(state, 0, &ar) != 0) {
+				lua_getinfo(state, what, &ar);
+				if (ar.CurrentLine > 0)
+					output = $"{ar.Source} (line {ar.CurrentLine})";
+			}
+
+			if (lua_getstack(state, 1, &ar) != 0) {
+				lua_getinfo(state, what, &ar);
+				if (ar.CurrentLine > 0)
+					output = $"{ar.Source} (line {ar.CurrentLine})";
+			}
+		}
+
+		return output.Length < CURRENT_LOCATION_SIZE ? output : output[..(CURRENT_LOCATION_SIZE - 1)];
+	}
 
 	public void MsgColour(in Color col, ReadOnlySpan<char> msg) => gameCallback!.MsgColour(FormatMessage(msg), in col);
 
-	public void GetCurrentFile(out string outStr) => throw new NotImplementedException();
-	public bool CompileString(out byte[] dump, ReadOnlySpan<char> stringToCompile) => throw new NotImplementedException();
+	public void GetCurrentFile(out string outStr) {
+		outStr = "";
+		lua_Debug ar = default;
+
+		fixed (byte* what = "Sl\0"u8) {
+			for (int level = 1; level < 10; level++) {
+				if (lua_getstack(state, level, &ar) == 0)
+					continue;
+
+				lua_getinfo(state, what, &ar);
+				if (ar.CurrentLine <= 0)
+					continue;
+
+				string? source = ar.Source;
+				if (source == null || source.Length == 0 || source[0] != '@')
+					continue;
+
+				outStr = source[1..];
+				return;
+			}
+		}
+	}
+
+	[UnmanagedCallersOnly]
+	static int WriteToBuffer(nint L, void* p, nuint sz, void* ud) {
+		MemoryStream buffer = (MemoryStream)GCHandle.FromIntPtr((nint)ud).Target!;
+		buffer.Write(new ReadOnlySpan<byte>(p, (int)sz));
+		return 0;
+	}
+
+	public bool CompileString(out byte[] dump, ReadOnlySpan<char> stringToCompile) {
+		dump = [];
+		byte[] code = Encoding.UTF8.GetBytes(stringToCompile.ToString());
+
+		int status;
+		fixed (byte* buf = code)
+		fixed (byte* name = "\0"u8)
+		fixed (byte* mode = "t\0"u8)
+			status = luaL_loadbufferx(state, buf, (nuint)code.Length, name, mode);
+
+		if (status != OK) {
+			Pop(1);
+			return false;
+		}
+
+		MemoryStream buffer = new();
+		GCHandle handle = GCHandle.Alloc(buffer);
+		int result;
+		try {
+			result = lua_dump(state, &WriteToBuffer, (void*)GCHandle.ToIntPtr(handle));
+		}
+		finally {
+			handle.Free();
+		}
+
+		Pop(1);
+		dump = buffer.ToArray();
+		return result == 0;
+	}
 
 	public bool CallFunctionProtected(int args, int rets, bool showError) {
 		nint L = state;
@@ -999,7 +1322,35 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		return threadedCalls.Count;
 	}
 
-	public void AppendStackTrace(StringBuilder output) => throw new NotImplementedException();
+	public void AppendStackTrace(StringBuilder output) {
+		if (state == 0) {
+			output.Append("   Lua State = NULL\n\n");
+			return;
+		}
+
+		lua_Debug ar = default;
+		int level = 0;
+		fixed (byte* what = "Slnu\0"u8) {
+			while (lua_getstack(state, level, &ar) != 0) {
+				lua_getinfo(state, what, &ar);
+				string line = $"{level}. {ar.Name ?? "(null)"} - {ar.ShortSource}:{ar.CurrentLine}\n";
+				if (line.Length >= STACK_TRACE_LINE_SIZE)
+					line = line[..(STACK_TRACE_LINE_SIZE - 1)];
+				level++;
+
+				for (int i = 0; i <= level; i++)
+					output.Append("  ");
+				output.Append(line);
+
+				if (level == MAX_STACK_TRACE_LEVELS)
+					break;
+			}
+		}
+
+		if (level == 0)
+			output.Append("\t*Not in Lua call OR Lua has panicked*\n");
+		output.Append('\n');
+	}
 	public ConVar CreateConVar(ReadOnlySpan<char> name, ReadOnlySpan<char> defaultValue, ReadOnlySpan<char> helpString, int flags) => throw new NotImplementedException();
 	public ConCommand CreateConCommand(ReadOnlySpan<char> name, ReadOnlySpan<char> helpString, int flags, FnCommandCallback? callback, FnCommandCompletionCallback? completionCallback) => throw new NotImplementedException();
 

@@ -58,14 +58,14 @@ public interface ILuaInterface : ILuaBase
 	[DoesNotReturn] void Error(ReadOnlySpan<char> err);
 	string GetStringOrError(int index);
 	bool RunLuaModule(ReadOnlySpan<char> name);
-	bool FindAndRunScript(ReadOnlySpan<char> filename, bool run, bool showErrors, ReadOnlySpan<char> stringToRun, bool noReturns);
+	bool FindAndRunScript(ReadOnlySpan<char> filename, bool run, bool showErrors, ReadOnlySpan<char> source, bool noReturns);
 	void SetPathID(ReadOnlySpan<char> pathID);
 	string GetPathID();
 	void ErrorNoHalt(ReadOnlySpan<char> msg);
 	void Msg(ReadOnlySpan<char> msg);
 	void PushPath(ReadOnlySpan<char> path);
 	void PopPath();
-	string GetPath();
+	string? GetPath();
 	Color GetColor(int index);
 	void PushColor(Color color);
 	int GetStack(int level, ref lua_Debug dbg);
