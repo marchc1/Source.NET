@@ -1,0 +1,4 @@
+[submodule "Dependencies/LuaJIT"]
+	path = Dependencies/LuaJIT
+	url = https://github.com/marchc1/LuaJIT.git
+	branch = compiled
