@@ -662,6 +662,26 @@ public class LuaObject : ILuaObject
 	public void SetMemberPhysObject(ReadOnlySpan<char> name, IPhysicsObject? obj) => throw new NotImplementedException();
 }
 
+public class LuaTable : LuaObject
+{
+	public LuaTable(string? name = null, uint size = 0) {
+		if (g_Lua == null)
+			return;
+
+		g_Lua.PreCreateTable((int)size, 0);
+		SetReference(-1);
+		g_Lua.Pop(1);
+
+		if (name == null)
+			return;
+
+		if (g_Lua.Global() == null)
+			Dbg.Error("This should never happen! No global in CLuaTable!\n");
+
+		g_Lua.Global().SetMember(name, this);
+	}
+}
+
 public class LuaDisposable : LuaObject, IDisposable
 {
 	public LuaDisposable(int stackPos, LuaType type) : base(stackPos, type) { }

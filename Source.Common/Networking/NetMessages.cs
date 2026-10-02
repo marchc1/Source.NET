@@ -1602,7 +1602,7 @@ public struct GMod_LuaAutoRefresh
 
 public struct GMod_LuaError
 {
-
+	public string Error;
 }
 
 public struct GMod_RequestLuaFiles;
@@ -1634,6 +1634,10 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		int bits = (int)buffer.ReadUBitLong(GMOD_NETMESSAGE_LENGTH_BITS);
+		return ReadPayload(buffer, bits);
+	}
+
+	public bool ReadPayload(bf_read buffer, int bits) {
 		Bits = bits;
 		int endBit = buffer.BitsRead + bits;
 		MessageType = (GModMessageType)buffer.ReadByte();
@@ -1657,7 +1661,14 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 				Warning($"LuaAutoRefresh needs to be implemented!\n");
 				break;
 			case GModMessageType.LuaError:
-				Warning($"LuaError needs to be implemented!\n");
+				if ((toRead = bits - 8) > 0) {
+					byte[] error = new byte[Bits2Bytes(toRead)];
+					buffer.ReadBits(error, toRead);
+					int length = Array.IndexOf(error, (byte)0);
+					LuaError.Error = Encoding.UTF8.GetString(error, 0, length < 0 ? error.Length : length);
+				}
+				else
+					LuaError.Error = "";
 				break;
 			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
@@ -1680,7 +1691,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaError:
-
+				bits += (Encoding.UTF8.GetByteCount(LuaError.Error ?? "") + 1) * 8;
 				break;
 			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
@@ -1703,7 +1714,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 				Warning($"LuaAutoRefresh needs to be implemented!\n");
 				break;
 			case GModMessageType.LuaError:
-				Warning($"LuaAutoRefresh needs to be implemented!\n");
+				buffer.WriteBytes(Encoding.UTF8.GetBytes((LuaError.Error ?? "") + "\0"));
 				break;
 			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
