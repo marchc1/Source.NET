@@ -94,6 +94,8 @@ internal static unsafe partial class LuaApi
 
 	[LibraryImport(Lib)] public static partial int lua_pcall(nint L, int nargs, int nresults, int errfunc);
 	[LibraryImport(Lib)] public static partial int luaL_loadbuffer(nint L, byte* buff, nuint sz, byte* name);
+	[LibraryImport(Lib)] public static partial int luaL_loadbufferx(nint L, byte* buff, nuint sz, byte* name, byte* mode);
+	[LibraryImport(Lib)] public static partial int lua_dump(nint L, delegate* unmanaged<nint, void*, nuint, void*, int> writer, void* data);
 
 	[LibraryImport(Lib)] public static partial int luaL_ref(nint L, int t);
 	[LibraryImport(Lib)] public static partial void luaL_unref(nint L, int t, int reference);
@@ -101,6 +103,8 @@ internal static unsafe partial class LuaApi
 
 	[LibraryImport(Lib)] public static partial int lua_getstack(nint L, int level, lua_Debug* ar);
 	[LibraryImport(Lib)] public static partial int lua_getinfo(nint L, byte* what, lua_Debug* ar);
+	[LibraryImport(Lib)] public static partial byte* lua_getlocal(nint L, lua_Debug* ar, int n);
+	[LibraryImport(Lib)] public static partial byte* lua_getupvalue(nint L, int funcindex, int n);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void lua_pop(nint L, int n) => lua_settop(L, -n - 1);
