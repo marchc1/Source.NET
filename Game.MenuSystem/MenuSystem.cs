@@ -1,4 +1,5 @@
-﻿using Source.Common;
+﻿using Source;
+using Source.Common;
 using Source.Common.Engine;
 using Source.Common.GarrysMod;
 using Source.Common.GarrysMod.Lua;
@@ -20,7 +21,8 @@ public class MenuSystem : IMenuSystem
 	}
 
 	public void SendProblemToMenu(ReadOnlySpan<char> id, int severity, ReadOnlySpan<char> parms) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		Msg($"SendProblemToMenu not implemented! ({id.SliceNullTerminatedString()}, {severity}, {parms.SliceNullTerminatedString()})\n");
 	}
 
 	public void ServerDetails(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2, ReadOnlySpan<char> unk3, int unk4, ReadOnlySpan<char> unk5) {
