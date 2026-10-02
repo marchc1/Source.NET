@@ -13,12 +13,12 @@
     <Project Path="Dependencies/OpenGL/OpenGL46.csproj" />
   </Folder>
   <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Roslyn Code Analysis/">
+    <Project Path="Source.CodeAnalysis.NetworkVars/Source.CodeAnalysis.NetworkVars.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.CodeFixes/Source.CodeAnalysis.CodeFixes.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Package/Source.CodeAnalysis.Package.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Test/Source.CodeAnalysis.Test.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Vsix/Source.CodeAnalysis.Vsix.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis/Source.CodeAnalysis.csproj" />
-    <Project Path="Source.CodeAnalysis.NetworkVars/Source.CodeAnalysis.NetworkVars.csproj" />
   </Folder>
   <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Usings/">
     <File Path="Directory.Build.props" />
@@ -57,6 +57,7 @@
   </Folder>
   <Folder Name="/5. Game Realms/">
     <Project Path="Game.Client/Game.Client.csproj" />
+    <Project Path="Game.Lua/Game.Lua.csproj"/>
     <Project Path="Game.Server/Game.Server.csproj" />
     <Project Path="Game.ServerBrowser/Game.ServerBrowser.csproj" />
     <Project Path="Game.Shared/Game.Shared.csproj">

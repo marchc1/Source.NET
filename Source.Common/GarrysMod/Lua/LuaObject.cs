@@ -1,9 +1,6 @@
-﻿namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod.Lua;
 
-public static partial class Lua
+public interface ILuaObject
 {
-	public interface ILuaObject
-	{
-		// TODO
-	}
+	// TODO
 }

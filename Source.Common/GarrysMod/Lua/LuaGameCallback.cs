@@ -1,4 +1,4 @@
-﻿namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod.Lua;
 
 public struct LuaError()
 {
@@ -14,10 +14,7 @@ public struct LuaError()
 	public List<StackEntry> Stack = [];
 }
 
-public static partial class Lua
+public interface ILuaGameCallback
 {
-	public interface ILuaGameCallback
-	{
 
-	}
 }

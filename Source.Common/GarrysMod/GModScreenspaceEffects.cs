@@ -2,12 +2,12 @@
 
 namespace Source.Common.GarrysMod;
 
-public interface GModScreenspaceEffects
+public interface GMODScreenspaceEffects
 {
 	void Init();
 	void Shutdown();
-	void SetParameters(KeyValues unk1);
-	void Render(int unk1, int unk2, int unk3, int unk4);
-	void Enable(bool unk1);
+	void SetParameters(KeyValues parms);
+	void Render(int r, int g, int b, int a);
+	void Enable(bool enabled);
 	bool IsEnabled();
 }

@@ -1,3 +1,3 @@
-﻿namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod.Lua;
 
 public class LuaClientDatatableHook; //todo

@@ -4,28 +4,25 @@ using Source.Common.Mathematics;
 using System.Numerics;
 using System.Reflection.Metadata;
 
-namespace Source.Common.GarrysMod;
+namespace Source.Common.GarrysMod.Lua;
 
-public static partial class Lua
+public unsafe delegate int CFunc(lua_State* L);
+
+public enum Special
 {
-	public unsafe delegate int CFunc(lua_State* L);
+	Glob,
+	Env,
+	Reg
+}
 
-	public enum Special
-	{
-		Glob,
-		Env,
-		Reg
-	}
+public enum Index
+{
+	Global = -10002,
+	Environment,
+	Registry
+}
 
-	public enum Index
-	{
-		Global = -10002,
-		Environment,
-		Registry
-	}
-
-	public interface ILuaBase
-	{
-		// TODO
-	}
+public interface ILuaBase
+{
+	// TODO
 }
