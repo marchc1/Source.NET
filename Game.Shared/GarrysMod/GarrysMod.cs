@@ -109,6 +109,7 @@ public class GModRichPresence : AutoGameSystemPerFrame
 			SteamFriends.ClearRichPresence();
 	}
 
+	#if CLIENT_DLL
 	public override void Update(TimeUnit_t frametime) {
 		if (gpGlobals.RealTime < LastRun + 2.0f) return;
 		LastRun = gpGlobals.RealTime;
@@ -131,6 +132,7 @@ public class GModRichPresence : AutoGameSystemPerFrame
 
 		SetStatus($"{(multiplayer ? "Multiplayer" : "Singleplayer")} - {GetMapName()} ({GetGamemodeName()})", connect);
 	}
+	#endif
 
 	void SetStatus(string status, string? connect = null) {
 		if (status == LastStatus)
