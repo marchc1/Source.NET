@@ -14,16 +14,21 @@ public static class Steam3ClientAccessor
 #if !SWDS
 	[Dependency] static Steam3ClientImpl _client = null!;
 #endif
-	public static Steam3ClientImpl Steam3Client()
-#if !SWDS
-		=> _client;
-#else
-		=> null!;
+#if SWDS
+	static readonly Steam3ClientImpl _client = new();
 #endif
+	public static Steam3ClientImpl Steam3Client() => _client;
 }
 
 #if SWDS
-public class Steam3ClientImpl;
+public class Steam3ClientImpl
+{
+	public ISteamClient SteamClient() => null!;
+	public ISteamUser SteamUser() => null!;
+	public ISteamUtils SteamUtils() => null!;
+	public ISteamUserStats SteamUserStats() => null!;
+	public ISteamRemoteStorage SteamRemoteStorage() => null!;
+}
 #else
 [EngineComponent]
 public class Steam3ClientImpl : IDisposable

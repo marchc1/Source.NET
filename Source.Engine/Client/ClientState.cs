@@ -285,7 +285,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 		}
 
 		Sound.StopAllSounds(true);
+#if !SWDS
 		Render.DecalTermAll();
+#endif
 
 		if (MaxClients > 1)
 			if (EngineVGui!.IsConsoleVisible() == false)
@@ -1078,7 +1080,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 		PrecacheItem p = DecalPrecache[tableIndex];
 		p.SetDecal(new(name));
 
+#if !SWDS
 		Render.Draw_DecalSetName(tableIndex, name);
+#endif
 	}
 
 	public void SetModel(int tableIndex) {
