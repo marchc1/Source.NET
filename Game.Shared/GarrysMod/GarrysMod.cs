@@ -105,8 +105,47 @@ public class GarrysMod : IGarrysMod
 		if (gpGlobals.MaxClients == 1 || !get.IsDedicatedServer())
 			engine.ServerCommand("lua_error_url ''\n");
 
-		// todo: Lua state init (closes the old gLUA/gGM, mounts workshop/lua, workshop/gamemodes, creates the new gLUA/gGM)
+		InitLua();
 		// todo: GAMEMODE:BuildAmmoTypes
+	}
+
+	static bool InitLua() {
+		// if (gLUA != null) {
+		// 	get.LuaShared()!.UnMountLua("lsv");
+		// 	todo: increment some counter
+		// 	todo: shut down the server Lua interface, get.LuaShared()!.CloseLuaInterface(...), null it
+		// 	if (g_LuaNetworkedVars == null)
+		// 		Error("!g_LuaNetworkedVars");
+		// 	todo: destroy every entry of g_LuaNetworkedVars
+		// 	g_LuaNetworkedVars = null;
+		// 	todo: destroy gLUA (+3 sub-objects)
+		// 	gLUA = null;
+		// }
+		// if (gGM != null) {
+		// 	todo: destroy gGM
+		// 	gGM = null;
+		// }
+		// todo: unidentified call here
+
+		// foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
+		// 	if (!string.IsNullOrEmpty(addon.LuaPath))
+		// 		get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
+		// 	if (!string.IsNullOrEmpty(addon.Placeholder4))
+		// 		get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
+		// }
+		// get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
+		// get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
+		// get.LuaShared()!.MountLua("lsv");
+
+		// if (gLUA != null)
+		// 	Error("New gLUA when old one exists!\n");
+		// todo: construct gLUA
+		// if (gGM != null)
+		// 	Error("New gGM when old one exists!\n");
+		// todo: construct gGM
+		// todo: init gLUA, then init gGM
+		// todo: unidentified call
+		return true;
 	}
 #endif
 
