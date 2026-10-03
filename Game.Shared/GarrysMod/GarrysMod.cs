@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source;
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.GarrysMod;
 using Source.Common.MaterialSystem;
@@ -27,6 +28,8 @@ public static class GarrysModSingletons
 
 public class GarrysMod : IGarrysMod
 {
+	static readonly ConVar sv_allowcslua = new("sv_allowcslua", "0", FCvar.Archive | FCvar.Notify | FCvar.Replicated, "Allow clients to run clientside addons. This will override any gamemode setting!");
+
 	public void DLLInit(IServiceCollection services) {
 #if CLIENT_DLL
 		services.AddSingleton<IIntroScreen, IntroScreen>();
@@ -104,6 +107,25 @@ public class GarrysMod : IGarrysMod
 		}
 
 		get.UpdateRichPresense(status);
+	}
+
+	public static bool RunningLuaCmd;
+	static readonly byte[] LuaCmd = new byte[0x1800];
+
+	public static void RunLuaCmd(bf_read buffer) {
+		RunningLuaCmd = true;
+
+		if (!buffer.ReadString(LuaCmd, false, out int length)) {
+			Warning("SendLua/BroadcastLua/lua_run_cl failed to read the code!\n");
+			RunningLuaCmd = false;
+			return;
+		}
+
+		string code = Encoding.UTF8.GetString(LuaCmd, 0, length);
+		if (!g_Lua!.RunString("LuaCmd", "", code, true, true))
+			Warning($"SendLua/BroadcastLua/lua_run_cl failed with code: {code}\n");
+
+		RunningLuaCmd = false;
 	}
 #else
 	public void LevelInit(ReadOnlySpan<char> mapName, ReadOnlyMemory<byte> mapEntities, ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName, bool loadGame, bool background) {
@@ -216,6 +238,43 @@ public class GarrysMod : IGarrysMod
 
 		Msg($"> {args.ArgS()}...\n");
 		g_Lua!.RunString("lua_run", "", args.ArgS(), true, true);
+	}
+
+	static readonly byte[] BroadcastLuaData = new byte[0x1800];
+	static readonly bf_write BroadcastLuaWrite = new();
+
+	public static void BroadcastLua(Game.Server.RecipientFilter filter, ReadOnlySpan<char> code) {
+		BroadcastLuaWrite.DebugName = "BroadcastLua";
+		BroadcastLuaWrite.StartWriting(BroadcastLuaData, 0x1800, 0);
+		BroadcastLuaWrite.WriteByte((int)GModMessageType.LuaCmd);
+
+		byte[] bytes = Encoding.UTF8.GetBytes(code.ToString() + "\0");
+		BroadcastLuaWrite.WriteBytes(bytes);
+		if (BroadcastLuaWrite.Overflowed) {
+			Warning($"BroadcastLua failed to write code! Is it too long? {bytes.Length - 1}, {0x1800} max\n");
+			return;
+		}
+
+		engine.GMOD_SendToClient(ref filter, BroadcastLuaData.AsSpan(0, BroadcastLuaWrite.BytesWritten));
+	}
+
+	[ConCommand("lua_run_cl", "Run a Lua command", FCvar.DontRecord)]
+	static void CC_LuaRun_cl(in TokenizedCommand args) {
+		ConVar sv_cheats = cvar.FindVar("sv_cheats")!;
+
+		if (args.ArgC() <= 1)
+			return;
+
+		BasePlayer? player = Util.GetCommandClient();
+		if (player == null)
+			return;
+
+		if (!sv_allowcslua.GetBool() && !sv_cheats.GetBool())
+			return;
+
+		Game.Server.RecipientFilter filter = new Game.Server.SingleUserRecipientFilter(player);
+		filter.MakeReliable();
+		BroadcastLua(filter, args.ArgS());
 	}
 #endif
 

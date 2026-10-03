@@ -11,6 +11,8 @@ public enum GModMessageType
 	/// <summary> <b>[Server -> Client]</b> Server asks the client which files are needed by the client </summary>
 	RequestLuaFiles,
 	/// <summary> <b>[Client <- -> Server]</b> The client tells the server which files it needs, and the server sends them back. </summary>
-	LuaFile
+	LuaFile,
+	/// <summary> <b>[Server -> Client]</b> Lua code sent by SendLua/BroadcastLua/lua_run_cl, ran by the client </summary>
+	LuaCmd
 }
 #endif

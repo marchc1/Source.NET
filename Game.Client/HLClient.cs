@@ -730,7 +730,11 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void GMOD_ReceiveServerMessage(bf_read buffer, int len) {
-		throw new NotImplementedException();
+		switch ((GModMessageType)buffer.ReadByte()) {
+			case GModMessageType.LuaCmd:
+				Game.Client.GarrysMod.GarrysMod.RunLuaCmd(buffer);
+				break;
+		}
 	}
 
 	public void GMOD_DoSnapshots() {

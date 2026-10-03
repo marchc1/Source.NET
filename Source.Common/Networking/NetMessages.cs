@@ -1607,6 +1607,11 @@ public struct GMod_LuaError
 
 public struct GMod_RequestLuaFiles;
 
+public struct GMod_LuaCmd
+{
+	public Memory<byte> Data;
+}
+
 public struct GMod_LuaFile_CLC
 {
 	public InlineArray8192<ushort> FileStringTableEntryIDs;
@@ -1631,6 +1636,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 	public GMod_LuaAutoRefresh LuaAutoRefresh;
 	public GMod_LuaError LuaError;
 	public GMod_RequestLuaFiles RequestLuaFiles;
+	public GMod_LuaCmd LuaCmd;
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		int bits = (int)buffer.ReadUBitLong(GMOD_NETMESSAGE_LENGTH_BITS);
@@ -1674,6 +1680,12 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 			case GModMessageType.LuaFile:
 				ReadLuaFile(buffer, endBit);
 				break;
+			case GModMessageType.LuaCmd:
+				toRead = bits - 8;
+				LuaCmd.Data = new byte[Bits2Bytes(Math.Max(toRead, 0))];
+				if (toRead > 0)
+					buffer.ReadBits(LuaCmd.Data.Span, toRead);
+				break;
 		}
 
 		return true;
@@ -1697,6 +1709,9 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 			case GModMessageType.LuaFile:
 				bits += GetLuaFileMessageBits();
 				break;
+			case GModMessageType.LuaCmd:
+				bits += LuaCmd.Data.Length * 8;
+				break;
 		}
 
 		Bits = bits;
@@ -1719,6 +1734,9 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
 				WriteLuaFile(buffer);
+				break;
+			case GModMessageType.LuaCmd:
+				buffer.WriteBytes(LuaCmd.Data.Span);
 				break;
 		}
 

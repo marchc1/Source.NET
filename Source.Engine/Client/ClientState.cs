@@ -622,6 +622,13 @@ IModelLoader modelloader, ICommandLine commandLine,
 
 				}
 				return true;
+			case GModMessageType.LuaCmd: {
+					byte[] data = new byte[1 + msg.LuaCmd.Data.Length];
+					data[0] = (byte)msg.MessageType;
+					msg.LuaCmd.Data.Span.CopyTo(data.AsSpan(1));
+					g_ClientDLL!.GMOD_ReceiveServerMessage(new bf_read(data, data.Length), data.Length * 8);
+				}
+				return true;
 		}
 		return base.ProcessGMod_ServerToClient(msg);
 	}

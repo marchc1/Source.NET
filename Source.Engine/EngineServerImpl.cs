@@ -916,7 +916,10 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter {
-		throw new NotImplementedException();
+		SVC_GMod_ServerToClient msg = new();
+		msg.SetReliable(true);
+		msg.ReadPayload(new bf_read(data.ToArray(), data.Length), data.Length * 8);
+		sv.BroadcastMessage(msg, filter);
 	}
 
 	public void GMOD_SendToClient(int client, ReadOnlySpan<byte> data) {
