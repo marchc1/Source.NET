@@ -146,23 +146,6 @@ public interface ILuaObject
 		SetMemberDouble(name, d);
 	}
 
-	public void SetMemberEnumValuePrefixed<E>(scoped ReadOnlySpan<char> prefix, in E value) where E : struct, Enum {
-		SetMemberEnumValuePrefixed(prefix, Enum.GetName<E>(value)?.ToUpperInvariant(), in value);
-	}
-
-	public void SetMemberEnumValuePrefixed<E>(scoped ReadOnlySpan<char> prefix, scoped ReadOnlySpan<char> name, in E value) where E : struct, Enum {
-		Span<char> setName = stackalloc char[prefix.Length + 1 + name.Length];
-		sprintf(setName, "%s_%s").S(prefix).S(name);
-		SetMemberEnumValue(setName, in value);
-	}
-
-	public void SetMemberEnumValuesPrefixed<E>(scoped ReadOnlySpan<char> prefix, ShouldSetEnum<E>? shouldSetEnum = null, EnumNameProducer<E>? enumNameProducer = null) where E : struct, Enum {
-		shouldSetEnum ??= static x => true;
-		enumNameProducer ??= static x => Enum.GetName<E>(x)?.ToUpperInvariant();
-		foreach (var value in Enum.GetValues<E>())
-			if (shouldSetEnum(value))
-			SetMemberEnumValuePrefixed(prefix, enumNameProducer(value), value);
-	}
 	public delegate bool ShouldSetEnum<E>(E value);
 	public delegate ReadOnlySpan<char> EnumNameProducer<E>(E value);
 }
