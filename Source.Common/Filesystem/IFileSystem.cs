@@ -25,6 +25,37 @@ public enum PathGroupName
 	Downloads,
 	Fallbacks
 }
+
+public enum FSAsyncStatus
+{
+	// Filename not part of the specified file system, try a different one.  (Used internally to find the right filesystem)
+	ErrNotMine = -8,
+	// Failure for a reason that might be temporary.  You might retry, but not immediately.  (E.g. Network problems)
+	ErrRetryLater = -7,
+	// read parameters invalid for unbuffered IO
+	ErrAlignment = -6,
+	// hard subsystem failure
+	ErrFailure = -5,
+	// read error on file
+	ErrReading = -4,
+	// out of memory for file read
+	ErrNoMemory = -3,
+	// caller's provided id is not recognized
+	ErrUnknownID = -2,
+	// filename could not be opened (bad path, not exist, etc)
+	ErrFileOpen = -1,
+	// operation is successful
+	OK = 0,
+	// file is properly queued, waiting for service
+	StatusPending,
+	// file is being accessed
+	StatusInProgress,
+	// file was aborted by caller
+	StatusAborted,
+	// file is not yet queued
+	StatusUnserviced,
+}
+
 public interface ISearchPath
 {
 	bool Exists(scoped ReadOnlySpan<char> path); // Returns if the file or directory exists

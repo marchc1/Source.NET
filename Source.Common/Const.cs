@@ -226,7 +226,9 @@ public enum CollisionGroup
 	Pushaway,
 	NPCActor,
 	NPCScripted,
-	LastSharedCollisionGroup
+	World,
+	LastSharedCollisionGroup,
+	HL2Spit
 }
 
 public static class Constants

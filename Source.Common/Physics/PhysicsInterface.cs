@@ -323,9 +323,17 @@ public interface IPhysicsShadowController
 	void GetMaxSpeed(out float maxSpeedOut, out float maxAngularSpeedOut);
 }
 
+public enum SimResult
+{
+	Nothing = 0,
+	LocalAcceleration,
+	LocalForce,
+	GlobalAcceleration,
+	GlobalForce
+}
+
 public interface IMotionEvent
 {
-	public enum SimResult { Nothing = 0, LocalAcceleration, LocalForce, GlobalAcceleration, GlobalForce }
 	SimResult Simulate(IPhysicsMotionController? controller, IPhysicsObject? obj, TimeUnit_t deltaTime, out Vector3 linear, out Vector3 angular);
 }
 public interface IPhysicsMotionController
@@ -663,7 +671,7 @@ public interface IPhysicsObject
 	void SetVelocity(in Vector3 velocity, in Vector3 angularVelocity);
 
 	// like the above, but force the change into the simulator immediately
-	void SetVelocityInstantaneous(in Vector3 velocity, in Vector3 angularVelocity );
+	void SetVelocityInstantaneous(in Vector3 velocity, in Vector3 angularVelocity);
 
 	// NOTE: velocity is in worldspace, angularVelocity is relative to the object's 
 	// local axes (just like pev->velocity, pev->avelocity)
@@ -671,7 +679,7 @@ public interface IPhysicsObject
 
 	// NOTE: These are velocities, not forces.  i.e. They will have the same effect regardless of
 	// the object's mass or inertia
-	void AddVelocity( in Vector3 velocity, in Vector3 angularVelocity );
+	void AddVelocity(in Vector3 velocity, in Vector3 angularVelocity);
 	// gets a velocity in the object's local frame of reference at a specific point
 	void GetVelocityAtPoint(in Vector3 worldPosition, out Vector3 velocity);
 	// gets the velocity actually moved by the object in the last simulation update
@@ -721,7 +729,7 @@ public interface IPhysicsObject
 	// applies the math of the shadow controller to this object.
 	// for use in your own controllers
 	// returns the new value of secondsToArrival with dt time elapsed
-	float ComputeShadowControl( in HLShadowControlParams parms, TimeUnit_t secondsToArrival, TimeUnit_t dt );
+	float ComputeShadowControl(in HLShadowControlParams parms, TimeUnit_t secondsToArrival, TimeUnit_t dt);
 
 	PhysCollide GetCollide();
 	ReadOnlySpan<char> GetName();
@@ -824,18 +832,18 @@ public struct SurfaceData
 
 public interface IPhysicsSurfaceProps
 {
-	nint ParseSurfaceData( ReadOnlySpan<char> filename, ReadOnlySpan<char> textfile );
+	nint ParseSurfaceData(ReadOnlySpan<char> filename, ReadOnlySpan<char> textfile);
 	// current number of entries in the database
 	nint SurfacePropCount();
 
-	nint GetSurfaceIndex( ReadOnlySpan<char> surfacePropName );
-	void GetPhysicsProperties(nint surfaceDataIndex, out float  density, out float thickness, out float friction, out float elasticity);
+	nint GetSurfaceIndex(ReadOnlySpan<char> surfacePropName);
+	void GetPhysicsProperties(nint surfaceDataIndex, out float density, out float thickness, out float friction, out float elasticity);
 
 	SurfaceData_ptr? GetSurfaceData(nint surfaceDataIndex);
-	ReadOnlySpan<char> GetString( UtlSymId_t stringTableIndex );
+	ReadOnlySpan<char> GetString(UtlSymId_t stringTableIndex);
 
 
-	ReadOnlySpan<char> GetPropName( nint surfaceDataIndex );
+	ReadOnlySpan<char> GetPropName(nint surfaceDataIndex);
 
 	// sets the global index table for world materials
 	// UNDONE: Make this per-PhysCollide

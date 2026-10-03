@@ -1205,6 +1205,8 @@ public enum Contents
 	LastVisibleContents = 0x80,
 	AllVisibleContents = (LastVisibleContents | (LastVisibleContents - 1)),
 	TestFogVolume = 0x100,
+	Team3 = 1024,
+	Team4 = 512,
 	/// <summary>
 	/// per team contents used to differentiate collisions 
 	/// </summary>

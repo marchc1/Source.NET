@@ -36,13 +36,16 @@ public enum PlayerAnimEvent
 	FlinchRightLeg,
 	DoubleJump,
 	Cancel,
-	Spawn,
+	CancelReload = 23,
+	Spawn = 17,
 	SnapYaw,
 	Custom,
 	CustomGesture,
 	CustomSequence,
 	CustomGestureSequence,
-	AttackPre,
+
+	// CHECK: Is this stuff in Garry's Mod? It might be removed, AttackPre conflicts with CancelReload as well.
+	AttackPre, 
 	AttackPost,
 	Grenade1Draw,
 	Grenade2Draw,

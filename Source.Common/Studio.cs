@@ -30,6 +30,17 @@ public static class StudioDeps
 	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
 }
 
+
+public enum StudioBoneFlags
+{
+	CalculateMask = 0x1F,
+	PhysicallySimulated = 0x01,
+	PhysicsProcedural = 0x02,
+	AlwaysProcedural = 0x04,
+	ScreenAlignSphere = 0x08,
+	ScreenAlignCylinder = 0x10
+}
+
 public delegate T FactoryFn<T>(object caller, Memory<byte> data);
 public static class Studio
 {
@@ -108,13 +119,6 @@ public static class Studio
 	public const int MODEL_VERTEX_FILE_ID = (('V' << 24) + ('S' << 16) + ('D' << 8) + 'I');
 	public const int MODEL_VERTEX_FILE_VERSION = 4;
 	public const int MODEL_VERTEX_FILE_THIN_ID = (('V' << 24) + ('C' << 16) + ('D' << 8) + 'I');
-
-	public const int BONE_CALCULATE_MASK = 0x1F;
-	public const int BONE_PHYSICALLY_SIMULATED = 0x01;
-	public const int BONE_PHYSICS_PROCEDURAL = 0x02;
-	public const int BONE_ALWAYS_PROCEDURAL = 0x04;
-	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;
-	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
 
 	public const int BONE_USED_MASK = 0x0007FF00;
 	public const int BONE_USED_BY_ANYTHING = 0x0007FF00;

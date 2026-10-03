@@ -8,7 +8,8 @@ using System.Numerics;
 
 using FIELD = Source.FIELD<HL2PlayerLocalData>;
 
-public class HL2PlayerLocalData {
+public class HL2PlayerLocalData
+{
 	public static readonly SendTable DT_HL2Local = new(nameof(DT_HL2Local), [
 		SendPropFloat(FIELD.OF(nameof(SuitPower)), 10, PropFlags.Unsigned | PropFlags.RoundUp, 0.0f, 100.0f),
 		SendPropInt(FIELD.OF(nameof(Zooming)), 1, PropFlags.Unsigned),
@@ -41,6 +42,10 @@ public class HL2PlayerLocalData {
 	public bool DisplayReticle;
 	public bool StickyAutoAim;
 	public bool AutoAimTarget;
+#if HL2_EPISODIC
+	public float FlashBattery;
+	public Vector3 LocatorOrigin;
+#endif
 	[NetworkName("m_hLadder")]
 	public EHANDLE Ladder = new();
 	public LadderMove LadderMove = new();
