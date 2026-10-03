@@ -217,7 +217,7 @@ public class LuaGameCallback : ILuaGameCallback
 		return true;
 	}
 
-	static bool GetAddonFromError(in LuaError error, out IAddonSystem.Information info, out bool overriding) {
+	internal static bool GetAddonFromError(in LuaError error, out IAddonSystem.Information info, out bool overriding) {
 		IAddonSystem.Information local = new() { Title = "", File = "", Tags = "", Failure = "" };
 		IAddonSystem.Information owner = default;
 		bool found = false;

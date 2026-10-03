@@ -589,10 +589,15 @@ public class Prediction : IPrediction
 
 		PreviousStartFrame = startFrame;
 
+		double unpredictedCurTime = UnpredictedCurTime;
 		gpGlobals.CopyInstantiatedReferenceTo(saveVars);
+		UnpredictedCurTime = gpGlobals.CurTime;
 		_Update(receivedNewWorldUpdate, validFrame, incomingAcknowledged, outgoingCommand);
+		UnpredictedCurTime = unpredictedCurTime;
 		saveVars.CopyInstantiatedReferenceTo(gpGlobals);
 	}
+
+	public static double UnpredictedCurTime;
 
 	void _Update(bool receivedNewWorldUpdate, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
 		C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
