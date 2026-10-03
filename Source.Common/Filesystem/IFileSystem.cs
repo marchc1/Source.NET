@@ -203,6 +203,7 @@ public interface IFileSystem : IBaseFileSystem
 	/// <param name="pathID"></param>
 	/// <param name="requestOnly"></param>
 	public void MarkPathIDByRequestOnly(ReadOnlySpan<char> pathID, bool requestOnly);
+	int GetSearchPath(ReadOnlySpan<char> pathID, bool getPackFiles, Span<char> dest);
 
 	bool RemoveFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID);
 	bool RemoveFile(ReadOnlySpan<char> relativePath) => RemoveFile(relativePath, null);

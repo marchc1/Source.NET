@@ -14,6 +14,7 @@ using Source.Filesystem.GarrysMod;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Source.FileSystem;
 
@@ -388,6 +389,31 @@ public class BaseFileSystem : IFileSystem
 			return;
 
 		collection.RequestOnly = requestOnly;
+	}
+
+	public int GetSearchPath(ReadOnlySpan<char> pathID, bool getPackFiles, Span<char> dest) {
+		if (!dest.IsEmpty)
+			dest[0] = '\0';
+
+		StringBuilder path = new();
+		if (SearchPaths.TryGetValue(pathID.Hash(), out var collection)) {
+			foreach (ISearchPath searchPath in collection.GetSortOrder()) {
+				if (!getPackFiles && searchPath.GetPackFile() != null)
+					continue;
+
+				if (path.Length > 0)
+					path.Append(';');
+
+				path.Append(searchPath.GetPathString());
+				if (searchPath.GetPackFile() != null)
+					path.Append('\\');
+			}
+		}
+
+		if (!dest.IsEmpty)
+			strcpy(dest, path.ToString());
+
+		return path.Length + 1;
 	}
 
 	public FileSystemMountRetval MountSteamContent(long extraAppID = -1) {
