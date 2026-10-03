@@ -517,6 +517,24 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool IsInAVehicle() => Vehicle.Get() != null;
 	public float GetStepSize() => Local.StepSize;
 
+	public BaseEntity? GetViewEntity() => ViewEntity.Get();
+
+	public void SetViewEntity(BaseEntity? entity) {
+		ViewEntity.Set(entity);
+
+		if (ViewEntity.Get() != null)
+			engine.SetView(Edict()!, ViewEntity.Get()!.Edict()!);
+		else
+			engine.SetView(Edict()!, Edict()!);
+	}
+
+	public void EnableControl(bool control) {
+		if (!control)
+			AddFlag(EntityFlags.Frozen);
+		else
+			RemoveFlag(EntityFlags.Frozen);
+	}
+
 	bool HasHaptics;
 	[NetworkName("m_bDisableWorldClicking")]
 	bool DisableWorldClicking;

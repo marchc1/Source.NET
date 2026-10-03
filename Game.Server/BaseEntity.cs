@@ -2582,6 +2582,14 @@ public partial class BaseEntity : IServerEntity
 			Parent.Get()?.Use(activator, caller, useType, value);
 	}
 
+	public int ShouldToggle(UseType useType, int currentState) {
+		if (useType != UseType.Toggle && useType != UseType.Set) {
+			if ((currentState != 0 && useType == UseType.On) || (currentState == 0 && useType == UseType.Off))
+				return 0;
+		}
+		return 1;
+	}
+
 	public string? Target;
 	public BaseEntity? GetNextTarget() {
 		if (Target == null)
