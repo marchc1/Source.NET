@@ -3,6 +3,7 @@ using Steamworks;
 using System;
 using System.Formats.Asn1;
 using System.Globalization;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common;
@@ -449,8 +450,12 @@ public static class CFormatting
 			i++;
 
 		int mantissaStart = i;
-		while (i < input.Length && (char.IsAsciiDigit(input[i]) || input[i] == '.'))
+		bool seenDot = false;
+		while (i < input.Length && (char.IsAsciiDigit(input[i]) || (input[i] == '.' && !seenDot))) {
+			if (input[i] == '.')
+				seenDot = true;
 			i++;
+		}
 
 		if (i > mantissaStart && i < input.Length && (input[i] == 'e' || input[i] == 'E')) {
 			int expStart = i;
@@ -471,6 +476,56 @@ public static class CFormatting
 		}
 		output = input;
 		return 0;
+	}
+
+	public static string FormatFixed(double value, int precision) {
+		long bits = BitConverter.DoubleToInt64Bits(value);
+		bool negative = bits < 0;
+		long fraction = bits & 0xFFFFFFFFFFFFFL;
+		int exponent = (int)((bits >> 52) & 0x7FF);
+
+		if (exponent == 0x7FF) {
+			if (fraction == 0)
+				return negative ? "-inf" : "inf";
+			if ((fraction & 0x8000000000000L) == 0)
+				return negative ? "-nan(snan)" : "nan(snan)";
+			if (negative && fraction == 0x8000000000000L)
+				return "-nan(ind)";
+			return negative ? "-nan" : "nan";
+		}
+
+		BigInteger mantissa = exponent == 0 ? fraction : fraction | (1L << 52);
+		int shift = (exponent == 0 ? 1 : exponent) - 1075;
+		BigInteger scaled;
+		if (shift >= 0)
+			scaled = (mantissa << shift) * BigInteger.Pow(10, precision);
+		else {
+			BigInteger num = mantissa * BigInteger.Pow(10, precision);
+			BigInteger den = BigInteger.One << -shift;
+			scaled = BigInteger.DivRem(num, den, out BigInteger rem);
+			int cmp = (rem << 1).CompareTo(den);
+			if (cmp > 0 || (cmp == 0 && !scaled.IsEven))
+				scaled += 1;
+		}
+
+		string digits = scaled.ToString(CultureInfo.InvariantCulture);
+		if (digits.Length <= precision)
+			digits = new string('0', precision - digits.Length + 1) + digits;
+
+		string result = precision > 0 ? $"{digits[..^precision]}.{digits[^precision..]}" : digits;
+		return negative ? "-" + result : result;
+	}
+
+	public static int ScanFloats(ReadOnlySpan<char> str, Span<float> values) {
+		str = str.SliceNullTerminatedString();
+		for (int i = 0; i < values.Length; i++) {
+			float value = strtof(str, out ReadOnlySpan<char> rest);
+			if (rest.Length == str.Length)
+				return i;
+			values[i] = value;
+			str = rest;
+		}
+		return values.Length;
 	}
 
 	public static bool nexttoken(out ReadOnlySpan<char> token, ReadOnlySpan<char> str, char sep, out ReadOnlySpan<char> next) {

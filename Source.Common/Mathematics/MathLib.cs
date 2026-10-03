@@ -18,6 +18,8 @@ public static class MathLibConsts
 	public const int YAW = 1;
 	public const int ROLL = 2;
 
+	public const float FLT_EPSILON = 1.192092896e-07F;
+
 	public static readonly Vector3 vec3_origin = new(0, 0, 0);
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
 
@@ -1957,11 +1959,17 @@ public static class MathLib
 		return 1.0f / invlen;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static float VectorNormalize(ref Vector3 fwd) {
-		float len = fwd.Length();
-		if (len != 0)
-			fwd = Vector3.Normalize(fwd);
-		return len;
+	public static float VectorNormalize(ref Vector3 vec) {
+		float radius = MathF.Sqrt(vec.X * vec.X + vec.Y * vec.Y + vec.Z * vec.Z);
+
+		// FLT_EPSILON is added to the radius to eliminate the possibility of divide by zero.
+		float iradius = 1.0f / (radius + FLT_EPSILON);
+
+		vec.X *= iradius;
+		vec.Y *= iradius;
+		vec.Z *= iradius;
+
+		return radius;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalize(ref Vector2 fwd) {
@@ -2728,17 +2736,66 @@ public static class MathLib
 				pitch = 90;
 		}
 		else {
-			yaw = (MathF.Atan2(forward[1], forward[0]) * 180 / MathF.PI);
+			yaw = (float)(Math.Atan2(forward[1], forward[0]) * (180 / Math.PI));
 			if (yaw < 0)
 				yaw += 360;
 
 			tmp = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
-			pitch = (MathF.Atan2(-forward[2], tmp) * 180 / MathF.PI);
+			pitch = (float)(Math.Atan2(-forward[2], tmp) * (180 / Math.PI));
 			if (pitch < 0)
 				pitch += 360;
 		}
 
 		angles = new(pitch, yaw, 0);
+	}
+
+	/// <summary>
+	/// Forward direction vector with a reference up vector -> Euler angles
+	/// </summary>
+	public static void VectorAngles(in Vector3 forward, in Vector3 pseudoup, out QAngle angles) {
+		angles = default;
+
+		CrossProduct(pseudoup, forward, out Vector3 left);
+		VectorNormalize(ref left);
+
+		float xyDist = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+
+		// enough here to get angles?
+		if (xyDist > 0.001f) {
+			// (yaw)	y = ATAN( forward.y, forward.x );		-- in our space, forward is the X axis
+			angles[1] = RAD2DEG(MathF.Atan2(forward[1], forward[0]));
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles[0] = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			float up_z = (left[1] * forward[0]) - (left[0] * forward[1]);
+
+			// (roll)	z = ATAN( left.z, up.z );
+			angles[2] = RAD2DEG(MathF.Atan2(left[2], up_z));
+		}
+		else    // forward is mostly Z, gimbal lock-
+		{
+			// (yaw)	y = ATAN( -left.x, left.y );			-- forward is mostly z, so use right for yaw
+			angles[1] = RAD2DEG(MathF.Atan2(-left[0], left[1])); //This was originally copied from the "void MatrixAngles( const matrix3x4_t& matrix, float *angles )" code, and it's 180 degrees off, negated the values and it all works now (Dave Kircher)
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles[0] = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			// Assume no roll in this case as one degree of freedom has been lost (i.e. yaw == roll)
+			angles[2] = 0;
+		}
+	}
+
+	public static void AxisAngleQuaternion(in Vector3 axis, float angle, out Quaternion q) {
+		SinCos(DEG2RAD(angle) * 0.5f, out float sa, out float ca);
+		q.X = axis.X * sa;
+		q.Y = axis.Y * sa;
+		q.Z = axis.Z * sa;
+		q.W = ca;
 	}
 
 	public static void Vector3DMultiplyPosition(in Matrix4x4 src1, in Vector3 src2, out Vector3 dst) {

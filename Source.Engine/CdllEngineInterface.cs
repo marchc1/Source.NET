@@ -612,10 +612,10 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public void GMOD_SendToServer(ReadOnlySpan<byte> data, bool reliable) {
+	public void GMOD_SendToServer(ReadOnlySpan<byte> data, int dataBits, bool reliable) {
 		CLC_GMod_ClientToServer msg = new();
 		msg.SetReliable(reliable);
-		msg.ReadPayload(new bf_read(data.ToArray(), data.Length), data.Length * 8);
+		msg.ReadPayload(new bf_read(data.ToArray(), data.Length), dataBits);
 
 		if (cl.NetChannel == null) {
 			Warning("Client sending to server with no netchannel!\n");

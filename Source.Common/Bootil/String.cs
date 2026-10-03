@@ -21,6 +21,8 @@ public static class String
 
 			return $"{bytes} B";
 		}
+
+		public static string UInt64(ulong num) => num.ToString(System.Globalization.CultureInfo.InvariantCulture);
 	}
 
 	public static class To

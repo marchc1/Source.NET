@@ -622,6 +622,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 
 				}
 				return true;
+			case GModMessageType.NetMessage:
+				g_ClientDLL!.GMOD_ReceiveServerMessage(new bf_read(msg.RawData.ToArray(), msg.RawData.Length, msg.RawBits), msg.RawBits);
+				return true;
 			case GModMessageType.LuaCmd: {
 					byte[] data = new byte[1 + msg.LuaCmd.Data.Length];
 					data[0] = (byte)msg.MessageType;

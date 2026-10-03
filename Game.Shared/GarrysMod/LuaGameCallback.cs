@@ -111,7 +111,7 @@ public class LuaGameCallback : ILuaGameCallback
 
 		byte[] data = buf.BaseArray.AsSpan(0, buf.BytesWritten).ToArray();
 		if (C_BasePlayer.GetLocalPlayer() != null)
-			engine.GMOD_SendToServer(data, true);
+			engine.GMOD_SendToServer(data, data.Length * 8, true);
 		else
 			ErrorsToSend.Enqueue(data);
 
@@ -122,8 +122,10 @@ public class LuaGameCallback : ILuaGameCallback
 		if (ErrorsToSend.Count == 0 || C_BasePlayer.GetLocalPlayer() == null)
 			return;
 
-		while (ErrorsToSend.Count > 0)
-			engine.GMOD_SendToServer(ErrorsToSend.Dequeue(), true);
+		while (ErrorsToSend.Count > 0) {
+			byte[] data = ErrorsToSend.Dequeue();
+			engine.GMOD_SendToServer(data, data.Length * 8, true);
+		}
 	}
 
 	public static void ClearQueuedErrors() => ErrorsToSend.Clear();

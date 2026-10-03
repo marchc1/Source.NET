@@ -12,6 +12,10 @@ public static class LuaHelper
 {
 	public static bool IsInErrorCB;
 
+	public static int cvttsd2si(double value) => double.IsNaN(value) || value >= 2147483648.0 || value <= -2147483649.0 ? int.MinValue : (int)value;
+
+	public static long cvttsd2si64(double value) => double.IsNaN(value) || value >= 9223372036854775808.0 || value < -9223372036854775808.0 ? long.MinValue : (long)value;
+
 	public static void CallOnLuaErrorHook(in LuaError error, string? addonTitle, ulong workshopID) {
 		if (g_Lua == null || g_Lua.Global() == null)
 			return;

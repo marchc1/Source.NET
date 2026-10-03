@@ -2311,6 +2311,12 @@ public partial class BaseEntity : IServerEntity
 			gEntList.RemoveEntity(GetRefEHandle());
 		}
 
+		LuaEntityObject?.UnReference();
+		LuaEntityObject = null;
+		LuaTableObject?.UnReference();
+		LuaTableObject = null;
+		LuaCalcAbsolutePosition.UnReference();
+
 		CollisionProp().DestroyPartitionHandle();
 	}
 

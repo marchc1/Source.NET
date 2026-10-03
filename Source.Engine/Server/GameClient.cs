@@ -479,13 +479,8 @@ public class GameClient : BaseClient
 	}
 
 	protected override bool ProcessGMod_ClientToServer(CLC_GMod_ClientToServer msg) {
-		switch (msg.MessageType) {
-			case GModMessageType.LuaFile: {
-					// todo
-				}
-				return true;
-		}
-		return base.ProcessGMod_ClientToServer(msg);
+		serverGameClients.GMOD_ReceiveClientMessage(ClientSlot, Edict, new bf_read(msg.RawData.ToArray(), msg.RawData.Length, msg.RawBits), msg.RawBits);
+		return true;
 	}
 
 	protected override bool SendSignonData() {

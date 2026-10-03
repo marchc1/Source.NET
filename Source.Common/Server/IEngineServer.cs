@@ -322,8 +322,8 @@ public interface IEngineServer
 	int GetServerVersion();
 
 	Span<float> GMOD_SetTimeManipulator(float scaleFramerate);
-	void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter;
-	void GMOD_SendToClient(int client, ReadOnlySpan<byte> data);
+	void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data, int dataBits) where IRF : IRecipientFilter;
+	void GMOD_SendToClient(int client, ReadOnlySpan<byte> data, int dataBits);
 	void GMOD_RawServerCommand(ReadOnlySpan<char> command);
 	IGMODDataTable GMOD_CreateDataTable();
 	void GMOD_DestroyDataTable(IGMODDataTable dataTable);

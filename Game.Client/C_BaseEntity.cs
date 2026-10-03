@@ -1279,6 +1279,12 @@ public partial class C_BaseEntity : IClientEntity
 		DestroyModelInstance();
 		RemoveFromLeafSystem();
 		RemoveFromAimEntsList();
+
+		LuaEntityObject?.UnReference();
+		LuaEntityObject = null;
+		LuaTableObject?.UnReference();
+		LuaTableObject = null;
+		LuaCalcAbsolutePosition.UnReference();
 	}
 
 	public bool OnPredictedEntityRemove(bool isbeingremoved, C_BaseEntity predicted) {

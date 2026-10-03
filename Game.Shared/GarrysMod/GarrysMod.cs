@@ -28,6 +28,7 @@ public static class GarrysModSingletons
 
 public class GarrysMod : IGarrysMod
 {
+	public static readonly ConVar lua_strict = new("lua_strict", "0", FCvar.Replicated | FCvar.Notify, "Enable extra checks for Lua API, such as argument type checking, errors that normally would be silent, etc. Useful to catch bugs in code when developing addons.");
 	static readonly ConVar sv_allowcslua = new("sv_allowcslua", "0", FCvar.Archive | FCvar.Notify | FCvar.Replicated, "Allow clients to run clientside addons. This will override any gamemode setting!");
 
 	public void DLLInit(IServiceCollection services) {
@@ -242,7 +243,11 @@ public class GarrysMod : IGarrysMod
 			g_Lua.Global().SetMember("SERVER", true);
 			g_Lua.Global().SetMember("CLIENT", false);
 #endif
-			// MakeLuaNULLEntity();
+#if CLIENT_DLL
+			LuaEntity.MakeLuaNULLEntity();
+#else
+			Game.Server.GarrysMod.LuaEntity.MakeLuaNULLEntity();
+#endif
 			// g_Lua.FindAndRunScript("includes/init.lua", true, true, "!UNKNOWN", true);
 #if CLIENT_DLL
 			// if (gGM == null)
@@ -315,7 +320,7 @@ public class GarrysMod : IGarrysMod
 			return;
 		}
 
-		engine.GMOD_SendToClient(ref filter, BroadcastLuaData.AsSpan(0, BroadcastLuaWrite.BytesWritten));
+		engine.GMOD_SendToClient(ref filter, BroadcastLuaData.AsSpan(0, BroadcastLuaWrite.BytesWritten), BroadcastLuaWrite.BitsWritten);
 	}
 
 	[ConCommand("lua_run_cl", "Run a Lua command", FCvar.DontRecord)]

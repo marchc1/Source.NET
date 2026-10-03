@@ -50,11 +50,23 @@ public class LuaClass
 		return g_Lua.GetObjectUserType<object>(stackPos, Type);
 	}
 
+	public ref T GetValue<T>(int stackPos) where T : unmanaged {
+		if (!g_Lua!.IsType(stackPos, Type))
+			g_Lua.TypeError(Name, stackPos);
+		return ref g_Lua.GetValueUserType<T>(stackPos, Type);
+	}
+
 	public bool Is(int stackPos) => g_Lua!.IsType(stackPos, Type);
 
 	public void Add(LuaClassFunction func) {
 		Functions ??= [];
 		Functions.Add(func);
+	}
+
+	public LuaClassFunction Add(string name, CFunc function) {
+		LuaClassFunction func = new() { Name = name, Function = function };
+		Add(func);
+		return func;
 	}
 
 	public void Push(object? data) {
