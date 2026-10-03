@@ -31,4 +31,22 @@ public class LuaLibrary(string name) : LuaUser
 		table.UnReference();
 	}
 }
+
+public class LuaGlobalLibrary() : LuaLibrary("GLOBAL")
+{
+	static LuaGlobalLibrary? Factory;
+
+	public static LuaGlobalLibrary GetGlobalLuaLibraryFactory() => Factory ??= new();
+
+	public static LuaLibraryFunction Add(string name, CFunc function) {
+		LuaLibraryFunction func = new() { Name = name, Function = function };
+		GetGlobalLuaLibraryFactory().Add(func);
+		return func;
+	}
+
+	public override void InitLibraries(ILuaInterface lua) {
+		for (int i = 0; i < Functions.Count; i++)
+			lua.Global().SetMember(Functions[i].Name, Functions[i].Function!);
+	}
+}
 #endif
