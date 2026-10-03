@@ -66,7 +66,7 @@ public class CvarUtilities(ICvar cvar, Host Host, Cmd cmd)
 			else {
 				--len;
 				// wow! this sucks!
-				new Span<char>((void*)((nint)pArgS + 1), argS.Length - 1).CopyTo(new(remaining, LEN_REMAINING));
+				new Span<char>(pArgS + 1, argS.Length - 1).CopyTo(new(remaining, LEN_REMAINING));
 			}
 
 			char* p = remaining + len - 1;
