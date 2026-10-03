@@ -199,6 +199,16 @@ public class ViewRender : IViewRender
 		if (player != null) {
 			player.CalcView(ref viewEye.Origin, ref viewEye.Angles, ref viewEye.ZNear, ref viewEye.ZFar, ref viewEye.FOV);
 
+			int viewentity = render.GetViewEntity();
+
+			if (player.Index != viewentity) {
+				C_BaseEntity? ve = cl_entitylist.GetEnt(viewentity);
+				if (ve != null) {
+					viewEye.Origin = ve.GetAbsOrigin();
+					viewEye.Angles = ve.GetAbsAngles();
+				}
+			}
+
 			calcViewModelView = true;
 			viewModelOrigin = viewEye.Origin;
 			viewModelAngles = viewEye.Angles;

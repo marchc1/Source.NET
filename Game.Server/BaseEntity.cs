@@ -1898,6 +1898,12 @@ public partial class BaseEntity : IServerEntity
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetEFlags(EFL flags) {
+		eflags = flags;
+		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
+			DispatchUpdateTransmitState();
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddEFlags(EFL flags) {
 		eflags |= flags;
 		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
@@ -2574,6 +2580,14 @@ public partial class BaseEntity : IServerEntity
 			FnUse(activator, caller, useType, value);
 		else
 			Parent.Get()?.Use(activator, caller, useType, value);
+	}
+
+	public int ShouldToggle(UseType useType, int currentState) {
+		if (useType != UseType.Toggle && useType != UseType.Set) {
+			if ((currentState != 0 && useType == UseType.On) || (currentState == 0 && useType == UseType.Off))
+				return 0;
+		}
+		return 1;
 	}
 
 	public string? Target;

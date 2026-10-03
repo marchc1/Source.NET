@@ -176,7 +176,12 @@ public class BaseEntityOutput
 
 	public int Restore(IRestore restore, int elementCount) => throw new NotImplementedException();
 
-	public int NumberOfElements() => throw new NotImplementedException();
+	public int NumberOfElements() {
+		int count = 0;
+		for (EventAction? ev = ActionList; ev != null; ev = ev.Next)
+			count++;
+		return count;
+	}
 
 	public void DeleteAllElements() => throw new NotImplementedException();
 
@@ -468,7 +473,28 @@ public class EventQueue
 		}
 	}
 
-	public void CancelEvents(BaseEntity? caller) => throw new NotImplementedException();
+	public void CancelEvents(BaseEntity? caller) {
+		if (caller == null)
+			return;
+
+		EventQueuePrioritizedEvent? cur = Events.Next;
+
+		while (cur != null) {
+			bool delete = false;
+			BaseEntity? curCaller = cur.Caller.Get();
+			if (curCaller == caller) {
+				if (curCaller.GetEntityName().Equals(caller.GetEntityName(), StringComparison.OrdinalIgnoreCase) &&
+					curCaller.GetClassname().Equals(caller.GetClassname(), StringComparison.OrdinalIgnoreCase))
+					delete = true;
+			}
+
+			EventQueuePrioritizedEvent curSave = cur;
+			cur = cur.Next;
+
+			if (delete)
+				RemoveEvent(curSave);
+		}
+	}
 
 	public void CancelEventOn(BaseEntity? target, ReadOnlySpan<char> inputName) => throw new NotImplementedException();
 

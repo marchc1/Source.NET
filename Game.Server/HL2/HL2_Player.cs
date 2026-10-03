@@ -221,7 +221,7 @@ public class HL2_Player : BaseMultiplayerPlayer
 
 	void StartZooming() { }
 
-	void StopZooming() { }
+	public void StopZooming() { }
 
 	bool IsZooming() {
 		throw new NotImplementedException();
