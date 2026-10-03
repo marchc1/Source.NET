@@ -80,7 +80,7 @@ public interface ILuaInterface : ILuaBase
 	void GetCurrentFile(out string outStr);
 	bool CompileString(out byte[] dump, ReadOnlySpan<char> stringToCompile);
 	bool CallFunctionProtected(int args, int rets, bool showError);
-	void Require(ReadOnlySpan<char> name);
+	bool Require(ReadOnlySpan<char> name);
 	string GetActualTypeName(int stackPos);
 	void PreCreateTable(int arrelems, int nonarrelems);
 	void PushPooledString(int index);
