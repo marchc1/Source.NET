@@ -10,6 +10,7 @@ global using static Source.GlobalReflectionUtils;
 global using static Source.Common.RecvPropHelpers;
 global using static Source.Common.SendPropHelpers;
 global using static Source.Common.GameEventConstants;
+global using static Source.Common.Input.InputEnums;
 global using static Source.Common.RandomGlobals;
 global using static Source.Common.Utilities.UtlSymbolGlobals;
 global using static Source.Common.Physics.PhysicsConversions;
