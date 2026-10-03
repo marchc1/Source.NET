@@ -15,15 +15,15 @@ static class AssetUtils
 	private const string GModLocalPath = "steamapps/common/GarrysMod";
 
 	public static void CheckRequired() {
-		string? root = Path.Combine(FindProjectRoot(), "Game.Assets");
+		string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
-		if (GetRequiredAssets().All(asset => IsAssetLinked(asset.LocalPath, root)))
+		if (GetRequiredAssets().All(asset => IsAssetLinked(asset.LocalPath, exeDir)))
 			return;
 
 		bool result = Singleton<MessageBoxFn>()("Source.NET", "Missing required content, should we automatically link it?", true);
 
 		if (result)
-			LinkAllAssets(root, true);
+			LinkAllAssets(exeDir);
 	}
 
 	public static List<AssetMapping> GetRequiredAssets() {
@@ -268,11 +268,7 @@ public class AssetLinker : Frame
 	private readonly string ProjectRoot;
 
 	public AssetLinker() : base(null, "AssetLinker") {
-		ProjectRoot = AssetUtils.FindProjectRoot();
-		if (string.IsNullOrEmpty(ProjectRoot) || !Directory.Exists(ProjectRoot))
-			ProjectRoot = AppDomain.CurrentDomain.BaseDirectory!;
-
-		ProjectRoot = Path.Combine(ProjectRoot, "Game.Assets");
+		ProjectRoot = AppDomain.CurrentDomain.BaseDirectory;
 
 		SetTitle("Asset Linker", true);
 		SetSize(620, 400);
