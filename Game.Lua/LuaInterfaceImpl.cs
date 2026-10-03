@@ -61,7 +61,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	string pathID = "";
 
 	readonly int[] metaTableRefs = new int[MAX_CACHED_META_TABLES + 1];
-	int nextMetaTableType = (int)LuaType.Type_Count;
+	int nextMetaTableType = (int)LuaType.Count;
 
 	readonly Dictionary<CFunc, nint> functionPointers = [];
 	readonly Dictionary<nint, CFunc> functionsByPointer = [];
@@ -83,7 +83,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		gameCallback = callbacks;
 		global = CreateObject();
 		Array.Clear(temporaryObjects);
-		nextMetaTableType = (int)LuaType.Type_Count;
+		nextMetaTableType = (int)LuaType.Count;
 		Array.Fill(metaTableRefs, -1);
 		temporaryObjectIndex = 0;
 
@@ -493,7 +493,7 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 	public string GetTypeName(LuaType type) {
 		if (type < 0)
 			return "none";
-		if (type >= LuaType.Type_Count)
+		if (type >= LuaType.Count)
 			return "unknown";
 		return LuaShared.GetTypeName(type);
 	}
@@ -908,7 +908,8 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		return str;
 	}
 
-	public bool RunLuaModule(ReadOnlySpan<char> name) => throw new NotImplementedException();
+	public bool RunLuaModule(ReadOnlySpan<char> name) => FindAndRunScript($"includes/modules/{name}.lua", true, true, "!MODULE", true);
+
 	public bool FindAndRunScript(ReadOnlySpan<char> filename, bool run, bool showErrors, ReadOnlySpan<char> source, bool noReturns) {
 		Span<char> file = stackalloc char[MAX_PATH];
 		strcpy(file, filename);
@@ -1294,7 +1295,50 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 		return false;
 	}
 
-	public void Require(ReadOnlySpan<char> name) => throw new NotImplementedException();
+	public bool Require(ReadOnlySpan<char> name) {
+		string module = new(name[..Math.Min(name.Length, 126)]);
+
+		ILuaObject modules = CreateObject();
+		Global().GetMember("_MODULES", modules);
+		if (!modules.isTable()) {
+			CreateTable();
+			modules.SetFromStack(-1);
+			Pop(1);
+			Global().SetMember("_MODULES", modules);
+		}
+
+		ILuaObject loaded = CreateObject();
+		modules.GetMember(module, loaded);
+		if (!loaded.isNil()) {
+			DestroyObject(modules);
+			DestroyObject(loaded);
+			return true;
+		}
+		DestroyObject(loaded);
+
+		bool found = filesystem.FileExists($"lua/includes/modules/{module}.lua", "MOD");
+		if (!found) {
+			string binary = $"lua/bin/{(IsClient() ? "gmcl_" : "gmsv_")}{module}_win64.dll";
+			if (filesystem.FileExists(binary, "MOD")) {
+				if (binary.Contains("..") || binary.Contains(':') || binary.Contains("//") || binary.Contains('\\'))
+					return false;
+
+				ErrorNoHalt("Binary modules are not supported in Source.NET (yet...)\n");
+				DestroyObject(modules);
+				return false;
+			}
+		}
+
+		found = RunLuaModule(module);
+		if (!found) {
+			DestroyObject(modules);
+			Error("Module not found!");
+		}
+
+		modules.SetMember(module, true);
+		DestroyObject(modules);
+		return found;
+	}
 
 	public string GetActualTypeName(int stackPos) {
 		byte* name = lua_typename(state, lua_type(state, stackPos), stackPos);
