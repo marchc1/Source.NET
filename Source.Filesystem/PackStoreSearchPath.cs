@@ -30,6 +30,7 @@ public class PackStoreSearchPath : BaseSearchPath
 {
 	private readonly IFileSystem parent;
 	private readonly VpkArchive vpk;
+	private readonly string VpkPath;
 
 	private Dictionary<UtlSymId_t, VpkEntry> vpkEntryLookups = [];
 	private Dictionary<UtlSymId_t, VpkDirectory> vpkDirectoryLookups = [];
@@ -43,6 +44,7 @@ public class PackStoreSearchPath : BaseSearchPath
 		absPath = absPath.EndsWith("_dir") ? absPath.Substring(0, absPath.Length - "_dir".Length) : absPath;
 		absPath = absPath.Replace('\\', '/');
 		absPath = $"{absPath}_dir.vpk";
+		VpkPath = absPath;
 		parent = filesystem;
 		vpk = new VpkArchive();
 		vpk.Load(absPath);
@@ -108,7 +110,9 @@ public class PackStoreSearchPath : BaseSearchPath
 	}
 
 	public override DateTime Time(ReadOnlySpan<char> path) {
-		return DateTime.MinValue;
+		if (!vpkEntryLookups.ContainsKey(path.Hash()))
+			return DateTime.UnixEpoch;
+		return File.GetLastWriteTimeUtc(VpkPath);
 	}
 
 	public override object? GetPackedStore() {
