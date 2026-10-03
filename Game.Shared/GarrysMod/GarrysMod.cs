@@ -110,6 +110,8 @@ public class GarrysMod : IGarrysMod
 		get.UpdateRichPresense(status);
 	}
 
+	public bool BlockRetryCommand;
+
 	public static bool RunningLuaCmd;
 	static readonly byte[] LuaCmd = new byte[0x1800];
 

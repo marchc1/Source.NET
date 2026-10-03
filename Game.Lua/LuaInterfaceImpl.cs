@@ -1389,8 +1389,26 @@ public unsafe class LuaInterfaceImpl : ILuaInterface
 			output.Append("\t*Not in Lua call OR Lua has panicked*\n");
 		output.Append('\n');
 	}
-	public ConVar CreateConVar(ReadOnlySpan<char> name, ReadOnlySpan<char> defaultValue, ReadOnlySpan<char> helpString, int flags) => throw new NotImplementedException();
-	public ConCommand CreateConCommand(ReadOnlySpan<char> name, ReadOnlySpan<char> helpString, int flags, FnCommandCallback? callback, FnCommandCompletionCallback? completionCallback) => throw new NotImplementedException();
+	public ConVar CreateConVar(ReadOnlySpan<char> name, ReadOnlySpan<char> defaultValue, ReadOnlySpan<char> helpString, int flags) {
+		FilterConVarFlags(ref flags);
+		return luaconvars.CreateConVar(name, defaultValue, helpString, flags);
+	}
+	public ConCommand CreateConCommand(ReadOnlySpan<char> name, ReadOnlySpan<char> helpString, int flags, FnCommandCallback? callback, FnCommandCompletionCallback? completionCallback) {
+		FilterConVarFlags(ref flags);
+		if (IsServer())
+			flags |= (int)FCvar.ClientCmdCanExecute;
+		return luaconvars.CreateConCommand(name, helpString, flags, callback, completionCallback);
+	}
+
+	void FilterConVarFlags(ref int flags) {
+		flags &= ~(int)(FCvar.GameDLL | FCvar.ClientDLL | FCvar.LuaClient | FCvar.LuaServer);
+		if (IsServer())
+			flags |= (int)(FCvar.LuaServer | FCvar.GameDLL);
+		if (IsClient())
+			flags |= (int)(FCvar.ServerCanExecute | FCvar.LuaClient | FCvar.ClientDLL);
+		if (IsMenu())
+			flags &= ~(int)FCvar.Archive;
+	}
 
 	public string CheckStringOpt(int stackPos, ReadOnlySpan<char> def) {
 		if (lua_type(state, stackPos) <= TNIL)

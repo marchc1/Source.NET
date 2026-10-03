@@ -5,9 +5,9 @@ namespace Source.Common.GarrysMod.Lua;
 public interface ILuaConVars
 {
 	void Init();
-	ConVar CreateConVar(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk12, ReadOnlySpan<char> unk3, int unk4);
-	ConCommand CreateConCommand(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2, int unk3, FnCommandCallback unk4, FnCommandCompletionCallback unk5);
+	ConVar CreateConVar(ReadOnlySpan<char> name, ReadOnlySpan<char> defaultValue, ReadOnlySpan<char> helpString, int flags);
+	ConCommand CreateConCommand(ReadOnlySpan<char> name, ReadOnlySpan<char> helpString, int flags, FnCommandCallback? callback, FnCommandCompletionCallback? completionFunc);
 	void DestroyManaged();
-	void Cache(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2);
+	void Cache(ReadOnlySpan<char> name, ReadOnlySpan<char> value);
 	void ClearCache();
 }

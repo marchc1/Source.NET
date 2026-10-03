@@ -193,6 +193,10 @@ public class ConVar : ConCommandBase, IConVar
 		parent!.Flags |= flags;
 	}
 
+	public override FCvar GetFlags() {
+		return parent!.Flags;
+	}
+
 	public override bool IsRegistered() {
 		return parent!.Registered;
 	}
@@ -377,6 +381,15 @@ public class ConVar : ConCommandBase, IConVar
 	public bool GetMax(out double max) {
 		max = this.maxVal;
 		return this.hasMax;
+	}
+
+	public void SetMin(bool hasMin, double min) {
+		this.hasMin = hasMin;
+		this.minVal = min;
+	}
+	public void SetMax(bool hasMax, double max) {
+		this.hasMax = hasMax;
+		this.maxVal = max;
 	}
 
 	public void Revert() {

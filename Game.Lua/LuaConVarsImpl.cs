@@ -14,20 +14,51 @@ public class LuaConVarsImpl : ILuaConVars
 	KeyValues? ClientCVars;
 	KeyValues? ServerCVars;
 
-	public void Cache(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2) {
-		throw new NotImplementedException();
+	readonly SortedDictionary<string, string> CachedValues = new(StringComparer.Ordinal);
+
+	public void Cache(ReadOnlySpan<char> name, ReadOnlySpan<char> value) {
+		CachedValues[name.ToString()] = value.ToString();
 	}
 
 	public void ClearCache() {
-		throw new NotImplementedException();
+		CachedValues.Clear();
 	}
 
-	public ConCommand CreateConCommand(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk2, int unk3, FnCommandCallback unk4, FnCommandCompletionCallback unk5) {
-		throw new NotImplementedException();
+	public ConCommand CreateConCommand(ReadOnlySpan<char> name, ReadOnlySpan<char> helpString, int flags, FnCommandCallback? callback, FnCommandCompletionCallback? completionFunc) {
+		bool lua = (flags & (int)(FCvar.LuaClient | FCvar.LuaServer)) != 0;
+		ConCommand command = new(name.ToString(), callback!, helpString.ToString(), (FCvar)flags, completionFunc);
+		cvar.SetAssemblyIdentifier(typeof(LuaConVarsImpl).Assembly);
+		cvar.RegisterConCommand(command);
+		if (lua)
+			Managed.Add(new(command, false, false));
+		return command;
 	}
 
-	public ConVar CreateConVar(ReadOnlySpan<char> unk1, ReadOnlySpan<char> unk12, ReadOnlySpan<char> unk3, int unk4) {
-		throw new NotImplementedException();
+	public ConVar CreateConVar(ReadOnlySpan<char> name, ReadOnlySpan<char> defaultValue, ReadOnlySpan<char> helpString, int flags) {
+		bool archive = (flags & (int)FCvar.Archive) != 0;
+		bool replicated = (flags & (int)FCvar.Replicated) != 0;
+		bool lua = (flags & (int)(FCvar.LuaClient | FCvar.LuaServer)) != 0;
+
+		ConVar convar = new(name.ToString(), defaultValue.ToString(), (FCvar)(flags & unchecked((int)0xFF4FFF7F)), helpString.ToString());
+		cvar.SetAssemblyIdentifier(typeof(LuaConVarsImpl).Assembly);
+		cvar.RegisterConCommand(convar);
+		if (lua)
+			Managed.Add(new(convar, true, archive));
+
+		if (archive) {
+			string? value = null;
+			if ((flags & (int)FCvar.LuaClient) != 0)
+				value = ClientCVars!.FindKey(name) != null ? ClientCVars.GetString(name).ToString() : null;
+			if ((flags & (int)FCvar.LuaServer) != 0)
+				value = ServerCVars!.FindKey(name) != null ? ServerCVars.GetString(name).ToString() : null;
+			if (value != null)
+				convar.SetValue(value);
+		}
+
+		if (replicated && CachedValues.Remove(name.ToString(), out string? cached))
+			convar.SetValue(cached);
+
+		return convar;
 	}
 
 	public void DestroyManaged() {
