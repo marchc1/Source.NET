@@ -189,7 +189,7 @@ public class GarrysMod : IGarrysMod
 			g_LuaManager.Startup();
 #if GAME_DLL
 			// gGM.LoadCurrentlyActiveGamemode();
-			// GModDataPack.BuildSearchPaths();
+			Game.Server.GarrysMod.GModDataPack.DataPack().BuildSearchPaths();
 #endif
 			return true;
 		}
@@ -229,7 +229,7 @@ public class GarrysMod : IGarrysMod
 			g_Lua.Global().SetMember("VERSIONSTR", get.VersionStr());
 			g_Lua.Global().SetMember("BRANCH", get.Branch());
 #if GAME_DLL
-			// GarrysMod.FileServ.Add("lua/send.txt");
+			Game.Server.GarrysMod.FileServ.Add("lua/send.txt");
 #endif
 #if CLIENT_DLL
 			LuaUser.InitLuaLibraries(g_Lua);

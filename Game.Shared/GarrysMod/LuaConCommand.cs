@@ -12,6 +12,7 @@ namespace Game.Server.GarrysMod;
 public static class LuaConCommands
 {
 	static readonly LuaLibraryFunction worker__GLobal__AddConsoleCommand = LuaGlobalLibrary.Add("AddConsoleCommand", AddConsoleCommand);
+	static readonly LuaLibraryFunction worker__GLobal__AddCSLuaFile = LuaGlobalLibrary.Add("AddCSLuaFile", AddCSLuaFile);
 
 	static readonly string[] s_BannedConvars = [
 		"crosshair_setup",
@@ -490,6 +491,28 @@ public static class LuaConCommands
 		concommand.UnReference();
 
 		return commands;
+	}
+
+	static int AddCSLuaFile(ILuaInterface lua) {
+#if GAME_DLL
+		g_Lua!.GetCurrentFile(out string current);
+
+		string file;
+		if (g_Lua.GetType(1) == LuaType.Nil) {
+			g_Lua.GetCurrentFile(out file);
+			Bootil.String.File.ExtractFilename(ref file);
+		}
+		else
+			file = g_Lua.CheckString(1);
+
+		Bootil.String.Lower(ref file);
+		Bootil.String.Lower(ref current);
+
+		LuaFile? luaFile = FileServ.AddCSLuaFile(file, null);
+		if (luaFile != null && luaFile.Source.Length == 0)
+			luaFile.Source = current;
+#endif
+		return 0;
 	}
 
 	static bool IsValidConsoleNameLite(ReadOnlySpan<char> name) {
