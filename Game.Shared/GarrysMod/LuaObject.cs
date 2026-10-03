@@ -180,6 +180,13 @@ public class LuaObject : ILuaObject
 		g_Lua.SetMember(this, name);
 	}
 
+	public void SetMember(ReadOnlySpan<char> name, ReadOnlySpan<byte> val) {
+		if (!isTable())
+			return;
+		g_Lua!.PushString(val);
+		g_Lua.SetMember(this, name);
+	}
+
 	public void SetMember(ReadOnlySpan<char> name, CFunc f) {
 		if (!isTable())
 			return;
