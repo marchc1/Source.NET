@@ -1898,6 +1898,12 @@ public partial class BaseEntity : IServerEntity
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetEFlags(EFL flags) {
+		eflags = flags;
+		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
+			DispatchUpdateTransmitState();
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddEFlags(EFL flags) {
 		eflags |= flags;
 		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
