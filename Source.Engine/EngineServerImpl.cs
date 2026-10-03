@@ -5,6 +5,7 @@ using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
@@ -633,7 +634,39 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void Message_DetermineMulticastRecipients(bool usepas, in Vector3 origin, ref AbsolutePlayerLimitBitVec playerbits) {
-		throw new NotImplementedException();
+		int cluster = CM.LeafCluster(CM.PointLeafnum(origin));
+		byte[] pvs = new byte[BSPFileCommon.MAX_MAP_LEAFS / 8];
+		int visflag = usepas ? CM.DVIS_PAS : CM.DVIS_PVS;
+
+		CM.Vis(pvs, pvs.Length, cluster, visflag);
+
+		playerbits.ClearAll();
+
+		// Check for relevent clients
+		for (int i = 0; i < sv.GetClientCount(); i++) {
+			GameClient client = sv.Client(i);
+
+			if (!client.IsActive())
+				continue;
+
+			// HACK:  Should above also check pClient->spawned instead of this
+			if (client.Edict == null || client.Edict.IsFree() || client.Edict.GetUnknown() == null)
+				continue;
+
+			// Always add the or Replay client
+			if (client.IsHLTV()) {
+				playerbits.Set(i);
+				continue;
+			}
+
+			serverGameClients.ClientEarPosition(client.Edict, out Vector3 vecEarPosition);
+
+			int iBitNumber = CM.LeafCluster(CM.PointLeafnum(vecEarPosition));
+			if ((pvs[iBitNumber >> 3] & (1 << (iBitNumber & 7))) == 0)
+				continue;
+
+			playerbits.Set(i);
+		}
 	}
 
 	public void MultiplayerEndGame() {
@@ -915,11 +948,14 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter {
-		throw new NotImplementedException();
+	public void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data, int dataBits) where IRF : IRecipientFilter {
+		SVC_GMod_ServerToClient msg = new();
+		msg.SetReliable(true);
+		msg.ReadPayload(new bf_read(data.ToArray(), data.Length), dataBits);
+		sv.BroadcastMessage(msg, filter);
 	}
 
-	public void GMOD_SendToClient(int client, ReadOnlySpan<byte> data) {
+	public void GMOD_SendToClient(int client, ReadOnlySpan<byte> data, int dataBits) {
 		throw new NotImplementedException();
 	}
 

@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Flare>;
+[LinkEntityToClass("env_flare")]
 [NetworkName("CFlare")]
 public class Flare : BaseCombatCharacter
 {

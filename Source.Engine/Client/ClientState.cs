@@ -285,7 +285,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 		}
 
 		Sound.StopAllSounds(true);
+#if !SWDS
 		Render.DecalTermAll();
+#endif
 
 		if (MaxClients > 1)
 			if (EngineVGui!.IsConsoleVisible() == false)
@@ -618,6 +620,16 @@ IModelLoader modelloader, ICommandLine commandLine,
 					// Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
 					g_ClientDLL!.GMOD_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span);
 
+				}
+				return true;
+			case GModMessageType.NetMessage:
+				g_ClientDLL!.GMOD_ReceiveServerMessage(new bf_read(msg.RawData.ToArray(), msg.RawData.Length, msg.RawBits), msg.RawBits);
+				return true;
+			case GModMessageType.LuaCmd: {
+					byte[] data = new byte[1 + msg.LuaCmd.Data.Length];
+					data[0] = (byte)msg.MessageType;
+					msg.LuaCmd.Data.Span.CopyTo(data.AsSpan(1));
+					g_ClientDLL!.GMOD_ReceiveServerMessage(new bf_read(data, data.Length), data.Length * 8);
 				}
 				return true;
 		}
@@ -1078,7 +1090,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 		PrecacheItem p = DecalPrecache[tableIndex];
 		p.SetDecal(new(name));
 
+#if !SWDS
 		Render.Draw_DecalSetName(tableIndex, name);
+#endif
 	}
 
 	public void SetModel(int tableIndex) {

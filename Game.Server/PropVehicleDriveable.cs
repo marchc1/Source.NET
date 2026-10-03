@@ -7,6 +7,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<PropVehicleDriveable>;
 
+[LinkEntityToClass("prop_vehicle_driveable")]
 [NetworkName("CPropVehicleDriveable")]
 public class PropVehicleDriveable : BaseAnimating
 {

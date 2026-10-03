@@ -1,3 +1,5 @@
+using Game.Lua;
+using Game.MenuSystem;
 using Game.Server;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +10,8 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GarrysMod;
+using Source.Common.GarrysMod.Lua;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.SoundEmitterSystem;
@@ -106,6 +110,10 @@ public class Bootloader : IDisposable
 			.WithComponent<IStudioRender, StudioRenderContext>()
 			.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 			.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
+#if GMOD_DLL
+			.WithComponent<ILuaShared, LuaSharedImpl>()
+			.WithComponent<IMenuSystem, MenuSystem>()
+#endif
 			.WithComponent<MessageBoxFn>(PromptInConsole)
 			// Our game DLL'
 			.WithGameDLL<ServerGameDLL>()
@@ -125,7 +133,7 @@ public class Bootloader : IDisposable
 	private bool PromptInConsole(ReadOnlySpan<char> title, ReadOnlySpan<char> info, bool showOkAndCancel) {
 		Msg($"MESSAGE \"{title}\":\n");
 		Msg($"    {info}");
-		if(showOkAndCancel)
+		if (showOkAndCancel)
 			Msg(" (<Y>es or <N>o)");
 		Msg($"\n");
 		Console.Beep();

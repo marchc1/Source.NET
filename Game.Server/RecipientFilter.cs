@@ -56,9 +56,36 @@ public class RecipientFilter : IRecipientFilter
 			AddRecipient(player);
 		}
 	}
-	public void AddRecipientsByPVS(in Vector3 origin) { }
+	public void AddPlayersFromBitMask(ref AbsolutePlayerLimitBitVec playerbits) {
+		int index = playerbits.FindNextSetBit(0);
+
+		while (index > -1) {
+			BasePlayer? player = Util.PlayerByIndex(index + 1);
+			if (player != null)
+				AddRecipient(player);
+
+			index = playerbits.FindNextSetBit(index + 1);
+		}
+	}
+	public void AddRecipientsByPVS(in Vector3 origin) {
+		if (gpGlobals.MaxClients == 1)
+			AddAllPlayers();
+		else {
+			AbsolutePlayerLimitBitVec playerbits = default;
+			engine.Message_DetermineMulticastRecipients(false, origin, ref playerbits);
+			AddPlayersFromBitMask(ref playerbits);
+		}
+	}
 	public void RemoveRecipientsByPVS(in Vector3 origin) { }
-	public void AddRecipientsByPAS(in Vector3 origin) { }
+	public void AddRecipientsByPAS(in Vector3 origin) {
+		if (gpGlobals.MaxClients == 1)
+			AddAllPlayers();
+		else {
+			AbsolutePlayerLimitBitVec playerbits = default;
+			engine.Message_DetermineMulticastRecipients(true, origin, ref playerbits);
+			AddPlayersFromBitMask(ref playerbits);
+		}
+	}
 	public void AddRecipient(BasePlayer player) {
 		Assert(player != null);
 
@@ -81,7 +108,15 @@ public class RecipientFilter : IRecipientFilter
 		Recipients.Add(index);
 	}
 	public void RemoveAllRecipients() => Recipients.Clear();
-	public void RemoveRecipient(BasePlayer player) { }
+	public void RemoveRecipient(BasePlayer player) {
+		Assert(player != null);
+		if (player != null) {
+			int index = player.EntIndex();
+
+			// Remove it if it's in the list
+			Recipients.Remove(index);
+		}
+	}
 	public void RemoveRecipientByPlayerIndex(int playerindex) { }
 	public void AddRecipientsByTeam(Team team) { }
 	public void RemoveRecipientsByTeam(Team team) { }

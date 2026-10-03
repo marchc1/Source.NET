@@ -6,6 +6,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<EnvWind>;
 using FIELD_EWS = FIELD<EnvWindShared>;
+[LinkEntityToClass("env_wind")]
 [NetworkName("CEnvWind")]
 public class EnvWind : BaseEntity
 {

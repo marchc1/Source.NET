@@ -10,6 +10,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<ColorCorrection>;
 
+[LinkEntityToClass("color_correction")]
 [NetworkName("CColorCorrection")]
 public class ColorCorrection : BaseEntity
 {

@@ -1,4 +1,4 @@
-// TODO: Logging calls when things go wrong, ie. try/catches
+﻿// TODO: Logging calls when things go wrong, ie. try/catches
 
 
 using CommunityToolkit.HighPerformance;
@@ -14,6 +14,7 @@ using Source.Filesystem.GarrysMod;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Source.FileSystem;
 
@@ -308,12 +309,27 @@ public class BaseFileSystem : IFileSystem
 		return ISearchPath.Concat(winner, fileName, dest);
 	}
 
-	public bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative) {
+	public bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative) => FullPathToRelativePathEx(fullPath, null, relative);
+
+	public bool FullPathToRelativePathEx(ReadOnlySpan<char> fullPath, ReadOnlySpan<char> pathID, Span<char> relative) {
 		fullPath = fullPath.SliceNullTerminatedString();
+		pathID = pathID.SliceNullTerminatedString();
+		if (fullPath.IsEmpty) {
+			if (!relative.IsEmpty)
+				relative[0] = '\0';
+			return false;
+		}
+
+		strcpy(relative, fullPath);
+
 		Span<char> fullPathNormalized = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> normalized = ISearchPath.Normalize(fullPath, fullPathNormalized);
 
+		ulong pathIDHash = pathID.IsEmpty ? 0 : pathID.Hash();
 		foreach (var searchPaths in SearchPaths) {
+			if (!pathID.IsEmpty && searchPaths.Key != pathIDHash)
+				continue;
+
 			foreach (var searchPath in searchPaths.Value.GetSortOrder()) {
 				if (searchPath is not DiskSearchPath)
 					continue;
@@ -333,8 +349,6 @@ public class BaseFileSystem : IFileSystem
 			}
 		}
 
-		if (!relative.IsEmpty)
-			relative[0] = '\0';
 		return false;
 	}
 
@@ -375,6 +389,31 @@ public class BaseFileSystem : IFileSystem
 			return;
 
 		collection.RequestOnly = requestOnly;
+	}
+
+	public int GetSearchPath(ReadOnlySpan<char> pathID, bool getPackFiles, Span<char> dest) {
+		if (!dest.IsEmpty)
+			dest[0] = '\0';
+
+		StringBuilder path = new();
+		if (SearchPaths.TryGetValue(pathID.Hash(), out var collection)) {
+			foreach (ISearchPath searchPath in collection.GetSortOrder()) {
+				if (!getPackFiles && searchPath.GetPackFile() != null)
+					continue;
+
+				if (path.Length > 0)
+					path.Append(';');
+
+				path.Append(searchPath.GetPathString());
+				if (searchPath.GetPackFile() != null)
+					path.Append('\\');
+			}
+		}
+
+		if (!dest.IsEmpty)
+			strcpy(dest, path.ToString());
+
+		return path.Length + 1;
 	}
 
 	public FileSystemMountRetval MountSteamContent(long extraAppID = -1) {

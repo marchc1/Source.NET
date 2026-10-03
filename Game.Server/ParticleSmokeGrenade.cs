@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ParticleSmokeGrenade>;
+[LinkEntityToClass("env_particlesmokegrenade")]
 [NetworkName("ParticleSmokeGrenade")]
 public class ParticleSmokeGrenade : BaseParticleEntity
 {

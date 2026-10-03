@@ -80,6 +80,8 @@ public class HL2_Player : BaseMultiplayerPlayer
 
 	void HandleAdmireGlovesAnimation() { }
 
+	const TimeUnit_t HL2PLAYER_RELOADGAME_ATTACK_DELAY = 1.0;
+
 	public override void Activate() {
 		base.Activate();
 		InitSprinting();
@@ -89,7 +91,7 @@ public class HL2_Player : BaseMultiplayerPlayer
 			TimeUnit_t remain = GetActiveWeapon()!.NextPrimaryAttack - gpGlobals.CurTime;
 
 			if (remain < HL2PLAYER_RELOADGAME_ATTACK_DELAY)
-				GetActiveWeapon().m_flNextPrimaryAttack = gpGlobals.curtime + HL2PLAYER_RELOADGAME_ATTACK_DELAY;
+				GetActiveWeapon()!.NextPrimaryAttack = gpGlobals.CurTime + HL2PLAYER_RELOADGAME_ATTACK_DELAY;
 
 			remain = GetActiveWeapon()!.NextSecondaryAttack - gpGlobals.CurTime;
 

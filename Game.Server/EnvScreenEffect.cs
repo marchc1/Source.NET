@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvScreenEffect>;
+[LinkEntityToClass("env_screeneffect")]
 [NetworkName("CEnvScreenEffect")]
 public class EnvScreenEffect : BaseEntity
 {

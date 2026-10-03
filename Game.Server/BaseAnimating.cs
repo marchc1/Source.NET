@@ -16,6 +16,7 @@ namespace Game.Server;
 using FIELD = Source.FIELD<Game.Server.BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Server.InfoLightingRelative>;
 
+[LinkEntityToClass("info_lighting_relative")]
 [NetworkName("CInfoLightingRelative")]
 public partial class InfoLightingRelative : BaseEntity
 {

@@ -1,17 +1,13 @@
-﻿namespace Source.Common.GarrysMod;
+﻿using Source.Common.GarrysMod.Lua;
 
-public struct LuaFindResult{
+namespace Source.Common.GarrysMod;
+
+public struct LuaFindResult
+{
 	public string FileName;
 	public bool IsFolder;
 }
 
-public interface GModDataPack
+public interface IGModDataPack : ILuaClientDatatableHook
 {
-	 object? GetFromDatatable(ReadOnlySpan<char> unk1);
-	 object? GetHashFromDatatable(ReadOnlySpan<char> unk1);
-	 object? GetHashFromString(ReadOnlySpan<char> unk1, uint unk2);
-	 void FindInDatatable(ReadOnlySpan<char> unk1, List<LuaFindResult> unk2, bool unk3);
-	 object? FindFileInDatatable(ReadOnlySpan<char> unk1, bool unk2, bool unk3);
-	 bool IsSingleplayer();
-	 void UnknownMethod(); 
 }

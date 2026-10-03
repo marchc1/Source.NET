@@ -1,6 +1,14 @@
+using static Source.Common.Input.JoystickConstants;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.Input;
+
+public static class JoystickConstants
+{
+	public const int JOYSTICK_MAX_BUTTON_COUNT = 32;
+	public const int JOYSTICK_POV_BUTTON_COUNT = 4;
+	public const int JOYSTICK_AXIS_BUTTON_COUNT = (int)JoystickAxis.MaxJoystickAxes * 2;
+}
 
 public enum ButtonCode
 {
@@ -132,8 +140,60 @@ public enum ButtonCode
 	MouseLast = MouseWheelDown,
 	MouseCount = MouseLast - MouseFirst + 1,
 
-	Last = MouseLast + 1,
-	Count
+	JoystickFirst = MouseLast + 1,
+
+	JoystickFirstButton = JoystickFirst,
+	JoystickLastButton = (JoystickFirstButton + ((MAX_JOYSTICKS - 1) * JOYSTICK_MAX_BUTTON_COUNT) + (JOYSTICK_MAX_BUTTON_COUNT - 1)),
+	JoystickFirstPovButton,
+	JoystickLastPovButton = (JoystickFirstPovButton + ((MAX_JOYSTICKS - 1) * JOYSTICK_POV_BUTTON_COUNT) + (JOYSTICK_POV_BUTTON_COUNT - 1)),
+	JoystickFirstAxisButton,
+	JoystickLastAxisButton = (JoystickFirstAxisButton + ((MAX_JOYSTICKS - 1) * JOYSTICK_AXIS_BUTTON_COUNT) + (JOYSTICK_AXIS_BUTTON_COUNT - 1)),
+
+	JoystickLast = JoystickLastAxisButton,
+
+	NovintFirst = JoystickLast + 2, // plus 1 missing key. +1 seems to cause issues on the first button.
+
+	NovintLogo0 = NovintFirst,
+	NovintTriangle0,
+	NovintBolt0,
+	NovintPlus0,
+	NovintLogo1,
+	NovintTriangle1,
+	NovintBolt1,
+	NovintPlus1,
+
+	NovintLast = NovintPlus1,
+
+	Last,
+	Count = Last - KeyFirst + 1,
+
+	KeyXButtonUp = JoystickFirstPovButton, // POV buttons
+	KeyXButtonRight,
+	KeyXButtonDown,
+	KeyXButtonLeft,
+
+	KeyXButtonA = JoystickFirstButton,      // Buttons
+	KeyXButtonB,
+	KeyXButtonX,
+	KeyXButtonY,
+	KeyXButtonLeftShoulder,
+	KeyXButtonRightShoulder,
+	KeyXButtonBack,
+	KeyXButtonStart,
+	KeyXButtonStick1,
+	KeyXButtonStick2,
+
+	KeyXStick1Right = JoystickFirstAxisButton, // XAXIS POSITIVE
+	KeyXStick1Left,                           // XAXIS NEGATIVE
+	KeyXStick1Down,                           // YAXIS POSITIVE
+	KeyXStick1Up,                             // YAXIS NEGATIVE
+	KeyXButtonLTrigger,                       // ZAXIS POSITIVE
+	KeyXButtonRTrigger,                       // ZAXIS NEGATIVE
+	KeyXStick2Right,                          // UAXIS POSITIVE
+	KeyXStick2Left,                           // UAXIS NEGATIVE
+	KeyXStick2Down,                           // VAXIS POSITIVE
+	KeyXStick2Up,                             // VAXIS NEGATIVE
+
 }
 public static class ButtonCodeExts {
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

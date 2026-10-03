@@ -7,6 +7,7 @@ using System.Numerics;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<PropVehiclePrisonerPod>;
+[LinkEntityToClass("prop_vehicle_prisoner_pod")]
 [NetworkName("CPropVehiclePrisonerPod")]
 public class PropVehiclePrisonerPod : PhysicsProp
 {

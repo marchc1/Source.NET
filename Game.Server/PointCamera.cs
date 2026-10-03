@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<PointCamera>;
+[LinkEntityToClass("point_camera")]
 [NetworkName("CPointCamera")]
 public class PointCamera : BaseEntity
 {

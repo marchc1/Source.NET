@@ -7,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncConveyor>;
 
+[LinkEntityToClass("func_conveyor")]
 [NetworkName("CFuncConveyor")]
 public class FuncConveyor : FuncWall
 {

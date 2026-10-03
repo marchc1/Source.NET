@@ -10,6 +10,7 @@ global using static Source.GlobalReflectionUtils;
 global using static Source.Common.RecvPropHelpers;
 global using static Source.Common.SendPropHelpers;
 global using static Source.Common.GameEventConstants;
+global using static Source.Common.Input.InputEnums;
 global using static Source.Common.RandomGlobals;
 global using static Source.Common.Utilities.UtlSymbolGlobals;
 global using static Source.Common.Physics.PhysicsConversions;
@@ -80,5 +81,8 @@ global using static Source.Common.SoundConstants;
 global using static Source.Common.Audio.AttenuationValues;
 global using static Source.Common.WorldSize;
 global using Byteswap = Source.Common.Byteswap<Source.Common.LittleEndianOrder>;
-
+global using static Source.Engine.SteamInfVersionInfo;
+#if GMOD_DLL
+global using static Source.Common.GarrysMod.Lua.PooledStrings;
+#endif
 [assembly: Source.Common.SourceDll]

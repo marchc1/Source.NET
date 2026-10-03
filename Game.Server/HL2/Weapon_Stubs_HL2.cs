@@ -1,9 +1,11 @@
+using Game.Shared;
 using Game.Shared.HL2;
 
 using Source.Common;
 
 namespace Game.Server.HL2;
 
+[LinkEntityToClass("cycler_weapon")]
 [NetworkName("CWeaponCycler")]
 public class WeaponCycler : BaseCombatWeapon
 {
@@ -11,6 +13,7 @@ public class WeaponCycler : BaseCombatWeapon
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_WeaponCycler);
 }
 
+[LinkEntityToClass("weapon_cubemap")]
 [NetworkName("CWeaponCubemap")]
 public class WeaponCubemap : BaseCombatWeapon
 {
@@ -18,6 +21,7 @@ public class WeaponCubemap : BaseCombatWeapon
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_WeaponCubemap);
 }
 
+[LinkEntityToClass("weapon_citizenpackage")]
 [NetworkName("CWeaponCitizenPackage")]
 public class WeaponCitizenPackage : BaseHLCombatWeapon
 {
@@ -25,6 +29,7 @@ public class WeaponCitizenPackage : BaseHLCombatWeapon
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_WeaponCitizenPackage);
 }
 
+[LinkEntityToClass("weapon_citizensuitcase")]
 [NetworkName("CWeaponCitizenSuitcase")]
 public class WeaponCitizenSuitcase : WeaponCitizenPackage
 {
@@ -32,6 +37,7 @@ public class WeaponCitizenSuitcase : WeaponCitizenPackage
 	public static new readonly ServerClass ServerClass = new ServerClass(DT_WeaponCitizenSuitcase);
 }
 
+[LinkEntityToClass("weapon_oldmanharpoon")]
 [NetworkName("CWeaponOldManHarpoon")]
 public class WeaponOldManHarpoon : WeaponCitizenPackage
 {

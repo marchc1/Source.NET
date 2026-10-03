@@ -5,6 +5,7 @@ using Source.Common;
 
 namespace Game.Server;
 using FIELD = FIELD<InfoOverlayAccessor>;
+[LinkEntityToClass("info_overlay_accessor")]
 [NetworkName("CInfoOverlayAccessor")]
 public partial class InfoOverlayAccessor : BaseEntity
 {

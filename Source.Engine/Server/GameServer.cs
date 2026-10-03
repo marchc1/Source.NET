@@ -117,7 +117,6 @@ public class GameServer : BaseServer
 		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
 		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
 		DynamicModelsTable = StringTables.CreateStringTable(Protocol.DYNAMIC_MODELS_TABLENAME, 2048, 1, 1);
-		ClientLuaFilesTable = StringTables.CreateStringTable(Protocol.CLIENT_LUA_FILES_TABLENAME, 8192, 0, 0);
 		ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
 
 		SetQueryPortFromSteamServer();
@@ -133,7 +132,6 @@ public class GameServer : BaseServer
 			LightStyleTable != null &&
 			UserInfoTable != null &&
 			DynamicModelsTable != null &&
-			ClientLuaFilesTable != null &&
 			ServerStartupDataTable != null
 		);
 
@@ -151,9 +149,6 @@ public class GameServer : BaseServer
 			j = UserInfoTable.AddString(true, name);
 			Assert(j == i);
 		}
-
-		ReadOnlySpan<byte> luaPaths = "lua;gamemodes;addons"u8;
-		ClientLuaFilesTable.AddString(true, "paths", luaPaths.Length, luaPaths);
 
 		g_DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
@@ -750,7 +745,6 @@ public class GameServer : BaseServer
 
 	INetworkStringTable? DynamicModelsTable;
 
-	INetworkStringTable? ClientLuaFilesTable;
 	INetworkStringTable? ServerStartupDataTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected

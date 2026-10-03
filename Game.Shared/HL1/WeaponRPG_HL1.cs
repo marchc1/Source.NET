@@ -5,6 +5,7 @@ using System.Drawing;
 namespace Game.Shared.HL1;
 using FIELD_RPG = Source.FIELD<WeaponRPG_HL1>;
 using FIELD_LASER = Source.FIELD<LaserDot_HL1>;
+[LinkEntityToClass("weapon_rpg_hl1")]
 [NetworkName("CWeaponRPG_HL1")]
 public class WeaponRPG_HL1 : BaseHL1MPCombatWeapon
 {
@@ -38,6 +39,9 @@ public class WeaponRPG_HL1 : BaseHL1MPCombatWeapon
 	public bool LaserDotSuspended;
 }
 
+#if !CLIENT_DLL
+[LinkEntityToClass("laser_spot")]
+#endif
 [NetworkName("CLaserDot_HL1")]
 public class LaserDot_HL1 : BaseEntity
 {

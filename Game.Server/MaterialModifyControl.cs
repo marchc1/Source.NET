@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<MaterialModifyControl>;
+[LinkEntityToClass("material_modify_control")]
 [NetworkName("CMaterialModifyControl")]
 public class MaterialModifyControl : BaseEntity
 {

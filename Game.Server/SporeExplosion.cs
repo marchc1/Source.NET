@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<SporeExplosion>;
+[LinkEntityToClass("env_sporeexplosion")]
 [NetworkName("SporeExplosion")]
 public class SporeExplosion : BaseParticleEntity
 {

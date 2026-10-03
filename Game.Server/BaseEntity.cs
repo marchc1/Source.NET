@@ -546,6 +546,7 @@ public static class BaseEntity_ConCommands
 
 }
 
+[LinkEntityToClass("func_proprrespawnzone")]
 [NetworkName("CBaseEntity")]
 public partial class BaseEntity : IServerEntity
 {
@@ -770,7 +771,9 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
-	public BaseEntity(bool serverOnly = false) {
+	public BaseEntity() : this(false) { }
+
+	public BaseEntity(bool serverOnly) {
 		CollisionGroup = (int)Source.CollisionGroup.None;
 
 		CollisionProp().Init(this);
@@ -2308,6 +2311,12 @@ public partial class BaseEntity : IServerEntity
 			gEntList.RemoveEntity(GetRefEHandle());
 		}
 
+		LuaEntityObject?.UnReference();
+		LuaEntityObject = null;
+		LuaTableObject?.UnReference();
+		LuaTableObject = null;
+		LuaCalcAbsolutePosition.UnReference();
+
 		CollisionProp().DestroyPartitionHandle();
 	}
 
@@ -2978,6 +2987,11 @@ public partial class BaseEntity : IServerEntity
 
 [LinkEntityToClass("info_player_start")]
 [LinkEntityToClass("info_landmark")]
+[LinkEntityToClass("info_player_combine")]
+[LinkEntityToClass("info_player_rebel")]
+[LinkEntityToClass("info_target_helicopter_crash")]
+[LinkEntityToClass("info_teleport_destination")]
+[LinkEntityToClass("logic_proximity")]
 public class PointEntity : BaseEntity
 {
 	public override void Spawn() {

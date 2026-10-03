@@ -1,9 +1,5 @@
-﻿namespace Source.Common.GarrysMod;
+﻿using Source.Common.GarrysMod.Lua;
 
-public interface LuaCurlHTTPRequest {
-	void Run();
-	void OnThreadFinished();
-	bool IsFinished();
-	void DoFinish(Lua.ILuaBase luaBase);
-	void DestroyForced();
-}
+namespace Source.Common.GarrysMod;
+
+public interface LuaCurlHTTPRequest : ILuaThreadedCall;

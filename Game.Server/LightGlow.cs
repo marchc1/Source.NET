@@ -10,6 +10,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<LightGlow>;
 
+[LinkEntityToClass("env_lightglow")]
 [NetworkName("CLightGlow")]
 public class LightGlow : BaseEntity
 {

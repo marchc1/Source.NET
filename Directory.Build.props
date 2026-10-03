@@ -1,6 +1,7 @@
 <Project>
 	<PropertyGroup>
 		<DefineConstants>$(DefineConstants);HL2_DLL</DefineConstants>
+		<DefineConstants>$(DefineConstants);HL2_EPISODIC</DefineConstants>
 		<DefineConstants>$(DefineConstants);HL2MP</DefineConstants>
 		<DefineConstants>$(DefineConstants);GMOD_DLL</DefineConstants>
 		<DefineConstants>$(DefineConstants);HL1_DLL</DefineConstants>
@@ -9,7 +10,6 @@
 		functionality/properties/constants/etc should try to use this define (but it was introduced after a lot of progress was made, so there are still some 
 		areas in the codebase that don't use it yet. Some references for the various constants I could find: -->
 		
-		<!--<DefineConstants>$(DefineConstants);HL2_EPISODIC</DefineConstants>-->
 		<!--<DefineConstants>$(DefineConstants);PORTAL</DefineConstants>-->
 		<!--<DefineConstants>$(DefineConstants);CSTRIKE_DLL</DefineConstants>-->
 		<!--<DefineConstants>$(DefineConstants);CSTRIKE15</DefineConstants>-->

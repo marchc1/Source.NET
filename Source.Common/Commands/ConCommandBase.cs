@@ -19,6 +19,7 @@ public class ConCommandBase
 	public virtual bool IsCommand() => false;
 	public virtual bool IsFlagSet(FCvar flag) => (Flags & flag) == flag;
 	public virtual void AddFlags(FCvar flags) => Flags |= flags;
+	public virtual FCvar GetFlags() => Flags;
 	public virtual string GetName() => Name;
 	/// <summary>
 	/// For internal use only!!! But if you call this AFTER RegisterConCommand, make sure to call NotifyConCommandNameChanged!!!!!!

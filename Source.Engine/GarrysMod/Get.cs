@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Filesystem;
 using Source.Common.GarrysMod;
+using Source.Common.GarrysMod.Lua;
 using Source.Common.MaterialSystem;
 using Source.Common.Steam;
 
@@ -13,11 +14,11 @@ using System.Runtime.InteropServices;
 
 namespace Source.Engine.GarrysMod;
 
-public class Get(IServiceProvider services, EngineParms host_parms) : IGet
+public class Get(IServiceProvider appSystemFactory, EngineParms host_parms) : IGet
 {
 	IFileSystem? fileSystem;
-	Lua.ILuaShared? luaShared;
-	Lua.ILuaConVars? luaConVars;
+	ILuaShared? luaShared;
+	ILuaConVars? luaConVars;
 	IMenuSystem? menuSystem;
 	IIntroScreen? introScreen;
 	IMaterialSystem? materials;
@@ -66,8 +67,8 @@ public class Get(IServiceProvider services, EngineParms host_parms) : IGet
 	public bool IsDedicatedServer() => sv.IsDedicated();
 	public int GetClientCount() => sv.GetClientCount();
 	public IFileSystem? FileSystem() => fileSystem;
-	public Lua.ILuaShared? LuaShared() => luaShared;
-	public Lua.ILuaConVars? LuaConVars() => luaConVars;
+	public ILuaShared? LuaShared() => luaShared;
+	public ILuaConVars? LuaConVars() => luaConVars;
 	public IMenuSystem? MenuSystem() => menuSystem;
 	public IResources? Resources() => resources;
 	public IIntroScreen? IntroScreen() => introScreen;
@@ -122,20 +123,23 @@ public class Get(IServiceProvider services, EngineParms host_parms) : IGet
 	public void Initialize(IFileSystem fileSystem) {
 		this.fileSystem = fileSystem;
 
-		// todo: luaShared
-		// todo: luaConVars
+		luaShared = appSystemFactory.GetRequiredService<ILuaShared>();
+		luaConVars = appSystemFactory.GetRequiredService<ILuaConVars>();
+
+		luaShared.Init(appSystemFactory, false, this);
+		luaConVars.Init();
 
 		if (!IsDedicatedServer()) {
 			if (OperatingSystem.IsWindowsVersionAtLeast(6, 1)) {
 				// todo: analytics
 			}
 
-			// todo: menuSystem
-			introScreen = services.GetRequiredService<IIntroScreen>();
-			materials = services.GetRequiredService<IMaterialSystem>();
-			resources = services.GetRequiredService<IResources>();
+			menuSystem = appSystemFactory.GetRequiredService<IMenuSystem>();
+			introScreen = appSystemFactory.GetRequiredService<IIntroScreen>();
+			materials = appSystemFactory.GetRequiredService<IMaterialSystem>();
+			resources = appSystemFactory.GetRequiredService<IResources>();
 			// todo: audio
-			serverAddons = services.GetRequiredService<IServerAddons>();
+			serverAddons = appSystemFactory.GetRequiredService<IServerAddons>();
 
 			if (html == null) {
 				if (!commandLine.CheckParm("-nochromium")) {
@@ -156,9 +160,9 @@ public class Get(IServiceProvider services, EngineParms host_parms) : IGet
 			}
 		}
 
-		strcpy(gameDir, host_parms.BaseDir);
+		strcpy(gameDir, Common.Gamedir);
 		FixSlashes(gameDir, '\\');
-		strcpy(gameDirParent, host_parms.BaseDir);
+		strcpy(gameDirParent, Common.Gamedir);
 		FixSlashes(gameDirParent, '\\');
 		StripLastDir(gameDirParent);
 	}

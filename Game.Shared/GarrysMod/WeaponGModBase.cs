@@ -53,6 +53,7 @@ namespace Game.Server
 #endif
 
 {
+	[LinkEntityToClass("weapon_hl2mp_base")]
 	[NetworkName("CWeaponHL2MPBase")]
 	public partial class
 #if CLIENT_DLL
@@ -119,6 +120,7 @@ namespace Game.Server
 	// BaseHL2MPCombatWeapon
 	// ====================================================================================================== //
 
+	[LinkEntityToClass("basehl2mpcombatweapon")]
 	[NetworkName("CBaseHL2MPCombatWeapon")]
 	public partial class
 #if CLIENT_DLL

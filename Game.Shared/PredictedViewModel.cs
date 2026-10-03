@@ -10,6 +10,7 @@ namespace Game.Server;
 using Source.Common;
 using Game.Shared;
 
+[LinkEntityToClass("predicted_viewmodel")]
 [NetworkName("CPredictedViewModel")]
 public class
 #if CLIENT_DLL

@@ -11,6 +11,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncOccluder>;
 
+[LinkEntityToClass("func_occluder")]
 [NetworkName("CFuncOccluder")]
 public class FuncOccluder : BaseEntity
 {

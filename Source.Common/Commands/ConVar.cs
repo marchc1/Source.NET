@@ -193,6 +193,10 @@ public class ConVar : ConCommandBase, IConVar
 		parent!.Flags |= flags;
 	}
 
+	public override FCvar GetFlags() {
+		return parent!.Flags;
+	}
+
 	public override bool IsRegistered() {
 		return parent!.Registered;
 	}
@@ -280,21 +284,21 @@ public class ConVar : ConCommandBase, IConVar
 	}
 
 	private void InternalSetDoubleValue(double value) {
-		if (value == intValue)
+		if (value == doubleValue)
 			return;
 
 		Debug.Assert(parent == this);
 
+		// Check bounds
 		ClampValue(ref value);
+
+		// Redetermine value
 		double oldValue = doubleValue;
 		doubleValue = value;
-		intValue = Convert.ToInt32(Math.Clamp(doubleValue, int.MinValue, int.MaxValue));
+		intValue = (int)doubleValue;
 
-		if ((Flags & FCvar.NeverAsString) != FCvar.NeverAsString) {
-			Span<char> tempVal = stackalloc char[64];
-			intValue.TryFormat(tempVal, out int charsWritten);
-			ChangeStringValue(tempVal[..charsWritten], oldValue);
-		}
+		if ((Flags & FCvar.NeverAsString) != FCvar.NeverAsString)
+			ChangeStringValue(FormatFixed(doubleValue, 6), oldValue);
 	}
 
 	public virtual bool GetBool() => GetInt() != 0;
@@ -377,6 +381,15 @@ public class ConVar : ConCommandBase, IConVar
 	public bool GetMax(out double max) {
 		max = this.maxVal;
 		return this.hasMax;
+	}
+
+	public void SetMin(bool hasMin, double min) {
+		this.hasMin = hasMin;
+		this.minVal = min;
+	}
+	public void SetMax(bool hasMax, double max) {
+		this.hasMax = hasMax;
+		this.maxVal = max;
 	}
 
 	public void Revert() {

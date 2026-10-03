@@ -7,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<WaterLODControl>;
 
+[LinkEntityToClass("water_lod_control")]
 [NetworkName("CWaterLODControl")]
 public class WaterLODControl : BaseEntity
 {

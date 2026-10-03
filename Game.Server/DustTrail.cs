@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<DustTrail>;
+[LinkEntityToClass("env_dusttrail")]
 [NetworkName("DustTrail")]
 public class DustTrail : BaseParticleEntity
 {

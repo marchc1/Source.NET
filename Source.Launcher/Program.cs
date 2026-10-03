@@ -1,4 +1,6 @@
 using Game.Client;
+using Game.Lua;
+using Game.MenuSystem;
 using Game.Server;
 using Game.UI;
 
@@ -12,9 +14,10 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GarrysMod;
+using Source.Common.GarrysMod.Lua;
 using Source.Common.Input;
 using Source.Common.Launcher;
-using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.ShaderAPI;
 using Source.Common.SoundEmitterSystem;
@@ -81,7 +84,10 @@ public class Bootloader : IDisposable
 				.WithComponent<MDLCache>()
 				.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 				.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
-				// Studiorender
+				#if GMOD_DLL
+				.WithComponent<ILuaShared, LuaSharedImpl>()
+				.WithComponent<IMenuSystem, MenuSystem>()
+				#endif
 				.WithComponent<IStudioRender, StudioRenderContext>()
 				// Our game DLL's. Server/game impl, client impl, UI impl.
 				.WithGameDLL<ServerGameDLL>()

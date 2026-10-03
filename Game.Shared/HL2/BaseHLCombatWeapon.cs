@@ -18,6 +18,7 @@ public static class HLCombatWeaponGlobals
 	public static readonly ConVar sk_auto_reload_time = new("sk_auto_reload_time", "3", FCvar.Replicated);
 }
 
+[LinkEntityToClass("basehlcombatweapon")]
 [NetworkName("CBaseHLCombatWeapon")]
 public class BaseHLCombatWeapon : BaseCombatWeapon
 {

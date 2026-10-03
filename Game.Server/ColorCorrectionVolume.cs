@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ColorCorrectionVolume>;
+[LinkEntityToClass("color_correction_volume")]
 [NetworkName("CColorCorrectionVolume")]
 public class ColorCorrectionVolume : BaseEntity
 {

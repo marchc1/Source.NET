@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 
@@ -22,6 +23,7 @@ public class EntityParticleTrailInfo
 }
 
 // Datatable-accurate stub (gmod DT_EntityParticleTrail, baseclass DT_BaseParticleEntity).
+[LinkEntityToClass("env_particle_trail")]
 [NetworkName("CEntityParticleTrail")]
 public class EntityParticleTrail : BaseParticleEntity
 {

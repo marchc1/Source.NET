@@ -27,7 +27,9 @@ public class VEfx : IVEfx
 			MathLib.VectorITransform(in position, in matrix, out localPosition);
 		}
 
+#if !SWDS
 		Render.DecalShoot(textureIndex, entity, model, in localPosition, saxis, (FDecal)flags, in rgbaColor, null);
+#endif
 	}
 
 	public void PlayerDecalShoot(IMaterial material, object? userData, int entity, Model? model, in Vector3 modelOrigin, in QAngle modelAngles, in Vector3 position, Vector3? saxis, int flags, in Color rgbaColor) {
@@ -37,7 +39,9 @@ public class VEfx : IVEfx
 			MathLib.VectorITransform(in position, in matrix, out localPosition);
 		}
 
+#if !SWDS
 		Render.PlayerDecalShoot(material, userData, entity, model, in localPosition, saxis, (FDecal)flags, in rgbaColor);
+#endif
 	}
 
 	public DLight AllocDlight(int key) => CL.AllocDlight(key);

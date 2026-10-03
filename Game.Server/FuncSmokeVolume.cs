@@ -11,6 +11,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncSmokeVolume>;
 
+[LinkEntityToClass("func_smokevolume")]
 [NetworkName("CFuncSmokeVolume")]
 public class FuncSmokeVolume : BaseParticleEntity
 {

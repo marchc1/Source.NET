@@ -9,6 +9,7 @@ using System.Text;
 using FIELD = Source.FIELD<Game.Server.HL2.PropCombineBall>;
 namespace Game.Server.HL2;
 
+[LinkEntityToClass("prop_combine_ball")]
 [NetworkName("CPropCombineBall")]
 public class PropCombineBall : BaseAnimating
 {

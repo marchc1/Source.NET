@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server;
 
+[LinkEntityToClass("phys_magnet")]
 [NetworkName("CPhysMagnet")]
 public class PhysMagnet : BaseAnimating
 {

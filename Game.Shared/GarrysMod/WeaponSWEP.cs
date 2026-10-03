@@ -26,6 +26,7 @@ using Class =
 	ServerClass;
 #endif
 
+[LinkEntityToClass("weapon_swep")]
 [NetworkName("CWeaponSWEP")]
 public partial class
 #if CLIENT_DLL

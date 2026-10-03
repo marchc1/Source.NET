@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VortigauntEffectDispel>;
+[LinkEntityToClass("vort_effect_dispel")]
 [NetworkName("CVortigauntEffectDispel")]
 public class VortigauntEffectDispel : BaseEntity
 {

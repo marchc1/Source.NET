@@ -5,6 +5,7 @@ using System.Numerics;
 using Game.Client.HL2;
 namespace Game.Client;
 using FIELD = FIELD<C_PropEnergyBall>;
+[LinkEntityToClass("prop_energy_ball")]
 [NetworkName("CPropEnergyBall")]
 public class C_PropEnergyBall : C_PropCombineBall
 {

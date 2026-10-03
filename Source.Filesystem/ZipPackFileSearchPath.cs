@@ -99,7 +99,7 @@ public class ZipPackFileSearchPath : BaseSearchPath
 	public override DateTime Time(ReadOnlySpan<char> path) {
 		if (Entries.TryGetValue(filesystem.FindOrAddFileName(path), out ZipArchiveEntry? entry))
 			return entry.LastModifiedTime ?? default;
-		return default;
+		return DateTime.UnixEpoch;
 	}
 
 	public override object? GetPackedStore() => null;

@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 
 using System.Numerics;
@@ -5,30 +6,34 @@ using System.Numerics;
 namespace Game.Server.NavMesh;
 
 
-class FuncNavCost
+class FuncNavCost : BaseEntity
 {
 	internal float GetCostMultiplier(BaseCombatCharacter who) {
 		throw new NotImplementedException();
 	}
 }
 
+[LinkEntityToClass("func_nav_avoid")]
 class FuncNavAvoid : FuncNavCost
 {
 
 }
 
+[LinkEntityToClass("func_nav_prefer")]
 class FuncNavPrefer : FuncNavCost
 {
 
 }
 
-class FuncNavBlocker
+[LinkEntityToClass("func_nav_blocker")]
+class FuncNavBlocker : BaseEntity
 {
 	public static bool CalculateBlocked(bool[] resultByTeam, Vector3 mins, Vector3 maxs) {
 		throw new NotImplementedException();
 	}
 }
 
+[LinkEntityToClass("func_nav_avoidance_obstacle")]
 public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 {
 	public static readonly SendTable DT_FuncNavObstruction = new([ // todo

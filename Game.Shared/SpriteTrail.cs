@@ -4,6 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<SpriteTrail>;
+[LinkEntityToClass("env_spritetrail")]
 [NetworkName("CSpriteTrail")]
 public class SpriteTrail : Sprite
 {

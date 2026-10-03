@@ -30,7 +30,7 @@ public partial class UserMessages
 		Register("AchievementEvent", -1);
 		Register("UpdateJalopyRadar", -1);
 		Register("LuaUserMessage", -1);
-		Register("LuaCmd", -1);
+		// Register("LuaCmd", -1);
 		Register("SWEPCmd", -1);
 		Register("AmmoPickup", -1);
 		Register("WeaponPickup", -1);

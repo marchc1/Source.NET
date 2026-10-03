@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<Precipitation>;
+[LinkEntityToClass("func_precipitation")]
 [NetworkName("CPrecipitation")]
 public class Precipitation : BaseEntity
 {

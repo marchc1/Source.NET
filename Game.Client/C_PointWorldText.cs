@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_PointWorldText>;
+[LinkEntityToClass("point_worldtext")]
 [NetworkName("CPointWorldText")]
 public class C_PointWorldText : C_BaseEntity
 {

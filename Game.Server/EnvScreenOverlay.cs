@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 
@@ -5,6 +6,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<EnvScreenOverlay>;
 
+[LinkEntityToClass("env_screenoverlay")]
 [NetworkName("CEnvScreenOverlay")]
 public class EnvScreenOverlay : BaseEntity
 {

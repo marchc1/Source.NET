@@ -10,6 +10,8 @@ namespace Game.Server;
 
 using FIELD = FIELD<RopeKeyframe>;
 
+[LinkEntityToClass("keyframe_rope")]
+[LinkEntityToClass("move_rope")]
 [NetworkName("CRopeKeyframe")]
 public class RopeKeyframe : BaseEntity
 {

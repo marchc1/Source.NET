@@ -509,33 +509,33 @@ public partial class
 
 			SetStepSoundTime(StepSoundTimes.Normal, walking);
 
-			switch ((char)surface.Game.Material) {
+			switch ((CharTex)surface.Game.Material) {
 				default:
-				case Decals.CHAR_TEX_CONCRETE:
+				case CharTex.Concrete:
 					vol = walking ? 0.2f : 0.5f;
 					break;
 
-				case Decals.CHAR_TEX_METAL:
+				case CharTex.Metal:
 					vol = walking ? 0.2f : 0.5f;
 					break;
 
-				case Decals.CHAR_TEX_DIRT:
+				case CharTex.Dirt:
 					vol = walking ? 0.25f : 0.55f;
 					break;
 
-				case Decals.CHAR_TEX_VENT:
+				case CharTex.Vent:
 					vol = walking ? 0.4f : 0.7f;
 					break;
 
-				case Decals.CHAR_TEX_GRATE:
+				case CharTex.Grate:
 					vol = walking ? 0.2f : 0.5f;
 					break;
 
-				case Decals.CHAR_TEX_TILE:
+				case CharTex.Tile:
 					vol = walking ? 0.2f : 0.5f;
 					break;
 
-				case Decals.CHAR_TEX_SLOSH:
+				case CharTex.Slosh:
 					vol = walking ? 0.2f : 0.5f;
 					break;
 			}

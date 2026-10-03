@@ -4,6 +4,8 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<VGuiScreen>;
+[LinkEntityToClass("vgui_screen")]
+[LinkEntityToClass("vgui_screen_team")]
 [NetworkName("CVGuiScreen")]
 public class VGuiScreen : BaseEntity
 {

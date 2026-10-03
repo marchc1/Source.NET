@@ -17,6 +17,8 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Game.Client\Game.Client.csproj" />
+		<ProjectReference Include="..\Game.Lua\Game.Lua.csproj" />
+		<ProjectReference Include="..\Game.MenuSystem\Game.MenuSystem.csproj" />
 		<ProjectReference Include="..\Game.Server\Game.Server.csproj" />
 		<ProjectReference Include="..\Game.UI\Game.UI.csproj" />
 		<ProjectReference Include="..\Game.Assets\Game.Assets.csproj" />
@@ -34,6 +36,12 @@
 		<ProjectReference Include="..\Source.StdShader.Gl46\Source.StdShader.Gl46.csproj" />
 		<ProjectReference Include="..\Source.StudioRender\Source.StudioRender.csproj" />
 		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
+	</ItemGroup>
+
+	<!-- Copy LuaJIT (Game.Lua imports "lua51", which .NET resolves to liblua51.so on Linux) -->
+	<ItemGroup>
+		<None Include="$(MSBuildThisFileDirectory)..\Dependencies\LuaJIT\win64\lua51.dll" Link="lua51.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="'$(IsWindows)'=='true'" />
+		<None Include="$(MSBuildThisFileDirectory)..\Dependencies\LuaJIT\linux64\libluajit.so" Link="liblua51.so" CopyToOutputDirectory="PreserveNewest" Visible="false" Condition="'$(IsLinux)'=='true'" />
 	</ItemGroup>
 
 	<!-- Copy Game.Assets -->

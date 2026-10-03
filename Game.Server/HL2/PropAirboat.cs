@@ -7,6 +7,7 @@ using System.Numerics;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<PropAirboat>;
+[LinkEntityToClass("prop_vehicle_airboat")]
 [NetworkName("CPropAirboat")]
 public class PropAirboat : PropVehicleDriveable
 {

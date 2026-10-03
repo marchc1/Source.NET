@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_FlexManipulate>;
+[LinkEntityToClass("manipulate_flex")]
 [NetworkName("CFlexManipulate")]
 public class C_FlexManipulate : C_BaseEntity
 {

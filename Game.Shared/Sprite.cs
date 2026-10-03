@@ -4,6 +4,11 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<Sprite>;
+[LinkEntityToClass("env_sprite")]
+#if !CLIENT_DLL
+[LinkEntityToClass("env_glow")]
+[LinkEntityToClass("env_sprite_clientside")]
+#endif
 [NetworkName("CSprite")]
 public class Sprite : BaseEntity
 {
@@ -69,6 +74,7 @@ public class Sprite : BaseEntity
 	[NetworkName("m_bWorldSpaceScale")]
 	public bool WorldSpaceScale;
 }
+[LinkEntityToClass("env_sprite_oriented")]
 [NetworkName("CSpriteOriented")]
 public class SpriteOriented : Sprite
 {

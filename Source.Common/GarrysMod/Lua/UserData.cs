@@ -1,6 +1,3 @@
-﻿namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod.Lua;
 
-public static partial class Lua
-{
-	public struct UserData; // TODO
-}
+public struct UserData; // TODO

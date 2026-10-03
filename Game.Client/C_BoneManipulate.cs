@@ -5,6 +5,7 @@ using System.Numerics;
 namespace Game.Client;
 
 using FIELD = FIELD<C_BoneManipulate>;
+[LinkEntityToClass("manipulate_bone")]
 [NetworkName("CBoneManipulate")]
 public class C_BoneManipulate : C_BaseEntity
 {

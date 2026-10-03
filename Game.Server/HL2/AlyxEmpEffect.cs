@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<AlyxEmpEffect>;
+[LinkEntityToClass("env_alyxemp")]
 [NetworkName("CAlyxEmpEffect")]
 public partial class AlyxEmpEffect : BaseEntity
 {

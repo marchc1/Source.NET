@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 using System.Numerics;
@@ -61,6 +62,7 @@ public class EnvHeadcrabCanisterShared
 	]);
 }
 
+[LinkEntityToClass("env_headcrabcanister")]
 [NetworkName("CEnvHeadcrabCanister")]
 public class EnvHeadcrabCanister : BaseAnimating
 {

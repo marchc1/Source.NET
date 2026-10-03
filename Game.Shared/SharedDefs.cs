@@ -116,7 +116,8 @@ public enum HudPrint
 	Center = 4
 }
 
-public enum Damage : byte {
+public enum Damage : byte
+{
 	No,
 	EventsOnly,
 	Yes,
@@ -283,9 +284,25 @@ public enum DamageType : int
 	/// <summary>
 	/// not quite a bullet. Little, rounder, different.
 	/// </summary>
-	Buckshot = (1 << 29)
+	Buckshot = (1 << 29),
+
+	Sniper = (1 << 30),
+	MissileDefense = (1 << 31)
 }
 
+public enum BloodColor
+{
+	DontBleed = -1,
+	Red,
+	Yellow,
+	Green,
+	Mech,
+#if HL2_EPISODIC
+	Antlion,
+	Zombie,
+	AntlionWorker
+#endif
+}
 
 public enum ObserverMode
 {

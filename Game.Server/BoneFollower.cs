@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<BoneFollower>;
+[LinkEntityToClass("phys_bone_follower")]
 [NetworkName("CBoneFollower")]
 public class BoneFollower : BaseEntity
 {

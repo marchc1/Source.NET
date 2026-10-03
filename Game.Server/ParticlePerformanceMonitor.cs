@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<ParticlePerformanceMonitor>;
+[LinkEntityToClass("env_particle_performance_monitor")]
 [NetworkName("CParticlePerformanceMonitor")]
 public class ParticlePerformanceMonitor : PointEntity
 {

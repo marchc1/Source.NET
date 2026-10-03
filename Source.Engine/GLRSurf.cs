@@ -274,7 +274,9 @@ public static class GLRSurf
 		if (shadowDepth)
 			return;
 
+#if !SWDS
 		Render.DecalSurfaceDraw(renderContext, BRUSHMODEL_DECAL_SORT_GROUP);
+#endif
 		g_ShadowMgr.DrawFlashlightDecals(BRUSHMODEL_DECAL_SORT_GROUP, false);
 		g_ShadowMgr.RenderProjectedTextures(brushToWorld);
 	}
@@ -359,8 +361,10 @@ public static class GLRSurf
 
 		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
 
+#if !SWDS
 		if (ModelLoader.SurfaceHasDecals(ref surface))
 			Render.DecalSurfaceAdd(surfID, sortGroup);
+#endif
 
 		int materialSortID = ModelLoader.MSurf_MaterialSortID(ref surface);
 
@@ -845,7 +849,9 @@ public static class GLRSurf
 
 		ResetWorldRenderList(renderList);
 
+#if !SWDS
 		Render.DecalSurfacesInit(false);
+#endif
 
 		// TODO overlaymgr
 
@@ -920,7 +926,9 @@ public static class GLRSurf
 			g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask);
 			// overlaymgr todo
 
+#if !SWDS
 			Render.DecalSurfaceDraw(renderCtx, sortGroup);
+#endif
 
 			g_ShadowMgr.DrawFlashlightDecals(sortGroup, flashlightMask);
 
@@ -1607,8 +1615,10 @@ public class BrushBatchRender
 
 					BuildIndicesForSurface(ref meshBuilder, surfID);
 
+#if !SWDS
 					if (ModelLoader.SurfaceHasDecals(ref surface2) && depthMode == RenderDepthMode.Normal)
 						Render.DecalSurfaceAdd(surfID, BRUSHMODEL_DECAL_SORT_GROUP);
+#endif
 
 					if (depthMode == RenderDepthMode.Normal) {
 						ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surface2);
@@ -1822,17 +1832,23 @@ public class BrushBatchRender
 
 					Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoDraw) == 0);
 
+#if !SWDS
 					if (ModelLoader.SurfaceHasDecals(ref surface))
 						Render.DecalSurfaceAdd(surfID, BRUSHMODEL_DECAL_SORT_GROUP);
+#endif
 
 					ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surface);
 					if (decalHandle != SHADOW_DECAL_HANDLE_INVALID)
 						g_ShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle);
 				}
 
+#if !SWDS
 				Render.DecalSurfaceDraw(renderContext, BRUSHMODEL_DECAL_SORT_GROUP);
+#endif
 
+#if !SWDS
 				Render.DecalSurfacesInit(true);
+#endif
 
 				g_ShadowMgr.RenderProjectedTextures();
 			}

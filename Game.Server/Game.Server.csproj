@@ -21,6 +21,9 @@
 		<Compile Condition="$(DefineConstants.Contains(&quot;HL2MP&quot;))" Include="..\Game.Shared\HL2MP\*.cs" Link="Shared\HL2MP\%(Filename)%(Extension)" />
 		<Compile Condition="$(DefineConstants.Contains(&quot;GMOD_DLL&quot;))" Include="..\Game.Shared\GarrysMod\*.cs" Link="Shared\GarrysMod\%(Filename)%(Extension)" />
 	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+	</ItemGroup>
 	<PropertyGroup>
 		<DefineConstants>$(DefineConstants);GAME_DLL</DefineConstants>
 	</PropertyGroup>

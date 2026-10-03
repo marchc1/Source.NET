@@ -12,6 +12,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -217,8 +218,9 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 #if GMOD_DLL
 		// TODO: GarrysMod::StringTable::Create
-		// TODO: NetworkString::Create
+		Game.Server.GarrysMod.NetworkString.Create();
 		// TODO: NetworkVarNames::Create
+		Game.Server.GarrysMod.GModDataPack.DataPack().Initialize();
 
 		StringTableBits.SV_SetupNetworkStringTableBits();
 #endif
@@ -230,8 +232,6 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
 
-		IGameSystem.Add(g_SoundEmitterSystem);
-		IGameSystem.Add(PhysicsGameSystem());
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(SoundscapeSystemGlobals).TypeHandle);
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CheckClient).TypeHandle);
 
@@ -249,6 +249,14 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		filesystem.Addons().Refresh();
 		filesystem.Games().Refresh();
 #endif
+
+
+#if GMOD_DLL
+		garrysmod.InitializeMod(services);
+#endif
+
+		IGameSystem.Add(PhysicsGameSystem());
+		IGameSystem.Add(g_SoundEmitterSystem);
 
 		if (!IGameSystem.InitAllSystems())
 			return false;
@@ -387,7 +395,11 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
 		// ResetWindspeed();
+#if GMOD_DLL
+		garrysmod.LevelInit(pMapName, pMapEntities, pOldLevel, pLandmarkName, loadGame, background);
+#endif
 		// UpdateChapterRestrictions(pMapName);
+
 
 		//Tony; parse custom manifest if exists!
 		// ParseParticleEffectsMap(pMapName, false);
@@ -681,7 +693,63 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void GMOD_ReceiveClientMessage(int userID, Edict player, bf_read msg, int bits) {
-		throw new NotImplementedException();
+		int type = msg.ReadByte();
+		if (bits <= 7 || type > 5) {
+			DevMsg($"Blocking invalid GMod packet - Length: {bits} Type: {type}\n");
+			return;
+		}
+
+		int dataBits = bits - 8;
+		if (type == (int)GModMessageType.LuaFile) {
+			// todo: DataPack().OnFilesRequested(userID, msg, dataBits);
+			return;
+		}
+
+		if (type == (int)GModMessageType.LuaAutoRefresh)
+			return;
+
+		BaseEntity? ent = BaseEntity.GetContainingEntity(player ?? engine.PEntityOfEntIndex(0));
+		if (ent == null)
+			return;
+
+		if (type == (int)GModMessageType.LuaError) {
+			msg.ReadString(out string? error, 0x1000);
+			// todo: HandleClientLuaError(ToBasePlayer(ent), error);
+			return;
+		}
+
+		if (type != (int)GModMessageType.NetMessage)
+			return;
+
+		int curBit = msg.BitsRead;
+		int bitOffset = curBit % 8;
+		int numBits = dataBits + bitOffset;
+		byte[] data = new byte[Protocol.Bits2Bytes(numBits)];
+		ReadOnlySpan<byte> source = msg.BaseArray.AsSpan(curBit / 8);
+		source[..Math.Min(source.Length, data.Length)].CopyTo(data);
+
+		bf_read read = new("NetMessage(read_sv)", data, data.Length, numBits);
+		read.Seek(bitOffset);
+		LuaNet.g_NetIncoming = read;
+
+		if (g_Lua != null && g_Lua.Global() != null) {
+			LuaObject net = new();
+			g_Lua.Global().GetMember("net", net);
+			if (net.isTable()) {
+				LuaObject incoming = new();
+				net.GetMember("Incoming", incoming);
+				if (incoming.isFunction()) {
+					incoming.Push();
+					g_Lua.PushNumber(dataBits);
+					LuaEntity.Push_Entity(ent);
+					g_Lua.CallInternalNoReturns(2);
+				}
+				incoming.UnReference();
+			}
+			net.UnReference();
+		}
+
+		LuaNet.g_NetIncoming = null;
 	}
 
 	public void GMOD_ClientConnected(int userID) {

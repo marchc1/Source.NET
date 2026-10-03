@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<EnvStarfield>;
+[LinkEntityToClass("env_starfield")]
 [NetworkName("CEnvStarfield")]
 public class EnvStarfield : BaseEntity
 {

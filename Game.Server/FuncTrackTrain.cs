@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server;
 
+[LinkEntityToClass("func_tracktrain")]
 [NetworkName("CFuncTrackTrain")]
 public class FuncTrackTrain : Breakable
 {

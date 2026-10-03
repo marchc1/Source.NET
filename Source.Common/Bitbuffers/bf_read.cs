@@ -599,6 +599,36 @@ public unsafe class bf_read : BitBuffer
 		return !Overflowed && !bTooSmall;
 	}
 
+	public bool ReadString(Span<byte> str, bool bLine, out int outNumChars) {
+		Assert(!str.IsEmpty);
+		int maxLen = str.Length;
+
+		bool bTooSmall = false;
+		int iChar = 0;
+		while (true) {
+			byte val = ReadByte();
+			if (val == 0)
+				break;
+			else if (bLine && val == '\n')
+				break;
+
+			if (iChar < (maxLen - 1)) {
+				str[iChar] = val;
+				++iChar;
+			}
+			else {
+				bTooSmall = true;
+			}
+		}
+
+		// Make sure it's null-terminated.
+		Assert(iChar < maxLen);
+		str[iChar] = 0;
+		outNumChars = iChar;
+
+		return !Overflowed && !bTooSmall;
+	}
+
 	public string ReadAndAllocateString() => ReadAndAllocateString(out _);
 	public string ReadAndAllocateString(out bool overflow){
 		Span<char> str = stackalloc char[2048];

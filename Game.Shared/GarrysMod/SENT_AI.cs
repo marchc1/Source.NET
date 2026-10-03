@@ -25,6 +25,7 @@ using Class =
 	ServerClass;
 #endif
 
+[LinkEntityToClass("sent_ai")]
 [NetworkName("CSENT_AI")]
 public partial class
 #if CLIENT_DLL

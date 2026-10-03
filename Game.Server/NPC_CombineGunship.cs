@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<NPC_CombineGunship>;
+[LinkEntityToClass("npc_combinegunship")]
 [NetworkName("CNPC_CombineGunship")]
 public class NPC_CombineGunship : BaseHelicopter
 {

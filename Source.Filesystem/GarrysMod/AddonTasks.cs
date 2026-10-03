@@ -155,7 +155,6 @@ public static class AddonTasks
 
 	public class DownloadFile : Addon.Job.Base
 	{
-		const uint AppID = 4000;
 		const double StuckTime = 10.0;
 		const int MinTransferred = 8192;
 		const int MaxFailures = 5;
@@ -213,7 +212,7 @@ public static class AddonTasks
 		}
 
 		void OnItemDownloaded(DownloadItemResult_t result) {
-			if (result.m_unAppID.m_AppId != AppID) {
+			if (result.m_unAppID.m_AppId != GetSteamInfIDVersionInfo().AppID) {
 				Warning($"OnItemDownloaded: invalid app id {result.m_unAppID.m_AppId}?\n");
 				return;
 			}

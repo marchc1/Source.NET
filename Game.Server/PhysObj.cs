@@ -4,6 +4,7 @@ using Source.Common;
 
 namespace Game.Server;
 
+[LinkEntityToClass("func_physbox")]
 [NetworkName("CPhysBox")]
 public class PhysBox : Breakable
 {

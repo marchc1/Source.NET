@@ -8,6 +8,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<BaseFlex>;
 
+[LinkEntityToClass("funCBaseFlex")]
 [NetworkName("CBaseFlex")]
 public class BaseFlex : BaseAnimatingOverlay {
 	public static readonly SendTable DT_BaseFlex = new(DT_BaseAnimatingOverlay, [

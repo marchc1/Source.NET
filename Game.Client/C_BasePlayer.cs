@@ -38,7 +38,6 @@ public struct C_PredictionError
 
 
 
-[LinkEntityToClass("player")]
 [NetworkName("CBasePlayer")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {

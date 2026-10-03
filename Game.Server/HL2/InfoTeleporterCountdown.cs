@@ -5,6 +5,7 @@ using Source.Common;
 
 namespace Game.Server.HL2;
 using FIELD = Source.FIELD<InfoTeleporterCountdown>;
+[LinkEntityToClass("info_teleporter_countdown")]
 [NetworkName("CInfoTeleporterCountdown")]
 public partial class InfoTeleporterCountdown : BaseEntity
 {

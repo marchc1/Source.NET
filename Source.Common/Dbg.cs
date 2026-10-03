@@ -116,7 +116,7 @@ public static class Dbg
 		SpewType = type;
 	}
 
-	public static unsafe SpewRetval _SpewMessage(SpewType spewType, string groupName, int level, in Color color, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static unsafe SpewRetval _SpewMessage(SpewType spewType, string groupName, int level, in Color color, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		char* piece = stackalloc char[2048];
 		int writer = 0;
 		SpewRetval ret = SpewRetval.Continue;
@@ -154,8 +154,9 @@ public static class Dbg
 		CFormatReader reader = new(msgFormat);
 		while (!reader.Overflowed()) {
 			Span<char> target = new(piece, 2048);
-			writer = sprintf(target, ref reader);
+			writer = sprintf(target, ref reader, args);
 
+			SpewInfo.Value = info;
 			ret = writeOnePiece();
 			SpewInfo.Value = null;
 			if (!handleOnePiece(ret))
@@ -175,15 +176,15 @@ public static class Dbg
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static SpewRetval _SpewMessage(SpewType spewType, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static SpewRetval _SpewMessage(SpewType spewType, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 		=> _SpewMessage(spewType, "", 0, in DefaultOutputColor, msgFormat, args);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static SpewRetval _SpewMessage([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static SpewRetval _SpewMessage([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 		=> _SpewMessage(SpewType, msgFormat, args);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static SpewRetval _DSpewMessage(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static SpewRetval _DSpewMessage(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(groupName, level))
 			return SpewRetval.Continue;
 
@@ -191,31 +192,31 @@ public static class Dbg
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static SpewRetval _ColorSpewMessage(SpewType type, in Color color, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params object?[] args) {
+	public static SpewRetval _ColorSpewMessage(SpewType type, in Color color, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params ReadOnlySpan<object?> args) {
 		return _SpewMessage(SpewType, "", 0, color, msgFormat, args);
 	}
 
-	public static void Msg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static void Msg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 		=> _SpewMessage(SpewType.Message, msgFormat, args);
-	public static void DMsg(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params object?[] args) {
+	public static void DMsg(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(groupName, level)) return;
 		_SpewMessage(SpewType.Warning, groupName, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void Warning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static void Warning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 		=> _SpewMessage(SpewType.Message, msgFormat, args);
-	public static void DWarning(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params object?[] args) {
+	public static void DWarning(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(groupName, level)) return;
 		_SpewMessage(SpewType.Warning, groupName, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void Log([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static void Log([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 		=> _SpewMessage(SpewType.Log, msgFormat, args);
-	public static void DLog(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params object?[] args) {
+	public static void DLog(string groupName, int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] string msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(groupName, level)) return;
 		_SpewMessage(SpewType.Log, groupName, level, in DefaultOutputColor, msgFormat, args);
 	}
 
 	[DoesNotReturn]
-	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args)
 #pragma warning disable CS8763 // A method marked [DoesNotReturn] should not return. (it likely wont return if the spew handler is handling it... kinda gross)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
 #pragma warning restore CS8763 // A method marked [DoesNotReturn] should not return.
@@ -228,79 +229,79 @@ public static class Dbg
 	}
 
 
-	public static void DevMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, level)) return;
 		_SpewMessage(SpewType.Message, GROUP_DEVELOPER, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void DevWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, level)) return;
 		_SpewMessage(SpewType.Warning, GROUP_DEVELOPER, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void DevLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, level)) return;
 		_SpewMessage(SpewType.Log, GROUP_DEVELOPER, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void DevMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, 1)) return;
 		_SpewMessage(SpewType.Message, GROUP_DEVELOPER, 1, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void DevWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, 1)) return;
 		_SpewMessage(SpewType.Warning, GROUP_DEVELOPER, 1, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void DevLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void DevLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_DEVELOPER, 1)) return;
 		_SpewMessage(SpewType.Log, GROUP_DEVELOPER, 1, in DefaultOutputColor, msgFormat, args);
 	}
 
 
 
-	public static void ConColorMsg(int level, in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConColorMsg(int level, in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, level, in clr, msgFormat, args);
 	}
-	public static void ConMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Warning, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Log, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
 
-	public static void ConColorMsg(in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConColorMsg(in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 1)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, 1, in clr, msgFormat, args);
 	}
-	public static void ConMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 1)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, 1, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 1)) return;
 		_SpewMessage(SpewType.Warning, GROUP_CONSOLE, 1, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 1)) return;
 		_SpewMessage(SpewType.Log, GROUP_CONSOLE, 1, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConDColorMsg(in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConDColorMsg(in Color clr, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 2)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, 2, in clr, msgFormat, args);
 	}
-	public static void ConDMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConDMsg([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 2)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, 2, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConDWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConDWarning([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 2)) return;
 		_SpewMessage(SpewType.Warning, GROUP_CONSOLE, 2, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void ConDLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void ConDLog([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, 2)) return;
 		_SpewMessage(SpewType.Log, GROUP_CONSOLE, 2, in DefaultOutputColor, msgFormat, args);
 	}
@@ -309,15 +310,15 @@ public static class Dbg
 
 
 
-	public static void NetMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void NetMsg(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Message, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void NetWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void NetWarning(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Warning, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
-	public static void NetLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) {
+	public static void NetLog(int level, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params ReadOnlySpan<object?> args) {
 		if (!IsSpewActive(GROUP_CONSOLE, level)) return;
 		_SpewMessage(SpewType.Log, GROUP_CONSOLE, level, in DefaultOutputColor, msgFormat, args);
 	}
@@ -326,7 +327,7 @@ public static class Dbg
 #if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
 	[DebuggerHidden]
 #endif
-	static void _AssertMsg([DoesNotReturnIf(false)] bool exp, string message, object?[] parms, string file, int line, bool fatal) {
+	static void _AssertMsg([DoesNotReturnIf(false)] bool exp, string message, ReadOnlySpan<object?> parms, string file, int line, bool fatal) {
 		if (!exp)
 			_AssertMsg(true, string.Format(message, parms), file, line, fatal);
 	}
@@ -409,7 +410,7 @@ public static class Dbg
 		[CallerArgumentExpression(nameof(exp))] string? ____expI = null,
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1,
-		params object?[] args
+		params ReadOnlySpan<object?> args
 	) {
 		if (exp)
 			return;
@@ -425,7 +426,7 @@ public static class Dbg
 	public static void AssertEquals<T>(T? i1, T? i2,
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1,
-		params object?[] args
+		params ReadOnlySpan<object?> args
 	) {
 		if (i1 == null ? i2 == null : i1.Equals(i2))
 			return;

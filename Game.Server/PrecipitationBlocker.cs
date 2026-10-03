@@ -5,6 +5,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<PrecipitationBlocker>;
+[LinkEntityToClass("func_precipitation_blocker")]
 [NetworkName("CPrecipitationBlocker")]
 public class PrecipitationBlocker : BaseEntity
 {

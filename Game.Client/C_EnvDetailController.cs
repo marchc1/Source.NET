@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_EnvDetailController>;
+[LinkEntityToClass("env_detail_controller")]
 [NetworkName("CEnvDetailController")]
 public class C_EnvDetailController : C_BaseEntity
 {

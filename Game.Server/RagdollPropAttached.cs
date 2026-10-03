@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 using System.Numerics;
@@ -6,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<RagdollPropAttached>;
 
+[LinkEntityToClass("prop_ragdoll_attached")]
 [NetworkName("CRagdollPropAttached")]
 public class RagdollPropAttached : RagdollProp
 {

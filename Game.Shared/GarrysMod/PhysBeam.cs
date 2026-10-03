@@ -26,6 +26,7 @@ using Class =
 	ServerClass;
 #endif
 
+[LinkEntityToClass("physgun_beam")]
 [NetworkName("CPhysBeam")]
 public partial class
 #if CLIENT_DLL

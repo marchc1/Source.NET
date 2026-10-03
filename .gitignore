@@ -413,3 +413,5 @@ Source.Launcher/Properties/launchSettings.json
 /.idea
 Source.DataDescGen/
 Game.Assets/hl2/cache/workshop
+Game.Assets/hl2/gamemodes
+Game.Assets/hl2/lua

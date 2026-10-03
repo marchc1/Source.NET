@@ -11,8 +11,6 @@ namespace Source.Filesystem.GarrysMod;
 
 public static class DedicatedServerAddons
 {
-	const uint AppID = 4000;
-	const int MaxPath = 260;
 	const int MinCollectionLength = 5;
 	const int LoginWaitStep = 250;
 	const int LoginWaitMax = 10000;
@@ -115,7 +113,7 @@ public static class DedicatedServerAddons
 		string steamCache = $"{Directory.GetCurrentDirectory()}/steam_cache";
 		Bootil.String.File.FixSlashes(ref steamCache, "/", "\\");
 
-		if (!SteamGameServerUGC.BInitWorkshopForGameServer(new DepotId_t(AppID), steamCache))
+		if (!SteamGameServerUGC.BInitWorkshopForGameServer(new DepotId_t((uint)GetSteamInfIDVersionInfo().AppID), steamCache))
 			Warning("WS: BInitWorkshopForGameServer failed!\n");
 
 		return true;
@@ -336,7 +334,7 @@ public static class DedicatedServerAddons
 
 		Color color;
 		string message;
-		bool installed = SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out string folder, MaxPath, out uint timeStamp);
+		bool installed = SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out string folder, MAX_PATH, out uint timeStamp);
 		if (!installed && !LoadedFromCache) {
 			message = "   Addon needs downloading...\n";
 			color = ColorInfo;
@@ -441,7 +439,7 @@ public static class DedicatedServerAddons
 
 		ConColorMsg(ColorGood, "   Downloaded!\n");
 
-		if (!SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out ulong size, out folder, MaxPath, out _)) {
+		if (!SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out ulong size, out folder, MAX_PATH, out _)) {
 			if (!LoadedFromCache) {
 				ConColorMsg(ColorError, "   Error! Could not retrieve intall info\n");
 				RemoveAddon(workshopID);
@@ -572,7 +570,7 @@ public static class DedicatedServerAddons
 		KeyValues kv = new("srcds_addons");
 		foreach (SteamUGCDetails_t details in addons) {
 			ulong workshopID = details.m_nPublishedFileId.m_PublishedFileId;
-			if (!SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out string folder, MaxPath, out _)) {
+			if (!SteamGameServerUGC.GetItemInstallInfo(details.m_nPublishedFileId, out _, out string folder, MAX_PATH, out _)) {
 				Warning($"Failed to cache addon location of {workshopID}\n");
 				return;
 			}

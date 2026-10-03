@@ -2,13 +2,11 @@ using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Source.Common;
 using Source.Common.Commands;
-using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod.Lua;
 using Source.Common.GUI;
 using Source.Common.Input;
-using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Utilities;
 
@@ -18,8 +16,6 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
-using ILuaObject = Source.Common.GarrysMod.Lua.ILuaObject;
 
 namespace Source.GUI.Controls;
 
@@ -1476,19 +1472,17 @@ public class Panel : IPanel
 
 	public virtual void PaintManual(bool repaint, bool allowForce = true) => PaintTraverse(repaint, allowForce);
 
-	ILuaObject? LuaTable;
-	ILuaObject? LuaObject;
+	public ILuaObject? LuaTable;
+	public ILuaObject? LuaObject;
+	public ILuaObject? LuaAnimationThink;
+	public ILuaObject? LuaThink;
+	public ILuaObject? LuaPaint;
+	public ILuaObject? LuaPaintOver;
+	public ILuaObject? LuaOnChildRemoved;
+	public ILuaObject? LuaOnChildAdded;
+	public bool LuaHandle;
 
-	public virtual ILuaObject? GetLuaTable() {
-		if (LuaTable != null)
-			return LuaTable;
-		// todo
-		return LuaTable;
-	}
-
-	public virtual void PushToLua() {
-		// todo
-	}
+	public virtual bool HasLuaTable() => LuaTable != null;
 
 	public virtual void PaintAt(int x, int y) {
 		SetPaintingManually(true);

@@ -77,6 +77,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		modemanager.LevelInit(mapname);
 		IGameSystem.LevelInitPreEntityAllSystems(mapname);
+#if GMOD_DLL
+		garrysmod.LevelInit(mapname);
+#endif
 
 		if (gpGlobals.MaxClients > 1) {
 			if (cl_predict.GetInt() == 0)
@@ -200,6 +203,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public void Shutdown() {
 		ClientVoiceMgr_Shutdown();
+		Game.Client.GarrysMod.GarrysMod.Lua.Kill();
 	}
 
 	public void VoiceStatus(int entindex, bool talking) {
@@ -262,6 +266,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
 		switch (tableName) {
+			case "networkstring":
+				Game.Client.GarrysMod.NetworkString.Install();
+				break;
 			case Protocol.CLIENT_LUA_FILES_TABLENAME:
 				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
 				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
@@ -727,7 +734,55 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void GMOD_ReceiveServerMessage(bf_read buffer, int len) {
-		throw new NotImplementedException();
+		GModMessageType type = (GModMessageType)buffer.ReadByte();
+		switch (type) {
+			case GModMessageType.LuaAutoRefresh:
+				// todo: GarrysMod::AutoRefresh::HandleChange_Lua(buffer, len);
+				return;
+			case GModMessageType.RequestLuaFiles:
+				return;
+			case GModMessageType.LuaCmd:
+				Game.Client.GarrysMod.GarrysMod.RunLuaCmd(buffer);
+				return;
+			case GModMessageType.LuaFile:
+				// todo: DataPack()->...
+				return;
+		}
+
+		len -= 8;
+		if (type != GModMessageType.NetMessage) {
+			Msg("Not net message!?\n");
+			return;
+		}
+
+		int curBit = buffer.BitsRead;
+		int bitOffset = curBit % 8;
+		int numBits = len + bitOffset;
+		byte[] data = new byte[Protocol.Bits2Bytes(numBits)];
+		ReadOnlySpan<byte> source = buffer.BaseArray.AsSpan(curBit / 8);
+		source[..Math.Min(source.Length, data.Length)].CopyTo(data);
+
+		bf_read read = new("NetMessage(read_cl)", data, data.Length, numBits);
+		read.Seek(bitOffset);
+		Game.Client.GarrysMod.LuaNet.g_NetIncoming = read;
+
+		if (g_Lua != null && g_Lua.Global() != null) {
+			Game.Client.GarrysMod.LuaObject net = new();
+			g_Lua.Global().GetMember("net", net);
+			if (net.isTable()) {
+				Game.Client.GarrysMod.LuaObject incoming = new();
+				net.GetMember("Incoming", incoming);
+				if (incoming.isFunction()) {
+					incoming.Push();
+					g_Lua.PushNumber(len);
+					g_Lua.CallInternalNoReturns(1);
+				}
+				incoming.UnReference();
+			}
+			net.UnReference();
+		}
+
+		Game.Client.GarrysMod.LuaNet.g_NetIncoming = null;
 	}
 
 	public void GMOD_DoSnapshots() {

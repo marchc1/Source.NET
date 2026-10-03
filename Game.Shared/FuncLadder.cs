@@ -16,6 +16,7 @@ using System.Numerics;
 namespace Game.Shared;
 
 using FIELD = Source.FIELD<FuncLadder>;
+[LinkEntityToClass("func_useableladder")]
 [NetworkName("CFuncLadder")]
 public partial class FuncLadder : BaseEntity
 {

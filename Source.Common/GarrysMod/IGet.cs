@@ -1,4 +1,5 @@
 using Source.Common.Filesystem;
+using Source.Common.GarrysMod.Lua;
 using Source.Common.MaterialSystem;
 using Source.Common.Steam;
 
@@ -15,8 +16,8 @@ public interface IGet
 	bool IsDedicatedServer();
 	int GetClientCount();
 	IFileSystem? FileSystem();
-	Lua.ILuaShared? LuaShared();
-	Lua.ILuaConVars? LuaConVars();
+	ILuaShared? LuaShared();
+	ILuaConVars? LuaConVars();
 	IMenuSystem? MenuSystem();
 	IResources? Resources();
 	IIntroScreen? IntroScreen();

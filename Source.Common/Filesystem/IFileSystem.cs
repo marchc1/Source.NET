@@ -25,6 +25,37 @@ public enum PathGroupName
 	Downloads,
 	Fallbacks
 }
+
+public enum FSAsyncStatus
+{
+	// Filename not part of the specified file system, try a different one.  (Used internally to find the right filesystem)
+	ErrNotMine = -8,
+	// Failure for a reason that might be temporary.  You might retry, but not immediately.  (E.g. Network problems)
+	ErrRetryLater = -7,
+	// read parameters invalid for unbuffered IO
+	ErrAlignment = -6,
+	// hard subsystem failure
+	ErrFailure = -5,
+	// read error on file
+	ErrReading = -4,
+	// out of memory for file read
+	ErrNoMemory = -3,
+	// caller's provided id is not recognized
+	ErrUnknownID = -2,
+	// filename could not be opened (bad path, not exist, etc)
+	ErrFileOpen = -1,
+	// operation is successful
+	OK = 0,
+	// file is properly queued, waiting for service
+	StatusPending,
+	// file is being accessed
+	StatusInProgress,
+	// file was aborted by caller
+	StatusAborted,
+	// file is not yet queued
+	StatusUnserviced,
+}
+
 public interface ISearchPath
 {
 	bool Exists(scoped ReadOnlySpan<char> path); // Returns if the file or directory exists
@@ -203,6 +234,7 @@ public interface IFileSystem : IBaseFileSystem
 	/// <param name="pathID"></param>
 	/// <param name="requestOnly"></param>
 	public void MarkPathIDByRequestOnly(ReadOnlySpan<char> pathID, bool requestOnly);
+	int GetSearchPath(ReadOnlySpan<char> pathID, bool getPackFiles, Span<char> dest);
 
 	bool RemoveFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID);
 	bool RemoveFile(ReadOnlySpan<char> relativePath) => RemoveFile(relativePath, null);
@@ -215,6 +247,7 @@ public interface IFileSystem : IBaseFileSystem
 	void GetLocalCopy(ReadOnlySpan<char> path);
 	ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None);
 	bool FullPathToRelativePath(ReadOnlySpan<char> fullPath, Span<char> relative);
+	bool FullPathToRelativePathEx(ReadOnlySpan<char> fullPath, ReadOnlySpan<char> pathID, Span<char> relative);
 	bool WriteFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, ReadOnlySpan<byte> buf);
 	void MarkAllCRCsUnverified();
 	ReadOnlySpan<char> WhereIsFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID = default);

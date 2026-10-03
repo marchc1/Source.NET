@@ -1,3 +1,4 @@
+using Game.Shared;
 using Source.Common;
 using Source;
 
@@ -5,6 +6,8 @@ namespace Game.Server;
 
 using FIELD = FIELD<SceneEntity>;
 
+[LinkEntityToClass("logic_choreographed_scene")]
+[LinkEntityToClass("scripted_scene")]
 [NetworkName("CSceneEntity")]
 public class SceneEntity : BaseEntity
 {

@@ -1,4 +1,4 @@
-﻿namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod.Lua;
 
 public struct LuaError()
 {
@@ -14,10 +14,17 @@ public struct LuaError()
 	public List<StackEntry> Stack = [];
 }
 
-public static partial class Lua
+public interface ILuaGameCallback
 {
-	public interface ILuaGameCallback
-	{
+	ILuaObject CreateLuaObject();
+	void DestroyLuaObject(ILuaObject obj);
 
-	}
+	void ErrorPrint(ReadOnlySpan<char> error, bool print);
+
+	void Msg(ReadOnlySpan<char> msg, bool useless);
+	void MsgColour(ReadOnlySpan<char> msg, in Color color);
+
+	void LuaError(in LuaError error);
+
+	void InterfaceCreated(ILuaInterface iface);
 }

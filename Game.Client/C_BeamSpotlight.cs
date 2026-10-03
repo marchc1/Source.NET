@@ -4,6 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_BeamSpotlight>;
+[LinkEntityToClass("beam_spotlight")]
 [NetworkName("CBeamSpotlight")]
 public class C_BeamSpotlight : C_BaseEntity
 {

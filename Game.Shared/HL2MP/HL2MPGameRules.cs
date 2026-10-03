@@ -22,6 +22,7 @@ using FIELD = Source.FIELD<HL2MPGameRulesProxy>;
 using Game.Shared;
 using Source.Common.Engine;
 
+[LinkEntityToClass("hl2mp_gamerules")]
 [NetworkName("CHL2MPGameRulesProxy")]
 public class
 #if CLIENT_DLL

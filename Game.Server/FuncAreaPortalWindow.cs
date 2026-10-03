@@ -7,6 +7,7 @@ namespace Game.Server;
 
 using FIELD = FIELD<FuncAreaPortalWindow>;
 
+[LinkEntityToClass("func_areaportalwindow")]
 [NetworkName("CFuncAreaPortalWindow")]
 public class FuncAreaPortalWindow : BaseEntity
 {
