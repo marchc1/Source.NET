@@ -220,6 +220,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		// TODO: GarrysMod::StringTable::Create
 		Game.Server.GarrysMod.NetworkString.Create();
 		// TODO: NetworkVarNames::Create
+		Game.Server.GarrysMod.GModDataPack.DataPack().Initialize();
 
 		StringTableBits.SV_SetupNetworkStringTableBits();
 #endif
