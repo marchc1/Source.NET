@@ -2,6 +2,7 @@
 using Source.Common.Physics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.GarrysMod.Lua;
 
@@ -77,7 +78,7 @@ public interface ILuaObject
 
 	bool isBool();
 
-	void SetMemberDouble(ReadOnlySpan<char> name, double val);
+	void SetMemberDouble(scoped ReadOnlySpan<char> name, double val);
 
 	void SetMemberNil(ReadOnlySpan<char> name);
 	void SetMemberNil(float key);
@@ -131,4 +132,37 @@ public interface ILuaObject
 	double GetMemberDouble(float key, double def);
 	IHandleEntity? GetMemberEntity(int key, IHandleEntity? def);
 	Matrix4x4 GetMemberMatrix(int key, in Matrix4x4 def);
+
+	public void SetMemberEnumValue<E>(scoped ReadOnlySpan<char> name, in E value) where E : struct, Enum {
+		ref E r = ref Unsafe.AsRef(in value);
+		double d = Unsafe.SizeOf<E>() switch {
+			1 => Unsafe.As<E, byte>(ref r),
+			2 => Unsafe.As<E, short>(ref r),
+			4 => Unsafe.As<E, int>(ref r),
+			8 => Unsafe.As<E, long>(ref r),
+			_ => throw new NotSupportedException()
+		};
+
+		SetMemberDouble(name, d);
+	}
+
+	public void SetMemberEnumValuePrefixed<E>(scoped ReadOnlySpan<char> prefix, in E value) where E : struct, Enum {
+		SetMemberEnumValuePrefixed(prefix, Enum.GetName<E>(value)?.ToUpperInvariant(), in value);
+	}
+
+	public void SetMemberEnumValuePrefixed<E>(scoped ReadOnlySpan<char> prefix, scoped ReadOnlySpan<char> name, in E value) where E : struct, Enum {
+		Span<char> setName = stackalloc char[prefix.Length + 1 + name.Length];
+		sprintf(setName, "%s_%s").S(prefix).S(name);
+		SetMemberEnumValue(setName, in value);
+	}
+
+	public void SetMemberEnumValuesPrefixed<E>(scoped ReadOnlySpan<char> prefix, ShouldSetEnum<E>? shouldSetEnum = null, EnumNameProducer<E>? enumNameProducer = null) where E : struct, Enum {
+		shouldSetEnum ??= static x => true;
+		enumNameProducer ??= static x => Enum.GetName<E>(x)?.ToUpperInvariant();
+		foreach (var value in Enum.GetValues<E>())
+			if (shouldSetEnum(value))
+			SetMemberEnumValuePrefixed(prefix, enumNameProducer(value), value);
+	}
+	public delegate bool ShouldSetEnum<E>(E value);
+	public delegate ReadOnlySpan<char> EnumNameProducer<E>(E value);
 }

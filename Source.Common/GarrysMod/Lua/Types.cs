@@ -55,7 +55,7 @@ public enum LuaType
 	PhysCollide,
 	SurfaceInfo,
 
-	Type_Count,
+	Count,
 
 #if GMOD_ALLOW_OLD_TYPES
 #if GMOD_ALLOW_DEPRECATED

@@ -201,7 +201,7 @@ public class LuaObject : ILuaObject
 		g_Lua.SetMember(this, name);
 	}
 
-	public void SetMemberDouble(ReadOnlySpan<char> name, double val) {
+	public void SetMemberDouble(scoped ReadOnlySpan<char> name, double val) {
 		if (!isTable())
 			return;
 		g_Lua!.PushNumber(val);
