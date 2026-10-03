@@ -156,6 +156,11 @@ public enum FCvar : int
 	MaterialSystemThread = 1 << 23,
 
 	/// <summary>
+	/// unused
+	/// </summary>
+	ArchiveXbox = 1 << 24,
+
+	/// <summary>
 	/// Used as a debugging tool necessary to check material system thread convars.
 	/// </summary>
 	AccessibleFromThreads = 1 << 25,
