@@ -31,6 +31,8 @@ static class AssetUtils
 			new("hl2/steam.inf", "garrysmod/steam.inf"),
 			new("sourceengine", "sourceengine", IsDirectory: true),
 			new("platform", "platform", IsDirectory: true),
+			new("hl2/maps", "garrysmod/maps", IsDirectory: true),
+			new("hl2/materials", "garrysmod/materials", IsDirectory: true),
 			new("hl2/resource", "garrysmod/resource", IsDirectory: true),
 			#if GMOD_DLL
 			new("hl2/gamemodes", "garrysmod/gamemodes", IsDirectory: true),

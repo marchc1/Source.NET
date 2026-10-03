@@ -18,7 +18,6 @@ using Source.Common.GarrysMod;
 using Source.Common.GarrysMod.Lua;
 using Source.Common.Input;
 using Source.Common.Launcher;
-using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.ShaderAPI;
 using Source.Common.SoundEmitterSystem;
