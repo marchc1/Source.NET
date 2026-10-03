@@ -653,6 +653,13 @@ public enum DataObjectType
 	NumTypes
 }
 
+public enum HillType
+{
+	None = 0,
+	Uphill,
+	Downhill,
+}
+
 public static class TraceFieldProps
 {
 	extension(ref Trace tr)
