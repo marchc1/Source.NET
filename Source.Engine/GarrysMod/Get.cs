@@ -160,9 +160,9 @@ public class Get(IServiceProvider appSystemFactory, EngineParms host_parms) : IG
 			}
 		}
 
-		strcpy(gameDir, host_parms.BaseDir);
+		strcpy(gameDir, Common.Gamedir);
 		FixSlashes(gameDir, '\\');
-		strcpy(gameDirParent, host_parms.BaseDir);
+		strcpy(gameDirParent, Common.Gamedir);
 		FixSlashes(gameDirParent, '\\');
 		StripLastDir(gameDirParent);
 	}
