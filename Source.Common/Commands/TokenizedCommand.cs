@@ -11,6 +11,7 @@ public struct TokenizedCommand
 	public static readonly CharacterSet DefaultBreakSet = new("{}()':");
 
 	int argCount;
+	int argv0Size;
 	int strlen;
 
 	char[]? argSBuffer;
@@ -32,6 +33,12 @@ public struct TokenizedCommand
 			return [];
 		if (argCount <= startingArg)
 			return [];
+
+		if (startingArg == 0)
+			return argSBuffer.AsSpan(0, strlen).SliceNullTerminatedString();
+
+		if (startingArg == 1)
+			return argv0Size != 0 ? argSBuffer.AsSpan(argv0Size, strlen - argv0Size).SliceNullTerminatedString() : [];
 
 		// Start at the first argument requested, and end at the last argument in ppArgs
 		Index startIdx = ppArgs[startingArg].Start;
@@ -103,6 +110,7 @@ public struct TokenizedCommand
 	[MemberNotNull(nameof(ppArgs))]
 	public void Reset() {
 		argCount = 0;
+		argv0Size = 0;
 		strlen = 0;
 		argSBuffer ??= new char[COMMAND_MAX_LENGTH];
 		ppArgs ??= new Range[COMMAND_MAX_ARGC];
@@ -160,6 +168,9 @@ public struct TokenizedCommand
 
 			while (size > 0 && argvBuf[size - 1] == '\0')
 				size--;
+
+			if (argCount == 1)
+				argv0Size = quoteStart ? start - 1 : start;
 
 			ppArgs[argCount++] = new(start, start + size);
 
