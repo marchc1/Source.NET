@@ -2,7 +2,7 @@
 
 namespace Source.Common.GarrysMod;
 
-public interface LuaUser
+public interface ILuaUser
 {
 	bool IsUsingLua();
 	void InitLibraries(ILuaInterface unk1);

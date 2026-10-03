@@ -7,6 +7,19 @@ public static class LuaVGUI
 {
 	public static readonly LuaClass PanelClass = new("Panel", LuaType.Panel, null, null);
 
+	static readonly LuaLibrary vgui = new("vgui");
+
+	static LuaVGUI() {
+		vgui.Add(new() { Name = "Create", Function = Create });
+		// vgui.Add(new() { Name = "GetAll", Function = GetAll });
+		// vgui.Add(new() { Name = "CursorVisible", Function = CursorVisible });
+		// vgui.Add(new() { Name = "IsHoveringWorld", Function = IsHoveringWorld });
+		// vgui.Add(new() { Name = "GetWorldPanel", Function = GetWorldPanel });
+		// vgui.Add(new() { Name = "FocusedHasParent", Function = FocusedHasParent });
+		// vgui.Add(new() { Name = "GetKeyboardFocus", Function = GetKeyboardFocus });
+		// vgui.Add(new() { Name = "GetHoveredPanel", Function = GetHoveredPanel });
+	}
+
 	public static ILuaObject? GetLuaTable(Panel panel) {
 		ILuaObject? table = panel.LuaTable;
 		if (table == null && g_Lua != null) {

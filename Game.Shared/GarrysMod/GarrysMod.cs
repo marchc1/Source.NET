@@ -228,8 +228,13 @@ public class GarrysMod : IGarrysMod
 #if GAME_DLL
 			// GarrysMod.FileServ.Add("lua/send.txt");
 #endif
-			// InitLuaLibraries(g_Lua);
-			// InitLuaClasses(g_Lua);
+#if CLIENT_DLL
+			LuaUser.InitLuaLibraries(g_Lua);
+			LuaClass.InitLuaClasses(g_Lua);
+#else
+			Game.Server.GarrysMod.LuaUser.InitLuaLibraries(g_Lua);
+			Game.Server.GarrysMod.LuaClass.InitLuaClasses(g_Lua);
+#endif
 #if CLIENT_DLL
 			g_Lua.Global().SetMember("SERVER", false);
 			g_Lua.Global().SetMember("CLIENT", true);
@@ -257,7 +262,11 @@ public class GarrysMod : IGarrysMod
 
 		public void Shutdown() {
 			g_LuaID++;
-			// ShutdownLuaClasses(g_Lua);
+#if CLIENT_DLL
+			LuaClass.ShutdownLuaClasses(g_Lua!);
+#else
+			Game.Server.GarrysMod.LuaClass.ShutdownLuaClasses(g_Lua!);
+#endif
 			get.LuaShared()!.CloseLuaInterface(g_Lua!);
 			g_Lua = null;
 			// if (g_LuaNetworkedVars == null)
