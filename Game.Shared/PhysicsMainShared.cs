@@ -699,7 +699,8 @@ namespace Game.Server
 		}
 
 		public void SimulateAngles(TimeUnit_t frameTime) {
-			throw new NotImplementedException();
+			QAngle angles = GetLocalAngles() + GetLocalAngularVelocity() * (float)frameTime;
+			SetLocalAngles(angles);
 		}
 	}
 }
