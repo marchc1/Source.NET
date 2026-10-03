@@ -203,6 +203,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public void Shutdown() {
 		ClientVoiceMgr_Shutdown();
+		Game.Client.GarrysMod.GarrysMod.Lua.Kill();
 	}
 
 	public void VoiceStatus(int entindex, bool talking) {

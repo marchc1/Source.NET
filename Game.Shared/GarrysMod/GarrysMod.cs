@@ -135,14 +135,24 @@ public class GarrysMod : IGarrysMod
 		Lua.Create();
 		Lua.OnLoaded();
 	}
+#endif
+
+#if CLIENT_DLL
+	const string LuaPathID = "lcl";
+#else
+	const string LuaPathID = "lsv";
+#endif
 
 	static LuaManager? g_LuaManager;
 
-	static class Lua
+	public static class Lua
 	{
 		public static bool Kill() {
+#if CLIENT_DLL
+			// todo: remove the Lua panels parented to the client DLL root panel
+#endif
 			if (g_LuaManager != null) {
-				get.LuaShared()!.UnMountLua("lsv");
+				get.LuaShared()!.UnMountLua(LuaPathID);
 				g_LuaManager.Shutdown();
 				g_LuaManager = null;
 			}
@@ -151,18 +161,21 @@ public class GarrysMod : IGarrysMod
 			return true;
 		}
 
-		public static void Create() {
+		public static bool Create() {
 			Kill();
+#if CLIENT_DLL
+			// filesystem.Language().ReloadLanguage();
+#endif
 
 			foreach (ILegacyAddons.Information addon in filesystem.LegacyAddons().GetList()) {
 				if (!string.IsNullOrEmpty(addon.LuaPath))
-					get.LuaShared()!.MountLuaAdd(addon.LuaPath, "lsv");
+					get.LuaShared()!.MountLuaAdd(addon.LuaPath, LuaPathID);
 				if (!string.IsNullOrEmpty(addon.Placeholder4))
-					get.LuaShared()!.MountLuaAdd(addon.Placeholder4, "lsv");
+					get.LuaShared()!.MountLuaAdd(addon.Placeholder4, LuaPathID);
 			}
-			get.LuaShared()!.MountLuaAdd("workshop/lua", "lsv");
-			get.LuaShared()!.MountLuaAdd("workshop/gamemodes", "lsv");
-			get.LuaShared()!.MountLua("lsv");
+			get.LuaShared()!.MountLuaAdd("workshop/lua", LuaPathID);
+			get.LuaShared()!.MountLuaAdd("workshop/gamemodes", LuaPathID);
+			get.LuaShared()!.MountLua(LuaPathID);
 
 			if (g_LuaManager != null)
 				Error("New gLUA when old one exists!\n");
@@ -171,38 +184,75 @@ public class GarrysMod : IGarrysMod
 			// 	Error("New gGM when old one exists!\n");
 			// gGM = new CLuaGamemode();
 			g_LuaManager.Startup();
+#if GAME_DLL
 			// gGM.LoadCurrentlyActiveGamemode();
 			// GModDataPack.BuildSearchPaths();
+#endif
+			return true;
 		}
 
+#if GAME_DLL
 		public static void OnLoaded() {
 			// GarrysMod.Ammo.Refresh();
 		}
+#endif
 	}
 
 	class LuaManager
 	{
 		public void Startup() {
+#if CLIENT_DLL
+			Msg("Clientside Lua startup!\n");
+			enginevgui.UpdateCustomProgressBar(0.95f, "Starting Lua...");
+#endif
 			// if (g_LuaNetworkedVars != null)
 			// 	Error("g_LuaNetworkedVars");
 			// g_LuaNetworkedVars = new LuaNetworkedVars();
 			if (g_Lua != null)
 				Error("CLuaManager::Startup Lua already exsits?\n");
 
+#if CLIENT_DLL
+			g_Lua = get.LuaShared()!.CreateLuaInterface(Realm.Client, false);
+			g_Lua.Init(LuaGameCallback.g_LuaCallback, Singleton<ICommandLine>().CheckParm("-withjit"));
+			g_Lua.SetPathID(LuaPathID);
+			g_Lua.SetType(0);
+#else
 			g_Lua = get.LuaShared()!.CreateLuaInterface(Realm.Server, false);
 			g_Lua.Init(Game.Server.GarrysMod.LuaGameCallback.g_LuaCallback, Singleton<ICommandLine>().CheckParm("-withjit"));
-			g_Lua.SetPathID("lsv");
+			g_Lua.SetPathID(LuaPathID);
 			g_Lua.SetType(1);
+#endif
 			g_Lua.Global().SetMember("VERSION", (float)get.Version());
 			g_Lua.Global().SetMember("VERSIONSTR", get.VersionStr());
 			g_Lua.Global().SetMember("BRANCH", get.Branch());
+#if GAME_DLL
 			// GarrysMod.FileServ.Add("lua/send.txt");
+#endif
 			// InitLuaLibraries(g_Lua);
 			// InitLuaClasses(g_Lua);
+#if CLIENT_DLL
+			g_Lua.Global().SetMember("SERVER", false);
+			g_Lua.Global().SetMember("CLIENT", true);
+#else
 			g_Lua.Global().SetMember("SERVER", true);
 			g_Lua.Global().SetMember("CLIENT", false);
+#endif
 			// MakeLuaNULLEntity();
 			// g_Lua.FindAndRunScript("includes/init.lua", true, true, "!UNKNOWN", true);
+#if CLIENT_DLL
+			// if (gGM == null)
+			// 	Error("We should have a gGM at this point!");
+			// g_Lua.FindAndRunScript("derma/init.lua", true, true, "!UNKNOWN", true);
+			// g_Lua.RunString("Startup", "", "require('notification');", true, true);
+			// gGM.LoadGamemode("base", false);
+			// RunScriptsInFolder("autorun", "!RELOAD");
+			// RunScriptsInFolder("autorun/client", "!RELOAD_CL");
+			// RunScriptsInFolder("postprocess", "!RELOAD_CL");
+			// RunScriptsInFolder("vgui", "!RELOAD_CL");
+			// RunScriptsInFolder("matproxy", "!RELOAD_CL");
+			// g_Lua.FindAndRunScript("skins/default.lua", true, true, "!UNKNOWN", true);
+			enginevgui.UpdateCustomProgressBar(0.96f, "Lua Started!");
+#endif
 		}
 
 		public void Shutdown() {
@@ -217,6 +267,7 @@ public class GarrysMod : IGarrysMod
 		}
 	}
 
+#if GAME_DLL
 	static bool IsGModAdmin(bool unk) {
 		if (gpGlobals.MaxClients == 1)
 			return true;

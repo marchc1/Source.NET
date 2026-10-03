@@ -692,11 +692,11 @@ public static class CFormatting
 		int originalSize = target.Length;
 
 		Span<char> buffer = stackalloc char[256];
-		while (!reader.Overflowed()) {
+		while (!reader.Overflowed() && !target.IsEmpty) {
 			// Try reading literal
 
 #pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
-			Span<char> read = buffer[0..reader.ReadLiteral(buffer)];
+			Span<char> read = buffer[0..reader.ReadLiteral(buffer[..Math.Min(buffer.Length, target.Length)])];
 #pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			if (read.Length > 0) {
 				read.CopyTo(target);

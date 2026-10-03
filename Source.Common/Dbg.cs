@@ -156,6 +156,7 @@ public static class Dbg
 			Span<char> target = new(piece, 2048);
 			writer = sprintf(target, ref reader, args);
 
+			SpewInfo.Value = info;
 			ret = writeOnePiece();
 			SpewInfo.Value = null;
 			if (!handleOnePiece(ret))
