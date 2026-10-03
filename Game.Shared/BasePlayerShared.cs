@@ -208,6 +208,10 @@ public partial class
 		return (int)fov;
 	}
 
+	public BaseEntity? GetFOVOwner() => ZoomOwner.Get();
+
+	public void ClearZoomOwner() => ZoomOwner.Set(null);
+
 	public bool SetFOV(BaseEntity requester, int fov, float zoomRate = 0, int zoomStart = 0) {
 		Assert(requester != null);
 		if (requester == null)
