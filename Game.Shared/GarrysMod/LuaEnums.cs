@@ -160,7 +160,7 @@ public class LuaEnums : LuaUser
 		global.SetMemberEnumValuePrefixed(KEY, "COUNT", ButtonCode.KeyCount);
 
 		global.SetMemberEnumValuePrefixed(MOUSE, "FIRST", ButtonCode.MouseFirst);
-		global.SetMemberEnumValuePrefixed(MOUSE, "LEFT", ButtonCode.MouseLast);
+		global.SetMemberEnumValuePrefixed(MOUSE, "LEFT", ButtonCode.MouseLeft);
 		global.SetMemberEnumValuePrefixed(MOUSE, "RIGHT", ButtonCode.MouseRight);
 		global.SetMemberEnumValuePrefixed(MOUSE, "MIDDLE", ButtonCode.MouseMiddle);
 		global.SetMemberEnumValuePrefixed(MOUSE, "4", ButtonCode.Mouse4);
