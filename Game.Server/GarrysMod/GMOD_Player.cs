@@ -59,6 +59,16 @@ public partial class GMOD_Player : HL2MP_Player
 		base.InitialSpawn();
 	}
 
+	public override BaseEntity EntSelectSpawnPoint() {
+		BaseEntity? spot = null;
+		while ((spot = gEntList.FindEntityByClassname(spot, "info_player_start")) != null) {
+			if (spot.HasSpawnFlags(1))
+				return spot;
+		}
+
+		return base.EntSelectSpawnPoint();
+	}
+
 	[NetworkName("m_iGModPlayerFlags")]
 	public int GModPlayerFlags;
 	[NetworkName("m_HoveredWidget")]
