@@ -20,7 +20,21 @@ public class GModBase : Panel
 		return BasePanel;
 	}
 
+	static Panel? ParentToHUDPanel;
+
+	public static Panel? GetGModParentToHUDPanel() {
+		if (ParentToHUDPanel == null) {
+			GModBase panel = new("GModParentToHUDPanel");
+			ParentToHUDPanel = panel;
+			ParentToHUDPanel.SetParent(enginevgui.GetPanel(VGuiPanelType.ClientDll));
+			// panel.Unknown1 = true;
+		}
+
+		return ParentToHUDPanel;
+	}
+
 	public GModBase(ReadOnlySpan<char> panelName) : base(null, panelName) {
+		FirstThink = false;
 		SetParent(enginevgui.GetPanel(VGuiPanelType.Root));
 		SetScheme(SchemeManager.LoadSchemeFromFileEx(enginevgui.GetPanel(VGuiPanelType.ClientDll), "resource/ClientScheme.res", "ClientScheme")!);
 		SetProportional(false);
